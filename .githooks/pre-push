@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Pre-push guard: не пускаем в main код, не прошедший lint и typecheck.
+# Обход в экстренном случае: git push --no-verify
+set -euo pipefail
+
+protected_branch="main"
+run_checks=0
+
+# git подаёт на stdin строки: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/"$protected_branch") run_checks=1 ;;
+  esac
+done
+
+if [ "$run_checks" -eq 0 ]; then
+  exit 0
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-push: npm не найден — пропускаю проверки." >&2
+  exit 0
+fi
+
+echo "pre-push: push в '$protected_branch' — запускаю lint и typecheck…"
+
+if ! npm run --silent lint; then
+  echo "pre-push: ✗ ESLint не прошёл. Push отменён (обход: git push --no-verify)." >&2
+  exit 1
+fi
+
+if ! npm run --silent typecheck; then
+  echo "pre-push: ✗ tsc нашёл ошибки. Push отменён (обход: git push --no-verify)." >&2
+  exit 1
+fi
+
+echo "pre-push: ✓ lint и typecheck прошли."
+exit 0

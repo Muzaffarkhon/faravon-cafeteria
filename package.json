@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
-    "bot": "tsx bot/bot.ts"
+    "bot": "tsx bot/bot.ts",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

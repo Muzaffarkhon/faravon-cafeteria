@@ -112,8 +112,18 @@ src/app/api/health/           проверка соединения с БД
 
 1. `npm run lint` — ESLint
 2. `npm run typecheck` — `tsc --noEmit`
-3. `prisma migrate diff … --exit-code` — миграции полностью описывают `schema.prisma` (нет дрейфа: изменил схему — добавь миграцию)
-4. `prisma migrate deploy` — миграции применяются к чистой БД без ошибок
+3. `prisma migrate deploy` — миграции применяются к чистой БД без ошибок
+4. `prisma migrate diff … --exit-code` — миграции полностью описывают `schema.prisma` (нет дрейфа: изменил схему — добавь миграцию)
+
+### Pre-push хук
+
+`.githooks/pre-push` + `core.hooksPath=.githooks` (ставится автоматически через `npm`-скрипт
+`prepare` при `npm install`). Перед push в `main` локально гоняет `lint` + `typecheck` и
+отменяет push при ошибке. Обход в экстренном случае — `git push --no-verify`.
+
+> Настоящей защиты ветки на GitHub (блокировка merge до зелёного CI) нет: для приватного
+> репозитория она требует GitHub Pro. При переходе на Pro или публикации репозитория
+> включается ruleset одной командой.
 
 ## Развёртывание (production)
 
