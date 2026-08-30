@@ -166,6 +166,26 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
 `docker-compose.yml` в репозитории поднимает только PostgreSQL для локальной разработки;
 для прод-стека добавьте сервис приложения из образа выше.
 
+### Vercel
+
+`build` = `prisma generate && next build` (Vercel не запускает postinstall Prisma сам).
+
+1. Vercel → **Add New… → Project → Import** `Muzaffarkhon/faravon-cafeteria`
+   (авторизовать GitHub-app для приватного репо).
+2. Framework — Next.js (определяется автоматически), Build/Output — по умолчанию.
+3. **Environment Variables** (Production и Preview): `DATABASE_URL` (pooled-URL managed
+   Postgres), `AUTH_SECRET` (32+ байт), `PLATFORM_URL` (`https://<project>.vercel.app`),
+   `TELEGRAM_BOT_TOKEN` (если бот подключён). `NODE_ENV` Vercel ставит сам.
+4. Deploy.
+5. **Миграции** один раз после первого деплоя — локально с боевым URL:
+   `DATABASE_URL="<prod-url>" npx prisma migrate deploy` (в build их не кладём).
+   Затем один раз `DATABASE_URL="<prod-url>" npm run db:seed` — начальные справочники и
+   учётка суперадмина (пароль сменить сразу).
+
+Managed Postgres: любой (Neon / Vercel Postgres / Supabase) — важен **пул соединений**
+(serverless-функции + прямой Postgres = исчерпание коннектов); используйте pooled-строку
+(`?pgbouncer=true` / отдельный pooler-хост).
+
 ### Telegram-бот
 
 Отдельный always-on процесс (`npm run bot`, long polling). Держите под process-manager
