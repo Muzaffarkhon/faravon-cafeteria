@@ -1,0 +1,43 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
+import { db } from "@/lib/db";
+import { getSession, createSession } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+
+export type ChangeState = { error?: string };
+
+export async function changePasswordAction(
+  _prev: ChangeState,
+  formData: FormData,
+): Promise<ChangeState> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (password.length < 8) return { error: "Пароль должен быть не короче 8 символов." };
+  if (!/[a-zа-я]/i.test(password) || !/[0-9]/.test(password)) {
+    return { error: "Пароль должен содержать буквы и цифры." };
+  }
+  if (password !== confirm) return { error: "Пароли не совпадают." };
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { passwordHash, mustChangePassword: false, otpExpiresAt: null },
+  });
+  await audit({ actorId: session.user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: session.user.id });
+
+  await createSession({
+    sub: session.user.id,
+    login: session.user.login,
+    roles: session.user.roles,
+    employeeId: session.user.employeeId,
+    mustChangePassword: false,
+  });
+
+  redirect("/");
+}

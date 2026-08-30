@@ -1,0 +1,271 @@
+// Кафетерий льгот «Фаровон» — схема данных (ТЗ v2)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  // Shadow DB is created from template0 to avoid the postgis image's template1 collation quirk
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+/// Роли доступа (RBAC), раздел 4 ТЗ v2
+enum Role {
+  SUPERADMIN
+  CONTENT_MANAGER
+  APPROVER
+  HR_BP
+  ANALYST
+  EMPLOYEE
+}
+
+enum Block {
+  RECOGNITION // Программы признания (5.4)
+  CARE        // Витрина заботы (5.5)
+  FLEX        // Реестр гибких льгот (5.6)
+}
+
+enum CardStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum PartnerStatus {
+  ACTIVE
+  SOON
+  ARCHIVED
+}
+
+enum PeriodStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+/// Статусы позиции заявки, раздел 5.7
+enum ItemStatus {
+  DRAFT
+  PENDING          // На рассмотрении
+  APPROVED         // Одобрено согласующим
+  COUPON_CREATED   // Купон сформирован
+  COUPON_ISSUED    // Купон выдан
+  REJECTED         // Отклонено
+  CANCELLED        // Отменено сотрудником
+}
+
+enum CouponStatus {
+  CREATED
+  ISSUED
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  PROBATION
+  TERMINATED
+}
+
+model Employee {
+  id           String           @id @default(cuid())
+  tabNumber    String           @unique
+  fullName     String
+  position     String
+  department   String
+  phone        String?
+  telegramId   String?          @unique
+  status       EmploymentStatus @default(ACTIVE)
+  terminatedAt DateTime?
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user         User?
+  applications Application[]
+  coupons      Coupon[]
+}
+
+model User {
+  id                String    @id @default(cuid())
+  login             String    @unique
+  passwordHash      String
+  mustChangePassword Boolean  @default(true)
+  twoFactorEnabled  Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  roles             Role[]    @default([EMPLOYEE])
+  lastLoginAt       DateTime?
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  otpExpiresAt      DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  employeeId String?   @unique
+
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  decisions     ApplicationItem[] @relation("DecidedBy")
+}
+
+/// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
+model IdentificationCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  employeeId String
+  issuedById String?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+}
+
+model Partner {
+  id            String        @id @default(cuid())
+  name          String
+  category      String?
+  contactPerson String?
+  contacts      String?
+  discountType  String?
+  terms         String?
+  contractStart DateTime?
+  contractEnd   DateTime?
+  responsible   String?
+  status        PartnerStatus @default(ACTIVE)
+  logoUrl       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  cards   BenefitCard[]
+  coupons Coupon[]
+}
+
+model BenefitCard {
+  id          String     @id @default(cuid())
+  block       Block
+  title       String
+  description String?
+  condition   String?
+  imageUrl    String?
+  category    String?
+  isActive    Boolean    @default(true) // false => метка «скоро»
+  status      CardStatus @default(PUBLISHED)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  partner   Partner? @relation(fields: [partnerId], references: [id])
+  partnerId String?
+
+  items ApplicationItem[]
+}
+
+model Period {
+  id             String       @id @default(cuid())
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  windowStart    DateTime
+  windowEnd      DateTime
+  status         PeriodStatus @default(DRAFT)
+  maxSelections  Int          @default(4)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  applications Application[]
+  coupons      Coupon[]
+}
+
+model Application {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  period     Period   @relation(fields: [periodId], references: [id])
+  periodId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  items ApplicationItem[]
+
+  @@unique([employeeId, periodId])
+}
+
+model ApplicationItem {
+  id            String     @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String
+  card          BenefitCard @relation(fields: [cardId], references: [id])
+  cardId        String
+  status        ItemStatus  @default(DRAFT)
+  decisionComment String?
+  decidedBy     User?       @relation("DecidedBy", fields: [decidedById], references: [id])
+  decidedById   String?
+  decidedAt     DateTime?
+  submittedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  coupon Coupon?
+
+  @@index([applicationId])
+  @@index([status])
+}
+
+model Coupon {
+  id              String       @id @default(cuid())
+  number          String       @unique
+  item            ApplicationItem @relation(fields: [itemId], references: [id])
+  itemId          String       @unique
+  partner         Partner?     @relation(fields: [partnerId], references: [id])
+  partnerId       String?
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+  employeeId      String
+  period          Period       @relation(fields: [periodId], references: [id])
+  periodId        String
+  type            String       @default("PROMO") // PROMO | QR | PDF | PHYSICAL
+  nominal         String?
+  status          CouponStatus @default(CREATED)
+  deliveryChannel String       @default("PORTAL")
+  issuedAt        DateTime?
+  validUntil      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model TextBlock {
+  key       String   @id // GOAL | NOVELTY_NOTICE
+  title     String
+  content   String
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  event     String
+  channel   String   @default("TELEGRAM")
+  payload   Json?
+  sentAt    DateTime @default(now())
+  readAt    DateTime?
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

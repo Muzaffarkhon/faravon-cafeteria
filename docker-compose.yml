@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: faravon_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: faravon
+      POSTGRES_PASSWORD: faravon
+      POSTGRES_DB: faravon_cafeteria
+    ports:
+      - "5433:5432"
+    volumes:
+      - faravon_pgdata:/var/lib/postgresql/data
+
+volumes:
+  faravon_pgdata:
