@@ -1,41 +1,20 @@
-/**
- * Telegram-бот авторизации (§5.1) — режим long polling для локальной разработки
- * и не-serverless хостинга. На Vercel вместо этого используется webhook-роут
- * `src/app/api/telegram/route.ts` (регистрация: `npm run webhook`).
- * Запуск: npm run bot   (нужен TELEGRAM_BOT_TOKEN в .env)
- */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { linkByPhone, linkByCode, reissueOtp } from "./link";
+import { NextResponse, type NextRequest } from "next/server";
+import { linkByPhone, linkByCode, reissueOtp } from "@/lib/telegram-link";
 
-// --- минимальная загрузка .env (Prisma грузит свой, но токен бота — здесь) ---
-try {
-  for (const line of readFileSync(resolve(process.cwd(), ".env"), "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?(.*?)"?\s*$/i);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
-  }
-} catch {
-  /* .env не обязателен */
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const PLATFORM_URL = process.env.PLATFORM_URL || "http://localhost:3001";
-
-if (!TOKEN) {
-  console.error("TELEGRAM_BOT_TOKEN не задан в .env — Telegram-бот не запущен.");
-  process.exit(1);
-}
-
-const API = `https://api.telegram.org/bot${TOKEN}`;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+const PLATFORM_URL = process.env.PLATFORM_URL || "";
 
 async function tg(method: string, body: Record<string, unknown>) {
-  const r = await fetch(`${API}/${method}`, {
+  if (!TOKEN) return;
+  await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return r.json() as Promise<{ ok: boolean; result?: unknown; description?: string }>;
 }
 
 function send(chatId: number, text: string, extra: Record<string, unknown> = {}) {
@@ -63,7 +42,7 @@ function grantMessage(login: string, otp: string, fullName: string) {
     `🔑 Логин: <code>${login}</code>\n` +
     `🔒 Одноразовый пароль: <code>${otp}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
-    `Вход: ${PLATFORM_URL}/login`
+    (PLATFORM_URL ? `Вход: ${PLATFORM_URL}/login` : "")
   );
 }
 
@@ -97,7 +76,6 @@ async function handle(msg: TgMessage) {
       await send(chatId, WELCOME, CONTACT_KEYBOARD);
       return;
     }
-
     if (text.startsWith("/code")) {
       const code = text.replace(/^\/code@?\S*/, "").trim();
       if (!code) {
@@ -108,7 +86,6 @@ async function handle(msg: TgMessage) {
       await send(chatId, grantMessage(g.login, g.otp, g.fullName));
       return;
     }
-
     if (text === "/login") {
       const g = await reissueOtp(telegramId);
       await send(chatId, grantMessage(g.login, g.otp, g.fullName));
@@ -117,37 +94,22 @@ async function handle(msg: TgMessage) {
 
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
-    const reason = e instanceof Error ? e.message : "Не удалось обработать запрос.";
-    await send(chatId, `⚠️ ${reason}`);
+    await send(chatId, `⚠️ ${e instanceof Error ? e.message : "Не удалось обработать запрос."}`);
   }
 }
 
-async function main() {
-  const me = await tg("getMe", {});
-  if (!me.ok) {
-    console.error("Не удалось подключиться к Telegram API:", me.description);
-    process.exit(1);
+export async function POST(req: NextRequest) {
+  if (!SECRET || req.headers.get("x-telegram-bot-api-secret-token") !== SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  console.log(`Telegram-бот запущен: @${(me.result as { username?: string }).username}`);
 
-  let offset = 0;
-  for (;;) {
-    try {
-      const res = await tg("getUpdates", { offset, timeout: 30, allowed_updates: ["message"] });
-      if (!res.ok) {
-        console.error("getUpdates:", res.description);
-        await sleep(3000);
-        continue;
-      }
-      for (const upd of (res.result as { update_id: number; message?: TgMessage }[]) ?? []) {
-        offset = upd.update_id + 1;
-        if (upd.message) await handle(upd.message);
-      }
-    } catch (e) {
-      console.error("Ошибка цикла опроса:", e);
-      await sleep(3000);
-    }
+  let update: { message?: TgMessage };
+  try {
+    update = await req.json();
+  } catch {
+    return NextResponse.json({ ok: true });
   }
+
+  if (update.message) await handle(update.message);
+  return NextResponse.json({ ok: true });
 }
-
-main();

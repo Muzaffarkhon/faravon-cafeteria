@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "faravon_session";
-const PUBLIC_PATHS = ["/login", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/api/health", "/api/telegram"];
 
 function secret() {
   return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");

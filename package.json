@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "bot": "tsx bot/bot.ts",
+    "webhook": "tsx scripts/set-webhook.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "prisma": {

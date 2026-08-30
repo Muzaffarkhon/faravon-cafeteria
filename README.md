@@ -173,9 +173,10 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
 1. Vercel → **Add New… → Project → Import** `Muzaffarkhon/faravon-cafeteria`
    (авторизовать GitHub-app для приватного репо).
 2. Framework — Next.js (определяется автоматически), Build/Output — по умолчанию.
-3. **Environment Variables** (Production и Preview): `DATABASE_URL` (pooled-URL managed
-   Postgres), `AUTH_SECRET` (32+ байт), `PLATFORM_URL` (`https://<project>.vercel.app`),
-   `TELEGRAM_BOT_TOKEN` (если бот подключён). `NODE_ENV` Vercel ставит сам.
+3. **Environment Variables** (Production и Preview): `DATABASE_URL` (pooled-URL Neon —
+   `...-pooler.<region>.aws.neon.tech/...?sslmode=require`), `AUTH_SECRET` (32+ байт),
+   `PLATFORM_URL` (`https://<project>.vercel.app`), `TELEGRAM_BOT_TOKEN` +
+   `TELEGRAM_WEBHOOK_SECRET` (для webhook-бота). `NODE_ENV` Vercel ставит сам.
 4. Deploy.
 5. **Миграции** один раз после первого деплоя — локально с боевым URL:
    `DATABASE_URL="<prod-url>" npx prisma migrate deploy` (в build их не кладём).
@@ -188,9 +189,23 @@ Managed Postgres: любой (Neon / Vercel Postgres / Supabase) — важен 
 
 ### Telegram-бот
 
-Отдельный always-on процесс (`npm run bot`, long polling). Держите под process-manager
-(pm2 / systemd / отдельный контейнер) — на serverless-платформах (Vercel) он не живёт.
-Альтернатива: переписать на webhook (Next route handler + `setWebhook`).
+Два режима, одна логика идентификации:
+
+- **Webhook** (`src/app/api/telegram/route.ts`) — для Vercel. Telegram шлёт апдейты POST-ом;
+  роут проверяет заголовок `X-Telegram-Bot-Api-Secret-Token` против `TELEGRAM_WEBHOOK_SECRET`.
+  Регистрация после деплоя:
+  ```bash
+  PLATFORM_URL=https://<project>.vercel.app \
+  TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
+  npm run webhook            # npm run webhook delete — вернуться на polling; ... info — статус
+  ```
+  Env на Vercel: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `PLATFORM_URL`.
+
+- **Long polling** (`npm run bot`, `bot/bot.ts`) — для локальной разработки и не-serverless
+  хостинга (pm2 / systemd / отдельный контейнер).
+
+Логика привязки и выдачи OTP: `src/lib/telegram-link.ts` (webhook) и `bot/link.ts`
+(самодостаточный аналог для polling).
 
 ### Чек-лист безопасности
 
