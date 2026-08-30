@@ -1,5 +1,12 @@
 # Кафетерий льгот «Фаровон»
 
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)
+![status](https://img.shields.io/badge/status-MVP-orange)
+
 Веб-платформа выбора корпоративных льгот: личный кабинет сотрудника + админ-панель.
 Стек: Next.js 16 (App Router, TS), Prisma 6 + PostgreSQL, Tailwind 4.
 
@@ -96,9 +103,65 @@ src/app/(app)/applications/   «Мои заявки и купоны»
 src/app/api/health/           проверка соединения с БД
 ```
 
+## Развёртывание (production)
+
+**Требования:** Node 20+, PostgreSQL 14+ (управляемый или свой), публичный HTTPS-домен.
+
+### Переменные окружения
+
+| Переменная | Назначение |
+|---|---|
+| `DATABASE_URL` | строка подключения к боевой БД |
+| `AUTH_SECRET` | ключ подписи сессий — **32+ случайных байта**, не из `.env.example` (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `PLATFORM_URL` | публичный URL платформы (используется в сообщениях бота) |
+| `TELEGRAM_BOT_TOKEN` | токен бота от @BotFather (без него бот не стартует, вход по паролю работает) |
+| `NODE_ENV=production` | включает `Secure` для cookie сессии |
+| `SHADOW_DATABASE_URL` | **только для разработки** (`migrate dev`); в проде не нужен |
+
+### Сборка и запуск (без Docker)
+
+```bash
+npm ci
+npx prisma generate
+npx prisma migrate deploy      # применить миграции; НИКОГДА не migrate dev / db push в проде
+npm run build
+npm run start                  # next start на :3000, за reverse-proxy с TLS
+npm run db:seed                # один раз при первом развёртывании (создаёт справочники и учётки)
+```
+
+`GET /api/health` → `{"ok":true}` — проба liveness/readiness.
+
+### Docker
+
+`Dockerfile` — multi-stage, `output: "standalone"`. Контейнер при старте сам выполняет
+`prisma migrate deploy`, затем поднимает сервер.
+
+```bash
+docker build -t faravon-cafeteria .
+docker run -p 3000:3000 --env-file .env faravon-cafeteria
+```
+
+`docker-compose.yml` в репозитории поднимает только PostgreSQL для локальной разработки;
+для прод-стека добавьте сервис приложения из образа выше.
+
+### Telegram-бот
+
+Отдельный always-on процесс (`npm run bot`, long polling). Держите под process-manager
+(pm2 / systemd / отдельный контейнер) — на serverless-платформах (Vercel) он не живёт.
+Альтернатива: переписать на webhook (Next route handler + `setWebhook`).
+
+### Чек-лист безопасности
+
+- `AUTH_SECRET` — сильный, уникальный для окружения; `.env` не в git (уже так).
+- PostgreSQL недоступен из интернета; пользователь БД без superuser-прав.
+- Только HTTPS; корректный `PLATFORM_URL`.
+- После первого входа сменить пароль `superadmin`; в проде не сидировать демо-учётки сотрудников.
+- Регулярные бэкапы БД; хранение журнала `AuditLog` согласно политике (§9).
+- Обновлять миграции только через `prisma migrate deploy`.
+
 ## Дальнейшие итерации
 
-Редактирование текстовых блоков («Цель программы», уведомление о новизне), настройка
-периодов/окон выбора, загрузка изображений карточек в хранилище, отчёты и продуктовые
-метрики, доставка уведомлений в Telegram, авторизация через Telegram-бот/OTP, экспорт
-реестров в XLSX. Открытые вопросы — Приложение А ТЗ v2.
+Загрузка изображений карточек в объектное хранилище, доставка уведомлений в Telegram
+(модель `Notification` уже пишется), редактируемые шаблоны уведомлений и матрица SLA-эскалаций,
+история версий карточек, 2FA для админ-ролей, CI (lint + typecheck + `prisma migrate diff`).
+Открытые вопросы — Приложение А ТЗ v2.

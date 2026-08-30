@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  // Self-contained server bundle for container/production deployment.
+  output: "standalone",
 };
 
 export default nextConfig;
