@@ -16,6 +16,10 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "deepmerge-ts": "^8.0.0"
+  },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",

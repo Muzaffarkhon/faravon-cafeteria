@@ -158,6 +158,7 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
 - После первого входа сменить пароль `superadmin`; в проде не сидировать демо-учётки сотрудников.
 - Регулярные бэкапы БД; хранение журнала `AuditLog` согласно политике (§9).
 - Обновлять миграции только через `prisma migrate deploy`.
+- `npm audit` — чисто (транзитивные `uuid` / `deepmerge-ts` подтянуты через `overrides` в `package.json`).
 
 ## Дальнейшие итерации
 
