@@ -1,5 +1,6 @@
 # Кафетерий льгот «Фаровон»
 
+[![CI](https://github.com/Muzaffarkhon/faravon-cafeteria/actions/workflows/ci.yml/badge.svg)](https://github.com/Muzaffarkhon/faravon-cafeteria/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
@@ -79,6 +80,8 @@ npm run dev               # http://localhost:3000 (или 3001, если 3000 з
 |---|---|
 | `npm run dev` | dev-сервер |
 | `npm run bot` | Telegram-бот авторизации (нужен `TELEGRAM_BOT_TOKEN` в `.env`) |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:migrate` | `prisma migrate dev` |
 | `npm run db:seed` | наполнение справочников и учёток |
 | `npm run db:studio` | Prisma Studio |
@@ -102,6 +105,15 @@ src/app/(app)/                ЛК: layout + page + actions (toggle/submit/cance
 src/app/(app)/applications/   «Мои заявки и купоны»
 src/app/api/health/           проверка соединения с БД
 ```
+
+## CI
+
+`.github/workflows/ci.yml` (push в `main` + pull request), поднимает Postgres-сервис:
+
+1. `npm run lint` — ESLint
+2. `npm run typecheck` — `tsc --noEmit`
+3. `prisma migrate diff … --exit-code` — миграции полностью описывают `schema.prisma` (нет дрейфа: изменил схему — добавь миграцию)
+4. `prisma migrate deploy` — миграции применяются к чистой БД без ошибок
 
 ## Развёртывание (production)
 
