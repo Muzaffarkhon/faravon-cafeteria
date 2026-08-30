@@ -30,13 +30,12 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
-      SHADOW_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_shadow?schema=public
       AUTH_SECRET: ci-placeholder-not-a-secret-0000000000000000
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -52,13 +51,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Migrations apply to a clean database
+        run: npx prisma migrate deploy
+
       - name: Migrations represent the schema (no drift)
         run: >-
           npx prisma migrate diff
-          --from-migrations ./prisma/migrations
+          --from-url "$DATABASE_URL"
           --to-schema-datamodel ./prisma/schema.prisma
-          --shadow-database-url "$SHADOW_DATABASE_URL"
           --exit-code
-
-      - name: Migrations apply to a clean database
-        run: npx prisma migrate deploy
