@@ -17,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className="h-full antialiased">
-      <body className="min-h-full bg-canvas text-ink">{children}</body>
+      {/* suppressHydrationWarning: расширения браузера (антибаннеры, менеджеры
+          паролей) дописывают атрибуты в <body> до гидратации — это не наш рассинхрон */}
+      <body className="min-h-full bg-canvas text-ink" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
