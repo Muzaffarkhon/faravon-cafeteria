@@ -132,7 +132,7 @@ async function main() {
   console.log(`Telegram-бот запущен: @${(me.result as { username?: string }).username}`);
 
   // Фоновая доставка уведомлений из таблицы Notification (§5.10)
-  startNotificationLoop((chatId, text) => send(chatId, text));
+  startNotificationLoop();
 
   let offset = 0;
   for (;;) {

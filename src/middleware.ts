@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "faravon_session";
-const PUBLIC_PATHS = ["/login", "/api/health", "/api/telegram"];
+const PUBLIC_PATHS = ["/login"];
 
 function secret() {
   return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
@@ -39,8 +39,10 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Пропускаем внутренние маршруты Next и любые статические файлы с расширением
-    // (иконки, логотип из /public и т.п.) — они не должны редиректиться на /login.
-    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|woff2?)$).*)",
+    // Гейт сессии — только для страниц. Пропускаем:
+    //  • /api/* — роуты авторизуются сами (webhook-секрет, CRON_SECRET, health публичен);
+    //  • внутренние маршруты Next;
+    //  • статические файлы с расширением (иконки, логотип из /public и т.п.).
+    "/((?!api|_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|woff2?)$).*)",
   ],
 };
