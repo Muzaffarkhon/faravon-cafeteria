@@ -171,7 +171,9 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
 ### Vercel
 
 `build` = `prisma generate && next build` (Vercel не запускает postinstall Prisma сам).
-`vercel.json` в репозитории задаёт cron-доставку уведомлений — подхватывается автоматически.
+`vercel.json` в репозитории не держим: cron на Hobby ограничен раз в сутки и валит
+деплой; доставка уведомлений — через inline `after()` + внешний планировщик
+(см. «Доставка уведомлений»).
 
 **Первичная настройка:**
 
@@ -247,8 +249,8 @@ Telegram выполняет `deliverTelegramNotifications` (`src/lib/notificatio
 
 | Способ | Интервал | Настройка |
 |--------|----------|-----------|
-| **cron-job.org** (основной, бесплатно) | 1 мин | новая Cronjob: URL `https://<домен>/api/cron/deliver-notifications`, метод GET, заголовок `Authorization: Bearer <CRON_SECRET>` |
-| **Vercel Cron** (`vercel.json`, запасной) | 1 час на Hobby (`0 * * * *`); можно `* * * * *` на Pro | ничего, подхватывается при деплое |
+| **cron-job.org** (бесплатно) | 1 мин | новая Cronjob: URL `https://<домен>/api/cron/deliver-notifications`, метод GET, заголовок `Authorization: Bearer <CRON_SECRET>` |
+| **Vercel Cron** | — | На Hobby cron разрешён только раз в сутки, поэтому `vercel.json` в репозитории **не держим**. На Pro можно добавить: `{"crons":[{"path":"/api/cron/deliver-notifications","schedule":"* * * * *"}]}` |
 
 Счётчик «Согласование» и список `/review` в самом приложении обновляются мгновенно и от
 планировщика не зависят — задержка касается только Telegram-сообщений.
