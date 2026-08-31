@@ -14,6 +14,9 @@
     "db:reset": "prisma migrate reset --force",
     "bot": "tsx bot/bot.ts",
     "webhook": "tsx scripts/set-webhook.ts",
+    "flow:status": "tsx scripts/flow-status.ts",
+    "flow:reset": "tsx scripts/flow-reset.ts",
+    "demo:reset": "tsx scripts/reset-demo-users.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "prisma": {
