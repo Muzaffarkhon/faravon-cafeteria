@@ -42,6 +42,7 @@ export function CardHistory({
   partnerNames: Record<string, string>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -52,8 +53,8 @@ export function CardHistory({
   const current = versions[0];
 
   function onRestore(id: string) {
-    if (!confirm("Восстановить карточку в это состояние? Текущее сохранится в истории.")) return;
     setError(null);
+    setConfirmId(null);
     start(async () => {
       try {
         await restoreCardVersionAction(id);
@@ -90,16 +91,35 @@ export function CardHistory({
                   >
                     {isOpen ? "скрыть" : "показать"}
                   </button>
-                  {!isCurrent && (
-                    <button
-                      type="button"
-                      onClick={() => onRestore(v.id)}
-                      disabled={pending}
-                      className="font-medium text-ink-muted hover:text-primary hover:underline disabled:opacity-50"
-                    >
-                      восстановить
-                    </button>
-                  )}
+                  {!isCurrent &&
+                    (confirmId === v.id ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onRestore(v.id)}
+                          disabled={pending}
+                          className="font-medium text-primary hover:underline disabled:opacity-50"
+                        >
+                          точно восстановить
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmId(null)}
+                          className="font-medium text-ink-subtle hover:underline"
+                        >
+                          отмена
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(v.id)}
+                        disabled={pending}
+                        className="font-medium text-ink-muted hover:text-primary hover:underline disabled:opacity-50"
+                      >
+                        восстановить
+                      </button>
+                    ))}
                 </span>
               </div>
 

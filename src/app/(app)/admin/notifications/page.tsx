@@ -34,6 +34,7 @@ export default async function NotificationsPage() {
         {NOTIFICATION_EVENTS.map((event) => {
           const row = byEvent.get(event);
           const def = DEFAULT_TEMPLATES[event];
+          const overridden = !!row && (row.body !== def.body || row.label !== def.label);
           return (
             <div key={event}>
               {HINTS[event] && <p className="mb-1 text-xs text-ink-subtle">{HINTS[event]}</p>}
@@ -41,7 +42,7 @@ export default async function NotificationsPage() {
                 event={event}
                 label={row?.label ?? def.label}
                 body={row?.body ?? def.body}
-                overridden={!!row}
+                overridden={overridden}
               />
             </div>
           );
