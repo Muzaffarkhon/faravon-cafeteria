@@ -211,14 +211,19 @@ Managed Postgres: любой (Neon / Vercel Postgres / Supabase) — важен 
 
 ### Доставка уведомлений (§5.10)
 
-Уведомления пишутся в таблицу `Notification` синхронно при смене статуса. Фактическую
-отправку в Telegram выполняет `deliverTelegramNotifications` (`src/lib/notification-delivery.ts`):
+Уведомления пишутся в таблицу `Notification` синхронно при смене статуса. Отправку в
+Telegram выполняет `deliverTelegramNotifications` (`src/lib/notification-delivery.ts`)
+в три уровня:
 
-- **Локально / не-serverless** — цикл внутри `npm run bot` (каждые 15 c).
-- **Vercel** — GET-роут `/api/cron/deliver-notifications`, защищённый `CRON_SECRET`
-  (проверяет `Authorization: Bearer $CRON_SECRET`).
+1. **Inline** — `notifyEmployee`/`notifyApprovers` через `after()` (`next/server`) пытаются
+   доставить сразу после ответа пользователю, не блокируя server action. Обычный путь,
+   ~1–2 c до Telegram.
+2. **Cron** — GET-роут `/api/cron/deliver-notifications` (защита `CRON_SECRET`,
+   заголовок `Authorization: Bearer $CRON_SECRET`) подбирает то, что не ушло inline
+   (Telegram лежал, функция не догрелась, получатель привязал бота позже).
+3. **`npm run bot`** — тот же подбор для не-serverless хостинга (цикл каждые 15 c).
 
-Планировщик для Vercel (по возрастанию задержки Telegram-пуша):
+Планировщик для cron-уровня (только подстраховка — основную работу делает inline):
 
 | Способ | Интервал | Настройка |
 |--------|----------|-----------|
