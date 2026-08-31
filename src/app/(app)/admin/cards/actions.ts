@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { del } from "@vercel/blob";
 import type { Block, CardStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -9,6 +10,19 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 
 export type CardFormState = { error?: string };
+
+const BLOB_HOST = ".public.blob.vercel-storage.com";
+
+/** Удаляет старый файл из Vercel Blob, если карточка сменила/убрала изображение. */
+async function cleanupBlob(oldUrl: string | null, newUrl: string | null) {
+  if (!oldUrl || oldUrl === newUrl) return;
+  if (!oldUrl.includes(BLOB_HOST)) return; // внешняя ссылка — не трогаем
+  try {
+    await del(oldUrl);
+  } catch {
+    // нет BLOB_READ_WRITE_TOKEN или файл уже удалён — не блокируем сохранение
+  }
+}
 
 const BLOCKS: Block[] = ["RECOGNITION", "CARE", "FLEX"];
 const STATUSES: CardStatus[] = ["DRAFT", "PUBLISHED"];
@@ -77,7 +91,9 @@ export async function updateCard(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
+  const prev = await db.benefitCard.findUnique({ where: { id }, select: { imageUrl: true } });
   await db.benefitCard.update({ where: { id }, data });
+  await cleanupBlob(prev?.imageUrl ?? null, data.imageUrl);
   await audit({ actorId: s.user.id, action: "CARD_UPDATED", entityType: "BenefitCard", entityId: id, newValue: { title: data.title, status: data.status, isActive: data.isActive } });
   revalidatePath("/admin/cards");
   revalidatePath("/");
@@ -93,7 +109,9 @@ export async function deleteCard(id: string) {
       `Нельзя удалить: по карточке есть ${used} позиций заявок. Снимите с публикации или деактивируйте.`,
     );
   }
+  const doomed = await db.benefitCard.findUnique({ where: { id }, select: { imageUrl: true } });
   await db.benefitCard.delete({ where: { id } });
+  await cleanupBlob(doomed?.imageUrl ?? null, null);
   await audit({ actorId: s.user.id, action: "CARD_DELETED", entityType: "BenefitCard", entityId: id });
   revalidatePath("/admin/cards");
   revalidatePath("/");

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { BLOCKS, BLOCK_LABELS, CARD_STATUSES, CARD_STATUS_LABELS } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { CardImageField } from "./_image-field";
 import type { CardFormState } from "./actions";
 
 export type CardValues = {
@@ -91,9 +92,7 @@ export function CardForm({
         </Field>
       </div>
 
-      <Field label="Изображение (URL)" htmlFor="imageUrl">
-        <Input id="imageUrl" name="imageUrl" defaultValue={initial?.imageUrl ?? ""} inputMode="url" />
-      </Field>
+      <CardImageField initial={initial?.imageUrl} />
 
       <label className="flex items-center gap-2 text-sm text-ink">
         <input

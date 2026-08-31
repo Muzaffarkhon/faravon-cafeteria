@@ -121,9 +121,15 @@ export default async function OverviewPage() {
         <SectionTitle>Программы признания</SectionTitle>
         <ul className="grid gap-3 sm:grid-cols-3">
           {recognition.map((c) => (
-            <li key={c.id} className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-              <div className="text-sm font-medium text-ink">{c.title}</div>
-              {c.description && <p className="mt-1 text-xs text-ink-muted">{c.description}</p>}
+            <li key={c.id} className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+              {c.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.imageUrl} alt="" className="h-28 w-full object-cover" loading="lazy" />
+              )}
+              <div className="p-4">
+                <div className="text-sm font-medium text-ink">{c.title}</div>
+                {c.description && <p className="mt-1 text-xs text-ink-muted">{c.description}</p>}
+              </div>
             </li>
           ))}
         </ul>
@@ -134,7 +140,19 @@ export default async function OverviewPage() {
         <SectionTitle>Витрина заботы</SectionTitle>
         <ul className="grid gap-2 sm:grid-cols-2">
           {care.map((c) => (
-            <li key={c.id} className="rounded-lg border border-line bg-surface px-4 py-2 text-sm text-ink shadow-xs">
+            <li
+              key={c.id}
+              className="flex items-center gap-3 rounded-lg border border-line bg-surface px-4 py-2 text-sm text-ink shadow-xs"
+            >
+              {c.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-md border border-line object-cover"
+                  loading="lazy"
+                />
+              )}
               {c.title}
             </li>
           ))}
@@ -154,6 +172,7 @@ export default async function OverviewPage() {
             condition: c.condition,
             isActive: c.isActive,
             partner: c.partner?.name ?? null,
+            imageUrl: c.imageUrl,
           }))}
           selectedIds={selectedIds}
           draftCount={draftCount}

@@ -139,6 +139,7 @@ src/app/api/health/           проверка соединения с БД
 | `TELEGRAM_BOT_TOKEN` | токен бота от @BotFather (без него бот не стартует, вход по паролю работает) |
 | `TELEGRAM_WEBHOOK_SECRET` | секрет webhook-режима (Vercel) — проверяется роутом `/api/telegram` |
 | `CRON_SECRET` | секрет крон-доставки уведомлений — проверяется `/api/cron/deliver-notifications` (см. «Доставка уведомлений») |
+| `BLOB_READ_WRITE_TOKEN` | доступ к Vercel Blob для загрузки изображений карточек. На Vercel создаётся автоматически при добавлении Blob-store (Storage → Create → Blob); локально — `vercel env pull`. Без него загрузка файла в форме карточки не работает, вставка ссылки вручную — работает |
 | `NODE_ENV=production` | включает `Secure` для cookie сессии |
 | `SHADOW_DATABASE_URL` | **только для разработки** (`migrate dev`); в проде не нужен |
 
@@ -187,8 +188,10 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` — для webhook-бота
    - `CRON_SECRET` — для `/api/cron/deliver-notifications` (24+ байт)
    - `NODE_ENV` Vercel ставит сам.
-4. **Deploy.**
-5. **Миграции** один раз после первого деплоя — локально с боевым URL:
+4. **Storage → Create → Blob** — создать Blob-store и привязать к проекту. Vercel сам
+   добавит `BLOB_READ_WRITE_TOKEN` во все окружения. Нужен для загрузки изображений карточек.
+6. **Deploy.**
+7. **Миграции** один раз после первого деплоя — локально с боевым URL:
    `DATABASE_URL="<prod-url>" npx prisma migrate deploy` (в build их не кладём).
    Затем один раз `DATABASE_URL="<prod-url>" npm run db:seed` — начальные справочники и
    учётка суперадмина (пароль сменить сразу).

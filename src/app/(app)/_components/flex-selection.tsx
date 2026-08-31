@@ -10,6 +10,7 @@ type Card = {
   condition: string | null;
   isActive: boolean;
   partner: string | null;
+  imageUrl: string | null;
 };
 
 export function FlexSelection({
@@ -89,9 +90,20 @@ export function FlexSelection({
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-sm font-medium text-ink">{c.title}</div>
-                  {c.partner && <div className="text-xs text-ink-subtle">{c.partner}</div>}
+                <div className="flex min-w-0 items-start gap-3">
+                  {c.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.imageUrl}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-md border border-line object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-ink">{c.title}</div>
+                    {c.partner && <div className="text-xs text-ink-subtle">{c.partner}</div>}
+                  </div>
                 </div>
                 {!c.isActive && <Badge tone="neutral">скоро</Badge>}
               </div>

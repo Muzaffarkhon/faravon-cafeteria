@@ -42,16 +42,26 @@ export default async function CardsPage() {
             )}
             {byBlock(b).map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-medium text-ink">
-                    {c.title}
-                    {!c.isActive && <Badge tone="neutral">скоро</Badge>}
-                    {c.status === "DRAFT" && <Badge tone="warning">{CARD_STATUS_LABELS.DRAFT}</Badge>}
-                  </div>
-                  <div className="text-xs text-ink-subtle">
-                    {c.partner?.name ? `${c.partner.name} · ` : ""}
-                    {c.condition ?? c.description ?? "—"}
-                    {c._count.items > 0 && ` · позиций: ${c._count.items}`}
+                <div className="flex min-w-0 items-center gap-3">
+                  {c.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.imageUrl}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-md border border-line object-cover"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium text-ink">
+                      {c.title}
+                      {!c.isActive && <Badge tone="neutral">скоро</Badge>}
+                      {c.status === "DRAFT" && <Badge tone="warning">{CARD_STATUS_LABELS.DRAFT}</Badge>}
+                    </div>
+                    <div className="text-xs text-ink-subtle">
+                      {c.partner?.name ? `${c.partner.name} · ` : ""}
+                      {c.condition ?? c.description ?? "—"}
+                      {c._count.items > 0 && ` · позиций: ${c._count.items}`}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

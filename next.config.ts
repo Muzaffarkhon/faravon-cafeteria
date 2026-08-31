@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
       }),
   // Self-contained server bundle for container/Docker deployment only (not needed on Vercel)
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
+  images: {
+    // Изображения карточек льгот лежат в Vercel Blob (public store).
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+    ],
+  },
 };
 
 export default nextConfig;
