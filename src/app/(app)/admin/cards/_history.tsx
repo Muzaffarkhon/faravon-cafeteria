@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Badge } from "@/components/ui";
+import { Badge, cx } from "@/components/ui";
 import { BLOCK_LABELS, CARD_STATUS_LABELS } from "@/lib/labels";
 import { restoreCardVersionAction } from "./actions";
 
@@ -32,6 +32,44 @@ function reasonText(reason: string | null): string {
   if (!reason) return "изменена";
   if (reason.startsWith("restored:v")) return `восстановлена из v${reason.slice(10)}`;
   return REASON_LABEL[reason] ?? reason;
+}
+
+type FieldDef = {
+  key: string;
+  label: string;
+  fmt: (v: CardVersionRow, names: Record<string, string>) => string;
+  image?: boolean;
+};
+
+const FIELDS: FieldDef[] = [
+  { key: "title", label: "Название", fmt: (v) => v.title },
+  { key: "block", label: "Блок", fmt: (v) => BLOCK_LABELS[v.block as keyof typeof BLOCK_LABELS] ?? v.block },
+  {
+    key: "status",
+    label: "Публикация",
+    fmt: (v) => CARD_STATUS_LABELS[v.status as keyof typeof CARD_STATUS_LABELS] ?? v.status,
+  },
+  { key: "isActive", label: "Активна", fmt: (v) => (v.isActive ? "да" : "нет (скоро)") },
+  { key: "description", label: "Описание", fmt: (v) => v.description ?? "—" },
+  { key: "condition", label: "Условие", fmt: (v) => v.condition ?? "—" },
+  { key: "category", label: "Категория", fmt: (v) => v.category ?? "—" },
+  { key: "partnerId", label: "Партнёр", fmt: (v, n) => (v.partnerId ? n[v.partnerId] ?? v.partnerId : "—") },
+  { key: "sortOrder", label: "Порядок", fmt: (v) => String(v.sortOrder) },
+  { key: "imageUrl", label: "Изображение", fmt: (v) => v.imageUrl ?? "", image: true },
+];
+
+/** Список меток полей, отличающихся между версиями. */
+function changedFields(
+  cur: CardVersionRow,
+  prev: CardVersionRow | undefined,
+  names: Record<string, string>,
+): Set<string> {
+  const set = new Set<string>();
+  if (!prev) return set;
+  for (const f of FIELDS) {
+    if (f.fmt(cur, names) !== f.fmt(prev, names)) set.add(f.key);
+  }
+  return set;
 }
 
 export function CardHistory({
@@ -72,9 +110,13 @@ export function CardHistory({
         </p>
       )}
       <ul className="divide-y divide-line-subtle rounded-lg border border-line">
-        {versions.map((v) => {
+        {versions.map((v, i) => {
+          const prev = versions[i + 1]; // следующая в списке = предыдущая по времени
           const isOpen = openId === v.id;
           const isCurrent = v.id === current.id;
+          const changed = changedFields(v, prev, partnerNames);
+          const changedLabels = FIELDS.filter((f) => changed.has(f.key)).map((f) => f.label);
+
           return (
             <li key={v.id} className="px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -123,30 +165,46 @@ export function CardHistory({
                 </span>
               </div>
 
+              {changedLabels.length > 0 && !isOpen && (
+                <p className="mt-1 text-xs text-ink-subtle">изменено: {changedLabels.join(", ")}</p>
+              )}
+
               {isOpen && (
-                <dl className="mt-2 grid gap-x-4 gap-y-1 border-t border-line-subtle pt-2 sm:grid-cols-[130px_1fr]">
-                  <Row k="Название" v={v.title} />
-                  <Row k="Блок" v={BLOCK_LABELS[v.block as keyof typeof BLOCK_LABELS] ?? v.block} />
-                  <Row k="Публикация" v={CARD_STATUS_LABELS[v.status as keyof typeof CARD_STATUS_LABELS] ?? v.status} />
-                  <Row k="Активна" v={v.isActive ? "да" : "нет (скоро)"} />
-                  {v.description && <Row k="Описание" v={v.description} />}
-                  {v.condition && <Row k="Условие" v={v.condition} />}
-                  {v.category && <Row k="Категория" v={v.category} />}
-                  {v.partnerId && <Row k="Партнёр" v={partnerNames[v.partnerId] ?? v.partnerId} />}
-                  <Row k="Порядок" v={String(v.sortOrder)} />
-                  {v.imageUrl && (
-                    <>
-                      <dt className="text-ink-muted">Изображение</dt>
-                      <dd>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={v.imageUrl}
-                          alt=""
-                          className="h-16 w-16 rounded-md border border-line object-cover"
-                        />
-                      </dd>
-                    </>
-                  )}
+                <dl className="mt-2 grid gap-x-4 gap-y-1.5 border-t border-line-subtle pt-2 sm:grid-cols-[130px_1fr]">
+                  {FIELDS.map((f) => {
+                    const isChanged = changed.has(f.key);
+                    const value = f.fmt(v, partnerNames);
+                    const wasValue = prev ? f.fmt(prev, partnerNames) : "";
+                    return (
+                      <div key={f.key} className="contents">
+                        <dt className={cx("text-ink-muted", isChanged && "font-medium text-primary-strong")}>
+                          {f.label}
+                        </dt>
+                        <dd className="min-w-0">
+                          {f.image ? (
+                            value ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={value}
+                                alt=""
+                                className="h-16 w-16 rounded-md border border-line object-cover"
+                              />
+                            ) : (
+                              <span className="text-ink-subtle">—</span>
+                            )
+                          ) : (
+                            <span className={cx("text-ink", isChanged && "font-medium")}>{value}</span>
+                          )}
+                          {isChanged && !f.image && wasValue !== value && (
+                            <span className="ml-2 text-xs text-ink-subtle">было: {wasValue}</span>
+                          )}
+                          {isChanged && f.image && (
+                            <span className="ml-2 text-xs text-ink-subtle">изменено</span>
+                          )}
+                        </dd>
+                      </div>
+                    );
+                  })}
                 </dl>
               )}
             </li>
@@ -155,14 +213,5 @@ export function CardHistory({
       </ul>
       {pending && <p className="text-xs text-ink-subtle">Восстановление…</p>}
     </div>
-  );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <>
-      <dt className="text-ink-muted">{k}</dt>
-      <dd className="font-medium text-ink">{v}</dd>
-    </>
   );
 }

@@ -105,10 +105,11 @@ model User {
   employee   Employee? @relation(fields: [employeeId], references: [id])
   employeeId String?   @unique
 
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  decisions     ApplicationItem[]    @relation("DecidedBy")
-  cardEdits     BenefitCardVersion[] @relation("CardVersionEditor")
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  decisions      ApplicationItem[]      @relation("DecidedBy")
+  cardEdits      BenefitCardVersion[]   @relation("CardVersionEditor")
+  templateEdits  NotificationTemplate[] @relation("NotificationTemplateEditor")
 }
 
 /// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
@@ -279,10 +280,12 @@ model TextBlock {
 /// [[ ... {x} ... ]] выкидывается целиком, если {x} пустой. Если строки нет —
 /// приложение берёт зашитый шаблон по умолчанию (DEFAULT_TEMPLATES).
 model NotificationTemplate {
-  event     String   @id
-  label     String
-  body      String
-  updatedAt DateTime @updatedAt
+  event       String   @id
+  label       String
+  body        String
+  updatedBy   User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
+  updatedById String?
+  updatedAt   DateTime @updatedAt
 }
 
 model Notification {

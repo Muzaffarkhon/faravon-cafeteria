@@ -48,6 +48,7 @@ export default async function CardsPage() {
                     <img
                       src={c.imageUrl}
                       alt=""
+                      loading="lazy"
                       className="h-10 w-10 shrink-0 rounded-md border border-line object-cover"
                     />
                   )}

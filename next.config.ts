@@ -16,12 +16,9 @@ const nextConfig: NextConfig = {
       }),
   // Self-contained server bundle for container/Docker deployment only (not needed on Vercel)
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
-  images: {
-    // Изображения карточек льгот лежат в Vercel Blob (public store).
-    remotePatterns: [
-      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
-    ],
-  },
+  // Изображения карточек рисуются обычным <img>, а не next/image: они мелкие
+  // (миниатюры), URL может быть произвольным (поле «указать ссылку»), а оптимизатор
+  // Vercel на Hobby лимитирован. Поэтому remotePatterns не нужен.
 };
 
 export default nextConfig;

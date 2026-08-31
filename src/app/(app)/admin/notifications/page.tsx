@@ -18,7 +18,9 @@ export default async function NotificationsPage() {
   if (!session) redirect("/login");
   if (!can(session.roles, "cards.manage")) redirect("/");
 
-  const rows = await db.notificationTemplate.findMany();
+  const rows = await db.notificationTemplate.findMany({
+    include: { updatedBy: { select: { login: true, employee: { select: { fullName: true } } } } },
+  });
   const byEvent = new Map(rows.map((r) => [r.event, r]));
 
   return (
@@ -35,6 +37,9 @@ export default async function NotificationsPage() {
           const row = byEvent.get(event);
           const def = DEFAULT_TEMPLATES[event];
           const overridden = !!row && (row.body !== def.body || row.label !== def.label);
+          const editedBy = row?.updatedBy?.employee?.fullName ?? row?.updatedBy?.login ?? null;
+          const editedAt =
+            overridden && row ? row.updatedAt.toLocaleString("ru-RU") : null;
           return (
             <div key={event}>
               {HINTS[event] && <p className="mb-1 text-xs text-ink-subtle">{HINTS[event]}</p>}
@@ -43,6 +48,8 @@ export default async function NotificationsPage() {
                 label={row?.label ?? def.label}
                 body={row?.body ?? def.body}
                 overridden={overridden}
+                editedBy={overridden ? editedBy : null}
+                editedAt={editedAt}
               />
             </div>
           );

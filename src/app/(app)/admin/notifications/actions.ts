@@ -45,8 +45,8 @@ export async function updateNotificationTemplate(
 
   await db.notificationTemplate.upsert({
     where: { event },
-    create: { event, label, body },
-    update: { label, body },
+    create: { event, label, body, updatedById: s.user.id },
+    update: { label, body, updatedById: s.user.id },
   });
   await audit({
     actorId: s.user.id,

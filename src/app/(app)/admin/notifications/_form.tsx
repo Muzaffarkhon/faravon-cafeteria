@@ -19,11 +19,15 @@ export function TemplateForm({
   label,
   body,
   overridden,
+  editedBy,
+  editedAt,
 }: {
   event: string;
   label: string;
   body: string;
   overridden: boolean;
+  editedBy?: string | null;
+  editedAt?: string | null;
 }) {
   const action = updateNotificationTemplate.bind(null, event);
   const [state, formAction, pending] = useActionState<TemplateFormState, FormData>(action, {});
@@ -45,6 +49,12 @@ export function TemplateForm({
         ) : (
           <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[0.6875rem] text-ink-subtle">
             по умолчанию
+          </span>
+        )}
+        {overridden && editedAt && (
+          <span className="text-[0.6875rem] text-ink-subtle">
+            {editedBy ? `${editedBy}, ` : ""}
+            {editedAt}
           </span>
         )}
       </div>
