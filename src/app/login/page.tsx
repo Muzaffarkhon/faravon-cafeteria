@@ -37,17 +37,20 @@ export default function LoginPage() {
     <main className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4">
       <PetalDrift />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
-        <BrandMark size={44} />
-        <h1 className="mt-4 text-xl font-semibold text-ink">Кафетерий льгот</h1>
-        <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
+        <div className="flex flex-col items-center text-center">
+          <BrandMark size={52} />
+          <h1 className="mt-4 text-xl font-semibold text-ink">Кафетерий льгот</h1>
+          <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
+        </div>
 
         <Suspense fallback={<div className="mt-6 h-52" />}>
           <LoginForm />
         </Suspense>
 
-        <p className="mt-6 text-xs text-ink-subtle">
-          Логин и одноразовый пароль сотрудник получает в Telegram-боте. Демо-доступ:
-          superadmin / content / approver / hrbp / analyst / ivanov, пароль Password1
+        <p className="mt-6 text-center text-xs leading-relaxed text-ink-subtle">
+          Логин и одноразовый пароль сотрудник получает в Telegram-боте.
+          <br />
+          Демо-доступ: superadmin / content / approver / hrbp / analyst / ivanov, пароль Password1
         </p>
       </div>
     </main>
