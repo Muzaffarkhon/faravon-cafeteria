@@ -63,7 +63,7 @@ async function main() {
   for (const c of flex) {
     await db.applicationItem.create({ data: { applicationId: app.id, cardId: c.id, status: "DRAFT" } });
   }
-  let drafts = await db.applicationItem.findMany({ where: { applicationId: app.id, status: "DRAFT" } });
+  const drafts = await db.applicationItem.findMany({ where: { applicationId: app.id, status: "DRAFT" } });
   assert(drafts.length === 3, "создано 3 позиции в статусе DRAFT");
   assert((await pendingCount()) === 0, "счётчик «Согласование» = 0 (черновики не считаются)");
 
