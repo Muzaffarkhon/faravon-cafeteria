@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession, destroySession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { notifyApprovers } from "@/lib/notify";
 import { assertTransition } from "@/lib/application-workflow";
 import {
   getCurrentPeriod,
@@ -69,8 +70,21 @@ export async function submitSelection() {
     entityId: withItems!.id,
     newValue: { items: drafts.length },
   });
+
+  // Уведомление согласующим о новой заявке (§5.7, §5.10)
+  await notifyApprovers({
+    event: "APPLICATION_SUBMITTED",
+    payload: {
+      employee: employee.fullName,
+      department: employee.department,
+      period: period.name,
+      count: drafts.length,
+    },
+  });
+
   revalidatePath("/");
   revalidatePath("/applications");
+  revalidatePath("/review");
 }
 
 export async function cancelItem(itemId: string) {

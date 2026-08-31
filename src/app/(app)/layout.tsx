@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { BrandLockup } from "@/components/brand";
@@ -13,6 +14,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (session.mustChangePassword) redirect("/change-password");
 
   const { roles } = session;
+  const canDecide = can(roles, "applications.decide");
+  const pendingReview = canDecide
+    ? await db.applicationItem.count({ where: { status: "PENDING" } })
+    : 0;
+
   const items: NavItem[] = [];
   if (session.employee) {
     items.push(
@@ -20,7 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: "/applications", label: "Мои заявки и купоны" },
     );
   }
-  if (can(roles, "applications.decide")) items.push({ href: "/review", label: "Согласование" });
+  if (canDecide)
+    items.push({ href: "/review", label: "Согласование", badge: pendingReview || undefined });
   if (can(roles, "coupons.manage")) items.push({ href: "/coupons", label: "Купоны" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });

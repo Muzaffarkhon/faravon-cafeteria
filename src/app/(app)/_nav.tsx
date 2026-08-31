@@ -5,12 +5,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
-export type NavItem = { href: string; label: string };
+export type NavItem = { href: string; label: string; badge?: number };
 
 function isActive(pathname: string, href: string) {
   return href === "/"
     ? pathname === "/"
     : pathname === href || pathname.startsWith(href + "/");
+}
+
+function Count({ n }: { n: number }) {
+  return (
+    <span
+      className="ml-1 inline-flex min-w-[1.125rem] items-center justify-center rounded-full bg-primary px-1 text-[0.6875rem] font-semibold leading-[1.125rem] text-on-brand tabular-nums"
+      aria-label={`${n} на согласовании`}
+    >
+      {n > 99 ? "99+" : n}
+    </span>
+  );
 }
 
 export function AppNav({ items }: { items: NavItem[] }) {
@@ -27,11 +38,12 @@ export function AppNav({ items }: { items: NavItem[] }) {
           onClick={onClick}
           aria-current={active ? "page" : undefined}
           className={cx(
-            "rounded-sm py-1 transition-colors",
+            "inline-flex items-center rounded-sm py-1 transition-colors",
             active ? "font-medium text-primary" : "text-ink-muted hover:text-primary",
           )}
         >
           {it.label}
+          {it.badge ? <Count n={it.badge} /> : null}
         </Link>
       );
     });
@@ -56,6 +68,9 @@ export function AppNav({ items }: { items: NavItem[] }) {
             {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
           </svg>
           Разделы
+          {items.some((i) => i.badge) && !open ? (
+            <span className="ml-0.5 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+          ) : null}
         </button>
         {open && (
           <>

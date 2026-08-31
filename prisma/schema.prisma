@@ -243,16 +243,18 @@ model TextBlock {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  event     String
-  channel   String   @default("TELEGRAM")
-  payload   Json?
-  sentAt    DateTime @default(now())
-  readAt    DateTime?
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  event       String
+  channel     String    @default("TELEGRAM")
+  payload     Json?
+  sentAt      DateTime  @default(now())
+  readAt      DateTime?
+  deliveredAt DateTime? // выставляется Telegram-ботом после отправки сообщения (§5.10)
 
   @@index([userId])
+  @@index([deliveredAt])
 }
 
 model AuditLog {
