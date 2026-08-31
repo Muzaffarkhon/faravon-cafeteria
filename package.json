@@ -16,6 +16,7 @@
     "webhook": "tsx scripts/set-webhook.ts",
     "flow:status": "tsx scripts/flow-status.ts",
     "flow:reset": "tsx scripts/flow-reset.ts",
+    "flow:e2e": "tsx scripts/flow-e2e.ts",
     "demo:reset": "tsx scripts/reset-demo-users.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
