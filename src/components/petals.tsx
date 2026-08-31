@@ -77,11 +77,12 @@ export function PetalDrift({
         >
           <svg
             width={p.size}
-            height={Math.round(p.size * 1.7)}
-            viewBox="0 0 24 40"
+            height={p.size}
+            viewBox="0 0 48 48"
             fill={TONE[p.tone]}
           >
-            <path d="M12 1C5 8 4 30 12 39C20 30 19 8 12 1Z" />
+            {/* Лепесток-«листок» брендового паттерна: два дуговых бока, острые кончики */}
+            <path d="M24 4A22 22 0 0 1 24 44A22 22 0 0 1 24 4Z" />
           </svg>
         </i>
       ))}
