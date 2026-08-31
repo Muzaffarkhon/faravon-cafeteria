@@ -5,6 +5,7 @@
  */
 import type {
   ButtonHTMLAttributes,
+  HTMLAttributes,
   InputHTMLAttributes,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
@@ -91,7 +92,7 @@ export function Select({
   className,
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={inputClass(cx("appearance-none pr-8", className))} {...props} />;
+  return <select className={inputClass(className)} {...props} />;
 }
 
 /** Подпись + подсказка + ошибка вокруг любого контрола. */
@@ -135,7 +136,7 @@ export function Card({
   className,
   children,
   ...props
-}: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
+}: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
   return (
     <div
       className={cx(
@@ -272,7 +273,7 @@ export function EmptyState({
   return (
     <div
       className={cx(
-        "petal-field flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-surface px-6 py-10 text-center",
+        "petal-field flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-6 py-10 text-center",
         className,
       )}
     >
