@@ -137,6 +137,8 @@ src/app/api/health/           проверка соединения с БД
 | `AUTH_SECRET` | ключ подписи сессий — **32+ случайных байта**, не из `.env.example` (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
 | `PLATFORM_URL` | публичный URL платформы (используется в сообщениях бота) |
 | `TELEGRAM_BOT_TOKEN` | токен бота от @BotFather (без него бот не стартует, вход по паролю работает) |
+| `TELEGRAM_WEBHOOK_SECRET` | секрет webhook-режима (Vercel) — проверяется роутом `/api/telegram` |
+| `CRON_SECRET` | секрет крон-доставки уведомлений — проверяется `/api/cron/deliver-notifications` (см. «Доставка уведомлений») |
 | `NODE_ENV=production` | включает `Secure` для cookie сессии |
 | `SHADOW_DATABASE_URL` | **только для разработки** (`migrate dev`); в проде не нужен |
 
@@ -206,6 +208,31 @@ Managed Postgres: любой (Neon / Vercel Postgres / Supabase) — важен 
 
 Логика привязки и выдачи OTP: `src/lib/telegram-link.ts` (webhook) и `bot/link.ts`
 (самодостаточный аналог для polling).
+
+### Доставка уведомлений (§5.10)
+
+Уведомления пишутся в таблицу `Notification` синхронно при смене статуса. Фактическую
+отправку в Telegram выполняет `deliverTelegramNotifications` (`src/lib/notification-delivery.ts`):
+
+- **Локально / не-serverless** — цикл внутри `npm run bot` (каждые 15 c).
+- **Vercel** — GET-роут `/api/cron/deliver-notifications`, защищённый `CRON_SECRET`
+  (проверяет `Authorization: Bearer $CRON_SECRET`).
+
+Планировщик для Vercel (по возрастанию задержки Telegram-пуша):
+
+| Способ | Интервал | Настройка |
+|--------|----------|-----------|
+| **cron-job.org** (основной, бесплатно) | 1 мин | новая Cronjob: URL `https://<домен>/api/cron/deliver-notifications`, метод GET, заголовок `Authorization: Bearer <CRON_SECRET>` |
+| **Vercel Cron** (`vercel.json`, запасной) | 1 час на Hobby (`0 * * * *`); можно `* * * * *` на Pro | ничего, подхватывается при деплое |
+
+Счётчик «Согласование» и список `/review` в самом приложении обновляются мгновенно и от
+планировщика не зависят — задержка касается только Telegram-сообщений.
+
+Env на Vercel: добавить `CRON_SECRET`
+(`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`).
+
+Проверка: `curl -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/deliver-notifications`
+→ `{"ok":true,"delivered":N,...}`.
 
 ### Чек-лист безопасности
 
