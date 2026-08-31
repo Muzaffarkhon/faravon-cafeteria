@@ -99,7 +99,7 @@ src/lib/auth.ts               сессия (jose JWT + cookie), getSession/requi
 src/lib/rbac.ts               PERMISSIONS-матрица, can()/assertCan(), ROLE_LABELS
 src/lib/application-workflow.ts  статусы позиции + таблица переходов (§5.7)
 src/lib/selection.ts          текущий период, заявка, подсчёт лимита
-src/middleware.ts             защита маршрутов
+src/proxy.ts                  защита маршрутов (Proxy — бывш. Middleware, Next 16)
 src/app/login, /change-password  вход и смена пароля
 src/app/(app)/                ЛК: layout + page + actions (toggle/submit/cancel/logout)
 src/app/(app)/applications/   «Мои заявки и купоны»
