@@ -1,0 +1,52 @@
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
+import { DEFAULT_TEMPLATES, NOTIFICATION_EVENTS } from "@/lib/notification-format";
+import { TemplateForm } from "./_form";
+
+const HINTS: Record<string, string> = {
+  APPLICATION_SUBMITTED: "Согласующим — когда сотрудник подал выбор льгот (§5.7).",
+  ITEM_APPROVED: "Сотруднику — когда согласующий одобрил позицию.",
+  ITEM_REJECTED: "Сотруднику — когда согласующий отклонил позицию.",
+  COUPON_CREATED: "Сотруднику — когда по одобренной льготе сформирован купон.",
+  COUPON_ISSUED: "Сотруднику — когда купон выдан на руки.",
+};
+
+export default async function NotificationsPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!can(session.roles, "cards.manage")) redirect("/");
+
+  const rows = await db.notificationTemplate.findMany();
+  const byEvent = new Map(rows.map((r) => [r.event, r]));
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-lg font-semibold text-ink">Шаблоны уведомлений</h1>
+        <p className="mt-1 text-sm text-ink-muted">
+          Тексты сообщений в Telegram. Если шаблон не менялся — используется стандартный.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {NOTIFICATION_EVENTS.map((event) => {
+          const row = byEvent.get(event);
+          const def = DEFAULT_TEMPLATES[event];
+          return (
+            <div key={event}>
+              {HINTS[event] && <p className="mb-1 text-xs text-ink-subtle">{HINTS[event]}</p>}
+              <TemplateForm
+                event={event}
+                label={row?.label ?? def.label}
+                body={row?.body ?? def.body}
+                overridden={!!row}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { recordCardVersion, restoreCardVersion } from "@/lib/card-version";
 
 export type CardFormState = { error?: string };
 
@@ -72,6 +73,7 @@ export async function createCard(
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
   const card = await db.benefitCard.create({ data });
+  await recordCardVersion({ card, editedById: s.user.id, reason: "created" });
   await audit({ actorId: s.user.id, action: "CARD_CREATED", entityType: "BenefitCard", entityId: card.id, newValue: { title: card.title, block: card.block } });
   revalidatePath("/admin/cards");
   revalidatePath("/");
@@ -92,12 +94,29 @@ export async function updateCard(
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
   const prev = await db.benefitCard.findUnique({ where: { id }, select: { imageUrl: true } });
-  await db.benefitCard.update({ where: { id }, data });
+  const card = await db.benefitCard.update({ where: { id }, data });
+  await recordCardVersion({ card, editedById: s.user.id, reason: "updated" });
   await cleanupBlob(prev?.imageUrl ?? null, data.imageUrl);
   await audit({ actorId: s.user.id, action: "CARD_UPDATED", entityType: "BenefitCard", entityId: id, newValue: { title: data.title, status: data.status, isActive: data.isActive } });
   revalidatePath("/admin/cards");
   revalidatePath("/");
   redirect("/admin/cards");
+}
+
+export async function restoreCardVersionAction(versionId: string): Promise<void> {
+  const s = await requireSession();
+  assertCan(s.roles, "cards.manage");
+  const { cardId, restoredFrom } = await restoreCardVersion(versionId, s.user.id);
+  await audit({
+    actorId: s.user.id,
+    action: "CARD_VERSION_RESTORED",
+    entityType: "BenefitCard",
+    entityId: cardId,
+    newValue: { restoredFrom },
+  });
+  revalidatePath(`/admin/cards/${cardId}`);
+  revalidatePath("/admin/cards");
+  revalidatePath("/");
 }
 
 export async function deleteCard(id: string) {

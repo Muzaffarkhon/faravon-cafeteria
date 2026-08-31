@@ -1,6 +1,14 @@
 /**
  * Форматирование уведомлений (§5.10). Модуль без server-only —
- * используется и веб-приложением, и Telegram-ботом (bot/notifications.ts).
+ * используется и веб-приложением, и Telegram-ботом (bot/notifications.ts),
+ * и cron-доставкой.
+ *
+ * Тексты берутся из редактируемых шаблонов (модель NotificationTemplate). Если
+ * строки нет — используется зашитый шаблон по умолчанию из DEFAULT_TEMPLATES.
+ *
+ * Синтаксис шаблона:
+ *   {name}          — подстановка значения; пустое, если значения нет
+ *   [[ ... {x} ... ]] — блок удаляется целиком, если {x} внутри пустой
  */
 
 export const NOTIFICATION_LABELS: Record<string, string> = {
@@ -11,36 +19,128 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_ISSUED: "Купон выдан",
 };
 
-type Payload = Record<string, unknown> | null | undefined;
+/** Порядок событий в админке. */
+export const NOTIFICATION_EVENTS = [
+  "APPLICATION_SUBMITTED",
+  "ITEM_APPROVED",
+  "ITEM_REJECTED",
+  "COUPON_CREATED",
+  "COUPON_ISSUED",
+] as const;
+
+export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
+
+export type NotificationTemplateDef = { label: string; body: string };
+
+/** Зашитые тексты — совпадают с исходным поведением до вынесения в админку. */
+export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
+  APPLICATION_SUBMITTED: {
+    label: NOTIFICATION_LABELS.APPLICATION_SUBMITTED,
+    body: "{employee}[[, {department}]] подал(а) на согласование {count} {countNoun}[[ (период: {period})]]. Откройте раздел «Согласование».",
+  },
+  ITEM_APPROVED: {
+    label: NOTIFICATION_LABELS.ITEM_APPROVED,
+    body: "Ваша позиция «{card}» одобрена согласующим.",
+  },
+  ITEM_REJECTED: {
+    label: NOTIFICATION_LABELS.ITEM_REJECTED,
+    body: "Ваша позиция «{card}» отклонена.[[ Причина: {comment}]]",
+  },
+  COUPON_CREATED: {
+    label: NOTIFICATION_LABELS.COUPON_CREATED,
+    body: "По льготе «{card}» сформирован купон[[ № {number}]].",
+  },
+  COUPON_ISSUED: {
+    label: NOTIFICATION_LABELS.COUPON_ISSUED,
+    body: "Купон[[ № {number}]] по льготе «{card}» выдан.",
+  },
+};
+
+/** Демо-значения для предпросмотра шаблона в админке. */
+export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
+  APPLICATION_SUBMITTED: {
+    employee: "Иванов И.И.",
+    department: "Отдел продаж",
+    count: "3",
+    countNoun: "позиции",
+    period: "III квартал 2026",
+  },
+  ITEM_APPROVED: { card: "Абонемент в бассейн" },
+  ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде" },
+  COUPON_CREATED: { card: "Ковры «Кайраккум»", number: "К-000123" },
+  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123" },
+};
+
+/** Доступные плейсхолдеры по событию — для подсказки в админке. */
+export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
+  APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
+  ITEM_APPROVED: ["card"],
+  ITEM_REJECTED: ["card", "comment"],
+  COUPON_CREATED: ["card", "number"],
+  COUPON_ISSUED: ["card", "number"],
+};
 
 const str = (v: unknown) => (v == null ? "" : String(v));
 
-/** Человекочитаемый текст уведомления для Telegram/списка. */
-export function formatNotificationText(event: string, payload: Payload): string {
-  const p = (payload ?? {}) as Record<string, unknown>;
-  switch (event) {
-    case "APPLICATION_SUBMITTED": {
-      const who = str(p.employee);
-      const dept = p.department ? `, ${str(p.department)}` : "";
-      const count = Number(p.count) || 0;
-      const period = p.period ? ` (период: ${str(p.period)})` : "";
-      const noun =
-        count % 10 === 1 && count % 100 !== 11
-          ? "позицию"
-          : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)
-            ? "позиции"
-            : "позиций";
-      return `${who}${dept} подал(а) на согласование ${count} ${noun}${period}. Откройте раздел «Согласование».`;
+/** Русское склонление слова «позиция» по числу. */
+export function positionNoun(count: number): string {
+  const n = Math.abs(count);
+  if (n % 10 === 1 && n % 100 !== 11) return "позицию";
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return "позиции";
+  return "позиций";
+}
+
+/** Строит набор подстановок из payload + производные значения. */
+function buildVars(event: string, payload: Record<string, unknown>): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v != null && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")) {
+      vars[k] = String(v);
     }
-    case "ITEM_APPROVED":
-      return `Ваша позиция «${str(p.card)}» одобрена согласующим.`;
-    case "ITEM_REJECTED":
-      return `Ваша позиция «${str(p.card)}» отклонена.${p.comment ? ` Причина: ${str(p.comment)}` : ""}`;
-    case "COUPON_CREATED":
-      return `По льготе «${str(p.card)}» сформирован купон${p.number ? ` № ${str(p.number)}` : ""}.`;
-    case "COUPON_ISSUED":
-      return `Купон${p.number ? ` № ${str(p.number)}` : ""} по льготе «${str(p.card)}» выдан.`;
-    default:
-      return NOTIFICATION_LABELS[event] ?? event;
   }
+  if (event === "APPLICATION_SUBMITTED") {
+    vars.countNoun = positionNoun(Number(payload.count) || 0);
+  }
+  return vars;
+}
+
+/** Подставляет значения в тело шаблона по описанному синтаксису. */
+export function renderTemplate(body: string, vars: Record<string, string>): string {
+  const value = (name: string) => str(vars[name.trim()]);
+
+  // 1. Опциональные блоки [[ ... ]] — убрать, если хоть один {x} внутри пустой.
+  let out = body.replace(/\[\[([\s\S]*?)\]\]/g, (_m, inner: string) => {
+    const tokens = inner.match(/\{([^}]+)\}/g) ?? [];
+    const allFilled = tokens.every((t) => value(t.slice(1, -1)) !== "");
+    return allFilled ? inner : "";
+  });
+
+  // 2. Обычные подстановки {x}.
+  out = out.replace(/\{([^}]+)\}/g, (_m, name: string) => value(name));
+
+  return out.replace(/[ \t]{2,}/g, " ").trim();
+}
+
+/**
+ * Человекочитаемый текст уведомления для Telegram/списка.
+ * `templates` — карта event → body из БД (NotificationTemplate); при отсутствии
+ * берётся DEFAULT_TEMPLATES, затем — просто метка события.
+ */
+export function formatNotificationText(
+  event: string,
+  payload: Record<string, unknown> | null | undefined,
+  templates?: Map<string, string> | Record<string, string>,
+): string {
+  const p = (payload ?? {}) as Record<string, unknown>;
+
+  const fromMap =
+    templates instanceof Map
+      ? templates.get(event)
+      : templates
+        ? templates[event]
+        : undefined;
+  const body = fromMap ?? DEFAULT_TEMPLATES[event]?.body;
+  if (!body) return NOTIFICATION_LABELS[event] ?? event;
+
+  return renderTemplate(body, buildVars(event, p));
 }

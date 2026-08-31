@@ -41,6 +41,11 @@ export async function deliverTelegramNotifications(opts: {
     return { delivered: 0, failed: 0, skipped: 0 };
   }
 
+  const templateRows = await db.notificationTemplate.findMany({
+    select: { event: true, body: true },
+  });
+  const templates = new Map(templateRows.map((t) => [t.event, t.body]));
+
   const pending = await db.notification.findMany({
     where: {
       deliveredAt: null,
@@ -67,7 +72,8 @@ export async function deliverTelegramNotifications(opts: {
       skipped++;
       continue;
     }
-    const text = "🔔 " + formatNotificationText(n.event, n.payload as Record<string, unknown> | null);
+    const text =
+      "🔔 " + formatNotificationText(n.event, n.payload as Record<string, unknown> | null, templates);
     const ok = await sendTelegram(token, tgId, text);
     if (ok) {
       await db.notification.update({ where: { id: n.id }, data: { deliveredAt: new Date() } });

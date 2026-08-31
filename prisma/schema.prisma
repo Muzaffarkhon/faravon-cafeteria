@@ -107,7 +107,8 @@ model User {
 
   auditLogs     AuditLog[]
   notifications Notification[]
-  decisions     ApplicationItem[] @relation("DecidedBy")
+  decisions     ApplicationItem[]    @relation("DecidedBy")
+  cardEdits     BenefitCardVersion[] @relation("CardVersionEditor")
 }
 
 /// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
@@ -160,7 +161,38 @@ model BenefitCard {
   partner   Partner? @relation(fields: [partnerId], references: [id])
   partnerId String?
 
-  items ApplicationItem[]
+  items    ApplicationItem[]
+  versions BenefitCardVersion[]
+}
+
+/// Снимок состояния карточки льготы на момент изменения (история версий).
+/// Последняя версия всегда равна текущей карточке; «восстановление» — это
+/// новое изменение карточки полями выбранной версии (обратимо).
+model BenefitCardVersion {
+  id      String @id @default(cuid())
+  card    BenefitCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId  String
+  version Int
+
+  // Снимок полей карточки
+  block       Block
+  title       String
+  description String?
+  condition   String?
+  imageUrl    String?
+  category    String?
+  isActive    Boolean
+  status      CardStatus
+  sortOrder   Int
+  partnerId   String?
+
+  editedBy   User?   @relation("CardVersionEditor", fields: [editedById], references: [id])
+  editedById String?
+  reason     String? // "created" | "updated" | "restored:vN"
+  createdAt  DateTime @default(now())
+
+  @@unique([cardId, version])
+  @@index([cardId])
 }
 
 model Period {
@@ -239,6 +271,17 @@ model TextBlock {
   key       String   @id // GOAL | NOVELTY_NOTICE
   title     String
   content   String
+  updatedAt DateTime @updatedAt
+}
+
+/// Редактируемые шаблоны текстов уведомлений (§5.10). `event` совпадает с
+/// Notification.event. В `body` — плейсхолдеры вида {employee}, {card}; блок
+/// [[ ... {x} ... ]] выкидывается целиком, если {x} пустой. Если строки нет —
+/// приложение берёт зашитый шаблон по умолчанию (DEFAULT_TEMPLATES).
+model NotificationTemplate {
+  event     String   @id
+  label     String
+  body      String
   updatedAt DateTime @updatedAt
 }
 

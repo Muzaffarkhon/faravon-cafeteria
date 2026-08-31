@@ -1,5 +1,6 @@
 import { PrismaClient, Block, PartnerStatus, PeriodStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { DEFAULT_TEMPLATES } from "../src/lib/notification-format";
 
 const db = new PrismaClient();
 
@@ -113,6 +114,29 @@ async function main() {
     await db.benefitCard.create({ data: { block: Block.CARE, title: care[i], sortOrder: i } });
   }
 
+  // ---- Стартовая версия (v1) для карточек без истории ----
+  for (const card of await db.benefitCard.findMany()) {
+    const has = await db.benefitCardVersion.count({ where: { cardId: card.id } });
+    if (has > 0) continue;
+    await db.benefitCardVersion.create({
+      data: {
+        cardId: card.id,
+        version: 1,
+        reason: "created",
+        block: card.block,
+        title: card.title,
+        description: card.description,
+        condition: card.condition,
+        imageUrl: card.imageUrl,
+        category: card.category,
+        isActive: card.isActive,
+        status: card.status,
+        sortOrder: card.sortOrder,
+        partnerId: card.partnerId,
+      },
+    });
+  }
+
   // ---- Period with an open selection window (ТЗ v2 §5.7) ----
   const now = new Date("2026-08-01T00:00:00Z");
   const monthStart = new Date(Date.UTC(2026, 7, 1));
@@ -166,6 +190,15 @@ async function main() {
       where: { login: e.login },
       update: { employeeId: emp.id },
       create: { login: e.login, passwordHash: pass, mustChangePassword: false, roles: [Role.EMPLOYEE], employeeId: emp.id },
+    });
+  }
+
+  // ---- Шаблоны уведомлений (§5.10) ----
+  for (const [event, def] of Object.entries(DEFAULT_TEMPLATES)) {
+    await db.notificationTemplate.upsert({
+      where: { event },
+      update: {}, // не затираем правки контент-менеджера
+      create: { event, label: def.label, body: def.body },
     });
   }
 
