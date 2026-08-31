@@ -1,12 +1,37 @@
 import "server-only";
+import { after } from "next/server";
 import { db } from "@/lib/db";
+import { deliverTelegramNotifications } from "@/lib/notification-delivery";
 import type { Prisma } from "@prisma/client";
 
 export { NOTIFICATION_LABELS, formatNotificationText } from "@/lib/notification-format";
 
 /**
+ * Пытается доставить свежие уведомления в Telegram сразу после ответа пользователю
+ * (не блокирует server action). Что не ушло — подберёт cron / `npm run bot`.
+ */
+function flushTelegram() {
+  try {
+    after(async () => {
+      try {
+        await deliverTelegramNotifications({
+          db,
+          token: process.env.TELEGRAM_BOT_TOKEN,
+          log: (m) => console.log(`[notify:inline] ${m}`),
+        });
+      } catch (e) {
+        console.error("[notify:inline] ошибка доставки:", e);
+      }
+    });
+  } catch {
+    // after() доступен только в контексте запроса — вне его доставку сделает cron/бот
+  }
+}
+
+/**
  * Запись уведомления сотруднику, ТЗ v2 §5.10.
- * Канал по умолчанию — Telegram; фактическую доставку выполняет bot/notifications.ts.
+ * Канал по умолчанию — Telegram; доставку выполняет flushTelegram() (мгновенно)
+ * и, как ретрай, cron-роут / bot/notifications.ts.
  */
 export async function notifyEmployee(params: {
   employeeId: string;
@@ -27,12 +52,13 @@ export async function notifyEmployee(params: {
       payload: params.payload,
     },
   });
+  flushTelegram();
 }
 
 /**
  * Уведомление всем активным согласующим (роль APPROVER) — например,
  * о новой поданной заявке (§5.7). Пишется каждому согласующему отдельно,
- * бот доставит тем, у кого привязан Telegram.
+ * доставится тем, у кого привязан Telegram.
  */
 export async function notifyApprovers(params: {
   event: string;
@@ -52,4 +78,5 @@ export async function notifyApprovers(params: {
       payload: params.payload,
     })),
   });
+  flushTelegram();
 }
