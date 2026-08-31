@@ -301,4 +301,32 @@
     background-size: 22px 22px;
     background-position: -11px -11px;
   }
+
+  /* Дрейф фирменных лепестков — ambient-слой для брендовых экранов */
+  .petal-drift {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .petal-drift > i {
+    position: absolute;
+    display: block;
+    will-change: transform, opacity;
+    animation: petal-drift var(--pd-dur, 22s) linear var(--pd-delay, 0s) infinite;
+  }
+  @keyframes petal-drift {
+    0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    12%  { opacity: var(--pd-op, 0.5); }
+    88%  { opacity: var(--pd-op, 0.5); }
+    100% {
+      transform: translate3d(var(--pd-dx, 24px), var(--pd-dy, -130px), 0)
+        rotate(var(--pd-rot, 80deg));
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .petal-drift > i { animation: none; opacity: 0.28; }
+  }
 }

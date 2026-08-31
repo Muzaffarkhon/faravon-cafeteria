@@ -33,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh bg-canvas text-ink">
       <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
-          <BrandLockup markClassName="h-8 w-8" />
+          <BrandLockup markSize={30} />
 
           <div className="flex items-center gap-4">
             <AppNav items={items} />

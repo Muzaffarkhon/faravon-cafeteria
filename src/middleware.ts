@@ -38,5 +38,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    // Пропускаем внутренние маршруты Next и любые статические файлы с расширением
+    // (иконки, логотип из /public и т.п.) — они не должны редиректиться на /login.
+    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt|xml|json|woff2?)$).*)",
+  ],
 };

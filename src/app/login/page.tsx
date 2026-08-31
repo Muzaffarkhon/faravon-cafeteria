@@ -3,7 +3,8 @@
 import { Suspense } from "react";
 import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
-import { PetalMark } from "@/components/brand";
+import { BrandMark } from "@/components/brand";
+import { PetalDrift } from "@/components/petals";
 import { Button, Field, Input } from "@/components/ui";
 import { loginAction, type LoginState } from "./actions";
 
@@ -33,9 +34,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="petal-field grid min-h-dvh place-items-center p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
-        <PetalMark className="h-10 w-10" />
+    <main className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4">
+      <PetalDrift />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
+        <BrandMark size={44} />
         <h1 className="mt-4 text-xl font-semibold text-ink">Кафетерий льгот</h1>
         <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
 

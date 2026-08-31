@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { PetalMark } from "@/components/brand";
+import { BrandMark } from "@/components/brand";
+import { PetalDrift } from "@/components/petals";
 import { Button, Field, Input } from "@/components/ui";
 import { changePasswordAction, type ChangeState } from "./actions";
 
@@ -10,9 +11,10 @@ const initial: ChangeState = {};
 export default function ChangePasswordPage() {
   const [state, formAction, pending] = useActionState(changePasswordAction, initial);
   return (
-    <main className="petal-field grid min-h-dvh place-items-center p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
-        <PetalMark className="h-10 w-10" />
+    <main className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4">
+      <PetalDrift />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
+        <BrandMark size={44} />
         <h1 className="mt-4 text-lg font-semibold text-ink">Смена пароля</h1>
         <p className="mt-1 text-sm text-ink-muted">
           При первом входе необходимо задать постоянный пароль.

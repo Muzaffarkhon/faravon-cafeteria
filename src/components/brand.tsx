@@ -1,50 +1,70 @@
 /**
  * Фирменные элементы «Фаровон».
- * PetalMark — знак-розетка из шести лепестков (мотив логотипа группы компаний).
- * Цвет лепестков наследуется через currentColor, поэтому знак красится `text-*`.
+ * Логотип и знак — реальные ассеты из public/brand (извлечены из брендбука).
  */
+import Image from "next/image";
 import { cx } from "./ui";
 
-export function PetalMark({
+/** Знак «Фаровон» (тюльпан-розетка). Многоцветный, не красится через currentColor. */
+export function BrandMark({
   className,
-  title = "Фаровон",
+  size = 32,
+  priority = false,
 }: {
   className?: string;
-  title?: string;
+  size?: number;
+  priority?: boolean;
 }) {
-  const petal = "M12 12C9.6 10.4 9.6 5.4 12 2.4C14.4 5.4 14.4 10.4 12 12Z";
   return (
-    <svg
-      viewBox="0 0 24 24"
-      role="img"
-      aria-label={title}
-      className={cx("text-primary", className)}
-    >
-      <g fill="currentColor">
-        {[0, 60, 120, 180, 240, 300].map((deg) => (
-          <path key={deg} d={petal} transform={`rotate(${deg} 12 12)`} />
-        ))}
-      </g>
-      <circle cx="12" cy="12" r="2.4" fill="var(--petal-500)" />
-    </svg>
+    <Image
+      src="/brand/mark.png"
+      alt="Фаровон"
+      width={size}
+      height={size}
+      priority={priority}
+      unoptimized
+      className={cx("select-none", className)}
+      draggable={false}
+    />
   );
 }
 
-/** Знак + название сервиса. Используется в шапке приложения и на экранах входа. */
+/** Полный вертикальный логотип «ФАРОВОН» (знак + слово). */
+export function BrandLogo({
+  className,
+  width = 132,
+}: {
+  className?: string;
+  width?: number;
+}) {
+  return (
+    <Image
+      src="/brand/logo.png"
+      alt="ФАРОВОН"
+      width={width}
+      height={Math.round((width * 985) / 1709)}
+      unoptimized
+      className={cx("select-none", className)}
+      draggable={false}
+    />
+  );
+}
+
+/** Знак + название сервиса. Шапка приложения и экраны входа. */
 export function BrandLockup({
   className,
-  markClassName = "h-9 w-9",
+  markSize = 32,
   org = "Группа компаний «Фаровон»",
   title = "Кафетерий льгот",
 }: {
   className?: string;
-  markClassName?: string;
+  markSize?: number;
   org?: string;
   title?: string;
 }) {
   return (
     <div className={cx("flex items-center gap-3", className)}>
-      <PetalMark className={markClassName} />
+      <BrandMark size={markSize} priority />
       <div className="leading-tight">
         <div className="text-sm font-semibold text-ink">{title}</div>
         <div className="text-xs text-ink-muted">{org}</div>
