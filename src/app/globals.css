@@ -302,10 +302,8 @@
     background-position: -11px -11px;
   }
 
-  /* Дрейф фирменных лепестков — ambient-слой для брендовых экранов */
+  /* Дрейф фирменных лепестков — ambient-слой (позиционирование задаётся классом) */
   .petal-drift {
-    position: absolute;
-    inset: 0;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;

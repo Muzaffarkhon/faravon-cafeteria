@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { BrandLockup } from "@/components/brand";
+import { PetalDrift } from "@/components/petals";
 import { Button } from "@/components/ui";
 import { logout } from "./actions";
 import { AppNav, type NavItem } from "./_nav";
@@ -30,7 +31,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   items.push({ href: "/profile", label: "Профиль" });
 
   return (
-    <div className="min-h-dvh bg-canvas text-ink">
+    <div className="relative isolate min-h-dvh bg-canvas text-ink">
+      <PetalDrift fixed />
       <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <BrandLockup markSize={30} />
@@ -49,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      <main className="relative z-10 mx-auto max-w-5xl px-4 py-8">{children}</main>
     </div>
   );
 }
