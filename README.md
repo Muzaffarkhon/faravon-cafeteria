@@ -171,19 +171,39 @@ docker run -p 3000:3000 --env-file .env faravon-cafeteria
 ### Vercel
 
 `build` = `prisma generate && next build` (Vercel не запускает postinstall Prisma сам).
+`vercel.json` в репозитории задаёт cron-доставку уведомлений — подхватывается автоматически.
+
+**Первичная настройка:**
 
 1. Vercel → **Add New… → Project → Import** `Muzaffarkhon/faravon-cafeteria`
    (авторизовать GitHub-app для приватного репо).
 2. Framework — Next.js (определяется автоматически), Build/Output — по умолчанию.
-3. **Environment Variables** (Production и Preview): `DATABASE_URL` (pooled-URL Neon —
-   `...-pooler.<region>.aws.neon.tech/...?sslmode=require`), `AUTH_SECRET` (32+ байт),
-   `PLATFORM_URL` (`https://<project>.vercel.app`), `TELEGRAM_BOT_TOKEN` +
-   `TELEGRAM_WEBHOOK_SECRET` (для webhook-бота). `NODE_ENV` Vercel ставит сам.
-4. Deploy.
+3. **Environment Variables** (Production и Preview):
+   - `DATABASE_URL` — pooled-URL Neon (`...-pooler.<region>.aws.neon.tech/...?sslmode=require`)
+   - `AUTH_SECRET` — 32+ случайных байт
+   - `PLATFORM_URL` — `https://<project>.vercel.app`
+   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` — для webhook-бота
+   - `CRON_SECRET` — для `/api/cron/deliver-notifications` (24+ байт)
+   - `NODE_ENV` Vercel ставит сам.
+4. **Deploy.**
 5. **Миграции** один раз после первого деплоя — локально с боевым URL:
    `DATABASE_URL="<prod-url>" npx prisma migrate deploy` (в build их не кладём).
    Затем один раз `DATABASE_URL="<prod-url>" npm run db:seed` — начальные справочники и
    учётка суперадмина (пароль сменить сразу).
+
+**Автодеплой и проверка после каждого пуша:**
+
+- Push в `main` → Vercel собирает автоматически (если в **Settings → Git** подключён
+  этот репозиторий и Production Branch = `main`).
+- **Deployments**: у нужного коммита статус должен быть **Ready** и метка **Production**.
+  Если Ready, но не Production — открыть деплой → **⋯ → Promote to Production**.
+  Если **Error** — открыть Build Logs.
+- **Settings → Deployment Protection**: при включённой Vercel Authentication все запросы
+  без сессии Vercel получают 307 на SSO — cron-доставка и `curl`-проверки не пройдут.
+  Для production выключить (**Disabled**) либо выдать **Protection Bypass for Automation**
+  и слать его заголовком `x-vercel-protection-bypass`.
+- Быстрая проверка версии на проде:
+  `curl -s https://<домен>/login | grep -o petal-drift` — должно найтись в актуальной сборке.
 
 Managed Postgres: любой (Neon / Vercel Postgres / Supabase) — важен **пул соединений**
 (serverless-функции + прямой Postgres = исчерпание коннектов); используйте pooled-строку
