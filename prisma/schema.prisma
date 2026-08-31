@@ -238,6 +238,8 @@ model ApplicationItem {
   decidedById   String?
   decidedAt     DateTime?
   submittedAt   DateTime?
+  escalationLevel Int       @default(0) // последний сработавший уровень SLA-эскалации (§5.12)
+  lastEscalatedAt DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -245,6 +247,19 @@ model ApplicationItem {
 
   @@index([applicationId])
   @@index([status])
+}
+
+/// Матрица SLA-эскалаций по «зависшим» на согласовании позициям (§5.12).
+/// Крон-задача раз в N минут проверяет PENDING-позиции: если прошло больше
+/// `afterHours` от `submittedAt`, а `escalationLevel` позиции меньше `level`,
+/// шлёт уведомление `SLA_ESCALATION` пользователям ролей `notifyRoles`.
+model SlaEscalationRule {
+  id          String   @id @default(cuid())
+  level       Int      @unique
+  afterHours  Int
+  notifyRoles Role[]
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
 }
 
 model Coupon {

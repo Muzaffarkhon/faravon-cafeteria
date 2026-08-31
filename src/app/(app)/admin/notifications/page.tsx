@@ -11,6 +11,7 @@ const HINTS: Record<string, string> = {
   ITEM_REJECTED: "Сотруднику — когда согласующий отклонил позицию.",
   COUPON_CREATED: "Сотруднику — когда по одобренной льготе сформирован купон.",
   COUPON_ISSUED: "Сотруднику — когда купон выдан на руки.",
+  SLA_ESCALATION: "Ролям из матрицы SLA — когда позиция висит на согласовании дольше срока (раздел «SLA»).",
 };
 
 export default async function NotificationsPage() {

@@ -33,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/texts", label: "Тексты" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/notifications", label: "Уведомления" });
+  if (can(roles, "cards.manage")) items.push({ href: "/admin/sla", label: "SLA" });
   if (can(roles, "periods.manage")) items.push({ href: "/admin/periods", label: "Периоды" });
   if (can(roles, "reports.view")) items.push({ href: "/admin/reports", label: "Отчёты" });
   if (can(roles, "access.manage")) items.push({ href: "/admin/access", label: "Доступ" });

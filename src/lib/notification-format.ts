@@ -17,6 +17,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   ITEM_REJECTED: "Позиция заявки отклонена",
   COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
+  SLA_ESCALATION: "Просроченная заявка на согласовании",
 };
 
 /** Порядок событий в админке. */
@@ -26,6 +27,7 @@ export const NOTIFICATION_EVENTS = [
   "ITEM_REJECTED",
   "COUPON_CREATED",
   "COUPON_ISSUED",
+  "SLA_ESCALATION",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -54,6 +56,10 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
     body: "Купон[[ № {number}]] по льготе «{card}» выдан.",
   },
+  SLA_ESCALATION: {
+    label: NOTIFICATION_LABELS.SLA_ESCALATION,
+    body: "Заявка {employee}[[, {department}]] по льготе «{card}» ждёт решения больше {hours} ч (уровень {level}). Откройте раздел «Согласование».",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -69,6 +75,13 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде" },
   COUPON_CREATED: { card: "Ковры «Кайраккум»", number: "К-000123" },
   COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123" },
+  SLA_ESCALATION: {
+    employee: "Иванов И.И.",
+    department: "Отдел продаж",
+    card: "Абонемент в бассейн",
+    hours: "72",
+    level: "1",
+  },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -78,6 +91,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   ITEM_REJECTED: ["card", "comment"],
   COUPON_CREATED: ["card", "number"],
   COUPON_ISSUED: ["card", "number"],
+  SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

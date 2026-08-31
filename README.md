@@ -264,6 +264,19 @@ Env на Vercel: добавить `CRON_SECRET`
 Проверка: `curl -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/deliver-notifications`
 → `{"ok":true,"delivered":N,...}`.
 
+### SLA-эскалации (§5.12)
+
+Роут `/api/cron/sla-escalations` (та же защита `CRON_SECRET`) проверяет позиции в статусе
+`PENDING`: если прошло больше `afterHours` от `submittedAt`, а уровень эскалации позиции ниже
+правила — шлёт `SLA_ESCALATION` ролям из правила и поднимает уровень. Матрица правил
+редактируется в разделе **SLA** (`/admin/sla`), текст — в разделе «Уведомления».
+
+Планировщик: отдельная Cronjob на cron-job.org, URL `https://<домен>/api/cron/sla-escalations`,
+метод GET, заголовок `Authorization: Bearer <CRON_SECRET>`, интервал 10–15 мин.
+
+Проверка: `curl -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/sla-escalations`
+→ `{"ok":true,"escalation":{...},"delivery":{...}}`.
+
 ### Чек-лист безопасности
 
 - `AUTH_SECRET` — сильный, уникальный для окружения; `.env` не в git (уже так).

@@ -202,6 +202,19 @@ async function main() {
     });
   }
 
+  // ---- Матрица SLA-эскалаций (§5.12) ----
+  const slaDefaults = [
+    { level: 1, afterHours: 72, notifyRoles: [Role.APPROVER], active: true },
+    { level: 2, afterHours: 120, notifyRoles: [Role.APPROVER, Role.SUPERADMIN], active: true },
+  ];
+  for (const rule of slaDefaults) {
+    await db.slaEscalationRule.upsert({
+      where: { level: rule.level },
+      update: {}, // не затираем настройку
+      create: rule,
+    });
+  }
+
   console.log("Seed done. Logins: superadmin / content / approver / hrbp / analyst / ivanov / petrova / sidorov — password: Password1");
 }
 
