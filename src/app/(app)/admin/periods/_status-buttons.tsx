@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { setPeriodStatus, deletePeriod } from "./actions";
 
 export function PeriodActions({
@@ -31,34 +32,46 @@ export function PeriodActions({
     <div className="flex flex-col items-end gap-1">
       <div className="flex gap-2">
         {status === "DRAFT" && (
-          <button
-            onClick={() => run(() => setPeriodStatus(id, "OPEN"))}
+          <Button
+            variant="success"
+            size="sm"
             disabled={pending}
-            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            onClick={() => run(() => setPeriodStatus(id, "OPEN"))}
           >
             Открыть
-          </button>
+          </Button>
         )}
         {status === "OPEN" && (
-          <button
-            onClick={() => run(() => setPeriodStatus(id, "CLOSED"), `Закрыть период «${name}»? Подача и изменение заявок станут недоступны.`)}
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={pending}
-            className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            onClick={() =>
+              run(
+                () => setPeriodStatus(id, "CLOSED"),
+                `Закрыть период «${name}»? Подача и изменение заявок станут недоступны.`,
+              )
+            }
           >
             Закрыть
-          </button>
+          </Button>
         )}
         {status === "DRAFT" && (
-          <button
-            onClick={() => run(() => deletePeriod(id), `Удалить период «${name}»?`)}
+          <Button
+            variant="danger"
+            size="sm"
             disabled={pending}
-            className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+            onClick={() => run(() => deletePeriod(id), `Удалить период «${name}»?`)}
           >
             Удалить
-          </button>
+          </Button>
         )}
       </div>
-      {error && <span className="max-w-[240px] text-right text-[11px] text-red-600">{error}</span>}
+      {error && (
+        <span className="max-w-[240px] text-right text-[11px] font-medium text-danger" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

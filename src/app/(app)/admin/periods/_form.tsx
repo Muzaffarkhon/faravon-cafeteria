@@ -2,10 +2,8 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { Button, Field, Input, buttonClass } from "@/components/ui";
 import type { PeriodFormState } from "./actions";
-
-const inputCls =
-  "mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-red-500";
 
 export type PeriodValues = {
   name: string;
@@ -34,69 +32,56 @@ export function PeriodForm({
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Название *</label>
-        <input
+      <Field label="Название" htmlFor="name" required>
+        <Input
+          id="name"
           name="name"
           defaultValue={initial?.name ?? ""}
           placeholder="Например: Сентябрь 2026"
-          className={inputCls}
           required
         />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Начало периода" htmlFor="startDate" required>
+          <Input id="startDate" type="date" name="startDate" defaultValue={d(initial?.startDate)} required />
+        </Field>
+        <Field label="Конец периода" htmlFor="endDate" required>
+          <Input id="endDate" type="date" name="endDate" defaultValue={d(initial?.endDate)} required />
+        </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Начало периода *</label>
-          <input type="date" name="startDate" defaultValue={d(initial?.startDate)} className={inputCls} required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Конец периода *</label>
-          <input type="date" name="endDate" defaultValue={d(initial?.endDate)} className={inputCls} required />
-        </div>
+        <Field label="Окно выбора: с" htmlFor="windowStart" required>
+          <Input id="windowStart" type="date" name="windowStart" defaultValue={d(initial?.windowStart)} required />
+        </Field>
+        <Field label="Окно выбора: по" htmlFor="windowEnd" required>
+          <Input id="windowEnd" type="date" name="windowEnd" defaultValue={d(initial?.windowEnd)} required />
+        </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Окно выбора: с *</label>
-          <input type="date" name="windowStart" defaultValue={d(initial?.windowStart)} className={inputCls} required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Окно выбора: по *</label>
-          <input type="date" name="windowEnd" defaultValue={d(initial?.windowEnd)} className={inputCls} required />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Лимит выбора льгот</label>
-        <input
+      <Field label="Лимит выбора льгот" htmlFor="maxSelections">
+        <Input
+          id="maxSelections"
           type="number"
           name="maxSelections"
           min={1}
           max={20}
           defaultValue={initial?.maxSelections ?? 4}
-          className={inputCls}
         />
-      </div>
+      </Field>
 
       {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
           {state.error}
         </p>
       )}
 
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Сохранение…" : submitLabel}
-        </button>
-        <Link
-          href="/admin/periods"
-          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100"
-        >
+        </Button>
+        <Link href="/admin/periods" className={buttonClass({ variant: "secondary" })}>
           Отмена
         </Link>
       </div>

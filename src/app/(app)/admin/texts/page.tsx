@@ -18,12 +18,12 @@ export default async function TextsPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Текстовые блоки</h1>
+      <h1 className="text-lg font-semibold text-ink">Текстовые блоки</h1>
       <div className="space-y-4">
         {blocks.map((b) => (
           <div key={b.key}>
             {HINTS[b.key] && (
-              <p className="mb-1 text-xs text-neutral-400">{HINTS[b.key]}</p>
+              <p className="mb-1 text-xs text-ink-subtle">{HINTS[b.key]}</p>
             )}
             <TextBlockForm blockKey={b.key} title={b.title} content={b.content} />
           </div>

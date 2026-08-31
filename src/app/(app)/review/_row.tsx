@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button, Textarea } from "@/components/ui";
 import { approveItem, rejectItem } from "./actions";
 
 export function ReviewRow({
@@ -34,67 +35,65 @@ export function ReviewRow({
     <li className="px-5 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium">{card}</div>
-          <div className="text-xs text-neutral-400">
+          <div className="text-sm font-medium text-ink">{card}</div>
+          <div className="text-xs text-ink-subtle">
             {partner ?? "—"}
             {condition && ` · ${condition}`}
           </div>
         </div>
         {!rejecting && (
           <div className="flex gap-2">
-            <button
-              onClick={() => run(() => approveItem(itemId))}
-              disabled={pending}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
+            <Button variant="success" size="sm" disabled={pending} onClick={() => run(() => approveItem(itemId))}>
               Одобрить
-            </button>
-            <button
-              onClick={() => setRejecting(true)}
-              disabled={pending}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="danger" size="sm" disabled={pending} onClick={() => setRejecting(true)}>
               Отклонить
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {rejecting && (
-        <div className="mt-3 rounded-lg bg-neutral-50 p-3">
-          <label className="block text-xs font-medium text-neutral-600">
+        <div className="mt-3 rounded-lg bg-surface-muted p-3">
+          <label htmlFor={`reason-${itemId}`} className="block text-xs font-medium text-ink">
             Причина отклонения (обязательно)
           </label>
-          <textarea
+          <Textarea
+            id={`reason-${itemId}`}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={2}
-            className="mt-1 w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm outline-none focus:border-red-500"
+            className="mt-1"
           />
           <div className="mt-2 flex gap-2">
-            <button
+            <Button
+              size="sm"
+              disabled={pending || comment.trim().length === 0}
               onClick={() => run(() => rejectItem(itemId, comment))}
-              disabled={pending}
-              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
               Подтвердить отклонение
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={pending}
               onClick={() => {
                 setRejecting(false);
                 setComment("");
                 setError(null);
               }}
-              disabled={pending}
-              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs hover:bg-neutral-100"
             >
               Отмена
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-2 text-xs font-medium text-danger" role="alert">
+          {error}
+        </p>
+      )}
     </li>
   );
 }

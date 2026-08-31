@@ -4,12 +4,13 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PARTNER_STATUS_LABELS } from "@/lib/labels";
+import { Badge, Card, PageHeader, buttonClass, type BadgeTone } from "@/components/ui";
 import { DeletePartnerButton } from "./_delete-button";
 
-const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: "bg-emerald-50 text-emerald-700",
-  SOON: "bg-amber-50 text-amber-700",
-  ARCHIVED: "bg-neutral-100 text-neutral-500",
+const STATUS_TONE: Record<string, BadgeTone> = {
+  ACTIVE: "success",
+  SOON: "warning",
+  ARCHIVED: "neutral",
 };
 
 export default async function PartnersPage() {
@@ -24,19 +25,18 @@ export default async function PartnersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Справочник партнёров ({partners.length})</h1>
-        <Link
-          href="/admin/partners/new"
-          className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-        >
-          Добавить партнёра
-        </Link>
-      </div>
+      <PageHeader
+        title={`Справочник партнёров (${partners.length})`}
+        action={
+          <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
+            Добавить партнёра
+          </Link>
+        }
+      />
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-neutral-100 text-left text-xs text-neutral-500">
+          <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
             <tr>
               <th className="px-4 py-2 font-medium">Название</th>
               <th className="px-4 py-2 font-medium">Категория</th>
@@ -46,27 +46,23 @@ export default async function PartnersPage() {
               <th className="px-4 py-2" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className="divide-y divide-line-subtle">
             {partners.map((p) => (
-              <tr key={p.id}>
-                <td className="px-4 py-2 font-medium">{p.name}</td>
-                <td className="px-4 py-2 text-neutral-500">{p.category ?? "—"}</td>
-                <td className="px-4 py-2 text-neutral-500">{p.discountType ?? "—"}</td>
-                <td className="px-4 py-2 text-neutral-500">{p._count.cards}</td>
+              <tr key={p.id} className="transition-colors hover:bg-surface-muted/60">
+                <td className="px-4 py-2 font-medium text-ink">{p.name}</td>
+                <td className="px-4 py-2 text-ink-muted">{p.category ?? "—"}</td>
+                <td className="px-4 py-2 text-ink-muted">{p.discountType ?? "—"}</td>
+                <td className="px-4 py-2 text-ink-muted">{p._count.cards}</td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      STATUS_STYLE[p.status] ?? "bg-neutral-100"
-                    }`}
-                  >
+                  <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
                     {PARTNER_STATUS_LABELS[p.status]}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-2">
                     <Link
                       href={`/admin/partners/${p.id}`}
-                      className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-100"
+                      className={buttonClass({ variant: "secondary", size: "sm" })}
                     >
                       Изменить
                     </Link>
@@ -77,7 +73,7 @@ export default async function PartnersPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }

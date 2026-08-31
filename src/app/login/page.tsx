@@ -3,6 +3,8 @@
 import { Suspense } from "react";
 import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
+import { PetalMark } from "@/components/brand";
+import { Button, Field, Input } from "@/components/ui";
 import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
@@ -15,57 +17,35 @@ function LoginForm() {
   return (
     <form action={formAction} className="mt-6 space-y-4">
       <input type="hidden" name="next" value={next} />
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Логин</label>
-        <input
-          name="login"
-          autoComplete="username"
-          className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-red-500"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Пароль</label>
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-red-500"
-          required
-        />
-      </div>
+      <Field label="Логин" htmlFor="login">
+        <Input id="login" name="login" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
+      </Field>
+      <Field label="Пароль" htmlFor="password" error={state.error}>
+        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+      </Field>
 
-      {state.error && (
-        <p className="text-sm text-red-600" role="alert">
-          {state.error}
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-      >
+      <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Вход…" : "Войти"}
-      </button>
+      </Button>
     </form>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="min-h-dvh grid place-items-center bg-neutral-50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm border border-neutral-200">
-        <h1 className="text-xl font-semibold text-neutral-900">Кафетерий льгот</h1>
-        <p className="mt-1 text-sm text-neutral-500">Группа компаний «Фаровон»</p>
+    <main className="petal-field grid min-h-dvh place-items-center p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
+        <PetalMark className="h-10 w-10" />
+        <h1 className="mt-4 text-xl font-semibold text-ink">Кафетерий льгот</h1>
+        <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
 
-        <Suspense fallback={<div className="mt-6 h-40" />}>
+        <Suspense fallback={<div className="mt-6 h-52" />}>
           <LoginForm />
         </Suspense>
 
-        <p className="mt-6 text-xs text-neutral-400">
+        <p className="mt-6 text-xs text-ink-subtle">
           Логин и одноразовый пароль сотрудник получает в Telegram-боте. Демо-доступ:
-          superadmin / content / approver / hrbp / analyst / ivanov — пароль Password1
+          superadmin / content / approver / hrbp / analyst / ivanov, пароль Password1
         </p>
       </div>
     </main>

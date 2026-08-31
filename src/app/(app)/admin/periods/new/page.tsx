@@ -11,8 +11,8 @@ export default async function NewPeriodPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Новый период</h1>
-      <p className="text-sm text-neutral-500">
+      <h1 className="text-lg font-semibold text-ink">Новый период</h1>
+      <p className="text-sm text-ink-muted">
         Период создаётся в статусе «Черновик». Откройте его на странице списка, когда всё готово.
       </p>
       <PeriodForm action={createPeriod} submitLabel="Создать" />

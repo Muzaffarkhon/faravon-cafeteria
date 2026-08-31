@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { getCurrentPeriod, getApplicationWithItems } from "@/lib/selection";
+import { Card, SectionTitle } from "@/components/ui";
 import { FlexSelection } from "./_components/flex-selection";
 
 export default async function OverviewPage() {
@@ -30,28 +31,28 @@ export default async function OverviewPage() {
     if (can(roles, "periods.manage"))
       links.push({ href: "/admin/periods", label: "Периоды выбора", desc: "окна подачи заявок, лимит, открытие и закрытие" });
     if (can(roles, "reports.view"))
-      links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт CSV" });
+      links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX" });
 
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-neutral-200 bg-white p-6">
-          <h1 className="text-lg font-semibold">
+        <Card className="p-6">
+          <h1 className="text-lg font-semibold text-ink">
             Вы вошли как {roles.map((r) => ROLE_LABELS[r]).join(", ")}
           </h1>
           {links.length === 0 && (
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-ink-muted">
               Разделы для вашей роли (справочники, отчёты) — в разработке.
             </p>
           )}
-        </div>
+        </Card>
         {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className="block rounded-xl border border-neutral-200 bg-white p-5 hover:border-red-300"
+            className="block rounded-xl border border-line bg-surface p-5 shadow-sm transition-colors hover:border-primary-border hover:bg-primary-soft/40"
           >
-            <div className="text-sm font-medium text-red-700">{l.label}</div>
-            <div className="text-xs text-neutral-500">{l.desc}</div>
+            <div className="text-sm font-medium text-primary-strong">{l.label}</div>
+            <div className="text-xs text-ink-muted">{l.desc}</div>
           </Link>
         ))}
       </div>
@@ -80,19 +81,19 @@ export default async function OverviewPage() {
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
 
   return (
-    <div className="space-y-8">
-      {/* Employee header */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-5">
+    <div className="space-y-10">
+      {/* Шапка сотрудника */}
+      <Card className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">{emp.fullName}</h1>
-            <p className="text-sm text-neutral-500">
+            <h1 className="text-lg font-semibold text-ink">{emp.fullName}</h1>
+            <p className="text-sm text-ink-muted">
               {emp.position} · {emp.department}
             </p>
           </div>
           {period ? (
-            <div className="rounded-lg bg-neutral-100 px-3 py-2 text-right text-xs text-neutral-600">
-              <div className="font-medium text-neutral-800">Период: {period.name}</div>
+            <div className="rounded-lg bg-surface-muted px-3 py-2 text-right text-xs text-ink-muted">
+              <div className="font-medium text-ink">Период: {period.name}</div>
               <div>
                 {period.windowOpen
                   ? `Окно выбора открыто до ${period.windowEnd.toLocaleDateString("ru-RU")}`
@@ -100,50 +101,50 @@ export default async function OverviewPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
+            <div className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-ink-subtle">
               Активный период не открыт
             </div>
           )}
         </div>
-      </section>
+      </Card>
 
-      {/* Goal */}
+      {/* Цель */}
       {goal && (
-        <section>
-          <h2 className="mb-2 text-base font-semibold text-red-700">{goal.title}</h2>
-          <p className="text-sm leading-relaxed text-neutral-700">{goal.content}</p>
+        <section className="space-y-2">
+          <SectionTitle>{goal.title}</SectionTitle>
+          <p className="text-sm leading-relaxed text-ink">{goal.content}</p>
         </section>
       )}
 
-      {/* Recognition */}
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-red-700">Программы признания</h2>
+      {/* Программы признания */}
+      <section className="space-y-3">
+        <SectionTitle>Программы признания</SectionTitle>
         <ul className="grid gap-3 sm:grid-cols-3">
           {recognition.map((c) => (
-            <li key={c.id} className="rounded-xl border border-neutral-200 bg-white p-4">
-              <div className="text-sm font-medium">{c.title}</div>
-              {c.description && <p className="mt-1 text-xs text-neutral-600">{c.description}</p>}
+            <li key={c.id} className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+              <div className="text-sm font-medium text-ink">{c.title}</div>
+              {c.description && <p className="mt-1 text-xs text-ink-muted">{c.description}</p>}
             </li>
           ))}
         </ul>
       </section>
 
-      {/* Care */}
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-red-700">Витрина заботы</h2>
+      {/* Витрина заботы */}
+      <section className="space-y-3">
+        <SectionTitle>Витрина заботы</SectionTitle>
         <ul className="grid gap-2 sm:grid-cols-2">
           {care.map((c) => (
-            <li key={c.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm">
+            <li key={c.id} className="rounded-lg border border-line bg-surface px-4 py-2 text-sm text-ink shadow-xs">
               {c.title}
             </li>
           ))}
         </ul>
       </section>
 
-      {/* Flex registry */}
-      <section>
-        <h2 className="mb-1 text-base font-semibold text-red-700">Реестр гибких льгот</h2>
-        <p className="mb-4 text-xs text-neutral-500">
+      {/* Реестр гибких льгот */}
+      <section className="space-y-1">
+        <SectionTitle>Реестр гибких льгот</SectionTitle>
+        <p className="pb-3 text-xs text-ink-muted">
           Выберите до {period?.maxSelections ?? 4} льгот. После подтверждения выбор поступит на согласование.
         </p>
         <FlexSelection
@@ -162,16 +163,16 @@ export default async function OverviewPage() {
         />
       </section>
 
-      {/* Novelty notice */}
+      {/* Уведомление о новизне */}
       {notice && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="text-sm font-medium text-amber-800">{notice.title}</div>
-          <p className="mt-1 text-xs text-amber-700">{notice.content}</p>
-        </section>
+        <Card className="border-warning-soft bg-warning-soft/60 p-4 shadow-none">
+          <div className="text-sm font-medium text-warning-strong">{notice.title}</div>
+          <p className="mt-1 text-xs text-warning-strong/80">{notice.content}</p>
+        </Card>
       )}
 
-      <div className="pt-2">
-        <Link href="/applications" className="text-sm font-medium text-red-600 hover:underline">
+      <div>
+        <Link href="/applications" className="text-sm font-medium text-primary hover:text-primary-hover hover:underline">
           Перейти к моим заявкам и купонам →
         </Link>
       </div>

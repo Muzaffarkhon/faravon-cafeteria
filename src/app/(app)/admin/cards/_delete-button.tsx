@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { deleteCard } from "./actions";
 
 export function DeleteCardButton({ id, title }: { id: string; title: string }) {
@@ -9,7 +10,10 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
 
   return (
     <span className="inline-flex flex-col items-end">
-      <button
+      <Button
+        variant="danger"
+        size="sm"
+        disabled={pending}
         onClick={() => {
           if (!confirm(`Удалить карточку «${title}»?`)) return;
           setError(null);
@@ -21,12 +25,14 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
             }
           });
         }}
-        disabled={pending}
-        className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
       >
         Удалить
-      </button>
-      {error && <span className="mt-1 max-w-[220px] text-right text-[11px] text-red-600">{error}</span>}
+      </Button>
+      {error && (
+        <span className="mt-1 max-w-[220px] text-right text-[11px] font-medium text-danger" role="alert">
+          {error}
+        </span>
+      )}
     </span>
   );
 }

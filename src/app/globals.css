@@ -1,22 +1,304 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   Дизайн-система «Кафетерий льгот» — Фаровон
+   Ярко-красная фирменная палитра. Три слоя токенов: primitive → semantic → utility.
+   Формат цвета — OKLCH. Тема одна на весь продукт (светлая).
+   ========================================================================== */
+
 :root {
-  --background: #fafafa;
-  --foreground: #171717;
+  /* ---------------------------------------------------------------------------
+     СЛОЙ 1. PRIMITIVE — сырые значения шкал. В разметке напрямую не используются.
+     ------------------------------------------------------------------------ */
+
+  /* Фирменный красный «Фаровон». Опорный тон — brand-600. */
+  --brand-50:  oklch(0.971 0.013 24);
+  --brand-100: oklch(0.938 0.030 24);
+  --brand-200: oklch(0.884 0.058 25);
+  --brand-300: oklch(0.808 0.100 26);
+  --brand-400: oklch(0.712 0.160 27);
+  --brand-500: oklch(0.640 0.205 27);
+  --brand-600: oklch(0.577 0.216 27);   /* основной акцент */
+  --brand-700: oklch(0.505 0.193 27);
+  --brand-800: oklch(0.443 0.163 27);
+  --brand-900: oklch(0.393 0.135 26);
+  --brand-950: oklch(0.271 0.093 25);
+
+  /* Коралл лепестков логотипа — тёплый вторичный акцент для декора. */
+  --petal-50:  oklch(0.975 0.011 40);
+  --petal-100: oklch(0.945 0.026 40);
+  --petal-200: oklch(0.898 0.050 40);
+  --petal-300: oklch(0.836 0.078 40);
+  --petal-400: oklch(0.784 0.101 39);
+  --petal-500: oklch(0.732 0.120 38);
+  --petal-600: oklch(0.665 0.128 36);
+
+  /* Тёплый нейтральный. Подтон уведён в сторону фирменного красного (hue ≈ 34). */
+  --sand-50:  oklch(0.986 0.002 48);
+  --sand-100: oklch(0.969 0.004 44);
+  --sand-200: oklch(0.930 0.006 42);
+  --sand-300: oklch(0.882 0.008 40);
+  --sand-400: oklch(0.720 0.010 38);
+  --sand-500: oklch(0.566 0.012 36);
+  --sand-600: oklch(0.472 0.012 34);
+  --sand-700: oklch(0.397 0.011 32);
+  --sand-800: oklch(0.287 0.010 30);
+  --sand-900: oklch(0.223 0.009 30);
+  --sand-950: oklch(0.157 0.008 28);
+
+  /* Статусные тона (нейтральные к бренду). */
+  --green-soft:   oklch(0.960 0.033 155);
+  --green-base:   oklch(0.596 0.130 152);
+  --green-strong: oklch(0.470 0.118 153);
+  --amber-soft:   oklch(0.965 0.043 85);
+  --amber-base:   oklch(0.760 0.150 70);
+  --amber-strong: oklch(0.520 0.130 55);
+
+  /* ---------------------------------------------------------------------------
+     СЛОЙ 2. SEMANTIC — назначение. Эти токены расходятся по интерфейсу.
+     ------------------------------------------------------------------------ */
+
+  --canvas:          var(--sand-50);
+  --surface:         #ffffff;
+  --surface-muted:   var(--sand-100);
+  --surface-sunken:  var(--sand-200);
+  --surface-inverse: var(--sand-900);
+
+  --line:        var(--sand-200);
+  --line-strong: var(--sand-300);
+  --line-subtle: var(--sand-100);
+
+  --ink:        var(--sand-900);
+  --ink-muted:  var(--sand-500);
+  --ink-subtle: var(--sand-400);
+  --ink-strong: var(--sand-950);
+  --on-brand:   #ffffff;
+  --on-inverse: var(--sand-50);
+
+  --primary:            var(--brand-600);
+  --primary-hover:      var(--brand-700);
+  --primary-active:     var(--brand-800);
+  --primary-strong:     var(--brand-700);
+  --primary-soft:       var(--brand-50);
+  --primary-soft-hover: var(--brand-100);
+  --primary-border:     var(--brand-300);
+
+  --success:        var(--green-base);
+  --success-strong: var(--green-strong);
+  --success-soft:   var(--green-soft);
+  --warning:        var(--amber-base);
+  --warning-strong: var(--amber-strong);
+  --warning-soft:   var(--amber-soft);
+  /* Опасность в красном бренде цветом не отличить — полагаемся на контекст и текст.
+     Тон намеренно уведён темнее бренда. */
+  --danger:         var(--brand-700);
+  --danger-strong:  var(--brand-800);
+  --danger-soft:    var(--brand-50);
+  --danger-border:  var(--brand-200);
+
+  --focus: var(--brand-600);
+
+  /* Кастомная тень фокуса (не Tailwind-утилита) */
+  --shadow-focus: 0 0 0 3px oklch(0.64 0.205 27 / 0.28);
+}
+
+/* -----------------------------------------------------------------------------
+   СЛОЙ 3. UTILITY — токены Tailwind (bg-*, text-*, border-*, rounded-*, shadow-*).
+   -------------------------------------------------------------------------- */
+@theme {
+  /* Радиусы — компактная продуктовая шкала */
+  --radius-xs:  0.25rem;
+  --radius-sm:  0.375rem;
+  --radius-md:  0.5rem;
+  --radius-lg:  0.75rem;
+  --radius-xl:  1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Тени — многослойные, с тёплым подтоном (ambient + direct) */
+  --shadow-xs: 0 1px 2px oklch(0.22 0.03 30 / 0.06);
+  --shadow-sm: 0 1px 2px oklch(0.22 0.03 30 / 0.07), 0 1px 1px oklch(0.22 0.03 30 / 0.04);
+  --shadow-md: 0 2px 4px oklch(0.22 0.03 30 / 0.06), 0 6px 16px oklch(0.22 0.03 30 / 0.08);
+  --shadow-lg: 0 4px 8px oklch(0.22 0.03 30 / 0.06), 0 16px 40px oklch(0.22 0.03 30 / 0.12);
+
+  /* Типографика — системный стек (продуктовый регистр, безопасно для кириллицы) */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas,
+    monospace;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Совместимость с прежней разметкой */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+
+  /* Семантические поверхности */
+  --color-canvas:          var(--canvas);
+  --color-surface:         var(--surface);
+  --color-surface-muted:   var(--surface-muted);
+  --color-surface-sunken:  var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+
+  /* Границы */
+  --color-line:        var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-subtle: var(--line-subtle);
+
+  /* Текст */
+  --color-ink:        var(--ink);
+  --color-ink-muted:  var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-strong: var(--ink-strong);
+  --color-on-brand:   var(--on-brand);
+  --color-on-inverse: var(--on-inverse);
+
+  /* Бренд */
+  --color-primary:            var(--primary);
+  --color-primary-hover:      var(--primary-hover);
+  --color-primary-active:     var(--primary-active);
+  --color-primary-strong:     var(--primary-strong);
+  --color-primary-soft:       var(--primary-soft);
+  --color-primary-soft-hover: var(--primary-soft-hover);
+  --color-primary-border:     var(--primary-border);
+
+  /* Статусы */
+  --color-success:        var(--success);
+  --color-success-strong: var(--success-strong);
+  --color-success-soft:   var(--success-soft);
+  --color-warning:        var(--warning);
+  --color-warning-strong: var(--warning-strong);
+  --color-warning-soft:   var(--warning-soft);
+  --color-danger:         var(--danger);
+  --color-danger-strong:  var(--danger-strong);
+  --color-danger-soft:    var(--danger-soft);
+  --color-danger-border:  var(--danger-border);
+
+  /* Фирменная шкала red-* — переопределяет дефолт Tailwind. */
+  --color-red-50:  var(--brand-50);
+  --color-red-100: var(--brand-100);
+  --color-red-200: var(--brand-200);
+  --color-red-300: var(--brand-300);
+  --color-red-400: var(--brand-400);
+  --color-red-500: var(--brand-500);
+  --color-red-600: var(--brand-600);
+  --color-red-700: var(--brand-700);
+  --color-red-800: var(--brand-800);
+  --color-red-900: var(--brand-900);
+  --color-red-950: var(--brand-950);
+
+  /* Тёплая нейтральная шкала — переопределяет дефолтный neutral-*. */
+  --color-neutral-50:  var(--sand-50);
+  --color-neutral-100: var(--sand-100);
+  --color-neutral-200: var(--sand-200);
+  --color-neutral-300: var(--sand-300);
+  --color-neutral-400: var(--sand-400);
+  --color-neutral-500: var(--sand-500);
+  --color-neutral-600: var(--sand-600);
+  --color-neutral-700: var(--sand-700);
+  --color-neutral-800: var(--sand-800);
+  --color-neutral-900: var(--sand-900);
+  --color-neutral-950: var(--sand-950);
+
+  /* Коралл лепестков */
+  --color-petal-50:  var(--petal-50);
+  --color-petal-100: var(--petal-100);
+  --color-petal-200: var(--petal-200);
+  --color-petal-300: var(--petal-300);
+  --color-petal-400: var(--petal-400);
+  --color-petal-500: var(--petal-500);
+  --color-petal-600: var(--petal-600);
 }
 
-html {
-  font-family: var(--font-sans);
+/* -----------------------------------------------------------------------------
+   БАЗОВЫЙ СЛОЙ
+   -------------------------------------------------------------------------- */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  /* Единый фокус-ринг на клавиатурном фокусе.
+     Поля ввода получают собственный стиль через .control-focus — исключаем их. */
+  :focus-visible:not(input):not(select):not(textarea) {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--brand-200);
+    color: var(--ink-strong);
+  }
+
+  button, [role="button"], a, label, summary {
+    touch-action: manipulation;
+  }
+
+  th, td, time, [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::placeholder {
+    color: var(--ink-subtle);
+    opacity: 1;
+  }
+
+  :where(h1, h2, h3, h4, [id]) {
+    scroll-margin-top: 5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* -----------------------------------------------------------------------------
+   УТИЛИТЫ ПРОЕКТА
+   -------------------------------------------------------------------------- */
+@layer utilities {
+  /* Кольцо фокуса для кастомных состояний (например, выбранная карточка) */
+  .ring-focus {
+    box-shadow: var(--shadow-focus);
+  }
+
+  /* Фокус полей ввода: фирменная граница + мягкое кольцо */
+  .control-focus:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px oklch(0.64 0.205 27 / 0.2);
+  }
+
+  /* Тонкая фирменная сетка-водяной-знак (фон входа и пустых состояний) */
+  .petal-field {
+    background-color: var(--canvas);
+    background-image: radial-gradient(
+      circle at center,
+      var(--brand-100) 0 1.5px,
+      transparent 1.6px
+    );
+    background-size: 22px 22px;
+    background-position: -11px -11px;
+  }
 }

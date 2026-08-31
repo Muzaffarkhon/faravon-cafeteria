@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import { computeReport, listReportPeriods, type Report } from "@/lib/reports";
+import { Card, EmptyState, PageHeader, Select, buttonClass } from "@/components/ui";
 
 const fmtPct = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
 const fmtNum = (v: number | null, d = 2) => (v == null ? "—" : v.toFixed(d));
@@ -11,11 +12,11 @@ const fmtDays = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)} дн
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className="mt-1 text-xl font-semibold">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-neutral-400">{hint}</div>}
-    </div>
+    <Card className="p-4">
+      <div className="text-xs text-ink-muted">{label}</div>
+      <div className="mt-1 text-xl font-semibold text-ink tabular-nums">{value}</div>
+      {hint && <div className="mt-0.5 text-xs text-ink-subtle">{hint}</div>}
+    </Card>
   );
 }
 
@@ -29,31 +30,31 @@ function MiniTable({
   rows: [string, number][];
 }) {
   return (
-    <section className="rounded-xl border border-neutral-200 bg-white">
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-red-700">{title}</h3>
+    <Card>
+      <div className="flex items-center justify-between border-b border-line-subtle px-4 py-2.5">
+        <h3 className="text-sm font-semibold text-primary-strong">{title}</h3>
       </div>
       {rows.length === 0 ? (
-        <div className="px-4 py-3 text-sm text-neutral-400">Нет данных.</div>
+        <div className="px-4 py-3 text-sm text-ink-subtle">Нет данных.</div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-left text-xs text-neutral-500">
+          <thead className="text-left text-xs text-ink-muted">
             <tr>
               <th className="px-4 py-1.5 font-medium">{head[0]}</th>
               <th className="px-4 py-1.5 text-right font-medium">{head[1]}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className="divide-y divide-line-subtle">
             {rows.map(([k, v]) => (
               <tr key={k}>
-                <td className="px-4 py-1.5">{k}</td>
-                <td className="px-4 py-1.5 text-right tabular-nums">{v}</td>
+                <td className="px-4 py-1.5 text-ink">{k}</td>
+                <td className="px-4 py-1.5 text-right tabular-nums text-ink">{v}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -68,7 +69,7 @@ export default async function ReportsPage({
 
   const periods = await listReportPeriods();
   if (periods.length === 0) {
-    return <div className="rounded-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Периодов ещё нет.</div>;
+    return <EmptyState>Периодов ещё нет.</EmptyState>;
   }
 
   const sp = await searchParams;
@@ -79,33 +80,26 @@ export default async function ReportsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Отчёты и метрики</h1>
-        <div className="flex items-center gap-2">
-          <form method="get" className="flex items-center gap-2">
-            <select
-              name="period"
-              defaultValue={periodId}
-              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — {PERIOD_STATUS_LABELS[p.status]}
-                </option>
-              ))}
-            </select>
-            <button className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100">
-              Показать
-            </button>
-          </form>
-          <a
-            href={`${exportBase}`}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-          >
-            Экспорт в XLSX
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        title="Отчёты и метрики"
+        action={
+          <div className="flex items-center gap-2">
+            <form method="get" className="flex items-center gap-2">
+              <Select name="period" defaultValue={periodId} className="w-auto py-1.5 text-sm">
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {PERIOD_STATUS_LABELS[p.status]}
+                  </option>
+                ))}
+              </Select>
+              <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
+            </form>
+            <a href={exportBase} className={buttonClass({ size: "sm" })}>
+              Экспорт в XLSX
+            </a>
+          </div>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Активация" value={fmtPct(k.activationPct)} hint={`${k.everLoggedIn} из ${k.accounts} вошли хотя бы раз`} />
@@ -141,10 +135,10 @@ export default async function ReportsPage({
         />
       </div>
 
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-ink-subtle">
         Метрики продукта — ТЗ v2 §12. Кнопка «Экспорт в XLSX» выгружает книгу с листами
         «Метрики», «Топ льгот», «Отклонения», «Подразделения» (§5.12).{" "}
-        <Link href="/admin/periods" className="hover:underline">
+        <Link href="/admin/periods" className="text-primary hover:underline">
           Управление периодами
         </Link>
         .

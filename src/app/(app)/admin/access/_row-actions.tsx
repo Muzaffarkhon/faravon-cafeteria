@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { issueCode, unlinkTelegram } from "./actions";
 
 export function AccessRowActions({
@@ -18,11 +19,14 @@ export function AccessRowActions({
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
         {code ? (
-          <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-mono text-xs text-emerald-800">
+          <span className="rounded-md bg-success-soft px-2.5 py-1 font-mono text-xs text-success-strong">
             Код: {code}
           </span>
         ) : (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pending}
             onClick={() => {
               setError(null);
               start(async () => {
@@ -31,14 +35,15 @@ export function AccessRowActions({
                 else setCode(r.code);
               });
             }}
-            disabled={pending}
-            className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
           >
             Выдать код
-          </button>
+          </Button>
         )}
         {linked && (
-          <button
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={pending}
             onClick={() => {
               if (!confirm("Сбросить привязку Telegram у сотрудника?")) return;
               setError(null);
@@ -50,14 +55,16 @@ export function AccessRowActions({
                 }
               });
             }}
-            disabled={pending}
-            className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             Сбросить Telegram
-          </button>
+          </Button>
         )}
       </div>
-      {error && <span className="text-[11px] text-red-600">{error}</span>}
+      {error && (
+        <span className="text-[11px] font-medium text-danger" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

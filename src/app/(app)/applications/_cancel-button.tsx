@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { cancelItem } from "../actions";
 
 export function CancelItemButton({ itemId }: { itemId: string }) {
@@ -9,7 +10,10 @@ export function CancelItemButton({ itemId }: { itemId: string }) {
 
   return (
     <span className="inline-flex flex-col items-end">
-      <button
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={pending}
         onClick={() => {
           setErr(null);
           start(async () => {
@@ -20,12 +24,14 @@ export function CancelItemButton({ itemId }: { itemId: string }) {
             }
           });
         }}
-        disabled={pending}
-        className="rounded-lg border border-neutral-300 px-2.5 py-1 text-xs hover:bg-neutral-100 disabled:opacity-50"
       >
         Отменить
-      </button>
-      {err && <span className="mt-1 text-[11px] text-red-600">{err}</span>}
+      </Button>
+      {err && (
+        <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
+          {err}
+        </span>
+      )}
     </span>
   );
 }

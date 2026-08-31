@@ -23,7 +23,7 @@ export default async function EditPeriodPage({
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Период: {period.name}</h1>
+      <h1 className="text-lg font-semibold text-ink">Период: {period.name}</h1>
       <PeriodForm action={action} initial={period} submitLabel="Сохранить" />
     </div>
   );

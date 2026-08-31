@@ -5,14 +5,23 @@ import { can } from "@/lib/rbac";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
 import { listCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
+import {
+  Badge,
+  Card,
+  EmptyState,
+  SectionTitle,
+  Select,
+  buttonClass,
+  type BadgeTone,
+} from "@/components/ui";
 import { CreateCouponButton, IssueCouponButton } from "./_buttons";
 
-const COUPON_STATUS_STYLE: Record<string, string> = {
-  CREATED: "bg-violet-50 text-violet-700",
-  ISSUED: "bg-green-100 text-green-800",
-  USED: "bg-neutral-100 text-neutral-600",
-  EXPIRED: "bg-amber-50 text-amber-700",
-  CANCELLED: "bg-neutral-100 text-neutral-400 line-through",
+const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
+  CREATED: "accent",
+  ISSUED: "success",
+  USED: "neutral",
+  EXPIRED: "warning",
+  CANCELLED: "muted",
 };
 
 export default async function CouponsPage({
@@ -47,79 +56,70 @@ export default async function CouponsPage({
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-lg font-semibold">Купоны</h1>
+    <div className="space-y-10">
+      <h1 className="text-lg font-semibold text-ink">Купоны</h1>
 
       {/* Одобренные позиции без купона */}
-      <section>
-        <h2 className="mb-3 text-base font-semibold text-red-700">
-          Ожидают формирования купона ({awaiting.length})
-        </h2>
+      <section className="space-y-3">
+        <SectionTitle count={awaiting.length}>Ожидают формирования купона</SectionTitle>
         {awaiting.length === 0 ? (
-          <div className="rounded-xl border border-neutral-200 bg-white p-5 text-sm text-neutral-500">
-            Нет одобренных позиций без купона.
-          </div>
+          <EmptyState>Нет одобренных позиций без купона.</EmptyState>
         ) : (
-          <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
-            {awaiting.map((item) => (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                <div>
-                  <div className="text-sm font-medium">{item.card.title}</div>
-                  <div className="text-xs text-neutral-400">
-                    {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
-                    {item.application.period.name}
+          <Card>
+            <ul className="divide-y divide-line-subtle">
+              {awaiting.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-ink">{item.card.title}</div>
+                    <div className="text-xs text-ink-subtle">
+                      {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
+                      {item.application.period.name}
+                    </div>
                   </div>
-                </div>
-                <CreateCouponButton itemId={item.id} />
-              </li>
-            ))}
-          </ul>
+                  <CreateCouponButton itemId={item.id} />
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
       {/* Реестр купонов */}
-      <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-red-700">Реестр купонов ({coupons.length})</h2>
-          <div className="flex items-center gap-2">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionTitle count={coupons.length}>Реестр купонов</SectionTitle>
+          <div className="flex flex-wrap items-center gap-2">
             <form method="get" className="flex items-center gap-2">
-              <select name="period" defaultValue={periodId ?? ""} className="rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm">
+              <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
                 <option value="">Все периоды</option>
                 {periods.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} — {PERIOD_STATUS_LABELS[p.status]}
                   </option>
                 ))}
-              </select>
-              <select name="status" defaultValue={status ?? ""} className="rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm">
+              </Select>
+              <Select name="status" defaultValue={status ?? ""} className="w-auto py-1.5 text-sm">
                 <option value="">Все статусы</option>
                 {Object.entries(COUPON_STATUS_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
                 ))}
-              </select>
-              <button className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100">
-                Показать
-              </button>
+              </Select>
+              <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
             </form>
-            <a
-              href={exportHref}
-              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-            >
+            <a href={exportHref} className={buttonClass({ size: "sm" })}>
               Экспорт в XLSX
             </a>
           </div>
         </div>
 
         {coupons.length === 0 ? (
-          <div className="rounded-xl border border-neutral-200 bg-white p-5 text-sm text-neutral-500">
-            Купонов по заданным условиям нет.
-          </div>
+          <EmptyState>Купонов по заданным условиям нет.</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+          <Card className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-neutral-100 text-left text-xs text-neutral-500">
+              <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">Номер</th>
                   <th className="px-4 py-2 font-medium">Сотрудник</th>
@@ -130,27 +130,23 @@ export default async function CouponsPage({
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-line-subtle">
                 {coupons.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className="transition-colors hover:bg-surface-muted/60">
                     <td className="px-4 py-2 font-mono text-xs">{c.number}</td>
-                    <td className="px-4 py-2">{c.employee.fullName}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-ink">{c.employee.fullName}</td>
+                    <td className="px-4 py-2 text-ink">
                       {c.item.card.title}
-                      <span className="text-neutral-400"> · {c.partner?.name ?? "—"}</span>
+                      <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                     </td>
-                    <td className="px-4 py-2 text-neutral-500">{c.period.name}</td>
-                    <td className="px-4 py-2 text-neutral-500">
+                    <td className="px-4 py-2 text-ink-muted">{c.period.name}</td>
+                    <td className="px-4 py-2 text-ink-muted">
                       {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
                     </td>
                     <td className="px-4 py-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          COUPON_STATUS_STYLE[c.status] ?? "bg-neutral-100"
-                        }`}
-                      >
+                      <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
                         {COUPON_STATUS_LABELS[c.status]}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-4 py-2 text-right">
                       {c.status === "CREATED" && <IssueCouponButton couponId={c.id} />}
@@ -159,7 +155,7 @@ export default async function CouponsPage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         )}
       </section>
     </div>

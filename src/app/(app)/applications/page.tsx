@@ -2,16 +2,17 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
+import { Badge, Card, CardHeader, EmptyState, type BadgeTone } from "@/components/ui";
 import { CancelItemButton } from "./_cancel-button";
 
-const STATUS_STYLE: Record<string, string> = {
-  DRAFT: "bg-neutral-100 text-neutral-600",
-  PENDING: "bg-blue-50 text-blue-700",
-  APPROVED: "bg-emerald-50 text-emerald-700",
-  COUPON_CREATED: "bg-violet-50 text-violet-700",
-  COUPON_ISSUED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-50 text-red-700",
-  CANCELLED: "bg-neutral-100 text-neutral-400 line-through",
+const STATUS_TONE: Record<string, BadgeTone> = {
+  DRAFT: "neutral",
+  PENDING: "warning",
+  APPROVED: "success",
+  COUPON_CREATED: "accent",
+  COUPON_ISSUED: "success",
+  REJECTED: "brand",
+  CANCELLED: "muted",
 };
 
 export default async function ApplicationsPage() {
@@ -31,39 +32,35 @@ export default async function ApplicationsPage() {
   });
 
   if (applications.length === 0) {
-    return (
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
-        В этом периоде вы ещё не выбрали льготы.
-      </div>
-    );
+    return <EmptyState>В этом периоде вы ещё не выбрали льготы.</EmptyState>;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">Мои заявки и купоны</h1>
+      <h1 className="text-lg font-semibold text-ink">Мои заявки и купоны</h1>
 
       {applications.map((app) => (
-        <section key={app.id} className="rounded-xl border border-neutral-200 bg-white">
-          <div className="border-b border-neutral-100 px-5 py-3 text-sm font-medium">
+        <Card key={app.id}>
+          <CardHeader className="text-sm font-medium text-ink">
             Период: {app.period.name}
-          </div>
-          <ul className="divide-y divide-neutral-100">
+          </CardHeader>
+          <ul className="divide-y divide-line-subtle">
             {app.items.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium">{item.card.title}</div>
-                  <div className="text-xs text-neutral-400">
+                  <div className="text-sm font-medium text-ink">{item.card.title}</div>
+                  <div className="text-xs text-ink-subtle">
                     {item.card.partner?.name ?? "—"}
                     {item.submittedAt &&
                       ` · подано ${item.submittedAt.toLocaleDateString("ru-RU")}`}
                   </div>
                   {item.status === "REJECTED" && item.decisionComment && (
-                    <div className="mt-1 text-xs text-red-600">
+                    <div className="mt-1 text-xs font-medium text-danger">
                       Причина: {item.decisionComment}
                     </div>
                   )}
                   {item.coupon && (
-                    <div className="mt-1 text-xs text-green-700">
+                    <div className="mt-1 text-xs text-success-strong">
                       Купон № {item.coupon.number}
                       {item.coupon.validUntil &&
                         ` · действует до ${item.coupon.validUntil.toLocaleDateString("ru-RU")}`}
@@ -71,13 +68,9 @@ export default async function ApplicationsPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      STATUS_STYLE[item.status] ?? "bg-neutral-100"
-                    }`}
-                  >
+                  <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
                     {ITEM_STATUS_LABELS[item.status]}
-                  </span>
+                  </Badge>
                   {(item.status === "DRAFT" || item.status === "PENDING") && (
                     <CancelItemButton itemId={item.id} />
                   )}
@@ -85,7 +78,7 @@ export default async function ApplicationsPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ))}
     </div>
   );

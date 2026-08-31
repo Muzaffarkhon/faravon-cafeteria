@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { createCoupon, issueCoupon } from "./actions";
 
 function ActionButton({
@@ -12,18 +13,17 @@ function ActionButton({
   label: string;
   pendingLabel: string;
   onRun: () => Promise<void>;
-  variant: "primary" | "issue";
+  variant: "primary" | "success";
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const cls =
-    variant === "primary"
-      ? "bg-red-600 hover:bg-red-700 text-white"
-      : "bg-green-600 hover:bg-green-700 text-white";
 
   return (
     <span className="inline-flex flex-col items-end">
-      <button
+      <Button
+        variant={variant}
+        size="sm"
+        disabled={pending}
         onClick={() => {
           setError(null);
           start(async () => {
@@ -34,12 +34,14 @@ function ActionButton({
             }
           });
         }}
-        disabled={pending}
-        className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${cls}`}
       >
         {pending ? pendingLabel : label}
-      </button>
-      {error && <span className="mt-1 text-[11px] text-red-600">{error}</span>}
+      </Button>
+      {error && (
+        <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
+          {error}
+        </span>
+      )}
     </span>
   );
 }
@@ -60,7 +62,7 @@ export function IssueCouponButton({ couponId }: { couponId: string }) {
     <ActionButton
       label="Выдать"
       pendingLabel="Выдача…"
-      variant="issue"
+      variant="success"
       onRun={() => issueCoupon(couponId)}
     />
   );

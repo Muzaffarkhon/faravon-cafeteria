@@ -18,7 +18,7 @@ export default async function NewCardPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Новая карточка</h1>
+      <h1 className="text-lg font-semibold text-ink">Новая карточка</h1>
       <CardForm action={createCard} partners={partners} submitLabel="Создать" />
     </div>
   );

@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button, Field, Input, Textarea } from "@/components/ui";
 import { updateTextBlock, type TextFormState } from "./actions";
-
-const inputCls =
-  "mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-red-500";
 
 export function TextBlockForm({
   blockKey,
@@ -19,27 +17,34 @@ export function TextBlockForm({
   const [state, formAction, pending] = useActionState<TextFormState, FormData>(action, {});
 
   return (
-    <form action={formAction} className="rounded-xl border border-neutral-200 bg-white p-5">
-      <div className="mb-1 text-xs font-mono text-neutral-400">{blockKey}</div>
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Заголовок</label>
-        <input name="title" defaultValue={title} className={inputCls} required />
-      </div>
-      <div className="mt-3">
-        <label className="block text-sm font-medium text-neutral-700">Текст</label>
-        <textarea name="content" defaultValue={content} rows={4} className={inputCls} required />
+    <form
+      action={formAction}
+      className="rounded-xl border border-line bg-surface p-5 shadow-sm"
+    >
+      <div className="mb-2 font-mono text-xs text-ink-subtle">{blockKey}</div>
+      <div className="space-y-3">
+        <Field label="Заголовок" htmlFor={`${blockKey}-title`} required>
+          <Input id={`${blockKey}-title`} name="title" defaultValue={title} required />
+        </Field>
+        <Field label="Текст" htmlFor={`${blockKey}-content`} required>
+          <Textarea id={`${blockKey}-content`} name="content" defaultValue={content} rows={4} required />
+        </Field>
       </div>
 
       <div className="mt-3 flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Сохранение…" : "Сохранить"}
-        </button>
-        {state.ok && <span className="text-sm text-emerald-600">Сохранено</span>}
-        {state.error && <span className="text-sm text-red-600">{state.error}</span>}
+        </Button>
+        {state.ok && (
+          <span className="text-sm font-medium text-success-strong" role="status">
+            Сохранено
+          </span>
+        )}
+        {state.error && (
+          <span className="text-sm font-medium text-danger" role="alert">
+            {state.error}
+          </span>
+        )}
       </div>
     </form>
   );

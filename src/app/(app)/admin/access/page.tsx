@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { Badge, Card, PageHeader } from "@/components/ui";
 import { AccessRowActions } from "./_row-actions";
 
 const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
@@ -24,17 +25,14 @@ export default async function AccessPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-lg font-semibold">Доступ сотрудников (Telegram / OTP)</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Сотрудник идентифицируется в Telegram-боте по номеру телефона или по коду, выданному здесь
-          (§5.1). Бот выдаёт одноразовый пароль на 24 часа; при первом входе требуется смена пароля.
-        </p>
-      </div>
+      <PageHeader
+        title="Доступ сотрудников (Telegram / OTP)"
+        description="Сотрудник идентифицируется в Telegram-боте по номеру телефона или по коду, выданному здесь (§5.1). Бот выдаёт одноразовый пароль на 24 часа; при первом входе требуется смена пароля."
+      />
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-neutral-100 text-left text-xs text-neutral-500">
+          <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
             <tr>
               <th className="px-4 py-2 font-medium">Сотрудник</th>
               <th className="px-4 py-2 font-medium">Подразделение</th>
@@ -44,32 +42,28 @@ export default async function AccessPage() {
               <th className="px-4 py-2" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className="divide-y divide-line-subtle">
             {employees.map((e) => {
               const code = codeByEmp.get(e.id);
               const loggedIn = !!e.user?.lastLoginAt;
               return (
-                <tr key={e.id}>
-                  <td className="px-4 py-2 font-medium">{e.fullName}</td>
-                  <td className="px-4 py-2 text-neutral-500">{e.department}</td>
-                  <td className="px-4 py-2 text-neutral-500">{e.phone ?? "—"}</td>
+                <tr key={e.id} className="transition-colors hover:bg-surface-muted/60">
+                  <td className="px-4 py-2 font-medium text-ink">{e.fullName}</td>
+                  <td className="px-4 py-2 text-ink-muted">{e.department}</td>
+                  <td className="px-4 py-2 text-ink-muted">{e.phone ?? "—"}</td>
                   <td className="px-4 py-2">
                     {e.telegramId ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                        привязан
-                      </span>
+                      <Badge tone="success">привязан</Badge>
                     ) : (
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
-                        нет
-                      </span>
+                      <Badge tone="neutral">нет</Badge>
                     )}
                     {code && (
-                      <span className="ml-2 font-mono text-xs text-amber-700">
+                      <span className="ml-2 font-mono text-xs text-warning-strong">
                         код {code.code} до {fmt(code.expiresAt)}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-xs text-neutral-500">
+                  <td className="px-4 py-2 text-xs text-ink-muted">
                     {loggedIn
                       ? e.user?.mustChangePassword
                         ? "ожидает смены пароля"
@@ -84,7 +78,7 @@ export default async function AccessPage() {
             })}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }

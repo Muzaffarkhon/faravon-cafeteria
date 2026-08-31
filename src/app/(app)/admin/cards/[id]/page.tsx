@@ -29,7 +29,7 @@ export default async function EditCardPage({
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Карточка: {card.title}</h1>
+      <h1 className="text-lg font-semibold text-ink">Карточка: {card.title}</h1>
       <CardForm action={action} partners={partners} initial={card} submitLabel="Сохранить" />
     </div>
   );

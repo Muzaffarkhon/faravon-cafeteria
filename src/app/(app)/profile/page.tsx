@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/rbac";
+import { Card, SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
 
 export default async function ProfilePage() {
@@ -28,27 +29,27 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-lg font-semibold">Профиль</h1>
+      <h1 className="text-lg font-semibold text-ink">Профиль</h1>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5">
+      <Card className="p-5">
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
           {rows.map(([k, v]) => (
             <div key={k} className="contents">
-              <dt className="text-neutral-500">{k}</dt>
-              <dd className="font-medium">{v}</dd>
+              <dt className="text-ink-muted">{k}</dt>
+              <dd className="font-medium text-ink">{v}</dd>
             </div>
           ))}
         </dl>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5">
-        <h2 className="mb-1 text-base font-semibold text-red-700">Смена пароля</h2>
-        <p className="mb-4 text-xs text-neutral-500">
+      <Card className="space-y-1 p-5">
+        <SectionTitle>Смена пароля</SectionTitle>
+        <p className="pb-2 text-xs text-ink-muted">
           Для смены укажите текущий пароль. После смены другие устройства продолжат работать до
           истечения их сессии.
         </p>
         <ChangePasswordForm />
-      </section>
+      </Card>
     </div>
   );
 }

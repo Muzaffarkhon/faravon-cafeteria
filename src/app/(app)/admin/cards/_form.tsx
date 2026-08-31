@@ -3,10 +3,8 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { BLOCKS, BLOCK_LABELS, CARD_STATUSES, CARD_STATUS_LABELS } from "@/lib/labels";
+import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
 import type { CardFormState } from "./actions";
-
-const inputCls =
-  "mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-red-500";
 
 export type CardValues = {
   block: string;
@@ -38,112 +36,86 @@ export function CardForm({
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Блок *</label>
-          <select
-            name="block"
-            value={block}
-            onChange={(e) => setBlock(e.target.value)}
-            className={inputCls}
-          >
+        <Field label="Блок" htmlFor="block" required>
+          <Select id="block" name="block" value={block} onChange={(e) => setBlock(e.target.value)}>
             {BLOCKS.map((b) => (
               <option key={b} value={b}>
                 {BLOCK_LABELS[b]}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Публикация</label>
-          <select name="status" defaultValue={initial?.status ?? "PUBLISHED"} className={inputCls}>
+          </Select>
+        </Field>
+        <Field label="Публикация" htmlFor="status">
+          <Select id="status" name="status" defaultValue={initial?.status ?? "PUBLISHED"}>
             {CARD_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {CARD_STATUS_LABELS[s]}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Название *</label>
-        <input name="title" defaultValue={initial?.title ?? ""} className={inputCls} required />
-      </div>
+      <Field label="Название" htmlFor="title" required>
+        <Input id="title" name="title" defaultValue={initial?.title ?? ""} required />
+      </Field>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Описание</label>
-        <textarea name="description" defaultValue={initial?.description ?? ""} rows={2} className={inputCls} />
-      </div>
+      <Field label="Описание" htmlFor="description">
+        <Textarea id="description" name="description" defaultValue={initial?.description ?? ""} rows={2} />
+      </Field>
 
       {block === "FLEX" && (
         <>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">Условие / скидка</label>
-            <input name="condition" defaultValue={initial?.condition ?? ""} className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700">Партнёр</label>
-            <select name="partnerId" defaultValue={initial?.partnerId ?? ""} className={inputCls}>
+          <Field label="Условие / скидка" htmlFor="condition">
+            <Input id="condition" name="condition" defaultValue={initial?.condition ?? ""} />
+          </Field>
+          <Field label="Партнёр" htmlFor="partnerId">
+            <Select id="partnerId" name="partnerId" defaultValue={initial?.partnerId ?? ""}>
               <option value="">— не выбран —</option>
               {partners.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </Field>
         </>
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Категория</label>
-          <input name="category" defaultValue={initial?.category ?? ""} className={inputCls} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">Порядок</label>
-          <input
-            type="number"
-            name="sortOrder"
-            defaultValue={initial?.sortOrder ?? 0}
-            className={inputCls}
-          />
-        </div>
+        <Field label="Категория" htmlFor="category">
+          <Input id="category" name="category" defaultValue={initial?.category ?? ""} />
+        </Field>
+        <Field label="Порядок" htmlFor="sortOrder">
+          <Input id="sortOrder" type="number" name="sortOrder" defaultValue={initial?.sortOrder ?? 0} />
+        </Field>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">Изображение (URL)</label>
-        <input name="imageUrl" defaultValue={initial?.imageUrl ?? ""} className={inputCls} />
-      </div>
+      <Field label="Изображение (URL)" htmlFor="imageUrl">
+        <Input id="imageUrl" name="imageUrl" defaultValue={initial?.imageUrl ?? ""} inputMode="url" />
+      </Field>
 
-      <label className="flex items-center gap-2 text-sm text-neutral-700">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="isActive"
           defaultChecked={initial?.isActive ?? true}
-          className="h-4 w-4 rounded border-neutral-300"
+          className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
         />
         Активна (без флага — отображается как «скоро»)
       </label>
 
       {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
           {state.error}
         </p>
       )}
 
       <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Сохранение…" : submitLabel}
-        </button>
-        <Link
-          href="/admin/cards"
-          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100"
-        >
+        </Button>
+        <Link href="/admin/cards" className={buttonClass({ variant: "secondary" })}>
           Отмена
         </Link>
       </div>
