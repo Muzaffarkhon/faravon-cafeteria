@@ -42,7 +42,7 @@ export function PeriodForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Начало периода" htmlFor="startDate" required>
           <Input id="startDate" type="date" name="startDate" defaultValue={d(initial?.startDate)} required />
         </Field>
@@ -51,7 +51,7 @@ export function PeriodForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Окно выбора: с" htmlFor="windowStart" required>
           <Input id="windowStart" type="date" name="windowStart" defaultValue={d(initial?.windowStart)} required />
         </Field>

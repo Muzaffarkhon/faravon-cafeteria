@@ -35,7 +35,7 @@ export function CardForm({
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Блок" htmlFor="block" required>
           <Select id="block" name="block" value={block} onChange={(e) => setBlock(e.target.value)}>
             {BLOCKS.map((b) => (
@@ -82,7 +82,7 @@ export function CardForm({
         </>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Категория" htmlFor="category">
           <Input id="category" name="category" defaultValue={initial?.category ?? ""} />
         </Field>

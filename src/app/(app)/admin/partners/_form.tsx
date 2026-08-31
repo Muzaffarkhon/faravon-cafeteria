@@ -42,7 +42,7 @@ export function PartnerForm({
         <Input id="name" name="name" defaultValue={initial?.name ?? ""} required />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Статус" htmlFor="status">
           <Select id="status" name="status" defaultValue={initial?.status ?? "ACTIVE"}>
             {PARTNER_STATUSES.map((s) => (
@@ -65,7 +65,7 @@ export function PartnerForm({
         <Textarea id="terms" name="terms" defaultValue={initial?.terms ?? ""} rows={2} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Контактное лицо" htmlFor="contactPerson">
           <Input id="contactPerson" name="contactPerson" defaultValue={initial?.contactPerson ?? ""} />
         </Field>
@@ -74,7 +74,7 @@ export function PartnerForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Договор с" htmlFor="contractStart">
           <Input id="contractStart" type="date" name="contractStart" defaultValue={d(initial?.contractStart ?? null)} />
         </Field>
@@ -83,7 +83,7 @@ export function PartnerForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Ответственный (Фаровон)" htmlFor="responsible">
           <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} />
         </Field>
