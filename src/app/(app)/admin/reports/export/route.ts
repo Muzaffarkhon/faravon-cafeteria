@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const metricRows: [string, string | number, string][] = [
     ["Период", report.period.name, ""],
     ["Активация", pct1(k.activationPct), `${k.everLoggedIn} из ${k.accounts} вошли хотя бы раз`],
-    ["Вовлечение", pct1(k.engagementPct), `${k.withSelection} выбрали ≥ 1 льготу`],
+    ["Вовлечение", pct1(k.engagementPct), `${k.engagedLoggedIn} из ${k.everLoggedIn} вошедших выбрали ≥ 1 льготу`],
     ["Льгот на активного сотрудника", num1(k.avgSelectionsPerActive), `${k.activeEmployees} активных в периоде`],
     ["Конверсия заявка → купон", pct1(k.conversionPct), `${k.issued} из ${k.submitted} поданных`],
     ["Доля отклонений", pct1(k.rejectionPct), `${k.rejected} из ${k.decided} решений`],

@@ -103,7 +103,7 @@ export default async function ReportsPage({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Активация" value={fmtPct(k.activationPct)} hint={`${k.everLoggedIn} из ${k.accounts} вошли хотя бы раз`} />
-        <Metric label="Вовлечение" value={fmtPct(k.engagementPct)} hint={`${k.withSelection} выбрали ≥ 1 льготу`} />
+        <Metric label="Вовлечение" value={fmtPct(k.engagementPct)} hint={`${k.engagedLoggedIn} из ${k.everLoggedIn} вошедших выбрали ≥ 1 льготу`} />
         <Metric label="Льгот на активного сотрудника" value={fmtNum(k.avgSelectionsPerActive)} hint={`${k.activeEmployees} активных в периоде`} />
         <Metric label="Конверсия заявка → купон" value={fmtPct(k.conversionPct)} hint={`${k.issued} из ${k.submitted} поданных`} />
         <Metric label="Доля отклонений" value={fmtPct(k.rejectionPct)} hint={`${k.rejected} из ${k.decided} решений`} />

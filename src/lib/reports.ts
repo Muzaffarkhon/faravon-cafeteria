@@ -30,7 +30,7 @@ export async function computeReport(periodId: string) {
   const apps = await db.application.findMany({
     where: { periodId },
     include: {
-      employee: true,
+      employee: { include: { user: { select: { lastLoginAt: true } } } },
       items: { include: { card: { include: { partner: true } }, coupon: true } },
     },
   });
@@ -38,7 +38,14 @@ export async function computeReport(periodId: string) {
   const activeEmployees = apps.length;
   const items = apps.flatMap((a) => a.items);
   const live = items.filter((i) => i.status !== "CANCELLED");
-  const withSelection = apps.filter((a) => a.items.some((i) => i.status !== "CANCELLED")).length;
+  const hasSelection = (a: (typeof apps)[number]) =>
+    a.items.some((i) => i.status !== "CANCELLED");
+  const withSelection = apps.filter(hasSelection).length;
+  // Вовлечение считаем среди активированных (вошедших) сотрудников —
+  // иначе числитель может превысить знаменатель everLoggedIn.
+  const engagedLoggedIn = apps.filter(
+    (a) => a.employee.user?.lastLoginAt != null && hasSelection(a),
+  ).length;
 
   const submitted = items.filter((i) => i.submittedAt);
   const decided = items.filter((i) => i.decidedAt && ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED", "REJECTED"].includes(i.status));
@@ -97,7 +104,8 @@ export async function computeReport(periodId: string) {
       activationPct: pct(everLoggedIn, accounts),
       activeEmployees,
       withSelection,
-      engagementPct: pct(withSelection, everLoggedIn),
+      engagedLoggedIn,
+      engagementPct: pct(engagedLoggedIn, everLoggedIn),
       avgSelectionsPerActive: activeEmployees ? live.length / activeEmployees : null,
       submitted: submitted.length,
       issued: issued.length,
