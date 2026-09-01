@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Button, Input, Table, Field } from "@/src/components/ui";
+import { Button, Input, Table, Field } from "@/components/ui";
 
 type Banner = {
   id: string;

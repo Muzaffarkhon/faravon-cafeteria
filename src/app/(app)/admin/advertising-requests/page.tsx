@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button, Table } from "@/src/components/ui";
+import { Button, Table } from "@/components/ui";
 
 type Req = {
   id: string;
