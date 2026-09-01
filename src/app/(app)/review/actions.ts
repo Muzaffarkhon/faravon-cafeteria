@@ -84,3 +84,108 @@ export async function rejectItem(itemId: string, comment: string) {
   revalidatePath("/");
   revalidatePath("/applications");
 }
+
+/* ---------------------------------------------------------- массовые действия --- */
+
+export type BulkResult = { ok: number; failed: number; errors: string[] };
+
+export async function bulkApprove(ids: string[]): Promise<BulkResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "applications.decide");
+
+  let ok = 0;
+  const errors: string[] = [];
+  for (const id of [...new Set(ids)]) {
+    try {
+      const item = await db.applicationItem.findUnique({
+        where: { id },
+        include: { application: true, card: true },
+      });
+      if (!item) throw new Error("позиция не найдена");
+      assertTransition(item.status, "APPROVED", "APPROVER");
+      await db.applicationItem.update({
+        where: { id },
+        data: {
+          status: "APPROVED",
+          decidedById: s.user.id,
+          decidedAt: new Date(),
+          decisionComment: null,
+        },
+      });
+      await audit({
+        actorId: s.user.id,
+        action: "ITEM_APPROVED",
+        entityType: "ApplicationItem",
+        entityId: id,
+        oldValue: { status: item.status },
+        newValue: { status: "APPROVED", bulk: true },
+      });
+      await notifyEmployee({
+        employeeId: item.application.employeeId,
+        event: "ITEM_APPROVED",
+        payload: { card: item.card.title },
+      });
+      ok++;
+    } catch (e) {
+      errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);
+    }
+  }
+
+  revalidatePath("/review");
+  revalidatePath("/");
+  revalidatePath("/applications");
+  return { ok, failed: errors.length, errors };
+}
+
+export async function bulkReject(ids: string[], comment: string): Promise<BulkResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "applications.decide");
+
+  const trimmed = comment.trim();
+  if (trimmed.length < 3) {
+    return { ok: 0, failed: ids.length, errors: ["Укажите причину отклонения (не короче 3 символов)."] };
+  }
+
+  let ok = 0;
+  const errors: string[] = [];
+  for (const id of [...new Set(ids)]) {
+    try {
+      const item = await db.applicationItem.findUnique({
+        where: { id },
+        include: { application: true, card: true },
+      });
+      if (!item) throw new Error("позиция не найдена");
+      assertTransition(item.status, "REJECTED", "APPROVER");
+      await db.applicationItem.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          decidedById: s.user.id,
+          decidedAt: new Date(),
+          decisionComment: trimmed,
+        },
+      });
+      await audit({
+        actorId: s.user.id,
+        action: "ITEM_REJECTED",
+        entityType: "ApplicationItem",
+        entityId: id,
+        oldValue: { status: item.status },
+        newValue: { status: "REJECTED", comment: trimmed, bulk: true },
+      });
+      await notifyEmployee({
+        employeeId: item.application.employeeId,
+        event: "ITEM_REJECTED",
+        payload: { card: item.card.title, comment: trimmed },
+      });
+      ok++;
+    } catch (e) {
+      errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);
+    }
+  }
+
+  revalidatePath("/review");
+  revalidatePath("/");
+  revalidatePath("/applications");
+  return { ok, failed: errors.length, errors };
+}

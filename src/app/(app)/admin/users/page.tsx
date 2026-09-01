@@ -31,9 +31,17 @@ export default async function UsersPage() {
         title="Пользователи и роли"
         description="Справочник сотрудников, учётные записи для входа, назначение ролей и деактивация (§4, §5.12)."
         action={
-          <Link href="/admin/users/new" className={buttonClass({ size: "sm" })}>
-            Добавить сотрудника
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/users/import"
+              className={buttonClass({ variant: "secondary", size: "sm" })}
+            >
+              Импорт из Excel
+            </Link>
+            <Link href="/admin/users/new" className={buttonClass({ size: "sm" })}>
+              Добавить сотрудника
+            </Link>
+          </div>
         }
       />
 

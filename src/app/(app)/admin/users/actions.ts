@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import type { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -366,4 +367,170 @@ export async function issuePassword(userId: string): Promise<AccountResult> {
   const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
   revalidatePath("/admin/users");
   return { ok: true, otp };
+}
+
+/* ------------------------------------------------------------ импорт Excel --- */
+
+export type ImportState = {
+  error?: string;
+  ok?: boolean;
+  created?: number;
+  updated?: number;
+  deactivated?: number;
+  rowErrors?: string[];
+};
+
+/** Заголовки столбцов файла → ключ поля. Сопоставление без учёта регистра/пробелов. */
+const HEADER_ALIASES: Record<keyof ImportRow, string[]> = {
+  tabNumber: ["табельныйномер", "табельный", "таб.№", "таб№", "табномер", "tabnumber", "personnelnumber"],
+  fullName: ["фио", "ф.и.о.", "имя", "сотрудник", "fullname", "name"],
+  position: ["должность", "position", "title"],
+  department: ["подразделение", "отдел", "department", "unit"],
+  phone: ["телефон", "тел", "phone", "mobile"],
+  telegramId: ["telegramid", "telegram", "телеграм", "телеграмid", "chatid"],
+};
+
+type ImportRow = {
+  tabNumber: string;
+  fullName: string;
+  position: string;
+  department: string;
+  phone: string | null;
+  telegramId: string | null;
+};
+
+const norm = (s: unknown) =>
+  String(s ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+
+function cellText(v: ExcelJS.CellValue): string {
+  if (v == null) return "";
+  if (typeof v === "object") {
+    if ("text" in v && typeof v.text === "string") return v.text.trim();
+    if ("result" in v) return String(v.result ?? "").trim();
+    if ("richText" in v && Array.isArray(v.richText))
+      return v.richText.map((r) => r.text).join("").trim();
+    return "";
+  }
+  return String(v).trim();
+}
+
+export async function importEmployees(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Выберите файл .xlsx." };
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { error: "Файл больше 5 МБ." };
+  }
+
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(await file.arrayBuffer());
+  } catch {
+    return { error: "Не удалось прочитать файл. Нужен формат .xlsx." };
+  }
+  const ws = wb.worksheets[0];
+  if (!ws || ws.rowCount < 2) {
+    return { error: "В файле нет данных (ожидается строка заголовков и хотя бы одна строка)." };
+  }
+
+  // Карта: ключ поля → номер столбца
+  const colOf: Partial<Record<keyof ImportRow, number>> = {};
+  ws.getRow(1).eachCell((cell, col) => {
+    const h = norm(cellText(cell.value));
+    for (const [key, aliases] of Object.entries(HEADER_ALIASES) as [keyof ImportRow, string[]][]) {
+      if (aliases.includes(h) && !colOf[key]) colOf[key] = col;
+    }
+  });
+  if (!colOf.tabNumber || !colOf.fullName) {
+    return {
+      error:
+        "Не найдены обязательные столбцы «Табельный номер» и «ФИО». Скачайте шаблон и заполните его.",
+    };
+  }
+
+  const rowErrors: string[] = [];
+  const seen = new Set<string>();
+  let created = 0;
+  let updated = 0;
+
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const get = (key: keyof ImportRow) =>
+      colOf[key] ? cellText(row.getCell(colOf[key]!).value) : "";
+
+    const tabNumber = get("tabNumber");
+    const fullName = get("fullName");
+    if (!tabNumber && !fullName) continue; // пустая строка
+    if (!tabNumber || !fullName) {
+      rowErrors.push(`Строка ${r}: пропущена — нет табельного номера или ФИО.`);
+      continue;
+    }
+    if (seen.has(tabNumber)) {
+      rowErrors.push(`Строка ${r}: табельный номер ${tabNumber} повторяется в файле — пропущена.`);
+      continue;
+    }
+    seen.add(tabNumber);
+
+    const data: ImportRow = {
+      tabNumber,
+      fullName,
+      position: get("position") || "—",
+      department: get("department") || "—",
+      phone: get("phone") || null,
+      telegramId: get("telegramId") || null,
+    };
+
+    try {
+      const existing = await db.employee.findUnique({ where: { tabNumber } });
+      if (existing) {
+        await db.employee.update({ where: { tabNumber }, data });
+        updated++;
+      } else {
+        await db.employee.create({ data });
+        created++;
+      }
+    } catch (e) {
+      const msg = e instanceof Error && /telegramId/.test(e.message)
+        ? `Telegram ID уже привязан к другому сотруднику`
+        : "ошибка записи";
+      rowErrors.push(`Строка ${r} (${tabNumber}): ${msg}.`);
+    }
+  }
+
+  let deactivated = 0;
+  if (formData.get("deactivateAbsent") === "on" && created + updated > 0) {
+    const absent = await db.employee.findMany({
+      where: { isActive: true, tabNumber: { notIn: [...seen] } },
+      include: { user: true },
+    });
+    for (const emp of absent) {
+      await db.employee.update({
+        where: { id: emp.id },
+        data: { isActive: false, status: "TERMINATED", terminatedAt: new Date() },
+      });
+      if (emp.user) await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
+      deactivated++;
+    }
+  }
+
+  await audit({
+    actorId: s.user.id,
+    action: "EMPLOYEES_IMPORTED",
+    entityType: "Employee",
+    newValue: { created, updated, deactivated, rows: seen.size, file: file.name },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/access");
+  return { ok: true, created, updated, deactivated, rowErrors };
 }
