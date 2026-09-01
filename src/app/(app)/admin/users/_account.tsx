@@ -337,7 +337,7 @@ export function NewServiceAccount() {
       <Field label="Логин" htmlFor="svc-login">
         <Input id="svc-login" name="login" autoCapitalize="none" spellCheck={false} required />
       </Field>
-      <RolePicker defaultRoles={["APPROVER"]} />
+      <RolePicker defaultRoles={["C_AND_B"]} />
       {state.error && (
         <p className="text-sm font-medium text-danger" role="alert">
           {state.error}

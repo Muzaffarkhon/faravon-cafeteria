@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     await audit({ actorId: null, action: "AD_REQUEST_CREATED", entityType: "AdvertisingRequest", entityId: rec.id, newValue: { companyName, productName } });
 
     return NextResponse.json({ ok: true, id: rec.id });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? String(e) }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }

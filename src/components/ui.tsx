@@ -1,41 +1,5 @@
 "use client";
 import React from "react";
-
-export function Button({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button {...p} className={(p.className ?? "") + " fc-btn"}>
-      {children}
-    </button>
-  );
-}
-
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={(props.className ?? "") + " fc-input"} />;
-}
-
-export function Table({ children }: { children: React.ReactNode }) {
-  return <table className="fc-table">{children}</table>;
-}
-
-export function Card({ children }: { children: React.ReactNode }) {
-  return <div className="fc-card">{children}</div>;
-}
-
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="fc-field">
-      <div className="fc-field-label">{label}</div>
-      <div>{children}</div>
-    </label>
-  );
-}
-
-export default {};
-/**
- * UI-примитивы «Кафетерий льгот».
- * Единый словарь компонентов поверх дизайн-токенов из globals.css.
- * Без хуков и серверных API — компонент можно импортировать и в RSC, и в client-компоненты.
- */
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -193,6 +157,31 @@ export function CardHeader({
   return (
     <div className={cx("border-b border-line-subtle px-5 py-3", className)}>
       {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- Table --- */
+
+/** Таблица на дизайн-токенах с горизонтальным скроллом на узких экранах. */
+export function Table({
+  className,
+  children,
+  ...props
+}: HTMLAttributes<HTMLTableElement> & { children: ReactNode }) {
+  return (
+    <div className="w-full overflow-x-auto">
+      <table
+        className={cx(
+          "w-full border-collapse text-sm [&_th]:px-3 [&_th]:py-2 [&_th]:text-left " +
+            "[&_th]:font-medium [&_th]:text-ink-muted [&_td]:px-3 [&_td]:py-2 " +
+            "[&_td]:border-t [&_td]:border-line-subtle [&_tbody_tr:hover]:bg-surface-muted",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </table>
     </div>
   );
 }

@@ -272,11 +272,11 @@ export async function setUserRoles(userId: string, roles: Role[]): Promise<Accou
   if (!next.length) return { error: "Оставьте хотя бы одну роль." };
 
   if (
-    before.roles.includes("SUPERADMIN") &&
-    !next.includes("SUPERADMIN") &&
+    before.roles.includes("C_AND_B") &&
+    !next.includes("C_AND_B") &&
     userId === s.user.id
   ) {
-    return { error: "Нельзя снять с себя роль «Суперадмин»." };
+    return { error: "Нельзя снять с себя роль «C&B»." };
   }
 
   await db.user.update({ where: { id: userId }, data: { roles: next } });

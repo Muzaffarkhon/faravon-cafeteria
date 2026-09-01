@@ -102,7 +102,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         include: { application: true, card: true },
       });
       if (!item) throw new Error("позиция не найдена");
-      assertTransition(item.status, "APPROVED", "APPROVER");
+      assertTransition(item.status, "APPROVED", "C_AND_B");
       await db.applicationItem.update({
         where: { id },
         data: {
@@ -155,7 +155,7 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
         include: { application: true, card: true },
       });
       if (!item) throw new Error("позиция не найдена");
-      assertTransition(item.status, "REJECTED", "APPROVER");
+      assertTransition(item.status, "REJECTED", "C_AND_B");
       await db.applicationItem.update({
         where: { id },
         data: {
