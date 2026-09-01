@@ -30,7 +30,7 @@ export async function createCoupon(itemId: string) {
   });
   if (!item) throw new Error("Позиция не найдена.");
   if (item.coupon) throw new Error("Купон уже сформирован.");
-  assertTransition(item.status, "COUPON_CREATED", "HR_BP");
+  assertTransition(item.status, "COUPON_CREATED", "C_AND_B");
 
   const number = await generateCouponNumber(item.application.period.startDate);
   const validUntil = new Date(item.application.period.endDate);
@@ -67,6 +67,8 @@ export async function createCoupon(itemId: string) {
     payload: { card: item.card.title, number },
   });
 
+  // If partner exists and has webhook/contact, optionally notify provider here (out of scope)
+
   revalidateAll();
 }
 
@@ -81,7 +83,7 @@ export async function issueCoupon(couponId: string) {
   });
   if (!coupon) throw new Error("Купон не найден.");
   if (coupon.status !== "CREATED") throw new Error("Купон уже выдан или недоступен для выдачи.");
-  assertTransition(coupon.item.status, "COUPON_ISSUED", "HR_BP");
+  assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
 
   await db.$transaction([
     db.coupon.update({

@@ -10,14 +10,11 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-/// Роли доступа (RBAC), раздел 4 ТЗ v2
+/// Роли доступа (RBAC)
 enum Role {
-  SUPERADMIN
-  CONTENT_MANAGER
-  APPROVER
-  HR_BP
-  ANALYST
+  C_AND_B
   EMPLOYEE
+  CONTRACTOR
 }
 
 enum Block {
@@ -143,6 +140,7 @@ model Partner {
 
   cards   BenefitCard[]
   coupons Coupon[]
+  banners PartnerBanner[]
 }
 
 model BenefitCard {
@@ -281,6 +279,38 @@ model Coupon {
   validUntil      DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+}
+
+model PartnerBanner {
+  id        String    @id @default(cuid())
+  partner   Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId String?
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  href      String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model AdvertisingRequest {
+  id              String    @id @default(cuid())
+  companyName     String
+  contactName     String
+  contactPhone    String
+  productName     String
+  productDescription String
+  budget          String?
+  status          String    @default("PENDING")
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model TextBlock {

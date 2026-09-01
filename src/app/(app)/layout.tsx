@@ -43,17 +43,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="relative isolate min-h-dvh bg-canvas text-ink">
       <PetalDrift fixed />
-      <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-surface/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <BrandLockup markSize={30} />
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <AppNav items={items} />
-            <span className="hidden text-xs text-ink-subtle md:inline">
-              {roles.map((r) => ROLE_LABELS[r]).join(", ")}
-            </span>
+            <div className="hidden items-center gap-2 rounded-full border border-line bg-surface-muted px-2.5 py-1 md:flex">
+              <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+                {roles.map((r) => ROLE_LABELS[r]).join(", ")}
+              </span>
+            </div>
             <form action={logout}>
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" className="rounded-full">
                 Выйти
               </Button>
             </form>
@@ -61,7 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-5xl px-4 py-8">{children}</main>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 sm:py-10">{children}</main>
     </div>
   );
 }

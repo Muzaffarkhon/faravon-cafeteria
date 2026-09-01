@@ -65,8 +65,9 @@ export async function notifyApprovers(params: {
   payload?: Prisma.InputJsonValue;
   channel?: string;
 }) {
+  // Notify C&B admins instead of legacy APPROVER role
   const approvers = await db.user.findMany({
-    where: { isActive: true, roles: { has: "APPROVER" } },
+    where: { isActive: true, roles: { has: "C_AND_B" } },
     select: { id: true },
   });
   if (approvers.length === 0) return;

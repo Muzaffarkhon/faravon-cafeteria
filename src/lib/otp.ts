@@ -25,7 +25,7 @@ export function generateIdCode(): string {
  */
 export async function issueOtpForUser(userId: string, actorNote = "telegram-bot"): Promise<string> {
   const otp = generateOtp();
-  const passwordHash = await bcrypt.hash(otp, 10);
+  const passwordHash = await bcrypt.hash(otp, 12);
   await db.user.update({
     where: { id: userId },
     data: {

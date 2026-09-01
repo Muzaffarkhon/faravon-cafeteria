@@ -19,7 +19,7 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
   const action = saveSlaRule.bind(null, rule?.id ?? null);
   const [state, formAction, pending] = useActionState<SlaRuleFormState, FormData>(action, {});
   const [removing, startRemove] = useTransition();
-  const selected = new Set(rule?.notifyRoles ?? ["APPROVER"]);
+  const selected = new Set(rule?.notifyRoles ?? ["C_AND_B"]);
 
   return (
     <form action={formAction} className="rounded-xl border border-line bg-surface p-5 shadow-sm">

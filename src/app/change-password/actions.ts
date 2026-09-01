@@ -24,7 +24,7 @@ export async function changePasswordAction(
   }
   if (password !== confirm) return { error: "Пароли не совпадают." };
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
   await db.user.update({
     where: { id: session.user.id },
     data: { passwordHash, mustChangePassword: false, otpExpiresAt: null },

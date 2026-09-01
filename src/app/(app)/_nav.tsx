@@ -38,8 +38,10 @@ export function AppNav({ items }: { items: NavItem[] }) {
           onClick={onClick}
           aria-current={active ? "page" : undefined}
           className={cx(
-            "inline-flex items-center rounded-sm py-1 transition-colors",
-            active ? "font-medium text-primary" : "text-ink-muted hover:text-primary",
+            "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-150",
+            active
+              ? "bg-primary-soft text-primary-strong ring-1 ring-primary-border shadow-xs"
+              : "text-ink-muted hover:bg-surface-muted hover:text-ink",
           )}
         >
           {it.label}
@@ -51,7 +53,7 @@ export function AppNav({ items }: { items: NavItem[] }) {
   return (
     <>
       {/* ≥ md: горизонтальный ряд */}
-      <nav className="hidden flex-wrap items-center gap-x-4 gap-y-1 text-sm md:flex">
+      <nav className="hidden flex-wrap items-center gap-2 md:flex">
         {links()}
       </nav>
 
@@ -62,7 +64,7 @@ export function AppNav({ items }: { items: NavItem[] }) {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label="Меню разделов"
-          className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1 text-sm text-ink shadow-xs"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -75,7 +77,7 @@ export function AppNav({ items }: { items: NavItem[] }) {
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
-            <nav className="absolute right-0 z-50 mt-2 flex w-56 flex-col gap-1 rounded-lg border border-line bg-surface p-2 text-sm shadow-lg">
+            <nav className="absolute right-0 z-50 mt-2 flex w-64 flex-col gap-1 rounded-2xl border border-line bg-surface p-2 text-sm shadow-lg">
               {links(() => setOpen(false))}
             </nav>
           </>

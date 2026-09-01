@@ -158,7 +158,7 @@ async function main() {
   void now;
 
   // ---- Users & employees ----
-  const pass = await bcrypt.hash("Password1", 10);
+  const pass = await bcrypt.hash("Password1", 12);
 
   async function makeStaff(login: string, roles: Role[], fullName: string, position: string) {
     await db.user.upsert({
@@ -169,11 +169,8 @@ async function main() {
     void fullName;
     void position;
   }
-  await makeStaff("superadmin", [Role.SUPERADMIN], "Администратор системы", "Суперадмин");
-  await makeStaff("content", [Role.CONTENT_MANAGER], "Контент-менеджер", "HR-специалист");
-  await makeStaff("approver", [Role.APPROVER], "Согласующий", "Отдел оценки и вознаграждения");
-  await makeStaff("hrbp", [Role.HR_BP], "HR бизнес-партнёр", "HR BP");
-  await makeStaff("analyst", [Role.ANALYST], "Аналитик", "Аналитик");
+  await makeStaff("c_and_b", [Role.C_AND_B], "Админ C&B", "Контент и привилегии");
+  await makeStaff("contractor", [Role.CONTRACTOR], "Подрядчик", "Вендор / провайдер");
 
   const employees = [
     { tab: "0001", login: "ivanov", fullName: "Иванов Иван Иванович", position: "Менеджер по продажам", department: "Коммерческий отдел", phone: "+992 900 111 001" },
@@ -204,8 +201,8 @@ async function main() {
 
   // ---- Матрица SLA-эскалаций (§5.12) ----
   const slaDefaults = [
-    { level: 1, afterHours: 72, notifyRoles: [Role.APPROVER], active: true },
-    { level: 2, afterHours: 120, notifyRoles: [Role.APPROVER, Role.SUPERADMIN], active: true },
+    { level: 1, afterHours: 72, notifyRoles: [Role.C_AND_B], active: true },
+    { level: 2, afterHours: 120, notifyRoles: [Role.C_AND_B], active: true },
   ];
   for (const rule of slaDefaults) {
     await db.slaEscalationRule.upsert({
@@ -215,7 +212,7 @@ async function main() {
     });
   }
 
-  console.log("Seed done. Logins: superadmin / content / approver / hrbp / analyst / ivanov / petrova / sidorov — password: Password1");
+  console.log("Seed done. Logins: c_and_b / contractor / ivanov / petrova / sidorov — password: Password1");
 }
 
 main()

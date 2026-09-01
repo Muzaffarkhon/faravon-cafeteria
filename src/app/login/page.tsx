@@ -50,7 +50,7 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-xs leading-relaxed text-ink-subtle">
           Логин и одноразовый пароль сотрудник получает в Telegram-боте.
           <br />
-          Демо-доступ: superadmin / content / approver / hrbp / analyst / ivanov, пароль Password1
+          Демо-доступ: c_and_b / contractor / ivanov, пароль Password1
         </p>
       </div>
     </main>

@@ -11,6 +11,9 @@
      СЛОЙ 1. PRIMITIVE — сырые значения шкал. В разметке напрямую не используются.
      ------------------------------------------------------------------------ */
 
+  --surface-elevated: rgba(255, 255, 255, 0.8);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+
   /* Фирменный красный «Фаровон». Опорный тон — brand-600. */
   --brand-50:  oklch(0.971 0.013 24);
   --brand-100: oklch(0.938 0.030 24);
@@ -222,7 +225,10 @@
   }
 
   body {
-    background: var(--canvas);
+    background:
+      radial-gradient(circle at top right, rgba(122, 19, 19, 0.08), transparent 26%),
+      radial-gradient(circle at bottom left, rgba(242, 172, 145, 0.18), transparent 24%),
+      linear-gradient(180deg, #fffaf8 0%, #fff7f4 12%, var(--canvas) 100%);
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -302,6 +308,19 @@
     background-position: -11px -11px;
   }
 
+  .glass-panel {
+    background: var(--surface-elevated);
+    border: 1px solid rgba(124, 119, 118, 0.16);
+    box-shadow: 0 10px 30px rgba(112, 40, 31, 0.06);
+    backdrop-filter: blur(12px);
+  }
+
+  .soft-grid {
+    background-image: linear-gradient(rgba(120, 45, 41, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120, 45, 41, 0.04) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
   /* Дрейф фирменных лепестков — ambient-слой (позиционирование задаётся классом) */
   .petal-drift {
     overflow: hidden;
@@ -328,3 +347,15 @@
     .petal-drift > i { animation: none; opacity: 0.28; }
   }
 }
+
+/* Admin UI lightweight styles */
+@layer components {
+  .fc-btn { @apply inline-flex items-center gap-2 px-3 py-1 rounded-md bg-red-600 text-white; }
+  .fc-input { @apply px-2 py-1 border rounded-md border-neutral-200; }
+  .fc-table { @apply w-full border-collapse; }
+  .fc-table th, .fc-table td { @apply p-3 border-b border-neutral-200 text-left }
+  .fc-card { @apply p-4 rounded-md bg-white border border-neutral-100 shadow-sm }
+  .fc-field { @apply flex items-center gap-3 mb-2 }
+  .fc-field-label { @apply w-32 text-neutral-600 }
+}
+

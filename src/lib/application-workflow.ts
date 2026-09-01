@@ -11,7 +11,7 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   CANCELLED: "Отменено сотрудником",
 };
 
-type Actor = "EMPLOYEE" | "APPROVER" | "HR_BP";
+type Actor = "EMPLOYEE" | "C_AND_B" | "CONTRACTOR";
 
 const TRANSITIONS: Record<ItemStatus, { to: ItemStatus; by: Actor }[]> = {
   DRAFT: [
@@ -19,12 +19,12 @@ const TRANSITIONS: Record<ItemStatus, { to: ItemStatus; by: Actor }[]> = {
     { to: "CANCELLED", by: "EMPLOYEE" },
   ],
   PENDING: [
-    { to: "APPROVED", by: "APPROVER" },
-    { to: "REJECTED", by: "APPROVER" },
+    { to: "APPROVED", by: "C_AND_B" },
+    { to: "REJECTED", by: "C_AND_B" },
     { to: "CANCELLED", by: "EMPLOYEE" },
   ],
-  APPROVED: [{ to: "COUPON_CREATED", by: "HR_BP" }],
-  COUPON_CREATED: [{ to: "COUPON_ISSUED", by: "HR_BP" }],
+  APPROVED: [{ to: "COUPON_CREATED", by: "C_AND_B" }],
+  COUPON_CREATED: [{ to: "COUPON_ISSUED", by: "C_AND_B" }],
   COUPON_ISSUED: [],
   REJECTED: [],
   CANCELLED: [],

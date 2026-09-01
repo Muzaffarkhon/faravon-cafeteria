@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireSession, destroySession } from "@/lib/auth";
+import { requireSession, getSession, destroySession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notifyApprovers } from "@/lib/notify";
 import { assertTransition } from "@/lib/application-workflow";
@@ -104,6 +104,10 @@ export async function cancelItem(itemId: string) {
 }
 
 export async function logout() {
+  const session = await getSession();
   await destroySession();
+  if (session) {
+    await audit({ actorId: session.user.id, action: "LOGOUT", entityType: "User", entityId: session.user.id });
+  }
   redirect("/login");
 }

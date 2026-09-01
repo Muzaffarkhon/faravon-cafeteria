@@ -43,7 +43,7 @@ export async function changeOwnPassword(
     return { error: "Новый пароль должен отличаться от текущего." };
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
   await db.user.update({
     where: { id: user.id },
     data: { passwordHash, mustChangePassword: false, otpExpiresAt: null },

@@ -44,7 +44,7 @@ async function main() {
   const ivanov = await db.employee.findFirst({ where: { user: { login: "ivanov" } }, include: { user: true } });
   assert(ivanov?.user, "сотрудник ivanov существует");
 
-  const approvers = await db.user.findMany({ where: { isActive: true, roles: { has: "APPROVER" } } });
+  const approvers = await db.user.findMany({ where: { isActive: true, roles: { has: "C_AND_B" } } });
   assert(approvers.length > 0, `согласующих найдено: ${approvers.length}`);
 
   const flex = await db.benefitCard.findMany({
@@ -95,11 +95,11 @@ async function main() {
   const approverUser = approvers[0];
 
   for (const it of [a1, a2]) {
-    assertTransition(it.status, "APPROVED", "APPROVER");
+    assertTransition(it.status, "APPROVED", "C_AND_B");
     await db.applicationItem.update({ where: { id: it.id }, data: { status: "APPROVED", decidedById: approverUser.id, decidedAt: new Date() } });
     await db.notification.create({ data: { userId: ivanov!.user!.id, event: "ITEM_APPROVED", channel: "TELEGRAM", payload: { card: (await db.benefitCard.findUnique({ where: { id: it.cardId } }))!.title } } });
   }
-  assertTransition(r1.status, "REJECTED", "APPROVER");
+  assertTransition(r1.status, "REJECTED", "C_AND_B");
   await db.applicationItem.update({ where: { id: r1.id }, data: { status: "REJECTED", decidedById: approverUser.id, decidedAt: new Date(), decisionComment: "Лимит бюджета по этой категории исчерпан" } });
   await db.notification.create({ data: { userId: ivanov!.user!.id, event: "ITEM_REJECTED", channel: "TELEGRAM", payload: { card: (await db.benefitCard.findUnique({ where: { id: r1.cardId } }))!.title, comment: "Лимит бюджета по этой категории исчерпан" } } });
 
@@ -113,7 +113,7 @@ async function main() {
   const approved = await db.applicationItem.findMany({ where: { applicationId: app.id, status: "APPROVED" }, include: { card: true } });
   let seq = (await db.coupon.count()) + 1;
   for (const it of approved) {
-    assertTransition(it.status, "COUPON_CREATED", "HR_BP");
+    assertTransition(it.status, "COUPON_CREATED", "C_AND_B");
     const number = `CPN-${period!.name.replace(/\s/g, "")}-${String(seq++).padStart(4, "0")}`;
     await db.coupon.create({
       data: {
@@ -137,7 +137,7 @@ async function main() {
   head("hrbp: выдать купоны");
   const created = await db.coupon.findMany({ where: { status: "CREATED" }, include: { item: true } });
   for (const c of created) {
-    assertTransition(c.item.status, "COUPON_ISSUED", "HR_BP");
+    assertTransition(c.item.status, "COUPON_ISSUED", "C_AND_B");
     await db.coupon.update({ where: { id: c.id }, data: { status: "ISSUED", issuedAt: new Date() } });
     await db.applicationItem.update({ where: { id: c.itemId }, data: { status: "COUPON_ISSUED" } });
     await db.notification.create({ data: { userId: ivanov!.user!.id, event: "COUPON_ISSUED", channel: "TELEGRAM", payload: { card: (await db.benefitCard.findUnique({ where: { id: c.item.cardId } }))!.title, number: c.number } } });

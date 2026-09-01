@@ -2,17 +2,18 @@ import type { Role } from "@prisma/client";
 
 /** Матрица прав, ТЗ v2 §4.2. Ключ — действие, значение — роли, которым оно разрешено. */
 export const PERMISSIONS = {
-  "cards.manage": ["CONTENT_MANAGER", "SUPERADMIN"],
-  "partners.manage": ["CONTENT_MANAGER", "SUPERADMIN"],
-  "periods.manage": ["CONTENT_MANAGER", "SUPERADMIN"],
+  "cards.manage": ["C_AND_B"],
+  "partners.manage": ["C_AND_B"],
+  "periods.manage": ["C_AND_B"],
   "application.select": ["EMPLOYEE"],
-  "applications.viewAll": ["CONTENT_MANAGER", "APPROVER", "HR_BP", "SUPERADMIN", "ANALYST"],
-  "applications.decide": ["APPROVER"],
-  "coupons.manage": ["HR_BP", "SUPERADMIN"],
-  "reports.view": ["CONTENT_MANAGER", "APPROVER", "HR_BP", "SUPERADMIN", "ANALYST"],
-  "users.manage": ["SUPERADMIN"],
-  "access.manage": ["HR_BP", "SUPERADMIN"],
-  "audit.view": ["SUPERADMIN", "ANALYST"],
+  "applications.viewAll": ["C_AND_B"],
+  "applications.decide": ["C_AND_B"],
+  "coupons.manage": ["C_AND_B"],
+  "coupons.confirm": ["CONTRACTOR"],
+  "reports.view": ["C_AND_B"],
+  "users.manage": ["C_AND_B"],
+  "access.manage": ["C_AND_B"],
+  "audit.view": ["C_AND_B"],
 } as const satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -27,10 +28,7 @@ export function assertCan(roles: Role[], permission: Permission) {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
-  SUPERADMIN: "Суперадмин",
-  CONTENT_MANAGER: "Контент-менеджер",
-  APPROVER: "Согласующий",
-  HR_BP: "HR BP",
-  ANALYST: "Аналитик",
+  C_AND_B: "C&B",
   EMPLOYEE: "Сотрудник",
+  CONTRACTOR: "Подрядчик",
 };

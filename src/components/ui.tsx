@@ -1,3 +1,36 @@
+"use client";
+import React from "react";
+
+export function Button({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button {...p} className={(p.className ?? "") + " fc-btn"}>
+      {children}
+    </button>
+  );
+}
+
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={(props.className ?? "") + " fc-input"} />;
+}
+
+export function Table({ children }: { children: React.ReactNode }) {
+  return <table className="fc-table">{children}</table>;
+}
+
+export function Card({ children }: { children: React.ReactNode }) {
+  return <div className="fc-card">{children}</div>;
+}
+
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="fc-field">
+      <div className="fc-field-label">{label}</div>
+      <div>{children}</div>
+    </label>
+  );
+}
+
+export default {};
 /**
  * UI-примитивы «Кафетерий льгот».
  * Единый словарь компонентов поверх дизайн-токенов из globals.css.

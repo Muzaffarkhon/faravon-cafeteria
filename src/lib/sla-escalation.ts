@@ -63,7 +63,7 @@ export async function runSlaEscalations(opts: {
 
     const targetRoles: Role[] = rule.notifyRoles.length
       ? rule.notifyRoles
-      : (["APPROVER"] as Role[]);
+      : (["C_AND_B"] as Role[]);
     const userIds = new Set<string>();
     for (const role of targetRoles) {
       for (const id of await usersForRole(role)) userIds.add(id);

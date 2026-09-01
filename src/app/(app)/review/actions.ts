@@ -21,7 +21,7 @@ async function decideContext(itemId: string) {
 
 export async function approveItem(itemId: string) {
   const { session, item } = await decideContext(itemId);
-  assertTransition(item.status, "APPROVED", "APPROVER");
+  assertTransition(item.status, "APPROVED", "C_AND_B");
 
   await db.applicationItem.update({
     where: { id: itemId },
@@ -55,7 +55,7 @@ export async function rejectItem(itemId: string, comment: string) {
   const { session, item } = await decideContext(itemId);
   const trimmed = comment.trim();
   if (trimmed.length < 3) throw new Error("Укажите причину отклонения (не короче 3 символов).");
-  assertTransition(item.status, "REJECTED", "APPROVER");
+  assertTransition(item.status, "REJECTED", "C_AND_B");
 
   await db.applicationItem.update({
     where: { id: itemId },
