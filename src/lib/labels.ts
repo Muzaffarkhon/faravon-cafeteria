@@ -1,4 +1,10 @@
-import type { Block, CardStatus, PartnerStatus, PeriodStatus } from "@prisma/client";
+import type {
+  Block,
+  CardStatus,
+  EmploymentStatus,
+  PartnerStatus,
+  PeriodStatus,
+} from "@prisma/client";
 
 export const BLOCK_LABELS: Record<Block, string> = {
   RECOGNITION: "Программы признания",
@@ -21,6 +27,12 @@ export const PERIOD_STATUS_LABELS: Record<PeriodStatus, string> = {
   DRAFT: "Черновик",
   OPEN: "Открыт",
   CLOSED: "Закрыт",
+};
+
+export const EMPLOYMENT_STATUS_LABELS: Record<EmploymentStatus, string> = {
+  ACTIVE: "Работает",
+  PROBATION: "Испытательный срок",
+  TERMINATED: "Уволен",
 };
 
 export const BLOCKS: Block[] = ["RECOGNITION", "CARE", "FLEX"];

@@ -20,6 +20,8 @@ export default async function OverviewPage() {
       links.push({ href: "/review", label: "Согласование заявок", desc: "одобрение и отклонение позиций" });
     if (can(roles, "coupons.manage"))
       links.push({ href: "/coupons", label: "Купоны", desc: "формирование и выдача купонов" });
+    if (can(roles, "users.manage"))
+      links.push({ href: "/admin/users", label: "Пользователи и роли", desc: "справочник сотрудников, учётные записи, роли, деактивация" });
     if (can(roles, "access.manage"))
       links.push({ href: "/admin/access", label: "Доступ сотрудников", desc: "коды идентификации для Telegram-бота, привязка Telegram" });
     if (can(roles, "cards.manage"))
