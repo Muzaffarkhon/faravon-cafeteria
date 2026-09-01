@@ -8,6 +8,7 @@ import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
 import { generateCouponNumber } from "@/lib/coupon";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 function revalidateAll() {
   revalidatePath("/coupons");
@@ -16,7 +17,11 @@ function revalidateAll() {
 }
 
 /** Сформировать купон по одобренной позиции (ТЗ v2 §5.8). */
-export async function createCoupon(itemId: string) {
+export async function createCoupon(itemId: string): Promise<ActionResult> {
+  return runAction(() => createCouponImpl(itemId));
+}
+
+async function createCouponImpl(itemId: string) {
   const s = await requireSession();
   assertCan(s.roles, "coupons.manage");
 
@@ -71,7 +76,11 @@ export async function createCoupon(itemId: string) {
 }
 
 /** Выдать сформированный купон сотруднику. */
-export async function issueCoupon(couponId: string) {
+export async function issueCoupon(couponId: string): Promise<ActionResult> {
+  return runAction(() => issueCouponImpl(couponId));
+}
+
+async function issueCouponImpl(couponId: string) {
   const s = await requireSession();
   assertCan(s.roles, "coupons.manage");
 

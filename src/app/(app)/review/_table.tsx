@@ -44,11 +44,15 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
     setSel(allChecked ? new Set() : new Set(allIds));
   }
 
-  function runRow(id: string, fn: () => Promise<unknown>) {
+  function runRow(id: string, fn: () => Promise<{ error?: string }>) {
     setRowErr((e) => ({ ...e, [id]: "" }));
     start(async () => {
       try {
-        await fn();
+        const r = await fn();
+        if (r?.error) {
+          setRowErr((prev) => ({ ...prev, [id]: r.error! }));
+          return;
+        }
         setRejectingId(null);
         setRejectText("");
       } catch (e) {

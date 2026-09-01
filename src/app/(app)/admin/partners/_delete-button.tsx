@@ -19,7 +19,8 @@ export function DeletePartnerButton({ id, name }: { id: string; name: string }) 
           setError(null);
           start(async () => {
             try {
-              await deletePartner(id);
+              const r = await deletePartner(id);
+              if (r?.error) setError(r.error);
             } catch (e) {
               setError(e instanceof Error ? e.message : "Ошибка");
             }

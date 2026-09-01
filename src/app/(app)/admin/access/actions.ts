@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { issueIdentificationCode } from "@/lib/otp";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 export async function issueCode(employeeId: string): Promise<{ code: string } | { error: string }> {
   const s = await requireSession();
@@ -17,10 +18,17 @@ export async function issueCode(employeeId: string): Promise<{ code: string } | 
   return { code };
 }
 
-export async function unlinkTelegram(employeeId: string) {
-  const s = await requireSession();
-  assertCan(s.roles, "access.manage");
-  await db.employee.update({ where: { id: employeeId }, data: { telegramId: null } });
-  await audit({ actorId: s.user.id, action: "TELEGRAM_UNLINKED", entityType: "Employee", entityId: employeeId });
-  revalidatePath("/admin/access");
+export async function unlinkTelegram(employeeId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "access.manage");
+    await db.employee.update({ where: { id: employeeId }, data: { telegramId: null } });
+    await audit({
+      actorId: s.user.id,
+      action: "TELEGRAM_UNLINKED",
+      entityType: "Employee",
+      entityId: employeeId,
+    });
+    revalidatePath("/admin/access");
+  });
 }

@@ -12,7 +12,7 @@ function ActionButton({
 }: {
   label: string;
   pendingLabel: string;
-  onRun: () => Promise<void>;
+  onRun: () => Promise<{ error?: string }>;
   variant: "primary" | "success";
 }) {
   const [pending, start] = useTransition();
@@ -28,7 +28,8 @@ function ActionButton({
           setError(null);
           start(async () => {
             try {
-              await onRun();
+              const r = await onRun();
+              if (r?.error) setError(r.error);
             } catch (e) {
               setError(e instanceof Error ? e.message : "Ошибка");
             }

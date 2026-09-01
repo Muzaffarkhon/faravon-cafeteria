@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireSession, destroySession } from "@/lib/auth";
+import { requireSession, destroySession, readToken } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { runAction, type ActionResult } from "@/lib/action-result";
 import { notifyApprovers } from "@/lib/notify";
 import { assertTransition } from "@/lib/application-workflow";
 import {
@@ -23,7 +24,11 @@ async function employeeContext() {
   return { session: s, employee: s.employee, period };
 }
 
-export async function toggleSelection(cardId: string) {
+export async function toggleSelection(cardId: string): Promise<ActionResult> {
+  return runAction(() => toggleSelectionImpl(cardId));
+}
+
+async function toggleSelectionImpl(cardId: string) {
   const { session, employee, period } = await employeeContext();
 
   const card = await db.benefitCard.findUnique({ where: { id: cardId } });
@@ -50,7 +55,11 @@ export async function toggleSelection(cardId: string) {
   revalidatePath("/");
 }
 
-export async function submitSelection() {
+export async function submitSelection(): Promise<ActionResult> {
+  return runAction(submitSelectionImpl);
+}
+
+async function submitSelectionImpl() {
   const { session, employee, period } = await employeeContext();
   const withItems = await getApplicationWithItems(employee.id, period.id);
   const drafts = withItems?.items.filter((i) => i.status === "DRAFT") ?? [];
@@ -87,7 +96,11 @@ export async function submitSelection() {
   revalidatePath("/review");
 }
 
-export async function cancelItem(itemId: string) {
+export async function cancelItem(itemId: string): Promise<ActionResult> {
+  return runAction(() => cancelItemImpl(itemId));
+}
+
+async function cancelItemImpl(itemId: string) {
   const { session, employee, period } = await employeeContext();
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
@@ -104,6 +117,10 @@ export async function cancelItem(itemId: string) {
 }
 
 export async function logout() {
+  const tok = await readToken();
+  if (tok) {
+    await audit({ actorId: tok.sub, action: "LOGOUT", entityType: "User", entityId: tok.sub });
+  }
   await destroySession();
   redirect("/login");
 }

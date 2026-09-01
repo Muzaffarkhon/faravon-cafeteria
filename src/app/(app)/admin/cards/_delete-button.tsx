@@ -19,7 +19,8 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
           setError(null);
           start(async () => {
             try {
-              await deleteCard(id);
+              const r = await deleteCard(id);
+              if (r?.error) setError(r.error);
             } catch (e) {
               setError(e instanceof Error ? e.message : "Ошибка");
             }

@@ -49,7 +49,8 @@ export function AccessRowActions({
               setError(null);
               start(async () => {
                 try {
-                  await unlinkTelegram(employeeId);
+                  const r = await unlinkTelegram(employeeId);
+                  if (r?.error) setError(r.error);
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "Ошибка");
                 }

@@ -7,6 +7,7 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 async function decideContext(itemId: string) {
   const s = await requireSession();
@@ -19,7 +20,11 @@ async function decideContext(itemId: string) {
   return { session: s, item };
 }
 
-export async function approveItem(itemId: string) {
+export async function approveItem(itemId: string): Promise<ActionResult> {
+  return runAction(() => approveItemImpl(itemId));
+}
+
+async function approveItemImpl(itemId: string) {
   const { session, item } = await decideContext(itemId);
   assertTransition(item.status, "APPROVED", "APPROVER");
 
@@ -51,7 +56,11 @@ export async function approveItem(itemId: string) {
   revalidatePath("/applications");
 }
 
-export async function rejectItem(itemId: string, comment: string) {
+export async function rejectItem(itemId: string, comment: string): Promise<ActionResult> {
+  return runAction(() => rejectItemImpl(itemId, comment));
+}
+
+async function rejectItemImpl(itemId: string, comment: string) {
   const { session, item } = await decideContext(itemId);
   const trimmed = comment.trim();
   if (trimmed.length < 3) throw new Error("Укажите причину отклонения (не короче 3 символов).");

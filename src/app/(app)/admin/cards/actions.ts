@@ -9,6 +9,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { recordCardVersion, restoreCardVersion } from "@/lib/card-version";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 export type CardFormState = { error?: string };
 
@@ -119,19 +120,21 @@ export async function restoreCardVersionAction(versionId: string): Promise<void>
   revalidatePath("/");
 }
 
-export async function deleteCard(id: string) {
-  const s = await requireSession();
-  assertCan(s.roles, "cards.manage");
-  const used = await db.applicationItem.count({ where: { cardId: id } });
-  if (used > 0) {
-    throw new Error(
-      `Нельзя удалить: по карточке есть ${used} позиций заявок. Снимите с публикации или деактивируйте.`,
-    );
-  }
-  const doomed = await db.benefitCard.findUnique({ where: { id }, select: { imageUrl: true } });
-  await db.benefitCard.delete({ where: { id } });
-  await cleanupBlob(doomed?.imageUrl ?? null, null);
-  await audit({ actorId: s.user.id, action: "CARD_DELETED", entityType: "BenefitCard", entityId: id });
-  revalidatePath("/admin/cards");
-  revalidatePath("/");
+export async function deleteCard(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "cards.manage");
+    const used = await db.applicationItem.count({ where: { cardId: id } });
+    if (used > 0) {
+      throw new Error(
+        `Нельзя удалить: по карточке есть ${used} позиций заявок. Снимите с публикации или деактивируйте.`,
+      );
+    }
+    const doomed = await db.benefitCard.findUnique({ where: { id }, select: { imageUrl: true } });
+    await db.benefitCard.delete({ where: { id } });
+    await cleanupBlob(doomed?.imageUrl ?? null, null);
+    await audit({ actorId: s.user.id, action: "CARD_DELETED", entityType: "BenefitCard", entityId: id });
+    revalidatePath("/admin/cards");
+    revalidatePath("/");
+  });
 }

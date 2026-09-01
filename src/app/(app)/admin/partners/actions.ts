@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 export type PartnerFormState = { error?: string };
 
@@ -78,14 +79,18 @@ export async function updatePartner(
   redirect("/admin/partners");
 }
 
-export async function deletePartner(id: string) {
-  const s = await requireSession();
-  assertCan(s.roles, "partners.manage");
-  const cards = await db.benefitCard.count({ where: { partnerId: id } });
-  if (cards > 0) {
-    throw new Error(`Нельзя удалить: партнёр связан с ${cards} карточк(ами). Переведите в архив.`);
-  }
-  await db.partner.delete({ where: { id } });
-  await audit({ actorId: s.user.id, action: "PARTNER_DELETED", entityType: "Partner", entityId: id });
-  revalidatePath("/admin/partners");
+export async function deletePartner(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "partners.manage");
+    const cards = await db.benefitCard.count({ where: { partnerId: id } });
+    if (cards > 0) {
+      throw new Error(
+        `Нельзя удалить: партнёр связан с ${cards} карточк(ами). Переведите в архив.`,
+      );
+    }
+    await db.partner.delete({ where: { id } });
+    await audit({ actorId: s.user.id, action: "PARTNER_DELETED", entityType: "Partner", entityId: id });
+    revalidatePath("/admin/partners");
+  });
 }
