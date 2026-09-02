@@ -7,8 +7,8 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
-import { generateCouponNumber } from "@/lib/coupon";
 import { groupProgressOne } from "@/lib/selection";
+import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
 function revalidateAll() {
@@ -26,54 +26,15 @@ async function createCouponImpl(itemId: string) {
   const s = await requireSession();
   assertCan(s.roles, "coupons.manage");
 
-  const item = await db.applicationItem.findUnique({
+  const existing = await db.applicationItem.findUnique({
     where: { id: itemId },
-    include: {
-      coupon: true,
-      card: { include: { partner: true } },
-      application: { include: { period: true } },
-    },
+    select: { coupon: { select: { id: true } } },
   });
-  if (!item) throw new Error("Позиция не найдена.");
-  if (item.coupon) throw new Error("Купон уже сформирован.");
-  assertTransition(item.status, "COUPON_CREATED", "C_AND_B");
+  if (existing?.coupon) throw new Error("Купон уже сформирован.");
 
-  const number = await generateCouponNumber(item.application.period.startDate);
-  const validUntil = new Date(item.application.period.endDate);
-  validUntil.setUTCDate(validUntil.getUTCDate() + 30);
-
-  await db.$transaction([
-    db.coupon.create({
-      data: {
-        number,
-        itemId: item.id,
-        partnerId: item.card.partnerId,
-        employeeId: item.application.employeeId,
-        periodId: item.application.periodId,
-        type: "PROMO",
-        nominal: item.card.condition,
-        status: "CREATED",
-        deliveryChannel: "PORTAL",
-        validUntil,
-      },
-    }),
-    db.applicationItem.update({ where: { id: item.id }, data: { status: "COUPON_CREATED" } }),
-  ]);
-
-  await audit({
-    actorId: s.user.id,
-    action: "COUPON_CREATED",
-    entityType: "ApplicationItem",
-    entityId: item.id,
-    newValue: { number },
-  });
-  await notifyEmployee({
-    employeeId: item.application.employeeId,
-    event: "COUPON_CREATED",
-    payload: { card: item.card.title, number },
-  });
-
-  // If partner exists and has webhook/contact, optionally notify provider here (out of scope)
+  // Формируем и, если готово (не групповая или группа набрана), сразу выдаём.
+  const coupon = await formCouponForItem(itemId, s.user.id);
+  await issueCouponIfReady(coupon.id, s.user.id);
 
   revalidateAll();
 }

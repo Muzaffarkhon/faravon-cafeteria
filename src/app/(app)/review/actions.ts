@@ -7,7 +7,25 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
+import { formCouponForItem, issueCouponIfReady, issueGroupBacklog } from "@/lib/coupon-flow";
 import { runAction, type ActionResult } from "@/lib/action-result";
+
+/**
+ * После одобрения позиции сразу формируем купон и выдаём его, если готово:
+ * обычная льгота — сразу; групповая — только когда набрана группа (плюс добор
+ * ранее сформированных купонов этой карточки).
+ */
+async function issueAfterApprove(
+  item: { id: string; cardId: string; application: { periodId: string } },
+  minParticipants: number,
+  actorId: string,
+) {
+  const coupon = await formCouponForItem(item.id, actorId);
+  await issueCouponIfReady(coupon.id, actorId);
+  if (minParticipants > 1) {
+    await issueGroupBacklog(item.cardId, item.application.periodId, actorId);
+  }
+}
 
 async function decideContext(itemId: string) {
   const s = await requireSession();
@@ -49,7 +67,10 @@ async function approveItemImpl(itemId: string) {
     employeeId: item.application.employeeId,
     event: "ITEM_APPROVED",
     payload: { card: item.card.title },
+    deferFlush: true,
   });
+  await issueAfterApprove(item, item.card.minParticipants, session.user.id);
+  flushTelegram();
 
   revalidatePath("/review");
   revalidatePath("/");
@@ -135,6 +156,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         payload: { card: item.card.title },
         deferFlush: true,
       });
+      await issueAfterApprove(item, item.card.minParticipants, s.user.id);
       ok++;
     } catch (e) {
       errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);

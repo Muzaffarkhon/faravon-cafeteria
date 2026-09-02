@@ -148,23 +148,26 @@ export default async function ApplicationsPage() {
                       (() => {
                         const c = item.coupon;
                         const qr = qrByCoupon.get(c.id);
+                        const pastValid = isCouponExpired(c.validUntil);
                         const expired =
                           c.status === "EXPIRED" ||
-                          (c.status === "ISSUED" && isCouponExpired(c.validUntil));
+                          ((c.status === "ISSUED" || c.status === "USED") && pastValid);
                         const live = c.status === "ISSUED" && !expired;
+                        // Активированный купон действует до конца срока, затем «истёк».
+                        const activatedLive = c.status === "USED" && !pastValid;
                         // Пояснение под номером — почему QR есть / нет и что делать.
                         const hint = expired
                           ? "Срок действия купона истёк."
-                          : c.status === "USED"
-                            ? "Купон активирован у партнёра."
+                          : activatedLive
+                            ? "Купон активирован у партнёра и действует до конца срока."
                             : c.status === "CANCELLED"
                               ? "Купон аннулирован."
                               : c.status === "CREATED"
-                                ? "Купон сформирован. QR для гашения появится после выдачи."
+                                ? "Купон сформирован. QR появится после выдачи."
                                 : live && qr
-                                  ? "Покажите QR подрядчику для гашения."
+                                  ? "Покажите QR партнёру для активации."
                                   : live
-                                    ? "QR временно недоступен — назовите подрядчику номер купона."
+                                    ? "QR временно недоступен — назовите партнёру номер купона."
                                     : null;
                         return (
                           <div
