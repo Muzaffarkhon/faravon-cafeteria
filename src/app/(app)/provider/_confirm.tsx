@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, cx } from "@/components/ui";
 import { lookupCoupon, redeemCoupon, type CouponView } from "./actions";
 import { CouponScanner } from "./_scanner";
 
@@ -130,7 +130,13 @@ export function ProviderConfirm() {
             {coupon.validUntil && (
               <>
                 <dt className="text-ink-muted">Действует до</dt>
-                <dd className="font-medium text-ink" data-numeric>{coupon.validUntil}</dd>
+                <dd
+                  className={cx("font-medium", coupon.expired ? "text-danger" : "text-ink")}
+                  data-numeric
+                >
+                  {coupon.validUntil}
+                  {coupon.expired && " · срок истёк"}
+                </dd>
               </>
             )}
           </dl>
@@ -166,8 +172,10 @@ export function ProviderConfirm() {
 
             {phase === "found" && !coupon.redeemable && (
               <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm text-ink-muted">
-                  Купон в статусе «{coupon.statusLabel}» — погасить нельзя.
+                <p className="text-sm font-medium text-danger">
+                  {coupon.expired
+                    ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — погасить нельзя.`
+                    : `Купон в статусе «${coupon.statusLabel}» — погасить нельзя.`}
                 </p>
                 <Button variant="secondary" onClick={reset}>
                   Другой купон

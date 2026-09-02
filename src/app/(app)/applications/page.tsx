@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { Badge, Card, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
+import { isCouponExpired } from "@/lib/coupon";
 import { couponQrSvg } from "@/lib/qr";
 import { CancelItemButton } from "./_cancel-button";
 
@@ -51,10 +52,13 @@ export default async function ApplicationsPage() {
   const coupons = allItems.filter((i) => i.coupon).length;
   const pending = allItems.filter((i) => i.status === "PENDING").length;
 
-  // QR только для действующих (выданных) купонов — для гашения у подрядчика.
+  // QR только для действующих (выданных, не просроченных) купонов.
   const issuedCoupons = allItems
     .map((i) => i.coupon)
-    .filter((c): c is NonNullable<typeof c> => !!c && c.status === "ISSUED");
+    .filter(
+      (c): c is NonNullable<typeof c> =>
+        !!c && c.status === "ISSUED" && !isCouponExpired(c.validUntil),
+    );
   const qrByCoupon = new Map(
     await Promise.all(
       issuedCoupons.map(async (c) => [c.id, await couponQrSvg(c.number)] as const),
@@ -111,8 +115,17 @@ export default async function ApplicationsPage() {
                     {item.coupon &&
                       (() => {
                         const qr = qrByCoupon.get(item.coupon.id);
+                        const expired =
+                          item.coupon.status === "ISSUED" &&
+                          isCouponExpired(item.coupon.validUntil);
                         return (
-                          <div className="mt-1 rounded-xl border border-success-soft bg-success-soft/40 p-3">
+                          <div
+                            className={
+                              expired
+                                ? "mt-1 rounded-xl border border-line bg-surface-muted p-3"
+                                : "mt-1 rounded-xl border border-success-soft bg-success-soft/40 p-3"
+                            }
+                          >
                             <div className="flex flex-wrap items-start gap-3">
                               {qr && (
                                 <div
@@ -120,14 +133,21 @@ export default async function ApplicationsPage() {
                                   dangerouslySetInnerHTML={{ __html: qr }}
                                 />
                               )}
-                              <div className="min-w-0 space-y-0.5 text-sm text-success-strong">
+                              <div
+                                className={
+                                  expired
+                                    ? "min-w-0 space-y-0.5 text-sm text-ink-muted"
+                                    : "min-w-0 space-y-0.5 text-sm text-success-strong"
+                                }
+                              >
                                 <div className="font-semibold">Купон</div>
                                 <div className="font-mono" data-numeric>
                                   № {item.coupon.number}
                                 </div>
                                 {item.coupon.validUntil && (
-                                  <div className="text-success-strong/80" data-numeric>
-                                    действует до {item.coupon.validUntil.toLocaleDateString("ru-RU")}
+                                  <div className={expired ? "font-medium text-danger" : "text-success-strong/80"} data-numeric>
+                                    {expired ? "срок истёк " : "действует до "}
+                                    {item.coupon.validUntil.toLocaleDateString("ru-RU")}
                                   </div>
                                 )}
                                 {qr && (

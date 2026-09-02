@@ -15,6 +15,10 @@ export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
 
 const normalizeNumber = (n: string) => n.trim().toUpperCase();
 
+/** Купон просрочен, если задан срок и он в прошлом. */
+export const isCouponExpired = (validUntil: Date | null, at: Date = new Date()) =>
+  !!validUntil && validUntil.getTime() < at.getTime();
+
 /** Поиск купона по номеру — для экрана подрядчика (§5.8, проверка/гашение). */
 export function lookupCouponByNumber(number: string) {
   return db.coupon.findUnique({
@@ -43,14 +47,38 @@ export async function redeemCouponByNumber(number: string, actorId: string) {
     throw new Error(`Купон нельзя погасить: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }
 
-  // Атомарный переход ISSUED → USED: условие в WHERE не даёт погасить один
-  // купон дважды при гонке (двойной клик, два устройства, один QR).
+  const now = new Date();
+  if (isCouponExpired(coupon.validUntil, now)) {
+    // Просрочку раньше никто не проставлял — фиксируем при обращении.
+    await db.coupon.updateMany({
+      where: { id: coupon.id, status: "ISSUED" },
+      data: { status: "EXPIRED" },
+    });
+    await audit({
+      actorId,
+      action: "COUPON_EXPIRED",
+      entityType: "Coupon",
+      entityId: coupon.id,
+      oldValue: { status: "ISSUED" },
+      newValue: { status: "EXPIRED", number: coupon.number },
+    });
+    throw new Error(
+      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU")}` : ""}.`,
+    );
+  }
+
+  // Атомарный переход ISSUED → USED: условия в WHERE не дают погасить купон
+  // дважды при гонке и не дают погасить просроченный.
   const claimed = await db.coupon.updateMany({
-    where: { id: coupon.id, status: "ISSUED" },
+    where: {
+      id: coupon.id,
+      status: "ISSUED",
+      OR: [{ validUntil: null }, { validUntil: { gte: now } }],
+    },
     data: { status: "USED" },
   });
   if (claimed.count === 0) {
-    throw new Error("Купон уже погашен.");
+    throw new Error("Купон уже погашен или просрочен.");
   }
 
   await audit({
