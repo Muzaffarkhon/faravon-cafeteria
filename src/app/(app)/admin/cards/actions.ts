@@ -44,6 +44,7 @@ function parse(formData: FormData) {
     return v || null;
   };
   const sortOrder = Number.parseInt(String(formData.get("sortOrder") ?? "0"), 10);
+  const minRaw = Number.parseInt(String(formData.get("minParticipants") ?? "1"), 10);
   const partnerId = block === "FLEX" ? str("partnerId") : null;
 
   return {
@@ -56,6 +57,7 @@ function parse(formData: FormData) {
     category: str("category"),
     isActive: formData.get("isActive") === "on",
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+    minParticipants: Number.isFinite(minRaw) && minRaw > 1 ? minRaw : 1,
     partnerId,
   };
 }

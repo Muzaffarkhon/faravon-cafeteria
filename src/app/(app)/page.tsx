@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { getCurrentPeriod, getApplicationWithItems } from "@/lib/selection";
+import { getCurrentPeriod, getApplicationWithItems, groupProgress } from "@/lib/selection";
 import { Card, SectionTitle, buttonClass } from "@/components/ui";
 import { FlexSelection } from "./_components/flex-selection";
 
@@ -105,6 +105,14 @@ export default async function OverviewPage() {
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
+
+  // Статус позиции по карточке — чтобы показать «уже выбрано / отклонено / в обработке».
+  const itemStatusByCard = new Map(items.map((i) => [i.cardId, i.status] as const));
+  // Прогресс набора групп для карточек с порогом (§ minParticipants).
+  const groupCards = flex.filter((c) => c.minParticipants > 1);
+  const groupCount = period
+    ? await groupProgress(groupCards.map((c) => c.id), period.id)
+    : new Map<string, number>();
 
   const stats = [
     {
@@ -332,6 +340,12 @@ export default async function OverviewPage() {
                 isActive: c.isActive,
                 partner: c.partner?.name ?? null,
                 imageUrl: c.imageUrl,
+                minParticipants: c.minParticipants,
+                groupCount: groupCount.get(c.id) ?? 0,
+                lockedStatus:
+                  itemStatusByCard.get(c.id) && itemStatusByCard.get(c.id) !== "DRAFT"
+                    ? (itemStatusByCard.get(c.id) as string)
+                    : null,
               }))}
               selectedIds={selectedIds}
               draftCount={draftCount}

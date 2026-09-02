@@ -17,6 +17,7 @@ export type CardValues = {
   category: string | null;
   isActive: boolean;
   sortOrder: number;
+  minParticipants: number;
   partnerId: string | null;
 };
 
@@ -79,6 +80,20 @@ export function CardForm({
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field
+            label="Минимум участников (групповая скидка)"
+            htmlFor="minParticipants"
+            hint="Скидка активируется и купоны выдаются только когда льготу выберут столько сотрудников. 1 — без порога."
+          >
+            <Input
+              id="minParticipants"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              name="minParticipants"
+              defaultValue={initial?.minParticipants ?? 1}
+            />
           </Field>
         </>
       )}

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { Badge, Card, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
 import { isCouponExpired } from "@/lib/coupon";
+import { groupProgress } from "@/lib/selection";
 import { couponQrSvg } from "@/lib/qr";
 import { CancelItemButton } from "./_cancel-button";
 
@@ -68,6 +69,13 @@ export default async function ApplicationsPage() {
     ),
   );
 
+  // Прогресс набора групп для льгот с порогом (§ minParticipants), по периодам.
+  const groupByPeriod = new Map<string, Map<string, number>>();
+  for (const app of applications) {
+    const gc = app.items.map((i) => i.card).filter((c) => c.minParticipants > 1).map((c) => c.id);
+    if (gc.length) groupByPeriod.set(app.periodId, await groupProgress(gc, app.periodId));
+  }
+
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -114,6 +122,27 @@ export default async function ApplicationsPage() {
                         Причина отклонения: {item.decisionComment}
                       </p>
                     )}
+
+                    {item.card.minParticipants > 1 &&
+                      !["REJECTED", "CANCELLED", "COUPON_ISSUED"].includes(item.status) &&
+                      (() => {
+                        const have = groupByPeriod.get(app.periodId)?.get(item.cardId) ?? 0;
+                        const done = have >= item.card.minParticipants;
+                        return (
+                          <p
+                            className={
+                              done
+                                ? "rounded-lg bg-success-soft/60 px-3 py-2 text-sm font-medium text-success-strong"
+                                : "rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted"
+                            }
+                            data-numeric
+                          >
+                            Групповая скидка: {Math.min(have, item.card.minParticipants)} /{" "}
+                            {item.card.minParticipants}
+                            {done ? " — набрана, купон выдадут" : " — ждём набора группы"}
+                          </p>
+                        );
+                      })()}
 
                     {item.coupon &&
                       (() => {

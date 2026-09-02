@@ -14,6 +14,7 @@ export type CardSnapshot = Pick<
   | "isActive"
   | "status"
   | "sortOrder"
+  | "minParticipants"
   | "partnerId"
 >;
 
@@ -28,6 +29,7 @@ export function toSnapshot(card: BenefitCard): CardSnapshot {
     isActive: card.isActive,
     status: card.status,
     sortOrder: card.sortOrder,
+    minParticipants: card.minParticipants,
     partnerId: card.partnerId,
   };
 }
@@ -80,6 +82,7 @@ export async function restoreCardVersion(
     isActive: version.isActive,
     status: version.status,
     sortOrder: version.sortOrder,
+    minParticipants: version.minParticipants,
     partnerId: version.partnerId,
   };
 

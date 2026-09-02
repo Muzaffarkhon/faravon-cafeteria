@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Badge, Button, cx } from "@/components/ui";
+import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { toggleSelection, submitSelection } from "../actions";
 
 type Card = {
@@ -11,6 +12,10 @@ type Card = {
   isActive: boolean;
   partner: string | null;
   imageUrl: string | null;
+  minParticipants: number;
+  groupCount: number;
+  /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
+  lockedStatus: string | null;
 };
 
 export function FlexSelection({
@@ -137,17 +142,61 @@ export function FlexSelection({
 
               {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
 
-              {windowOpen && c.isActive && (
-                <Button
-                  variant={isSel ? "danger" : "soft"}
-                  onClick={() => onToggle(c.id)}
-                  disabled={pending || atLimit}
-                  loading={busyId === c.id}
-                  fullWidth
-                  className="mt-4"
-                >
-                  {isSel ? "Убрать из выбора" : atLimit ? "Достигнут лимит" : "Выбрать"}
-                </Button>
+              {c.minParticipants > 1 &&
+                (() => {
+                  const done = c.groupCount >= c.minParticipants;
+                  return (
+                    <div className="mt-3 rounded-lg bg-surface-muted px-3 py-2">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <span className={done ? "text-success-strong" : "text-ink-muted"}>
+                          {done ? "Групповая скидка активна" : "Групповая скидка"}
+                        </span>
+                        <span className="tabular-nums text-ink" data-numeric>
+                          {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                        <div
+                          className={cx(
+                            "h-full rounded-full transition-[width] duration-300 ease-out",
+                            done ? "bg-success" : "bg-primary",
+                          )}
+                          style={{
+                            width: `${Math.min(100, (c.groupCount / c.minParticipants) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      {!done && (
+                        <p className="mt-1 text-[11px] text-ink-subtle">
+                          Скидка заработает, когда льготу выберут {c.minParticipants} сотрудников.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+              {windowOpen && c.isActive && c.lockedStatus ? (
+                <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                  {c.lockedStatus === "REJECTED"
+                    ? "Отклонено в этом периоде — выберите другую льготу."
+                    : c.lockedStatus === "CANCELLED"
+                      ? "Отменено — выберите другую льготу."
+                      : `Уже выбрано в этом периоде · ${ITEM_STATUS_LABELS[c.lockedStatus as keyof typeof ITEM_STATUS_LABELS] ?? c.lockedStatus}`}
+                </p>
+              ) : (
+                windowOpen &&
+                c.isActive && (
+                  <Button
+                    variant={isSel ? "danger" : "soft"}
+                    onClick={() => onToggle(c.id)}
+                    disabled={pending || atLimit}
+                    loading={busyId === c.id}
+                    fullWidth
+                    className="mt-4"
+                  >
+                    {isSel ? "Убрать из выбора" : atLimit ? "Достигнут лимит" : "Выбрать"}
+                  </Button>
+                )
               )}
             </li>
           );

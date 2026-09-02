@@ -37,7 +37,14 @@ export async function toggleSelection(cardId: string) {
   if (existing && existing.status === "DRAFT") {
     await db.applicationItem.delete({ where: { id: existing.id } });
     await audit({ actorId: session.user.id, action: "SELECTION_REMOVED", entityType: "ApplicationItem", entityId: existing.id });
-  } else if (!existing) {
+  } else if (existing) {
+    // Одна льгота — один раз за период (ТЗ v2 §5.6): повторно выбрать нельзя.
+    if (existing.status === "REJECTED")
+      throw new Error("Эта льгота была отклонена в текущем периоде. Выберите другую.");
+    if (existing.status === "CANCELLED")
+      throw new Error("Вы уже отменяли эту льготу в текущем периоде. Выберите другую.");
+    throw new Error("Эта льгота уже выбрана и находится в обработке.");
+  } else {
     const used = countAgainstLimit(withItems?.items ?? []);
     if (used >= period.maxSelections) {
       throw new Error(`Можно выбрать не более ${period.maxSelections} льгот.`);

@@ -154,6 +154,7 @@ model BenefitCard {
   isActive    Boolean    @default(true) // false => метка «скоро»
   status      CardStatus @default(PUBLISHED)
   sortOrder   Int        @default(0)
+  minParticipants Int    @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -183,6 +184,7 @@ model BenefitCardVersion {
   isActive    Boolean
   status      CardStatus
   sortOrder   Int
+  minParticipants Int   @default(1)
   partnerId   String?
 
   editedBy   User?   @relation("CardVersionEditor", fields: [editedById], references: [id])
@@ -243,8 +245,10 @@ model ApplicationItem {
 
   coupon Coupon?
 
+  @@unique([applicationId, cardId]) // одна льгота — один раз за период
   @@index([applicationId])
   @@index([status])
+  @@index([cardId])
 }
 
 /// Матрица SLA-эскалаций по «зависшим» на согласовании позициям (§5.12).

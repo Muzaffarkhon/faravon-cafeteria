@@ -8,6 +8,7 @@ import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
 import { generateCouponNumber } from "@/lib/coupon";
+import { groupProgressOne } from "@/lib/selection";
 
 function revalidateAll() {
   revalidatePath("/coupons");
@@ -79,11 +80,22 @@ export async function issueCoupon(couponId: string) {
 
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
-    include: { item: true, employee: true },
+    include: { item: { include: { card: true } }, employee: true },
   });
   if (!coupon) throw new Error("Купон не найден.");
   if (coupon.status !== "CREATED") throw new Error("Купон уже выдан или недоступен для выдачи.");
   assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
+
+  // Групповая льгота: выдать купон можно только после набора группы (§ minParticipants).
+  const min = coupon.item.card.minParticipants;
+  if (min > 1) {
+    const have = await groupProgressOne(coupon.item.cardId, coupon.periodId);
+    if (have < min) {
+      throw new Error(
+        `Групповая льгота «${coupon.item.card.title}»: выбрали ${have} из ${min} сотрудников. Купон можно выдать после набора группы.`,
+      );
+    }
+  }
 
   // Атомарный переход CREATED → ISSUED — защита от гонки (двойной клик).
   const claimed = await db.coupon.updateMany({

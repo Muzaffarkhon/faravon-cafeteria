@@ -20,6 +20,7 @@ export type CardVersionRow = {
   isActive: boolean;
   status: string;
   sortOrder: number;
+  minParticipants: number;
   partnerId: string | null;
 };
 
@@ -55,6 +56,11 @@ const FIELDS: FieldDef[] = [
   { key: "category", label: "Категория", fmt: (v) => v.category ?? "—" },
   { key: "partnerId", label: "Партнёр", fmt: (v, n) => (v.partnerId ? n[v.partnerId] ?? v.partnerId : "—") },
   { key: "sortOrder", label: "Порядок", fmt: (v) => String(v.sortOrder) },
+  {
+    key: "minParticipants",
+    label: "Мин. участников",
+    fmt: (v) => (v.minParticipants > 1 ? String(v.minParticipants) : "без порога"),
+  },
   { key: "imageUrl", label: "Изображение", fmt: (v) => v.imageUrl ?? "", image: true },
 ];
 
