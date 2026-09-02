@@ -74,7 +74,7 @@ export function EmployeeForm({
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Табельный номер" htmlFor="tabNumber" required>
-          <Input id="tabNumber" name="tabNumber" defaultValue={initial?.tabNumber ?? ""} required />
+          <Input id="tabNumber" name="tabNumber" defaultValue={initial?.tabNumber ?? ""} inputMode="numeric" autoComplete="off" required />
         </Field>
         <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте (§5.1).">
           <Input
@@ -82,6 +82,7 @@ export function EmployeeForm({
             name="phone"
             type="tel"
             inputMode="tel"
+            autoComplete="off"
             placeholder="+992 900 000 000"
             defaultValue={initial?.phone ?? ""}
           />
@@ -89,7 +90,7 @@ export function EmployeeForm({
       </div>
 
       <Field label="ФИО" htmlFor="fullName" required>
-        <Input id="fullName" name="fullName" defaultValue={initial?.fullName ?? ""} required />
+        <Input id="fullName" name="fullName" defaultValue={initial?.fullName ?? ""} autoComplete="off" required />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -111,7 +112,7 @@ export function EmployeeForm({
         htmlFor="telegramId"
         hint="Обычно привязывается ботом. Можно указать вручную по whitelist."
       >
-        <Input id="telegramId" name="telegramId" defaultValue={initial?.telegramId ?? ""} />
+        <Input id="telegramId" name="telegramId" defaultValue={initial?.telegramId ?? ""} inputMode="numeric" autoComplete="off" />
       </Field>
 
       {withAccount && (

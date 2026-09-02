@@ -39,7 +39,7 @@ export function PartnerForm({
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <Field label="Название" htmlFor="name" required>
-        <Input id="name" name="name" defaultValue={initial?.name ?? ""} required />
+        <Input id="name" name="name" defaultValue={initial?.name ?? ""} autoComplete="organization" required />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -67,10 +67,10 @@ export function PartnerForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Контактное лицо" htmlFor="contactPerson">
-          <Input id="contactPerson" name="contactPerson" defaultValue={initial?.contactPerson ?? ""} />
+          <Input id="contactPerson" name="contactPerson" defaultValue={initial?.contactPerson ?? ""} autoComplete="off" />
         </Field>
         <Field label="Контакты" htmlFor="contacts">
-          <Input id="contacts" name="contacts" defaultValue={initial?.contacts ?? ""} />
+          <Input id="contacts" name="contacts" defaultValue={initial?.contacts ?? ""} autoComplete="off" placeholder="телефон, email, Telegram…" />
         </Field>
       </div>
 
@@ -85,7 +85,7 @@ export function PartnerForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Ответственный (Фаровон)" htmlFor="responsible">
-          <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} />
+          <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} autoComplete="off" />
         </Field>
         <Field label="Логотип (URL)" htmlFor="logoUrl">
           <Input id="logoUrl" name="logoUrl" defaultValue={initial?.logoUrl ?? ""} inputMode="url" />

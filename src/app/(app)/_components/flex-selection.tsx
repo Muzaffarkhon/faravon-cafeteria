@@ -33,6 +33,8 @@ export function FlexSelection({
   const [error, setError] = useState<string | null>(null);
   const selected = new Set(selectedIds);
   const usedCount = selectedIds.length;
+  const submitting = busyId === "submit";
+  const barVisible = windowOpen && hasSubmittable && draftCount > 0;
 
   function onToggle(id: string) {
     setError(null);
@@ -64,15 +66,20 @@ export function FlexSelection({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-ink-muted" data-numeric>
-          Выбрано {usedCount} из {maxSelections}
+      <div className="mb-4 flex items-center gap-3">
+        <p className="text-base text-ink-muted" data-numeric>
+          Выбрано{" "}
+          <span className="font-semibold text-ink">
+            {usedCount}
+          </span>{" "}
+          из {maxSelections}
         </p>
-        {windowOpen && hasSubmittable && (
-          <Button onClick={onSubmit} disabled={draftCount === 0 || pending} loading={busyId === "submit"}>
-            Подтвердить выбор ({draftCount})
-          </Button>
-        )}
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-sunken">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+            style={{ width: `${Math.min(100, (usedCount / maxSelections) * 100)}%` }}
+          />
+        </div>
       </div>
 
       {error && (
@@ -84,54 +91,104 @@ export function FlexSelection({
       <ul className="grid gap-3 sm:grid-cols-2">
         {cards.map((c) => {
           const isSel = selected.has(c.id);
+          const atLimit = !isSel && usedCount >= maxSelections;
           return (
             <li
               key={c.id}
               className={cx(
-                "rounded-xl border p-4 shadow-xs transition-colors",
+                "relative rounded-xl border p-4 shadow-xs",
+                "transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out",
                 !c.isActive
                   ? "border-line bg-surface-muted opacity-70"
                   : isSel
-                    ? "border-primary bg-primary-soft"
-                    : "border-line bg-surface",
+                    ? "border-primary bg-primary-soft shadow-sm ring-1 ring-primary/25"
+                    : "border-line bg-surface hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm",
               )}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-start gap-3">
-                  {c.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.imageUrl}
-                      alt=""
-                      className="h-12 w-12 shrink-0 rounded-md border border-line object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <div className="text-[0.9375rem] font-semibold leading-snug text-balance text-ink">{c.title}</div>
-                    {c.partner && <div className="mt-0.5 text-xs text-ink-subtle">{c.partner}</div>}
-                  </div>
+              <span
+                aria-hidden={!isSel}
+                className={cx(
+                  "pointer-events-none absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-on-brand shadow-sm",
+                  "transition-transform duration-200 ease-out motion-reduce:transition-none",
+                  isSel ? "scale-100" : "scale-0",
+                )}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
+
+              <div className="flex items-start gap-3 pr-7">
+                {c.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.imageUrl}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-md border border-line object-cover"
+                    loading="lazy"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
+                  {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
                 </div>
-                {!c.isActive && <Badge tone="neutral">скоро</Badge>}
+                {!c.isActive && <Badge tone="neutral" className="ml-auto shrink-0">скоро</Badge>}
               </div>
-              {c.condition && <p className="mt-2 text-xs text-ink-muted">{c.condition}</p>}
+
+              {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
 
               {windowOpen && c.isActive && (
                 <Button
                   variant={isSel ? "danger" : "soft"}
                   onClick={() => onToggle(c.id)}
-                  disabled={pending || (!isSel && usedCount >= maxSelections)}
+                  disabled={pending || atLimit}
                   loading={busyId === c.id}
                   fullWidth
                   className="mt-4"
                 >
-                  {isSel ? "Убрать" : "Выбрать"}
+                  {isSel ? "Убрать из выбора" : atLimit ? "Достигнут лимит" : "Выбрать"}
                 </Button>
               )}
             </li>
           );
         })}
       </ul>
+
+      {/* Неподвижная панель подтверждения — как корзина, снизу справа. */}
+      {windowOpen && (
+        <div
+          className={cx(
+            "fixed inset-x-4 bottom-4 z-40 sm:inset-x-auto sm:right-6 sm:bottom-6",
+            "transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none",
+            barVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[160%] opacity-0",
+          )}
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface-strong p-2.5 pl-4 shadow-lg backdrop-blur">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-ink" data-numeric>
+                {draftCount} в черновике
+              </div>
+              <div className="text-xs text-ink-muted">Готово к согласованию</div>
+            </div>
+            <Button
+              onClick={onSubmit}
+              disabled={draftCount === 0 || pending}
+              loading={submitting}
+              size="lg"
+              className="ml-1 shrink-0"
+            >
+              Подтвердить выбор
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

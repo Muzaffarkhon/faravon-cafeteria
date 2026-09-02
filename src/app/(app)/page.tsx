@@ -199,7 +199,7 @@ export default async function OverviewPage() {
               Цель программы
             </span>
           </div>
-          <p className="mt-3 text-sm leading-7 text-ink">{goal.content}</p>
+          <p className="mt-3 text-[0.9375rem] leading-7 text-ink">{goal.content}</p>
         </section>
       )}
 
@@ -267,9 +267,9 @@ export default async function OverviewPage() {
             </ul>
           </section>
 
-          <section className="space-y-3">
-            <SectionTitle>Реестр гибких льгот</SectionTitle>
-            <p className="text-xs text-ink-muted">
+          <section className="space-y-4">
+            <SectionTitle className="text-lg">Реестр гибких льгот</SectionTitle>
+            <p className="text-sm leading-6 text-ink-muted">
               Выберите до {period?.maxSelections ?? 4} льгот. После подтверждения выбор поступит на согласование.
             </p>
             <FlexSelection
@@ -310,15 +310,15 @@ export default async function OverviewPage() {
           </Card>
 
           {notice && (
-            <Card className="border-warning-soft bg-warning-soft/70 p-4 shadow-none">
+            <Card className="border-warning-soft bg-warning-soft/70 p-5 shadow-none">
               <div className="text-sm font-semibold text-warning-strong">{notice.title}</div>
-              <p className="mt-2 text-xs leading-5 text-warning-strong/80">{notice.content}</p>
+              <p className="mt-2 text-sm leading-6 text-warning-strong/80">{notice.content}</p>
             </Card>
           )}
 
-          <Card className="p-4">
+          <Card className="p-5">
             <div className="text-sm font-semibold text-ink">Как работает выбор</div>
-            <ol className="mt-3 space-y-2 text-xs leading-5 text-ink-muted">
+            <ol className="mt-3 space-y-2.5 text-sm leading-6 text-ink-muted">
               <li>1. Выберите до лимита льгот.</li>
               <li>2. Сохраните черновик и проверьте детали.</li>
               <li>3. Подтвердите заявку — она уйдёт на согласование.</li>
