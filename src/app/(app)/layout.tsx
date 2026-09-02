@@ -2,11 +2,29 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { BrandLockup } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
-import { Button } from "@/components/ui";
-import { logout } from "./actions";
-import { AppNav, type NavItem } from "./_nav";
+import { AppShell, type NavGroup, type NavItem } from "./_shell";
+
+const ICONS = {
+  overview: "M4 4h7v7H4z||M13 4h7v7h-7z||M4 13h7v7H4z||M13 13h7v7h-7z",
+  applications: "M6 2h12v20l-3-2-3 2-3-2-3 2z||M9 8h6||M9 12h6",
+  gamification: "M8 21h8||M12 17v4||M7 4h10v5a5 5 0 0 1-10 0z||M17 5h2a2 2 0 0 1 0 4h-2||M7 5H5a2 2 0 0 0 0 4h2",
+  review: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 12l2 2 4-4",
+  coupons: "M4 9V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6z||M12 7v10",
+  scan: "M3 7V5a2 2 0 0 1 2-2h2||M17 3h2a2 2 0 0 1 2 2v2||M21 17v2a2 2 0 0 1-2 2h-2||M7 21H5a2 2 0 0 1-2-2v-2||M7 12h10",
+  ad: "M3 11l14-7v16L3 13z||M3 11v3||M17 8a3 3 0 0 1 0 8",
+  cards: "M12 3l9 5-9 5-9-5z||M3 13l9 5 9-5||M3 17l9 5 9-5",
+  partners: "M4 21h16||M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16||M9 8h1||M9 12h1||M14 8h1||M14 12h1",
+  banners: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z||M8.5 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z||M21 15l-5-5L6 19",
+  inbox: "M4 13h4l2 3h4l2-3h4||M4 13l2-7h12l2 7||M4 13v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5",
+  texts: "M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z||M14 2v6h6||M8 13h8||M8 17h6",
+  bell: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9||M10.3 21a2 2 0 0 0 3.4 0",
+  reports: "M4 20V10||M10 20V4||M16 20v-7||M2 20h20",
+  sla: "M12 8v5l3 2||M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 3h6",
+  periods: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z||M4 10h16||M8 3v4||M16 3v4",
+  access: "M14 7a4 4 0 1 0-3.5 3.97L4 17v3h3l1-1h2v-2h2l1.5-1.5A4 4 0 0 0 14 7z",
+  users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
+};
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -18,76 +36,71 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
 
-  // Счётчики «требует внимания» для красных бейджей в меню.
   const [pendingReview, pendingCoupons, pendingAdRequests] = await Promise.all([
     canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
-    canManageCoupons
-      ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } })
-      : 0,
+    canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
     canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
   ]);
 
-  const items: NavItem[] = [];
+  const groups: NavGroup[] = [];
+  const add = (gid: string, glabel: string, item: NavItem) => {
+    let g = groups.find((x) => x.id === gid);
+    if (!g) {
+      g = { id: gid, label: glabel, items: [] };
+      groups.push(g);
+    }
+    g.items.push(item);
+  };
+
   if (session.employee) {
-    items.push(
-      { href: "/", label: "Обзор" },
-      { href: "/applications", label: "Мои заявки и купоны" },
-      { href: "/gamification", label: "Геймификация", soon: true },
-    );
+    add("cabinet", "Кабинет", { href: "/", label: "Обзор", icon: ICONS.overview });
+    add("cabinet", "Кабинет", { href: "/applications", label: "Мои заявки и купоны", icon: ICONS.applications });
+    add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
   if (canDecide)
-    items.push({ href: "/review", label: "Согласование", badge: pendingReview || undefined });
+    add("work", "Работа", { href: "/review", label: "Согласование", icon: ICONS.review, badge: pendingReview || undefined });
   if (canManageCoupons)
-    items.push({ href: "/coupons", label: "Купоны", badge: pendingCoupons || undefined });
-  if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Активация купонов" });
+    add("work", "Работа", { href: "/coupons", label: "Купоны", icon: ICONS.coupons, badge: pendingCoupons || undefined });
+  if (can(roles, "coupons.confirm"))
+    add("work", "Работа", { href: "/provider", label: "Активация купонов", icon: ICONS.scan });
   if (can(roles, "coupons.confirm") && session.user.partnerId)
-    items.push({ href: "/advertising", label: "Реклама" });
-  if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });
-  if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });
-  if (can(roles, "partners.manage")) items.push({ href: "/admin/partner-banners", label: "Баннеры" });
+    add("work", "Работа", { href: "/advertising", label: "Реклама", icon: ICONS.ad });
+
+  if (can(roles, "cards.manage"))
+    add("catalog", "Каталог", { href: "/admin/cards", label: "Карточки", icon: ICONS.cards });
+  if (can(roles, "partners.manage"))
+    add("catalog", "Каталог", { href: "/admin/partners", label: "Партнёры", icon: ICONS.partners });
+  if (can(roles, "partners.manage"))
+    add("catalog", "Каталог", { href: "/admin/partner-banners", label: "Баннеры", icon: ICONS.banners });
   if (canManageCards)
-    items.push({
+    add("catalog", "Каталог", {
       href: "/admin/advertising-requests",
       label: "Заявки на рекламу",
+      icon: ICONS.inbox,
       badge: pendingAdRequests || undefined,
     });
-  if (can(roles, "cards.manage")) items.push({ href: "/admin/texts", label: "Тексты" });
-  if (can(roles, "cards.manage")) items.push({ href: "/admin/notifications", label: "Уведомления" });
-  if (can(roles, "cards.manage")) items.push({ href: "/admin/sla", label: "SLA" });
-  if (can(roles, "periods.manage")) items.push({ href: "/admin/periods", label: "Периоды" });
-  if (can(roles, "reports.view")) items.push({ href: "/admin/reports", label: "Отчёты" });
-  if (can(roles, "access.manage")) items.push({ href: "/admin/access", label: "Доступ" });
-  if (can(roles, "users.manage")) items.push({ href: "/admin/users", label: "Пользователи" });
-  items.push({ href: "/profile", label: "Профиль" });
+  if (can(roles, "cards.manage"))
+    add("catalog", "Каталог", { href: "/admin/texts", label: "Тексты", icon: ICONS.texts });
+  if (can(roles, "cards.manage"))
+    add("catalog", "Каталог", { href: "/admin/notifications", label: "Уведомления", icon: ICONS.bell });
+
+  if (can(roles, "reports.view"))
+    add("admin", "Аналитика и доступ", { href: "/admin/reports", label: "Отчёты", icon: ICONS.reports });
+  if (can(roles, "cards.manage"))
+    add("admin", "Аналитика и доступ", { href: "/admin/sla", label: "SLA", icon: ICONS.sla });
+  if (can(roles, "periods.manage"))
+    add("admin", "Аналитика и доступ", { href: "/admin/periods", label: "Периоды", icon: ICONS.periods });
+  if (can(roles, "access.manage"))
+    add("admin", "Аналитика и доступ", { href: "/admin/access", label: "Доступ", icon: ICONS.access });
+  if (can(roles, "users.manage"))
+    add("admin", "Аналитика и доступ", { href: "/admin/users", label: "Пользователи", icon: ICONS.users });
 
   return (
-    <div className="relative isolate min-h-dvh bg-canvas text-ink">
+    <>
       <PetalDrift fixed />
-      <header
-        className="sticky top-0 z-30 border-b border-line/80 bg-surface/80 backdrop-blur-xl"
-        style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2">
-          <BrandLockup markSize={26} />
-
-          <div className="flex items-center gap-3">
-            <AppNav items={items} />
-            <div className="hidden items-center gap-2 rounded-full border border-line bg-surface-muted px-2.5 py-1 md:flex">
-              <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
-              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
-                {roles.map((r) => ROLE_LABELS[r]).join(", ")}
-              </span>
-            </div>
-            <form action={logout}>
-              <Button variant="secondary" size="sm" className="rounded-full">
-                Выйти
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pt-4 pb-12 sm:pt-5 sm:pb-16">{children}</main>
-    </div>
+      <AppShell groups={groups} roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}>
+        {children}
+      </AppShell>
+    </>
   );
 }
