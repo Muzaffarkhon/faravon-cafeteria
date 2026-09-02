@@ -128,20 +128,62 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-6">
       {banners.length > 0 && (
-        <section>
-          <div className="grid gap-3">
-            {banners.map((b) => (
-              <a key={b.id} href={b.href ?? "#"} className="block overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-sm transition-transform hover:scale-[1.01]">
-                <div className="flex items-center gap-3">
-                  {b.imageUrl && <img src={b.imageUrl} alt="" className="h-16 w-24 rounded-md object-cover" />}
-                  <div>
-                    <div className="text-sm font-semibold text-ink">{b.title}</div>
-                    {b.subtitle && <div className="text-xs text-ink-muted">{b.subtitle}</div>}
-                  </div>
+        <section className="space-y-3">
+          {banners.map((b) => {
+            const external = !!b.href && /^https?:\/\//.test(b.href);
+            const cardClass =
+              "group relative flex h-44 items-end overflow-hidden rounded-[26px] border border-line bg-surface-sunken shadow-md sm:h-56";
+            const inner = (
+              <>
+                {b.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={b.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+                  />
+                )}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
+                />
+                <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
+                  Партнёр
                 </div>
+                <div className="relative z-10 max-w-2xl p-5 sm:p-6">
+                  <h2 className="text-lg font-semibold leading-tight text-balance text-white sm:text-xl">
+                    {b.title}
+                  </h2>
+                  {b.subtitle && (
+                    <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
+                  )}
+                  {b.href && (
+                    <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                      Подробнее
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true">
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+              </>
+            );
+            return b.href ? (
+              <a
+                key={b.id}
+                href={b.href}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className={cardClass}
+              >
+                {inner}
               </a>
-            ))}
-          </div>
+            ) : (
+              <div key={b.id} className={cardClass}>
+                {inner}
+              </div>
+            );
+          })}
         </section>
       )}
       <section className="rounded-[28px] border border-line bg-surface/90 p-5 shadow-lg shadow-sand-200/40 sm:p-6">
