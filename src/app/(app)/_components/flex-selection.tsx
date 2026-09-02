@@ -112,7 +112,7 @@ export function FlexSelection({
         </p>
       )}
 
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="grid gap-4 sm:grid-cols-2">
         {cards.map((c) => {
           const isSel = selected.has(c.id);
           const atLimit = !isSel && usedCount >= maxSelections;
@@ -121,7 +121,7 @@ export function FlexSelection({
               key={c.id}
               id={`card-${c.id}`}
               className={cx(
-                "relative scroll-mt-24 rounded-xl border p-4 shadow-xs",
+                "group relative flex scroll-mt-24 flex-col overflow-hidden rounded-xl border shadow-xs",
                 "transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out",
                 !c.isActive
                   ? "border-line bg-surface-muted opacity-70"
@@ -131,37 +131,46 @@ export function FlexSelection({
                 flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
-              <span
-                aria-hidden={!isSel}
-                className={cx(
-                  "pointer-events-none absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-on-brand shadow-sm",
-                  "transition-transform duration-200 ease-out motion-reduce:transition-none",
-                  isSel ? "scale-100" : "scale-0",
-                )}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              </span>
-
-              <div className="flex items-start gap-3 pr-7">
-                {c.imageUrl && (
+              <div className="relative h-36 shrink-0 overflow-hidden bg-surface-muted">
+                {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={c.imageUrl}
                     alt=""
-                    className="h-12 w-12 shrink-0 rounded-md border border-line object-cover"
                     loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
                   />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-primary-strong/35">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                    </svg>
+                  </div>
                 )}
-                <div className="min-w-0">
-                  <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
-                  {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
-                </div>
-                {!c.isActive && <Badge tone="neutral" className="ml-auto shrink-0">скоро</Badge>}
+                <span
+                  aria-hidden={!isSel}
+                  className={cx(
+                    "pointer-events-none absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-on-brand shadow",
+                    "transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    isSel ? "scale-100" : "scale-0",
+                  )}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                {!c.isActive && (
+                  <Badge tone="neutral" className="absolute left-3 top-3">
+                    скоро
+                  </Badge>
+                )}
               </div>
 
-              {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
+              <div className="flex flex-1 flex-col p-4">
+                <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
+                {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
+
+                {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
 
               {c.minParticipants > 1 &&
                 (() => {
@@ -196,43 +205,43 @@ export function FlexSelection({
                   );
                 })()}
 
-              {windowOpen && c.isActive && c.lockedStatus ? (
-                <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
-                  {c.lockedStatus === "REJECTED"
-                    ? "Отклонено в этом периоде — выберите другую льготу."
-                    : c.lockedStatus === "CANCELLED"
-                      ? "Отменено — выберите другую льготу."
-                      : `Уже выбрано в этом периоде · ${ITEM_STATUS_LABELS[c.lockedStatus as keyof typeof ITEM_STATUS_LABELS] ?? c.lockedStatus}`}
-                </p>
-              ) : (
-                windowOpen &&
-                c.isActive && (
-                  <Button
-                    variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
-                    onClick={() => onToggle(c.id)}
-                    disabled={pending || atLimit}
-                    loading={busyId === c.id}
-                    fullWidth
-                    className="mt-4"
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {isSel ? (
-                        <>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                          В выборе — убрать
-                        </>
-                      ) : atLimit ? (
-                        "Лимит исчерпан"
-                      ) : (
-                        <>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                          Выбрать
-                        </>
-                      )}
-                    </span>
-                  </Button>
-                )
-              )}
+                <div className="mt-auto">
+                  {windowOpen && c.isActive && c.lockedStatus ? (
+                    <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                      {c.lockedStatus === "REJECTED"
+                        ? "Отклонено в этом периоде — выберите другую льготу."
+                        : c.lockedStatus === "CANCELLED"
+                          ? "Отменено — выберите другую льготу."
+                          : `Уже выбрано в этом периоде · ${ITEM_STATUS_LABELS[c.lockedStatus as keyof typeof ITEM_STATUS_LABELS] ?? c.lockedStatus}`}
+                    </p>
+                  ) : windowOpen && c.isActive ? (
+                    <Button
+                      variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
+                      onClick={() => onToggle(c.id)}
+                      disabled={pending || atLimit}
+                      loading={busyId === c.id}
+                      fullWidth
+                      className="mt-4"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        {isSel ? (
+                          <>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                            В выборе — убрать
+                          </>
+                        ) : atLimit ? (
+                          "Лимит исчерпан"
+                        ) : (
+                          <>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                            Выбрать
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
             </li>
           );
         })}
