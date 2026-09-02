@@ -1,8 +1,15 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { can } from "@/lib/rbac";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import {
+  ALL_PERMISSIONS,
+  PERMISSION_LABELS,
+  PERMISSIONS,
+  ROLE_LABELS,
+  can,
+} from "@/lib/rbac";
+import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui";
+import { ALL_ROLES } from "../users/roles";
 import { AccessRowActions } from "./_row-actions";
 
 const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
@@ -30,6 +37,55 @@ export default async function AccessPage() {
         description="Сотрудник идентифицируется в Telegram-боте по номеру телефона или по коду, выданному здесь (§5.1). Бот выдаёт одноразовый пароль на 24 часа; при первом входе требуется смена пароля."
       />
 
+      <section className="space-y-3">
+        <SectionTitle className="text-lg">Матрица ролей и прав</SectionTitle>
+        <p className="text-sm text-ink-muted">
+          Какая роль к чему даёт доступ (§4.2). Только просмотр: матрица зашита в коде,
+          роли назначаются в разделе «Пользователи».
+        </p>
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
+              <tr>
+                <th className="px-4 py-2 font-medium">Право</th>
+                {ALL_ROLES.map((r) => (
+                  <th key={r} className="px-4 py-2 text-center font-medium whitespace-nowrap">
+                    {ROLE_LABELS[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-subtle">
+              {ALL_PERMISSIONS.map((p) => (
+                <tr key={p} className="transition-colors hover:bg-surface-muted/60">
+                  <td className="px-4 py-2 text-ink">
+                    {PERMISSION_LABELS[p]}
+                    <span className="ml-1.5 font-mono text-[11px] text-ink-subtle">{p}</span>
+                  </td>
+                  {ALL_ROLES.map((r) => {
+                    const allowed = (PERMISSIONS[p] as readonly string[]).includes(r);
+                    return (
+                      <td key={r} className="px-4 py-2 text-center">
+                        {allowed ? (
+                          <span className="text-success-strong" aria-label="есть доступ">
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-ink-subtle" aria-label="нет доступа">
+                            —
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </section>
+
+      <SectionTitle className="text-lg">Идентификация сотрудников</SectionTitle>
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
