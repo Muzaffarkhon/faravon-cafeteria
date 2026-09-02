@@ -14,8 +14,10 @@ export const runtime = "nodejs";
  * Требует env `BLOB_READ_WRITE_TOKEN` (создаётся вместе с Blob-store в дашборде Vercel).
  */
 
-const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 4 * 1024 * 1024; // 4 МБ
+// §5.12: PNG/JPG/SVG, ограничение размера 2 МБ. SVG санитизируется на клиенте
+// перед загрузкой (см. _image-field.tsx); тут — только тип и размер.
+const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+const MAX_BYTES = 2 * 1024 * 1024; // 2 МБ
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
