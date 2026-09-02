@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
-import { Badge, Card, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
+import { Badge, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 import { updateEmployee } from "../actions";
 import { EmployeeForm } from "../_form";
 import { AccountPanel, EmployeeActiveToggle } from "../_account";
@@ -55,9 +55,12 @@ export default async function EditUserPage({
         }
       />
 
-      <section className="space-y-3">
-        <SectionTitle>Данные сотрудника</SectionTitle>
-        <Card className="p-5">
+      <details open className="group rounded-2xl border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+          <SectionTitle>Данные сотрудника</SectionTitle>
+          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="border-t border-line-subtle p-5">
           <EmployeeForm
             action={updateEmployee.bind(null, id)}
             initial={{
@@ -70,12 +73,15 @@ export default async function EditUserPage({
             }}
             submitLabel="Сохранить"
           />
-        </Card>
-      </section>
+        </div>
+      </details>
 
-      <section className="space-y-3">
-        <SectionTitle>Учётная запись и роли</SectionTitle>
-        <Card className="p-5">
+      <details open className="group rounded-2xl border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+          <SectionTitle>Учётная запись и роли</SectionTitle>
+          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="border-t border-line-subtle p-5">
           <AccountPanel
             employeeId={id}
             user={
@@ -89,12 +95,15 @@ export default async function EditUserPage({
                 : null
             }
           />
-        </Card>
-      </section>
+        </div>
+      </details>
 
-      <section className="space-y-3">
-        <SectionTitle>Приём / увольнение</SectionTitle>
-        <Card className="space-y-3 p-5">
+      <details className="group rounded-2xl border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+          <SectionTitle>Приём / увольнение</SectionTitle>
+          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.isActive
               ? "Сотрудник активен. Деактивация закрывает вход в его учётную запись; история сохраняется."
@@ -105,8 +114,8 @@ export default async function EditUserPage({
                 }.`}
           </p>
           <EmployeeActiveToggle employeeId={id} isActive={employee.isActive} />
-        </Card>
-      </section>
+        </div>
+      </details>
     </div>
   );
 }

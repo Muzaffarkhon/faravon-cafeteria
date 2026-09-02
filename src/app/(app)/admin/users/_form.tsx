@@ -4,9 +4,11 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { ROLE_LABELS } from "@/lib/rbac";
+import { loginFromFullName } from "@/lib/translit";
 import { Button, Field, Input, buttonClass } from "@/components/ui";
 import type { EmployeeFormState } from "./actions";
 import { ALL_ROLES } from "./roles";
+import { OtpModal } from "./_otp-modal";
 
 export type EmployeeValues = {
   tabNumber: string;
@@ -30,26 +32,24 @@ export function EmployeeForm({
   withAccount?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
-  const [makeAccount, setMakeAccount] = useState(false);
+  const [makeAccount, setMakeAccount] = useState(withAccount);
+  const [fullName, setFullName] = useState(initial?.fullName ?? "");
+  const [login, setLogin] = useState("");
+  const [loginTouched, setLoginTouched] = useState(false);
+  const [otpSeen, setOtpSeen] = useState(false);
+
+  const suggestedLogin = loginFromFullName(fullName);
+  const loginValue = loginTouched ? login : suggestedLogin;
 
   if (state.ok && state.createdId) {
     return (
       <div className="max-w-xl space-y-4">
-        <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong">
-          Сотрудник добавлен.
-        </p>
-        {state.otp && (
-          <div className="rounded-md border border-line bg-surface px-4 py-3 text-sm">
-            <p className="text-ink-muted">
-              Учётная запись <b className="text-ink">{state.login}</b> создана. Одноразовый пароль
-              (действует 24&nbsp;ч, показывается один раз):
-            </p>
-            <p className="mt-1 font-mono text-lg font-semibold text-primary-strong">{state.otp}</p>
-            <p className="mt-1 text-xs text-ink-muted">
-              Передайте сотруднику логин и пароль. При первом входе система потребует сменить пароль.
-            </p>
-          </div>
+        {state.otp && !otpSeen && (
+          <OtpModal otp={state.otp} login={state.login} onClose={() => setOtpSeen(true)} />
         )}
+        <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong">
+          Сотрудник добавлен{state.login ? ` · учётная запись «${state.login}»` : ""}.
+        </p>
         <div className="flex gap-3">
           <Link href={`/admin/users/${state.createdId}`} className={buttonClass()}>
             Открыть карточку
@@ -89,8 +89,15 @@ export function EmployeeForm({
         </Field>
       </div>
 
-      <Field label="ФИО" htmlFor="fullName" required>
-        <Input id="fullName" name="fullName" defaultValue={initial?.fullName ?? ""} autoComplete="off" required />
+      <Field label="ФИО" htmlFor="fullName" required hint="Фамилия Имя Отчество. Допускаются таджикские буквы (ғ ӣ қ ӯ ҳ ҷ).">
+        <Input
+          id="fullName"
+          name="fullName"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          autoComplete="off"
+          required
+        />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -133,13 +140,39 @@ export function EmployeeForm({
               <Field
                 label="Логин"
                 htmlFor="login"
-                hint="Латиница, цифры, «.», «-», «_»; минимум 3 символа."
+                hint="Сгенерирован из ФИО, можно поправить. Латиница, цифры, «.», «-», «_»."
               >
-                <Input id="login" name="login" autoCapitalize="none" spellCheck={false} />
+                <div className="flex gap-2">
+                  <Input
+                    id="login"
+                    name="login"
+                    value={loginValue}
+                    onChange={(e) => {
+                      setLoginTouched(true);
+                      setLogin(e.target.value.toLowerCase());
+                    }}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                  {loginTouched && suggestedLogin && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        setLoginTouched(false);
+                        setLogin("");
+                      }}
+                    >
+                      Из ФИО
+                    </Button>
+                  )}
+                </div>
               </Field>
               <RolePicker defaultRoles={["EMPLOYEE"]} />
               <p className="text-xs text-ink-muted">
-                Одноразовый пароль будет показан после сохранения.
+                Одноразовый пароль покажется в окне сразу после сохранения.
               </p>
             </div>
           )}

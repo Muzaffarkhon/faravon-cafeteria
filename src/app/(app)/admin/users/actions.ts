@@ -53,6 +53,10 @@ function parseEmployee(formData: FormData): EmployeeInput {
   const department = String(formData.get("department") ?? "").trim();
   if (!tabNumber) throw new Error("Укажите табельный номер.");
   if (!fullName) throw new Error("Укажите ФИО.");
+  // Буквы кириллицы (вкл. таджикские ғ ӣ қ ӯ ҳ ҷ), латиницы, пробел, дефис, апостроф, точка.
+  if (!/^[A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ][A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ .'-]{1,}$/.test(fullName)) {
+    throw new Error("ФИО: только буквы (в т.ч. таджикские), пробел, дефис и апостроф.");
+  }
   if (!position) throw new Error("Укажите должность.");
   if (!department) throw new Error("Укажите подразделение.");
   return {
