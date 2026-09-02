@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Badge, Button, cx } from "@/components/ui";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { toggleSelection, submitSelection } from "../actions";
@@ -36,7 +36,24 @@ export function FlexSelection({
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
   const selected = new Set(selectedIds);
+
+  // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
+  useEffect(() => {
+    const known = new Set(cards.map((c) => c.id));
+    const focus = () => {
+      const m = /^#card-(.+)$/.exec(window.location.hash);
+      const id = m?.[1];
+      if (!id || !known.has(id)) return;
+      document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFlashId(id);
+      window.setTimeout(() => setFlashId(null), 2400);
+    };
+    focus();
+    window.addEventListener("hashchange", focus);
+    return () => window.removeEventListener("hashchange", focus);
+  }, [cards]);
   const usedCount = selectedIds.length;
   const submitting = busyId === "submit";
   const barVisible = windowOpen && hasSubmittable && draftCount > 0;
@@ -102,14 +119,16 @@ export function FlexSelection({
           return (
             <li
               key={c.id}
+              id={`card-${c.id}`}
               className={cx(
-                "relative rounded-xl border p-4 shadow-xs",
+                "relative scroll-mt-24 rounded-xl border p-4 shadow-xs",
                 "transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out",
                 !c.isActive
                   ? "border-line bg-surface-muted opacity-70"
                   : isSel
                     ? "border-primary bg-primary-soft shadow-sm ring-1 ring-primary/25"
                     : "border-line bg-surface hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm",
+                flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
               <span

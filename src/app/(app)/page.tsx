@@ -98,6 +98,11 @@ export default async function OverviewPage() {
 
   const banners = await db.partnerBanner.findMany({ where: { isActive: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: new Date() } }] }, { OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }] }] }, orderBy: { sortOrder: "asc" } });
 
+  // Баннер партнёра → якорь на его гибкую льготу в списке ниже (активная в приоритете).
+  const flexCardByPartner = new Map<string, string>();
+  for (const c of flex) if (c.partnerId && c.isActive && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
+  for (const c of flex) if (c.partnerId && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
+
   const application = period
     ? await getApplicationWithItems(emp.id, period.id)
     : null;
@@ -140,7 +145,11 @@ export default async function OverviewPage() {
       {banners.length > 0 && (
         <section className="space-y-3">
           {banners.map((b) => {
-            const external = !!b.href && /^https?:\/\//.test(b.href);
+            const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
+            const cardHref = cardId ? `#card-${cardId}` : undefined;
+            const linkHref = cardHref ?? b.href ?? undefined;
+            const external = !cardHref && !!b.href && /^https?:\/\//.test(b.href);
+            const cta = cardHref ? "Перейти к льготе" : "Подробнее";
             const cardClass =
               "group relative flex h-44 items-end overflow-hidden rounded-[26px] border border-line bg-surface-sunken shadow-md sm:h-56";
             const inner = (
@@ -168,9 +177,9 @@ export default async function OverviewPage() {
                   {b.subtitle && (
                     <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
                   )}
-                  {b.href && (
+                  {linkHref && (
                     <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-                      Подробнее
+                      {cta}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true">
                         <path d="M5 12h14M13 6l6 6-6 6" />
                       </svg>
@@ -179,10 +188,10 @@ export default async function OverviewPage() {
                 </div>
               </>
             );
-            return b.href ? (
+            return linkHref ? (
               <a
                 key={b.id}
-                href={b.href}
+                href={linkHref}
                 {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 className={cardClass}
               >

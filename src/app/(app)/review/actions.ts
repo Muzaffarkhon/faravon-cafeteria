@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
-import { notifyEmployee } from "@/lib/notify";
+import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
 async function decideContext(itemId: string) {
@@ -133,12 +133,14 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         employeeId: item.application.employeeId,
         event: "ITEM_APPROVED",
         payload: { card: item.card.title },
+        deferFlush: true,
       });
       ok++;
     } catch (e) {
       errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);
     }
   }
+  if (ok > 0) flushTelegram(); // одна доставка на всю пачку
 
   revalidatePath("/review");
   revalidatePath("/");
@@ -186,12 +188,14 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
         employeeId: item.application.employeeId,
         event: "ITEM_REJECTED",
         payload: { card: item.card.title, comment: trimmed },
+        deferFlush: true,
       });
       ok++;
     } catch (e) {
       errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);
     }
   }
+  if (ok > 0) flushTelegram();
 
   revalidatePath("/review");
   revalidatePath("/");

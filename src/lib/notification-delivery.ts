@@ -72,13 +72,26 @@ export async function deliverTelegramNotifications(opts: {
       skipped++;
       continue;
     }
+    // Атомарно «забираем» уведомление: помечаем deliveredAt ещё до отправки.
+    // Параллельные воркеры (несколько after()-флашей, cron, бот) на это же уведомление
+    // получат count=0 и не отправят его повторно — иначе при массовом согласовании
+    // одно уведомление уходило по несколько раз.
+    const claim = await db.notification.updateMany({
+      where: { id: n.id, deliveredAt: null },
+      data: { deliveredAt: new Date() },
+    });
+    if (claim.count === 0) {
+      skipped++;
+      continue;
+    }
     const text =
       "🔔 " + formatNotificationText(n.event, n.payload as Record<string, unknown> | null, templates);
     const ok = await sendTelegram(token, tgId, text);
     if (ok) {
-      await db.notification.update({ where: { id: n.id }, data: { deliveredAt: new Date() } });
       delivered++;
     } else {
+      // не ушло — возвращаем в очередь, повторит cron/бот
+      await db.notification.update({ where: { id: n.id }, data: { deliveredAt: null } });
       failed++;
       log?.(`не удалось отправить уведомление ${n.id}`);
     }

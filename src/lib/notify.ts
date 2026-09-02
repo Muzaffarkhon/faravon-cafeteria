@@ -10,7 +10,14 @@ export { NOTIFICATION_LABELS, formatNotificationText } from "@/lib/notification-
  * Пытается доставить свежие уведомления в Telegram сразу после ответа пользователю
  * (не блокирует server action). Что не ушло — подберёт cron / `npm run bot`.
  */
-function flushTelegram() {
+/**
+ * Планирует одну доставку в Telegram после ответа. Вызывать сколько угодно раз —
+ * при массовых операциях лишние вызовы просто планируют лишние after()-таски;
+ * от повторной отправки одного уведомления защищает атомарный claim в
+ * deliverTelegramNotifications. Экспортируется для массовых действий, чтобы
+ * дёрнуть доставку один раз после цикла.
+ */
+export function flushTelegram() {
   try {
     after(async () => {
       try {
@@ -38,6 +45,8 @@ export async function notifyEmployee(params: {
   event: string;
   payload?: Prisma.InputJsonValue;
   channel?: string;
+  /** true — не планировать доставку сейчас (для массовых операций: flush один раз после цикла) */
+  deferFlush?: boolean;
 }) {
   const user = await db.user.findUnique({
     where: { employeeId: params.employeeId },
@@ -52,7 +61,7 @@ export async function notifyEmployee(params: {
       payload: params.payload,
     },
   });
-  flushTelegram();
+  if (!params.deferFlush) flushTelegram();
 }
 
 /**
