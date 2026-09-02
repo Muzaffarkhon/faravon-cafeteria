@@ -8,6 +8,7 @@ import { isCouponExpired } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { couponQrSvg } from "@/lib/qr";
 import { CancelItemButton } from "./_cancel-button";
+import { QrZoom } from "./_qr-zoom";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   DRAFT: "neutral",
@@ -178,12 +179,7 @@ export default async function ApplicationsPage() {
                             }
                           >
                             <div className="flex flex-wrap items-start gap-3">
-                              {qr && (
-                                <div
-                                  className="shrink-0 rounded-lg bg-white p-2 shadow-xs [&>svg]:block [&>svg]:h-[108px] [&>svg]:w-[108px]"
-                                  dangerouslySetInnerHTML={{ __html: qr }}
-                                />
-                              )}
+                              {qr && <QrZoom svg={qr} number={c.number} />}
                               <div
                                 className={
                                   live
