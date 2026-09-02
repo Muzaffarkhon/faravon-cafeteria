@@ -106,34 +106,44 @@ export function ProviderConfirm() {
             )}
           </dl>
 
-          <div className="mt-5 flex items-center gap-3">
-            {phase === "done" ? (
+          <div className="mt-5 space-y-3">
+            {phase === "done" && (
               <>
-                <p className="text-sm font-medium text-success-strong" role="status">
+                <p
+                  className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm font-medium text-success-strong"
+                  role="status"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
                   Купон погашен. Сотрудник получит уведомление.
                 </p>
-                <Button variant="ghost" size="sm" onClick={reset}>
-                  Следующий
+                <Button onClick={reset} fullWidth size="lg" autoFocus>
+                  Погасить следующий купон
                 </Button>
               </>
-            ) : coupon.redeemable ? (
-              <>
+            )}
+
+            {phase === "found" && coupon.redeemable && (
+              <div className="flex items-center gap-3">
                 <Button onClick={onRedeem} loading={pending}>
                   Погасить купон
                 </Button>
                 <Button variant="ghost" onClick={reset} disabled={pending}>
                   Отмена
                 </Button>
-              </>
-            ) : (
-              <>
+              </div>
+            )}
+
+            {phase === "found" && !coupon.redeemable && (
+              <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm text-ink-muted">
                   Купон в статусе «{coupon.statusLabel}» — погасить нельзя.
                 </p>
-                <Button variant="ghost" size="sm" onClick={reset}>
+                <Button variant="secondary" onClick={reset}>
                   Другой купон
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </Card>
