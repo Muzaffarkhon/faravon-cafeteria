@@ -20,12 +20,13 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : "Ошибка";
     const known =
       msg.includes("не найден") ||
-      msg.includes("погасить") ||
-      msg.includes("погашен") ||
-      msg.includes("гасить") ||
+      msg.includes("активир") ||
+      msg.includes("просрочен") ||
+      msg.includes("истёк") ||
+      msg.includes("статус") ||
       msg.includes("партнёр");
     if (!known) console.error("[provider/confirm]", e);
-    return NextResponse.json({ error: known ? msg : "Не удалось погасить купон." }, {
+    return NextResponse.json({ error: known ? msg : "Не удалось активировать купон." }, {
       status: known ? 409 : 500,
     });
   }

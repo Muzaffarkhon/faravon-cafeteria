@@ -5,8 +5,8 @@ import { can } from "@/lib/rbac";
 import { TextBlockForm } from "./_form";
 
 const HINTS: Record<string, string> = {
-  GOAL: "Блок «Цель программы» в личном кабинете сотрудника (§5.3).",
-  NOVELTY_NOTICE: "Уведомление о новизне проекта в блоке «Реестр гибких льгот» (§5.6).",
+  GOAL: "Блок «Цель программы» в личном кабинете сотрудника.",
+  NOVELTY_NOTICE: "Уведомление о новизне проекта в блоке «Реестр гибких льгот».",
 };
 
 export default async function TextsPage() {

@@ -399,7 +399,7 @@ export function NewServiceAccount({ partners }: { partners: PartnerOption[] }) {
       <Field
         label="Партнёр"
         htmlFor="svc-partner"
-        hint="Только для роли «Подрядчик»: учётка будет гасить купоны лишь этого партнёра. «Все партнёры» — без ограничения."
+        hint="Только для роли «Подрядчик»: учётка будет активировать купоны лишь этого партнёра. «Все партнёры» — без ограничения."
       >
         <select
           id="svc-partner"

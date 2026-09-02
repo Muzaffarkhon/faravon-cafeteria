@@ -21,7 +21,7 @@ export default async function OverviewPage() {
     if (can(roles, "coupons.manage"))
       links.push({ href: "/coupons", label: "Купоны", desc: "формирование и выдача купонов" });
     if (can(roles, "coupons.confirm"))
-      links.push({ href: "/provider", label: "Погашение купонов", desc: "проверка и подтверждение купонов сотрудников у партнёра" });
+      links.push({ href: "/provider", label: "Активация купонов", desc: "проверка и активация купонов сотрудников у партнёра" });
     if (can(roles, "users.manage"))
       links.push({ href: "/admin/users", label: "Пользователи и роли", desc: "справочник сотрудников, учётные записи, роли, деактивация" });
     if (can(roles, "access.manage"))

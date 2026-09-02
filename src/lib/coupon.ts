@@ -8,7 +8,7 @@ import type { CouponStatus } from "@prisma/client";
 export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
   CREATED: "Сформирован",
   ISSUED: "Выдан",
-  USED: "Использован",
+  USED: "Активирован",
   EXPIRED: "Просрочен",
   CANCELLED: "Аннулирован",
 };
@@ -37,7 +37,7 @@ export function lookupCouponByNumber(number: string) {
  * Статус позиции заявки не меняется (COUPON_ISSUED — терминальный).
  *
  * `actorPartnerId` — партнёр гасящего подрядчика: если задан, купон другого
- * партнёра погасить нельзя. null (глобальный подрядчик) — ограничения нет.
+ * партнёра активировать нельзя. null (глобальный подрядчик) — ограничения нет.
  */
 export async function redeemCouponByNumber(
   number: string,
@@ -51,12 +51,12 @@ export async function redeemCouponByNumber(
   if (!coupon) throw new Error("Купон с таким номером не найден.");
   if (actorPartnerId && coupon.partnerId !== actorPartnerId) {
     throw new Error(
-      `Купон партнёра «${coupon.partner?.name ?? "другого партнёра"}» — вы можете гасить только свои купоны.`,
+      `Купон партнёра «${coupon.partner?.name ?? "другого партнёра"}» — вы можете активировать только свои купоны.`,
     );
   }
-  if (coupon.status === "USED") throw new Error("Купон уже погашен.");
+  if (coupon.status === "USED") throw new Error("Купон уже активирован.");
   if (coupon.status !== "ISSUED") {
-    throw new Error(`Купон нельзя погасить: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
+    throw new Error(`Купон нельзя активировать: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }
 
   const now = new Date();
@@ -90,7 +90,7 @@ export async function redeemCouponByNumber(
     data: { status: "USED" },
   });
   if (claimed.count === 0) {
-    throw new Error("Купон уже погашен или просрочен.");
+    throw new Error("Купон уже активирован или просрочен.");
   }
 
   await audit({

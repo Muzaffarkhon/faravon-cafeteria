@@ -31,7 +31,7 @@ export default async function UsersPage() {
     <div className="space-y-8">
       <PageHeader
         title="Пользователи и роли"
-        description="Справочник сотрудников, учётные записи для входа, назначение ролей и деактивация (§4, §5.12)."
+        description="Справочник сотрудников, учётные записи для входа, назначение ролей и деактивация."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Link

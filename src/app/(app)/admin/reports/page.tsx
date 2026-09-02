@@ -210,8 +210,8 @@ export default async function ReportsPage({
       </div>
 
       <p className="text-xs leading-5 text-ink-subtle">
-        Метрики продукта — ТЗ v2 §12. «Экспорт в XLSX» выгружает книгу с листами «Метрики»,
-        «Топ льгот», «Отклонения», «Подразделения» (§5.12).{" "}
+        «Экспорт в XLSX» выгружает книгу с листами «Метрики»,
+        «Топ льгот», «Отклонения», «Подразделения».{" "}
         <Link href="/admin/periods" className="text-primary hover:underline">
           Управление периодами
         </Link>

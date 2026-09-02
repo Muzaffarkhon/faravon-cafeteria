@@ -156,7 +156,7 @@ export default async function ApplicationsPage() {
                         const hint = expired
                           ? "Срок действия купона истёк."
                           : c.status === "USED"
-                            ? "Купон погашен у подрядчика."
+                            ? "Купон активирован у партнёра."
                             : c.status === "CANCELLED"
                               ? "Купон аннулирован."
                               : c.status === "CREATED"

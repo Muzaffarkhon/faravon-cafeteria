@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
-export type NavItem = { href: string; label: string; badge?: number };
+export type NavItem = { href: string; label: string; badge?: number; soon?: boolean };
 
 function isActive(pathname: string, href: string) {
   return href === "/"
@@ -46,6 +46,11 @@ export function AppNav({ items }: { items: NavItem[] }) {
         >
           {it.label}
           {it.badge ? <Count n={it.badge} /> : null}
+          {it.soon ? (
+            <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-subtle">
+              скоро
+            </span>
+          ) : null}
         </Link>
       );
     });

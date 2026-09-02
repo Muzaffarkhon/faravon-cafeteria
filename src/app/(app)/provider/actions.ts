@@ -65,6 +65,6 @@ export async function redeemCoupon(number: string): Promise<RedeemResult> {
     revalidatePath("/provider");
     return { ok: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Не удалось погасить купон." };
+    return { error: e instanceof Error ? e.message : "Не удалось активировать купон." };
   }
 }

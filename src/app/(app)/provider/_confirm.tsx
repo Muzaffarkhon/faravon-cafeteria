@@ -108,7 +108,7 @@ export function ProviderConfirm() {
               {coupon.number}
             </span>
             <Badge tone={coupon.status === "USED" ? "neutral" : coupon.redeemable ? "success" : "warning"}>
-              {phase === "done" ? "Погашен" : coupon.statusLabel}
+              {phase === "done" ? "Активирован" : coupon.statusLabel}
             </Badge>
           </div>
 
@@ -145,10 +145,10 @@ export function ProviderConfirm() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  Купон погашен. Сотрудник получит уведомление.
+                  Купон активирован. Сотрудник получит уведомление.
                 </p>
                 <Button onClick={reset} fullWidth size="lg" autoFocus>
-                  Погасить следующий купон
+                  Активировать следующий купон
                 </Button>
               </>
             )}
@@ -156,7 +156,7 @@ export function ProviderConfirm() {
             {phase === "found" && coupon.redeemable && (
               <div className="flex items-center gap-3">
                 <Button onClick={onRedeem} loading={pending}>
-                  Погасить купон
+                  Активировать купон
                 </Button>
                 <Button variant="ghost" onClick={reset} disabled={pending}>
                   Отмена
@@ -168,10 +168,10 @@ export function ProviderConfirm() {
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm font-medium text-danger">
                   {coupon.wrongPartner
-                    ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы гасите только свои купоны.`
+                    ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы активируете только свои купоны.`
                     : coupon.expired
-                      ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — погасить нельзя.`
-                      : `Купон в статусе «${coupon.statusLabel}» — погасить нельзя.`}
+                      ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — активировать нельзя.`
+                      : `Купон в статусе «${coupon.statusLabel}» — активировать нельзя.`}
                 </p>
                 <Button variant="secondary" onClick={reset}>
                   Другой купон

@@ -6,7 +6,7 @@ import { DEFAULT_TEMPLATES, NOTIFICATION_EVENTS } from "@/lib/notification-forma
 import { TemplateForm } from "./_form";
 
 const HINTS: Record<string, string> = {
-  APPLICATION_SUBMITTED: "Согласующим — когда сотрудник подал выбор льгот (§5.7).",
+  APPLICATION_SUBMITTED: "Согласующим — когда сотрудник подал выбор льгот.",
   ITEM_APPROVED: "Сотруднику — когда согласующий одобрил позицию.",
   ITEM_REJECTED: "Сотруднику — когда согласующий отклонил позицию.",
   COUPON_CREATED: "Сотруднику — когда по одобренной льготе сформирован купон.",

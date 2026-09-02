@@ -20,12 +20,12 @@ export default async function ProviderPage() {
           Партнёр
         </span>
         <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
-          Погашение купонов
+          Активация купонов
         </h1>
         <p className="text-sm text-ink-muted">
           {partner
-            ? `Вы гасите купоны партнёра «${partner.name}». Купоны других партнёров недоступны.`
-            : "Введите номер купона сотрудника, проверьте данные и подтвердите использование."}
+            ? `Вы активируете купоны партнёра «${partner.name}». Купоны других партнёров недоступны.`
+            : "Введите номер купона сотрудника, проверьте данные и активируйте."}
         </p>
       </header>
 

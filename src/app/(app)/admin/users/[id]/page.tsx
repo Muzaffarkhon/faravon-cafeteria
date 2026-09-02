@@ -93,7 +93,7 @@ export default async function EditUserPage({
       </section>
 
       <section className="space-y-3">
-        <SectionTitle>Приём / увольнение (§5.1)</SectionTitle>
+        <SectionTitle>Приём / увольнение</SectionTitle>
         <Card className="space-y-3 p-5">
           <p className="text-sm text-ink-muted">
             {employee.isActive

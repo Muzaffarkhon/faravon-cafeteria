@@ -32,13 +32,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     items.push(
       { href: "/", label: "Обзор" },
       { href: "/applications", label: "Мои заявки и купоны" },
+      { href: "/gamification", label: "Геймификация", soon: true },
     );
   }
   if (canDecide)
     items.push({ href: "/review", label: "Согласование", badge: pendingReview || undefined });
   if (canManageCoupons)
     items.push({ href: "/coupons", label: "Купоны", badge: pendingCoupons || undefined });
-  if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Погашение купонов" });
+  if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Активация купонов" });
   if (can(roles, "coupons.confirm") && session.user.partnerId)
     items.push({ href: "/advertising", label: "Реклама" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });

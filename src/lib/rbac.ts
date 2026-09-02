@@ -36,7 +36,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "applications.viewAll": "Просмотр всех заявок",
   "applications.decide": "Согласование заявок",
   "coupons.manage": "Формирование и выдача купонов",
-  "coupons.confirm": "Погашение купонов (подрядчик)",
+  "coupons.confirm": "Активация купонов (подрядчик)",
   "reports.view": "Отчёты и аналитика",
   "users.manage": "Пользователи и роли",
   "access.manage": "Доступ: Telegram / OTP",

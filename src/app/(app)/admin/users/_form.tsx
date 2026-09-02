@@ -76,7 +76,7 @@ export function EmployeeForm({
         <Field label="Табельный номер" htmlFor="tabNumber" required>
           <Input id="tabNumber" name="tabNumber" defaultValue={initial?.tabNumber ?? ""} inputMode="numeric" autoComplete="off" required />
         </Field>
-        <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте (§5.1).">
+        <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
           <Input
             id="phone"
             name="phone"

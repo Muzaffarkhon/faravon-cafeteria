@@ -18,7 +18,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
   SLA_ESCALATION: "Просроченная заявка на согласовании",
-  COUPON_CONFIRMED_BY_PROVIDER: "Купон погашен у партнёра",
+  COUPON_CONFIRMED_BY_PROVIDER: "Купон активирован у партнёра",
   WINDOW_OPEN: "Открыто окно выбора льгот",
   WINDOW_CLOSING: "Окно выбора скоро закроется",
 };
@@ -68,7 +68,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   COUPON_CONFIRMED_BY_PROVIDER: {
     label: NOTIFICATION_LABELS.COUPON_CONFIRMED_BY_PROVIDER,
-    body: "Купон[[ № {number}]] по льготе «{card}» погашен у партнёра.",
+    body: "Купон[[ № {number}]] по льготе «{card}» активирован у партнёра.",
   },
   WINDOW_OPEN: {
     label: NOTIFICATION_LABELS.WINDOW_OPEN,

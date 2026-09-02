@@ -67,7 +67,7 @@ export default async function ProfilePage() {
         <Card className="p-6">
           <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
           <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-            Телефон и привязка к Telegram-боту нужны для входа и уведомлений (§5.1).
+            Телефон и привязка к Telegram-боту нужны для входа и уведомлений.
           </p>
           <ContactEditor phone={employee.phone} />
           <div className="mt-5 border-t border-line-subtle pt-4">
