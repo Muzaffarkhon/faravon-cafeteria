@@ -109,7 +109,7 @@ export async function createEmployee(
     const user = await db.user.create({
       data: {
         login,
-        passwordHash: await bcrypt.hash(randomUUID(), 10),
+        passwordHash: await bcrypt.hash(randomUUID(), 12),
         mustChangePassword: true,
         roles,
         employeeId: employee.id,
@@ -203,7 +203,7 @@ export async function createAccountForEmployee(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 10),
+      passwordHash: await bcrypt.hash(randomUUID(), 12),
       mustChangePassword: true,
       roles,
       employeeId,
@@ -243,7 +243,7 @@ export async function createServiceAccount(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 10),
+      passwordHash: await bcrypt.hash(randomUUID(), 12),
       mustChangePassword: true,
       roles,
     },

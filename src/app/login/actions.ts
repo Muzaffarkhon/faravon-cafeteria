@@ -9,6 +9,10 @@ import { audit } from "@/lib/audit";
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
 
+// Фиктивный хэш (cost 12): сверяемся с ним, когда логина нет, чтобы время
+// ответа не выдавало существование учётной записи (timing-атака / перебор логинов).
+const DUMMY_HASH = "$2b$12$WMakJ6WuXA6D24/EiklcP.RTTq9Nhd/LwtFImI5s8zsr0H/RactTa";
+
 export type LoginState = { error?: string };
 
 export async function loginAction(
@@ -24,7 +28,10 @@ export async function loginAction(
   const user = await db.user.findUnique({ where: { login } });
   const genericError = { error: "Неверный логин или пароль." };
 
-  if (!user || !user.isActive) return genericError;
+  if (!user || !user.isActive) {
+    await bcrypt.compare(password, DUMMY_HASH); // выравниваем время ответа
+    return genericError;
+  }
 
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     return { error: `Учётная запись временно заблокирована. Повторите позже.` };
