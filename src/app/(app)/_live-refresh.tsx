@@ -4,47 +4,69 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Near-real-time: периодически и при возврате фокуса обновляет серверные
- * компоненты (router.refresh) — счётчики в меню и списки подтягивают свежие
- * данные без ручной перезагрузки. На скрытой вкладке не опрашивает.
+ * Живое обновление разделов.
  *
- * Push (SSE/WebSocket) на Vercel Hobby нежизнеспособен (лимит времени функции);
- * это компромисс без внешней инфраструктуры.
+ * Основной канал — SSE (`/api/stream`): сервер присылает `update`, когда
+ * меняются релевантные пользователю данные (очередь согласования, купоны без
+ * оформления, заявки на рекламу, собственные заявки/купоны, непрочитанные
+ * уведомления). EventSource переподключается сам, поэтому короткоживущее
+ * соединение (лимит времени функции на Vercel) не мешает.
+ *
+ * Подстраховка на случай, если SSE режет корпоративный прокси: обновление при
+ * возврате фокуса и редкий таймер.
  */
-const INTERVAL_MS = 25_000;
+const FALLBACK_MS = 90_000;
 
 export function LiveRefresh() {
   const router = useRouter();
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
+    let es: EventSource | null = null;
+    let stopped = false;
 
-    const tick = () => {
-      if (document.visibilityState === "visible") router.refresh();
+    const refresh = () => {
+      if (!stopped && document.visibilityState === "visible") router.refresh();
     };
-    const start = () => {
-      stop();
-      timer = setInterval(tick, INTERVAL_MS);
-    };
-    const stop = () => {
-      if (timer) clearInterval(timer);
-      timer = undefined;
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        router.refresh();
-        start();
-      } else {
-        stop();
+
+    const connect = () => {
+      if (stopped || es || document.visibilityState !== "visible") return;
+      try {
+        es = new EventSource("/api/stream");
+        es.addEventListener("update", refresh);
+        es.onerror = () => {
+          // На скрытой вкладке рвём соединение, чтобы не держать функцию;
+          // иначе EventSource переподключится сам (retry задан сервером).
+          if (document.visibilityState === "hidden") {
+            es?.close();
+            es = null;
+          }
+        };
+      } catch {
+        es = null;
       }
     };
 
-    start();
-    window.addEventListener("focus", tick);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+        connect();
+      } else {
+        es?.close();
+        es = null;
+      }
+    };
+
+    connect();
+    const fallback = setInterval(refresh, FALLBACK_MS);
+    window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
-      stop();
-      window.removeEventListener("focus", tick);
+      stopped = true;
+      es?.close();
+      es = null;
+      clearInterval(fallback);
+      window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [router]);
