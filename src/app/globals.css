@@ -109,6 +109,99 @@
 }
 
 /* -----------------------------------------------------------------------------
+   ТЁМНАЯ ТЕМА. Переопределяем только семантические токены (СЛОЙ 2).
+   Применяется по data-theme="dark" и по системной теме, если явно не выбрана
+   светлая (data-theme="light").
+   -------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-elevated: rgba(28, 24, 23, 0.82);
+    --surface-strong: rgba(28, 24, 23, 0.96);
+
+    --canvas: oklch(0.158 0.006 30);
+    --surface: oklch(0.212 0.007 30);
+    --surface-muted: oklch(0.262 0.008 30);
+    --surface-sunken: oklch(0.188 0.007 30);
+    --surface-inverse: var(--sand-100);
+
+    --line: oklch(0.312 0.008 30);
+    --line-strong: oklch(0.382 0.010 30);
+    --line-subtle: oklch(0.258 0.008 30);
+
+    --ink: oklch(0.965 0.003 60);
+    --ink-muted: oklch(0.720 0.010 45);
+    --ink-subtle: oklch(0.560 0.010 45);
+    --ink-strong: #ffffff;
+    --on-inverse: var(--sand-900);
+
+    --primary: var(--brand-500);
+    --primary-hover: var(--brand-400);
+    --primary-active: var(--brand-300);
+    --primary-strong: var(--brand-400);
+    --primary-soft: oklch(0.300 0.090 27);
+    --primary-soft-hover: oklch(0.345 0.105 27);
+    --primary-border: oklch(0.430 0.130 27);
+
+    --success: oklch(0.660 0.140 152);
+    --success-strong: oklch(0.760 0.130 152);
+    --success-soft: oklch(0.300 0.060 155);
+    --warning: oklch(0.780 0.150 75);
+    --warning-strong: oklch(0.850 0.130 80);
+    --warning-soft: oklch(0.320 0.070 75);
+
+    --danger: var(--brand-400);
+    --danger-strong: var(--brand-300);
+    --danger-soft: oklch(0.300 0.090 27);
+    --danger-border: oklch(0.400 0.120 27);
+
+    --focus: var(--brand-400);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-elevated: rgba(28, 24, 23, 0.82);
+  --surface-strong: rgba(28, 24, 23, 0.96);
+
+  --canvas: oklch(0.158 0.006 30);
+  --surface: oklch(0.212 0.007 30);
+  --surface-muted: oklch(0.262 0.008 30);
+  --surface-sunken: oklch(0.188 0.007 30);
+  --surface-inverse: var(--sand-100);
+
+  --line: oklch(0.312 0.008 30);
+  --line-strong: oklch(0.382 0.010 30);
+  --line-subtle: oklch(0.258 0.008 30);
+
+  --ink: oklch(0.965 0.003 60);
+  --ink-muted: oklch(0.720 0.010 45);
+  --ink-subtle: oklch(0.560 0.010 45);
+  --ink-strong: #ffffff;
+  --on-inverse: var(--sand-900);
+
+  --primary: var(--brand-500);
+  --primary-hover: var(--brand-400);
+  --primary-active: var(--brand-300);
+  --primary-strong: var(--brand-400);
+  --primary-soft: oklch(0.300 0.090 27);
+  --primary-soft-hover: oklch(0.345 0.105 27);
+  --primary-border: oklch(0.430 0.130 27);
+
+  --success: oklch(0.660 0.140 152);
+  --success-strong: oklch(0.760 0.130 152);
+  --success-soft: oklch(0.300 0.060 155);
+  --warning: oklch(0.780 0.150 75);
+  --warning-strong: oklch(0.850 0.130 80);
+  --warning-soft: oklch(0.320 0.070 75);
+
+  --danger: var(--brand-400);
+  --danger-strong: var(--brand-300);
+  --danger-soft: oklch(0.300 0.090 27);
+  --danger-border: oklch(0.400 0.120 27);
+
+  --focus: var(--brand-400);
+}
+
+/* -----------------------------------------------------------------------------
    СЛОЙ 3. UTILITY — токены Tailwind (bg-*, text-*, border-*, rounded-*, shadow-*).
    -------------------------------------------------------------------------- */
 @theme {
@@ -235,6 +328,21 @@
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root[data-theme="dark"] body {
+    background:
+      radial-gradient(circle at top right, oklch(0.5 0.16 27 / 0.10), transparent 28%),
+      radial-gradient(circle at bottom left, oklch(0.55 0.10 40 / 0.10), transparent 26%),
+      var(--canvas);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) body {
+      background:
+        radial-gradient(circle at top right, oklch(0.5 0.16 27 / 0.10), transparent 28%),
+        radial-gradient(circle at bottom left, oklch(0.55 0.10 40 / 0.10), transparent 26%),
+        var(--canvas);
+    }
   }
 
   h1, h2, h3 {

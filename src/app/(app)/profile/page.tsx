@@ -7,6 +7,7 @@ import { Card, SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
 import { ContactEditor, TelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
+import { ThemeToggle } from "./_theme-toggle";
 
 const shortUa = (ua: string | null) => {
   if (!ua) return "—";
@@ -61,6 +62,14 @@ export default async function ProfilePage() {
             </div>
           ))}
         </dl>
+      </Card>
+
+      <Card className="p-6">
+        <SectionTitle className="text-lg">Оформление</SectionTitle>
+        <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
+          Тема интерфейса. «Системная» следует настройке устройства.
+        </p>
+        <ThemeToggle />
       </Card>
 
       {employee && (
