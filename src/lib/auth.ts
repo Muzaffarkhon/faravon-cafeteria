@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { ensureRbac } from "@/lib/rbac-load";
 import type { Role } from "@prisma/client";
 
 const COOKIE = "faravon_session";
@@ -87,5 +88,6 @@ export const getSession = cache(async () => {
 export async function requireSession() {
   const s = await getSession();
   if (!s) throw new Error("UNAUTHENTICATED");
+  await ensureRbac(); // держим матрицу прав свежей и для server actions / route handlers (TTL внутри)
   return s;
 }

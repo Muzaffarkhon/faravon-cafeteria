@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
+import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
@@ -32,6 +33,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.mustChangePassword) redirect("/change-password");
+
+  await ensureRbac(); // подтянуть матрицу прав из БД перед проверками can()
 
   const { roles } = session;
   const canDecide = can(roles, "applications.decide");

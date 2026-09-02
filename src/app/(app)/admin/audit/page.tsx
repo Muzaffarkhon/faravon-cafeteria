@@ -33,6 +33,7 @@ const ACTION_LABELS: Record<string, string> = {
   AD_REQUEST_CREATED: "Заявка на рекламу подана",
   AD_REQUEST_REVIEWED: "Заявка на рекламу рассмотрена",
   PARTNER_BANNER_CREATED: "Баннер создан",
+  RBAC_MATRIX_CHANGED: "Изменена матрица прав",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -43,6 +44,7 @@ const ENTITY_LABELS: Record<string, string> = {
   AdvertisingRequest: "Заявка на рекламу",
   PartnerBanner: "Баннер",
   NotificationTemplate: "Шаблон уведомления",
+  RolePermission: "Матрица прав",
   BenefitCard: "Карточка льготы",
 };
 

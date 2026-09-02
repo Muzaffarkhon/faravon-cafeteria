@@ -400,3 +400,14 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
+
+/// Матрица прав, редактируемая на /admin/access. Ключи permission — из src/lib/rbac.ts.
+/// Отсутствие строки для (role, permission) трактуется как значение по умолчанию из кода.
+model RolePermission {
+  role       Role
+  permission String
+  allowed    Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  @@id([role, permission])
+}

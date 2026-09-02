@@ -1,6 +1,7 @@
 import { PrismaClient, Block, PartnerStatus, PeriodStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_TEMPLATES } from "../src/lib/notification-format";
+import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS } from "../src/lib/rbac";
 
 const db = new PrismaClient();
 
@@ -221,6 +222,19 @@ async function main() {
       update: {}, // не затираем правки контент-менеджера
       create: { event, label: def.label, body: def.body },
     });
+  }
+
+  // ---- Матрица ролей и прав (§4.2) — заполняем дефолтами из кода ----
+  const ALL_SEED_ROLES: Role[] = [Role.EMPLOYEE, Role.C_AND_B, Role.CONTRACTOR];
+  for (const permission of ALL_PERMISSIONS) {
+    const allowedRoles = DEFAULT_PERMISSIONS[permission] as readonly Role[];
+    for (const role of ALL_SEED_ROLES) {
+      await db.rolePermission.upsert({
+        where: { role_permission: { role, permission } },
+        update: {}, // не затираем правки администратора
+        create: { role, permission, allowed: allowedRoles.includes(role) },
+      });
+    }
   }
 
   // ---- Матрица SLA-эскалаций (§5.12) ----
