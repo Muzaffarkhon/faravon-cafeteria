@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge, Button, Card, EmptyState, PageHeader, Table, type BadgeTone } from "@/components/ui";
 
 type Req = {
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Page() {
+  const router = useRouter();
   const [items, setItems] = useState<Req[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -42,8 +44,14 @@ export default function Page() {
     form.set("id", id);
     form.set("status", status);
     try {
-      await fetch("/api/advertising/admin", { method: "POST", body: form });
+      const res = await fetch("/api/advertising/admin", { method: "POST", body: form });
+      const data = await res.json().catch(() => null);
       setItems((s) => (s ?? []).map((it) => (it.id === id ? { ...it, status } : it)));
+      router.refresh(); // обновить счётчик в меню
+      // После одобрения — сразу в баннеры, там уже создан черновик с данными заявки.
+      if (status === "APPROVED" && data?.bannerId) {
+        router.push(`/admin/partner-banners?new=${data.bannerId}`);
+      }
     } finally {
       setBusyId(null);
     }

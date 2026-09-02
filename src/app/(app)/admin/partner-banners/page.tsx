@@ -23,7 +23,13 @@ export default function Page() {
   useEffect(() => {
     fetch("/api/partner-banner")
       .then((r) => r.json())
-      .then(setBanners)
+      .then((list: Banner[]) => {
+        setBanners(list);
+        // ?new=<id> — пришли после одобрения заявки на рекламу: открываем черновик на правку.
+        const newId = new URLSearchParams(window.location.search).get("new");
+        const draft = newId ? list.find((b) => b.id === newId) : undefined;
+        if (draft) setForm({ ...draft });
+      })
       .catch(() => setBanners([]));
   }, []);
 
@@ -80,6 +86,9 @@ export default function Page() {
           </Field>
           <Field label="ID партнёра" htmlFor="b-partner">
             <Input id="b-partner" value={form.partnerId ?? ""} onChange={set("partnerId")} autoComplete="off" />
+          </Field>
+          <Field label="Подзаголовок" htmlFor="b-subtitle" className="sm:col-span-2">
+            <Input id="b-subtitle" value={form.subtitle ?? ""} onChange={set("subtitle")} />
           </Field>
           <Field label="URL изображения" htmlFor="b-img">
             <Input id="b-img" inputMode="url" value={form.imageUrl ?? ""} onChange={set("imageUrl")} />

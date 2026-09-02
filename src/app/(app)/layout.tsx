@@ -15,9 +15,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { roles } = session;
   const canDecide = can(roles, "applications.decide");
-  const pendingReview = canDecide
-    ? await db.applicationItem.count({ where: { status: "PENDING" } })
-    : 0;
+  const canManageCoupons = can(roles, "coupons.manage");
+  const canManageCards = can(roles, "cards.manage");
+
+  // Счётчики «требует внимания» для красных бейджей в меню.
+  const [pendingReview, pendingCoupons, pendingAdRequests] = await Promise.all([
+    canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
+    canManageCoupons
+      ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } })
+      : 0,
+    canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
+  ]);
 
   const items: NavItem[] = [];
   if (session.employee) {
@@ -28,14 +36,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   if (canDecide)
     items.push({ href: "/review", label: "Согласование", badge: pendingReview || undefined });
-  if (can(roles, "coupons.manage")) items.push({ href: "/coupons", label: "Купоны" });
+  if (canManageCoupons)
+    items.push({ href: "/coupons", label: "Купоны", badge: pendingCoupons || undefined });
   if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Погашение купонов" });
   if (can(roles, "coupons.confirm") && session.user.partnerId)
     items.push({ href: "/advertising", label: "Реклама" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partner-banners", label: "Баннеры" });
-  if (can(roles, "cards.manage")) items.push({ href: "/admin/advertising-requests", label: "Заявки на рекламу" });
+  if (canManageCards)
+    items.push({
+      href: "/admin/advertising-requests",
+      label: "Заявки на рекламу",
+      badge: pendingAdRequests || undefined,
+    });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/texts", label: "Тексты" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/notifications", label: "Уведомления" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/sla", label: "SLA" });

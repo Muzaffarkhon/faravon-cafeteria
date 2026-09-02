@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   const notes = (form.get("notes") as string) || null;
   if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
 
+  const before = await db.advertisingRequest.findUnique({ where: { id } });
+  if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
+
   const upd = await db.advertisingRequest.update({
     where: { id },
     data: { status, notes, reviewedAt: new Date() },
@@ -32,5 +35,29 @@ export async function POST(req: Request) {
     entityId: id,
     newValue: { status },
   });
-  return NextResponse.json(upd);
+
+  // При первом одобрении заявки автоматически заводим черновик баннера партнёра
+  // с уже подставленными данными — C&B останется дооформить (картинка, ссылка) и включить.
+  let bannerId: string | null = null;
+  if (status === "APPROVED" && before.status !== "APPROVED") {
+    const banner = await db.partnerBanner.create({
+      data: {
+        partnerId: before.partnerId,
+        title: before.productName,
+        subtitle: before.productDescription.slice(0, 300),
+        isActive: false,
+        sortOrder: 0,
+      },
+    });
+    bannerId = banner.id;
+    await audit({
+      actorId: g.session.user.id,
+      action: "PARTNER_BANNER_CREATED",
+      entityType: "PartnerBanner",
+      entityId: banner.id,
+      newValue: { fromAdRequest: id, partnerId: before.partnerId },
+    });
+  }
+
+  return NextResponse.json({ ...upd, bannerId });
 }
