@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 
 async function main() {
-  const h = await bcrypt.hash("Password1", 10);
+  const h = await bcrypt.hash("Password1", 12);
   await db.user.updateMany({
     where: { login: { in: ["ivanov", "petrova", "sidorov"] } },
     data: { passwordHash: h, mustChangePassword: false, otpExpiresAt: null, failedLoginCount: 0, lockedUntil: null },

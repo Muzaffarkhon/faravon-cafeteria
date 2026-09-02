@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { getSession, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
 
 export type ChangeState = { error?: string };
 
@@ -24,10 +24,15 @@ export async function changePasswordAction(
   }
   if (password !== confirm) return { error: "Пароли не совпадают." };
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  await db.user.update({
+  const passwordHash = await hashPassword(password);
+  const updated = await db.user.update({
     where: { id: session.user.id },
-    data: { passwordHash, mustChangePassword: false, otpExpiresAt: null },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+      otpExpiresAt: null,
+      sessionEpoch: { increment: 1 },
+    },
   });
   await audit({ actorId: session.user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: session.user.id });
 
@@ -37,6 +42,7 @@ export async function changePasswordAction(
     roles: session.user.roles,
     employeeId: session.user.employeeId,
     mustChangePassword: false,
+    epoch: updated.sessionEpoch,
   });
 
   redirect("/");

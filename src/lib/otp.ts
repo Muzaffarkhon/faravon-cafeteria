@@ -1,8 +1,8 @@
 import "server-only";
 import { randomInt, randomBytes } from "crypto";
-import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { hashPassword } from "@/lib/password";
 
 export const OTP_TTL_HOURS = 24; // §5.1: OTP действует ограниченное время
 export const ID_CODE_TTL_HOURS = 72;
@@ -25,7 +25,7 @@ export function generateIdCode(): string {
  */
 export async function issueOtpForUser(userId: string, actorNote = "telegram-bot"): Promise<string> {
   const otp = generateOtp();
-  const passwordHash = await bcrypt.hash(otp, 10);
+  const passwordHash = await hashPassword(otp);
   await db.user.update({
     where: { id: userId },
     data: {

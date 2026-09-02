@@ -18,6 +18,15 @@ function LoginForm() {
   return (
     <form action={formAction} className="mt-6 space-y-4">
       <input type="hidden" name="next" value={next} />
+      {/* honeypot: скрыт от людей, заполняют боты (§5.1) */}
+      <input
+        type="text"
+        name="company"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="absolute left-[-9999px] h-0 w-0 opacity-0"
+      />
       <Field label="Логин" htmlFor="login">
         <Input id="login" name="login" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
       </Field>

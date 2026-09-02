@@ -158,7 +158,7 @@ async function main() {
   void now;
 
   // ---- Users & employees ----
-  const pass = await bcrypt.hash("Password1", 10);
+  const pass = await bcrypt.hash("Password1", 12);
 
   async function makeStaff(login: string, roles: Role[], fullName: string, position: string) {
     await db.user.upsert({

@@ -20,7 +20,7 @@ export function normalizePhone(raw: string): string {
 
 async function issueOtp(userId: string, via: string): Promise<string> {
   const otp = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const passwordHash = await bcrypt.hash(otp, 10);
+  const passwordHash = await bcrypt.hash(otp, 12);
   await db.user.update({
     where: { id: userId },
     data: {

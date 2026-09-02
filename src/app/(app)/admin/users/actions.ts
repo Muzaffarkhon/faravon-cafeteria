@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import type { Role } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/lib/password";
 import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -109,7 +109,7 @@ export async function createEmployee(
     const user = await db.user.create({
       data: {
         login,
-        passwordHash: await bcrypt.hash(randomUUID(), 10),
+        passwordHash: await hashPassword(randomUUID()),
         mustChangePassword: true,
         roles,
         employeeId: employee.id,
@@ -203,7 +203,7 @@ export async function createAccountForEmployee(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 10),
+      passwordHash: await hashPassword(randomUUID()),
       mustChangePassword: true,
       roles,
       employeeId,
@@ -243,7 +243,7 @@ export async function createServiceAccount(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 10),
+      passwordHash: await hashPassword(randomUUID()),
       mustChangePassword: true,
       roles,
     },
