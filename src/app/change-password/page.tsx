@@ -15,8 +15,8 @@ export default function ChangePasswordPage() {
       <PetalDrift />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
         <div className="flex flex-col items-center text-center">
-          <BrandMark size={52} />
-          <h1 className="mt-4 text-lg font-semibold text-ink">Смена пароля</h1>
+          <BrandMark size={56} />
+          <h1 className="mt-4 text-xl font-semibold tracking-tight text-ink">Смена пароля</h1>
           <p className="mt-1 text-sm text-ink-muted">
             При первом входе необходимо задать постоянный пароль.
           </p>
@@ -28,8 +28,8 @@ export default function ChangePasswordPage() {
           <Field label="Повторите пароль" htmlFor="confirm" error={state.error}>
             <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
           </Field>
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? "Сохранение…" : "Сохранить"}
+          <Button type="submit" loading={pending} fullWidth size="lg">
+            Сохранить
           </Button>
         </form>
       </div>

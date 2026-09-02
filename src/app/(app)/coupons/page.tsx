@@ -57,21 +57,28 @@ export default async function CouponsPage({
 
   return (
     <div className="space-y-10">
-      <h1 className="text-lg font-semibold text-ink">Купоны</h1>
+      <header className="space-y-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+          HR
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">Купоны</h1>
+      </header>
 
       {/* Одобренные позиции без купона */}
       <section className="space-y-3">
-        <SectionTitle count={awaiting.length}>Ожидают формирования купона</SectionTitle>
+        <SectionTitle className="text-lg" count={awaiting.length}>
+          Ожидают формирования купона
+        </SectionTitle>
         {awaiting.length === 0 ? (
           <EmptyState>Нет одобренных позиций без купона.</EmptyState>
         ) : (
           <Card>
             <ul className="divide-y divide-line-subtle">
               {awaiting.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                  <div>
-                    <div className="text-sm font-medium text-ink">{item.card.title}</div>
-                    <div className="text-xs text-ink-subtle">
+                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <div className="text-[0.9375rem] font-semibold text-ink">{item.card.title}</div>
+                    <div className="mt-0.5 text-sm text-ink-subtle">
                       {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
                       {item.application.period.name}
                     </div>
@@ -87,7 +94,7 @@ export default async function CouponsPage({
       {/* Реестр купонов */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle count={coupons.length}>Реестр купонов</SectionTitle>
+          <SectionTitle className="text-lg" count={coupons.length}>Реестр купонов</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
             <form method="get" className="flex items-center gap-2">
               <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
@@ -133,14 +140,14 @@ export default async function CouponsPage({
               <tbody className="divide-y divide-line-subtle">
                 {coupons.map((c) => (
                   <tr key={c.id} className="transition-colors hover:bg-surface-muted/60">
-                    <td className="px-4 py-2 font-mono text-xs">{c.number}</td>
-                    <td className="px-4 py-2 text-ink">{c.employee.fullName}</td>
-                    <td className="px-4 py-2 text-ink">
+                    <td className="px-4 py-2.5 font-mono text-sm" data-numeric>{c.number}</td>
+                    <td className="px-4 py-2.5 text-ink">{c.employee.fullName}</td>
+                    <td className="px-4 py-2.5 text-ink">
                       {c.item.card.title}
                       <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                     </td>
-                    <td className="px-4 py-2 text-ink-muted">{c.period.name}</td>
-                    <td className="px-4 py-2 text-ink-muted">
+                    <td className="px-4 py-2.5 text-ink-muted">{c.period.name}</td>
+                    <td className="px-4 py-2.5 text-ink-muted" data-numeric>
                       {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
                     </td>
                     <td className="px-4 py-2">

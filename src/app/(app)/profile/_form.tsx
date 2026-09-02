@@ -13,7 +13,7 @@ export function ChangePasswordForm() {
   }, [state.ok]);
 
   return (
-    <form ref={formRef} action={formAction} className="max-w-sm space-y-4 pt-2">
+    <form ref={formRef} action={formAction} className="mt-5 max-w-sm space-y-4">
       <Field label="Текущий пароль" htmlFor="current">
         <Input id="current" name="current" type="password" autoComplete="current-password" required />
       </Field>
@@ -26,8 +26,8 @@ export function ChangePasswordForm() {
 
       {state.ok && <p className="text-sm font-medium text-success-strong" role="status">Пароль изменён.</p>}
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Сохранение…" : "Сменить пароль"}
+      <Button type="submit" loading={pending}>
+        Сменить пароль
       </Button>
     </form>
   );

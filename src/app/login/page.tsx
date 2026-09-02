@@ -25,8 +25,8 @@ function LoginForm() {
         <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </Field>
 
-      <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Вход…" : "Войти"}
+      <Button type="submit" loading={pending} fullWidth size="lg">
+        Войти
       </Button>
     </form>
   );
@@ -38,8 +38,8 @@ export default function LoginPage() {
       <PetalDrift />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
         <div className="flex flex-col items-center text-center">
-          <BrandMark size={52} />
-          <h1 className="mt-4 text-xl font-semibold text-ink">Кафетерий льгот</h1>
+          <BrandMark size={56} />
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-ink">Кафетерий льгот</h1>
           <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
         </div>
 
