@@ -80,8 +80,8 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
       </label>
 
       <div className="mt-3 flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохранение…" : "Сохранить"}
+        <Button type="submit" loading={pending}>
+          Сохранить
         </Button>
         {state.ok && (
           <span className="text-sm font-medium text-success-strong" role="status">

@@ -78,7 +78,7 @@ export function AccountPanel({
           </p>
         )}
         {msg?.otp && <OtpBanner otp={msg.otp} />}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" loading={pending}>
           {pending ? "Создание…" : "Создать учётную запись"}
         </Button>
       </form>
@@ -190,7 +190,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
             })
           }
         >
-          {pending ? "Сохранение…" : "Сохранить роли"}
+          Сохранить роли
         </Button>
         {saved && <span className="text-xs font-medium text-success-strong">Роли обновлены.</span>}
         {err && (
@@ -345,7 +345,7 @@ export function NewServiceAccount() {
       )}
       {state.otp && <OtpBanner otp={state.otp} />}
       <div className="flex gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" loading={pending}>
           {pending ? "Создание…" : "Создать"}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

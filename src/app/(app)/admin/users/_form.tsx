@@ -156,8 +156,8 @@ export function EmployeeForm({
       )}
 
       <div className="flex gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохранение…" : submitLabel}
+        <Button type="submit" loading={pending}>
+          {submitLabel}
         </Button>
         <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
           Отмена

@@ -99,8 +99,8 @@ export function TemplateForm({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохранение…" : "Сохранить"}
+        <Button type="submit" loading={pending}>
+          Сохранить
         </Button>
         {overridden && (
           <button
