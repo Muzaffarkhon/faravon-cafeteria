@@ -89,7 +89,7 @@ async function issueCouponImpl(couponId: string) {
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { number: coupon.number },
+    payload: { card: coupon.item.card.title, number: coupon.number },
   });
 
   revalidateAll();

@@ -48,12 +48,8 @@ export async function formCouponForItem(itemId: string, actorId: string) {
     entityId: item.id,
     newValue: { number },
   });
-  await notifyEmployee({
-    employeeId: item.application.employeeId,
-    event: "COUPON_CREATED",
-    payload: { card: item.card.title, number },
-    deferFlush: true,
-  });
+  // Уведомление сотруднику не шлём здесь — оно одно, при фактической выдаче
+  // купона (COUPON_ISSUED). Для негрупповых льгот выдача происходит сразу.
   return coupon;
 }
 
@@ -94,7 +90,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { number: coupon.number },
+    payload: { card: coupon.item.card.title, number: coupon.number },
     deferFlush: true,
   });
   return true;

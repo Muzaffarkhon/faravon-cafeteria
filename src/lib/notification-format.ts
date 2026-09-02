@@ -15,7 +15,6 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   APPLICATION_SUBMITTED: "Новая заявка на согласование",
   ITEM_APPROVED: "Позиция заявки одобрена",
   ITEM_REJECTED: "Позиция заявки отклонена",
-  COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
   SLA_ESCALATION: "Просроченная заявка на согласовании",
   COUPON_CONFIRMED_BY_PROVIDER: "Купон активирован у партнёра",
@@ -28,7 +27,6 @@ export const NOTIFICATION_EVENTS = [
   "APPLICATION_SUBMITTED",
   "ITEM_APPROVED",
   "ITEM_REJECTED",
-  "COUPON_CREATED",
   "COUPON_ISSUED",
   "SLA_ESCALATION",
   "COUPON_CONFIRMED_BY_PROVIDER",
@@ -54,13 +52,9 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,
     body: "Ваша позиция «{card}» отклонена.[[ Причина: {comment}]]",
   },
-  COUPON_CREATED: {
-    label: NOTIFICATION_LABELS.COUPON_CREATED,
-    body: "По льготе «{card}» сформирован купон[[ № {number}]].",
-  },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "Купон[[ № {number}]] по льготе «{card}» выдан.",
+    body: "Купон[[ № {number}]] по льготе «{card}» готов. Предъявите его партнёру.",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
@@ -91,7 +85,6 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   },
   ITEM_APPROVED: { card: "Абонемент в бассейн" },
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде" },
-  COUPON_CREATED: { card: "Ковры «Кайраккум»", number: "К-000123" },
   COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123" },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
@@ -110,7 +103,6 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
   ITEM_APPROVED: ["card"],
   ITEM_REJECTED: ["card", "comment"],
-  COUPON_CREATED: ["card", "number"],
   COUPON_ISSUED: ["card", "number"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number"],
