@@ -50,8 +50,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         className="sticky top-0 z-30 border-b border-line/80 bg-surface/80 backdrop-blur-xl"
         style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
-          <BrandLockup markSize={30} />
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2">
+          <BrandLockup markSize={26} />
 
           <div className="flex items-center gap-3">
             <AppNav items={items} />
@@ -70,7 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-8 sm:py-10">{children}</main>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pt-4 pb-12 sm:pt-5 sm:pb-16">{children}</main>
     </div>
   );
 }

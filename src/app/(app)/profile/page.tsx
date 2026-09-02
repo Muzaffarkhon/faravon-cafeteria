@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/rbac";
-import { Badge, Card, SectionTitle } from "@/components/ui";
+import { Card, SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
+import { ContactEditor, TelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
 
 const shortUa = (ua: string | null) => {
@@ -38,23 +39,12 @@ export default async function ProfilePage() {
     { k: "Логин", v: <span className="font-mono">{user.login}</span> },
     { k: "Роли", v: session.roles.map((r) => ROLE_LABELS[r]).join(", ") },
   );
-  if (employee?.phone) rows.push({ k: "Телефон", v: <span data-numeric>{employee.phone}</span> });
-  if (employee) {
-    rows.push({
-      k: "Telegram",
-      v: employee.telegramId ? (
-        <Badge tone="success">привязан</Badge>
-      ) : (
-        <Badge tone="neutral">не привязан</Badge>
-      ),
-    });
-  }
   if (user.lastLoginAt) {
     rows.push({ k: "Последний вход", v: <span data-numeric>{user.lastLoginAt.toLocaleString("ru-RU")}</span> });
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
           Учётная запись
@@ -72,6 +62,19 @@ export default async function ProfilePage() {
           ))}
         </dl>
       </Card>
+
+      {employee && (
+        <Card className="p-6">
+          <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
+          <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
+            Телефон и привязка к Telegram-боту нужны для входа и уведомлений (§5.1).
+          </p>
+          <ContactEditor phone={employee.phone} />
+          <div className="mt-5 border-t border-line-subtle pt-4">
+            <TelegramLink linked={!!employee.telegramId} />
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <SectionTitle className="text-lg">Смена пароля</SectionTitle>

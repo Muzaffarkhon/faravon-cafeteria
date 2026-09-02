@@ -19,6 +19,9 @@ interface TgScan {
 export function CouponScanner({ onScan }: Props) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Скан имеет смысл только на телефоне/планшете или внутри Telegram.
+  // На ноутбуке/десктопе с веба сканер прячем — остаётся ручной ввод номера.
+  const [canScan, setCanScan] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -33,6 +36,16 @@ export function CouponScanner({ onScan }: Props) {
   }, []);
 
   useEffect(() => stop, [stop]);
+
+  useEffect(() => {
+    // Определяем возможность скана только после гидратации (SSR не знает про устройство).
+    const tg = (window as unknown as { Telegram?: { WebApp?: TgScan } }).Telegram?.WebApp;
+    const hasTgScan = !!tg?.showScanQrPopup;
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    const touch = (navigator.maxTouchPoints ?? 0) > 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanScan(hasTgScan || (coarsePointer && touch));
+  }, []);
 
   async function start() {
     setError(null);
@@ -101,8 +114,15 @@ export function CouponScanner({ onScan }: Props) {
     rafRef.current = requestAnimationFrame(tick);
   }
 
+  if (!canScan) return null;
+
   return (
     <div>
+      <div className="mb-3 flex items-center gap-3">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs text-ink-subtle">или</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
       {!active ? (
         <Button type="button" variant="secondary" onClick={start}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

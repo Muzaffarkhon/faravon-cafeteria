@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
-import { ROLE_LABELS } from "@/lib/rbac";
+import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
 import { Badge, Button, Field, Input } from "@/components/ui";
 import { RolePicker } from "./_form";
 import {
@@ -155,6 +155,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
 
   const dirty =
     sel.length !== roles.length || sel.some((r) => !roles.includes(r));
+  const grants = permissionsForRoles(sel);
 
   return (
     <div className="space-y-2">
@@ -178,6 +179,27 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
           </label>
         ))}
       </div>
+
+      <div className="rounded-md border border-line-subtle bg-surface-muted/40 px-3 py-2">
+        <p className="text-xs font-medium text-ink-muted">Доступ с выбранными ролями</p>
+        {grants.length ? (
+          <ul className="mt-1 flex flex-wrap gap-1">
+            {grants.map((p) => (
+              <li
+                key={p}
+                className="rounded bg-surface px-1.5 py-0.5 text-[11px] text-ink ring-1 ring-line"
+              >
+                {PERMISSION_LABELS[p]}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-[11px] text-ink-subtle">
+            Ролей не выбрано — доступа к разделам нет.
+          </p>
+        )}
+      </div>
+
       <div className="flex items-center gap-3">
         <Button
           size="sm"

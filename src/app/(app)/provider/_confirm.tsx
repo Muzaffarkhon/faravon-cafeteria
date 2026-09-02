@@ -93,12 +93,6 @@ export function ProviderConfirm() {
         </Field>
       </form>
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-line" />
-        <span className="text-xs text-ink-subtle">или</span>
-        <span className="h-px flex-1 bg-line" />
-      </div>
-
       <CouponScanner onScan={onScan} />
 
       {error && (

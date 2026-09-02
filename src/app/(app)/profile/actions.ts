@@ -1,11 +1,14 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { issueIdentificationCode } from "@/lib/otp";
 
 export type ProfilePwState = { ok?: boolean; error?: string };
+export type ProfileContactState = { ok?: boolean; error?: string };
 
 export async function changeOwnPassword(
   _prev: ProfilePwState,
@@ -65,6 +68,65 @@ export async function changeOwnPassword(
     epoch: updated.sessionEpoch,
   });
 
+  return { ok: true };
+}
+
+/** Сотрудник сам меняет свой телефон (для идентификации в Telegram-боте, §5.1). */
+export async function updateOwnPhone(
+  _prev: ProfileContactState,
+  formData: FormData,
+): Promise<ProfileContactState> {
+  const session = await requireSession();
+  if (!session.user.employeeId) return { error: "У учётной записи нет карточки сотрудника." };
+
+  const raw = String(formData.get("phone") ?? "").trim();
+  const phone = raw || null;
+  if (phone && !/^[+()\d][\d\s()-]{4,}$/.test(phone)) {
+    return { error: "Телефон: только цифры, пробелы и знаки + ( ) -, минимум 5 символов." };
+  }
+
+  const before = await db.employee.findUnique({ where: { id: session.user.employeeId } });
+  await db.employee.update({ where: { id: session.user.employeeId }, data: { phone } });
+  await audit({
+    actorId: session.user.id,
+    action: "EMPLOYEE_CONTACT_CHANGED",
+    entityType: "Employee",
+    entityId: session.user.employeeId,
+    oldValue: { phone: before?.phone ?? null },
+    newValue: { phone, self: true },
+  });
+  revalidatePath("/profile");
+  return { ok: true };
+}
+
+/** Сотрудник сам получает код для привязки Telegram-бота (§5.1). */
+export async function linkOwnTelegram(): Promise<{ code: string } | { error: string }> {
+  const session = await requireSession();
+  if (!session.user.employeeId) return { error: "У учётной записи нет карточки сотрудника." };
+  const emp = await db.employee.findUnique({ where: { id: session.user.employeeId } });
+  if (!emp) return { error: "Карточка сотрудника не найдена." };
+  if (emp.telegramId) return { error: "Telegram уже привязан. Сначала отвяжите текущий." };
+  const code = await issueIdentificationCode(session.user.employeeId, session.user.id);
+  revalidatePath("/profile");
+  return { code };
+}
+
+/** Сотрудник сам отвязывает свой Telegram. */
+export async function unlinkOwnTelegram(): Promise<{ ok: true } | { error: string }> {
+  const session = await requireSession();
+  if (!session.user.employeeId) return { error: "У учётной записи нет карточки сотрудника." };
+  await db.employee.update({
+    where: { id: session.user.employeeId },
+    data: { telegramId: null },
+  });
+  await audit({
+    actorId: session.user.id,
+    action: "TELEGRAM_UNLINKED",
+    entityType: "Employee",
+    entityId: session.user.employeeId,
+    newValue: { self: true },
+  });
+  revalidatePath("/profile");
   return { ok: true };
 }
 

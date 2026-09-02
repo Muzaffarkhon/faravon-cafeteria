@@ -316,12 +316,22 @@ export async function setUserRoles(userId: string, roles: Role[]): Promise<Accou
   const next = ALL_ROLES.filter((r) => roles.includes(r));
   if (!next.length) return { error: "Оставьте хотя бы одну роль." };
 
-  if (
-    before.roles.includes("C_AND_B") &&
-    !next.includes("C_AND_B") &&
-    userId === s.user.id
-  ) {
-    return { error: "Нельзя снять с себя роль «C&B»." };
+  if (before.roles.includes("C_AND_B") && !next.includes("C_AND_B")) {
+    if (userId === s.user.id) {
+      return { error: "Нельзя снять с себя роль «C&B»." };
+    }
+    const otherAdmins = await db.user.count({
+      where: {
+        id: { not: userId },
+        isActive: true,
+        roles: { has: "C_AND_B" },
+      },
+    });
+    if (otherAdmins === 0) {
+      return {
+        error: "Это единственная активная учётная запись с ролью «C&B» — снять её нельзя.",
+      };
+    }
   }
 
   await db.user.update({ where: { id: userId }, data: { roles: next } });
