@@ -44,7 +44,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="relative isolate min-h-dvh bg-canvas text-ink">
       <PetalDrift fixed />
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-surface/80 backdrop-blur-xl">
+      <header
+        className="sticky top-0 z-30 border-b border-line/80 bg-surface/80 backdrop-blur-xl"
+        style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
+      >
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <BrandLockup markSize={30} />
 

@@ -101,6 +101,9 @@
 
   --focus: var(--brand-600);
 
+  /* Верхний отступ под кнопки Telegram Mini App; заполняется telegram-chrome.tsx */
+  --tg-top: 0px;
+
   /* Кастомная тень фокуса (не Tailwind-утилита) */
   --shadow-focus: 0 0 0 3px oklch(0.64 0.205 27 / 0.28);
 }

@@ -61,7 +61,10 @@ export default async function ApplicationsPage() {
     );
   const qrByCoupon = new Map(
     await Promise.all(
-      issuedCoupons.map(async (c) => [c.id, await couponQrSvg(c.number)] as const),
+      issuedCoupons.map(
+        async (c) =>
+          [c.id, await couponQrSvg(c.number).catch(() => null)] as const,
+      ),
     ),
   );
 

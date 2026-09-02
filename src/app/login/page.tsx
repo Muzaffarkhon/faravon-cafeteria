@@ -34,7 +34,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4">
+    <main
+      className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4"
+      style={{ paddingTop: "max(1rem, var(--tg-top))" }}
+    >
       <PetalDrift />
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
         <div className="flex flex-col items-center text-center">

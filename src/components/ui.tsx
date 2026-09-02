@@ -114,7 +114,9 @@ export function Button({
 /* ------------------------------------------------------------- Form controls --- */
 
 const CONTROL_BASE =
-  "control-focus w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm text-ink " +
+  // text-base на мобильных (≥16px) — иначе iOS Safari зумит страницу при фокусе;
+  // на sm+ возвращаем компактный 14px.
+  "control-focus w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
   "shadow-xs outline-none transition-[border-color,box-shadow] duration-150 " +
   "placeholder:text-ink-subtle " +
   "disabled:bg-surface-muted disabled:text-ink-muted aria-[invalid=true]:border-danger";

@@ -8,6 +8,14 @@ type Props = {
   onScan: (text: string) => void;
 };
 
+interface TgScan {
+  showScanQrPopup?: (
+    params: { text?: string },
+    cb: (text: string) => boolean | void,
+  ) => void;
+  closeScanQrPopup?: () => void;
+}
+
 export function CouponScanner({ onScan }: Props) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +36,19 @@ export function CouponScanner({ onScan }: Props) {
 
   async function start() {
     setError(null);
+
+    // В Telegram Mini App getUserMedia часто не работает — используем нативный
+    // сканер Telegram.
+    const tg = (window as unknown as { Telegram?: { WebApp?: TgScan } }).Telegram?.WebApp;
+    if (tg?.showScanQrPopup) {
+      tg.showScanQrPopup({ text: "Наведите камеру на QR купона" }, (text) => {
+        tg.closeScanQrPopup?.();
+        if (text) onScan(text);
+        return true;
+      });
+      return;
+    }
+
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Камера недоступна в этом браузере. Введите номер вручную.");
       return;
