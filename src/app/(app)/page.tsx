@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { getCurrentPeriod, getApplicationWithItems, groupProgress } from "@/lib/selection";
-import { Card, SectionTitle, buttonClass } from "@/components/ui";
+import { Card, SectionTitle, buttonClass, cx } from "@/components/ui";
 import { FlexSelection } from "./_components/flex-selection";
+import { BannerCarousel } from "./_banner-carousel";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -119,138 +120,48 @@ export default async function OverviewPage() {
     ? await groupProgress(groupCards.map((c) => c.id), period.id)
     : new Map<string, number>();
 
+  const bannerSlides = banners.map((b) => {
+    const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
+    const cardHref = cardId ? `#card-${cardId}` : undefined;
+    const linkHref = cardHref ?? b.href ?? null;
+    return {
+      id: b.id,
+      title: b.title,
+      subtitle: b.subtitle,
+      imageUrl: b.imageUrl,
+      linkHref,
+      external: !cardHref && !!b.href && /^https?:\/\//.test(b.href),
+      cta: cardHref ? "Перейти к льготе" : "Подробнее",
+    };
+  });
+
   const stats = [
-    {
-      label: "Выбрано",
-      value: `${activeItems.length}/${period?.maxSelections ?? 4}`,
-      tone: "brand",
-      helper: "льгот в этом периоде",
-    },
-    {
-      label: "Черновики",
-      value: String(draftCount),
-      tone: "warning",
-      helper: draftCount > 0 ? "ожидают подтверждения" : "пустой список",
-    },
-    {
-      label: "Статус",
-      value: period?.windowOpen ? "Открыт" : "Закрыт",
-      tone: period?.windowOpen ? "success" : "neutral",
-      helper: period ? period.name : "нет активного периода",
-    },
+    { label: "Выбрано", value: `${activeItems.length}/${period?.maxSelections ?? 4}`, helper: "льгот в периоде" },
+    { label: "Черновики", value: String(draftCount), helper: draftCount > 0 ? "ждут подтверждения" : "пусто" },
   ];
 
   return (
     <div className="space-y-6">
-      {banners.length > 0 && (
-        <section className="space-y-3">
-          {banners.map((b) => {
-            const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
-            const cardHref = cardId ? `#card-${cardId}` : undefined;
-            const linkHref = cardHref ?? b.href ?? undefined;
-            const external = !cardHref && !!b.href && /^https?:\/\//.test(b.href);
-            const cta = cardHref ? "Перейти к льготе" : "Подробнее";
-            const cardClass =
-              "group relative flex h-44 items-end overflow-hidden rounded-[26px] border border-line bg-surface-sunken shadow-md sm:h-56";
-            const inner = (
-              <>
-                {b.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={b.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-                  />
-                )}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
-                />
-                <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
-                  Партнёр
-                </div>
-                <div className="relative z-10 max-w-2xl p-5 sm:p-6">
-                  <h2 className="text-lg font-semibold leading-tight text-balance text-white sm:text-xl">
-                    {b.title}
-                  </h2>
-                  {b.subtitle && (
-                    <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
-                  )}
-                  {linkHref && (
-                    <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-                      {cta}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true">
-                        <path d="M5 12h14M13 6l6 6-6 6" />
-                      </svg>
-                    </span>
-                  )}
-                </div>
-              </>
-            );
-            return linkHref ? (
-              <a
-                key={b.id}
-                href={linkHref}
-                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                className={cardClass}
-              >
-                {inner}
-              </a>
-            ) : (
-              <div key={b.id} className={cardClass}>
-                {inner}
-              </div>
-            );
-          })}
-        </section>
-      )}
-      <section className="rounded-[28px] border border-line bg-surface/90 p-5 shadow-lg shadow-sand-200/40 sm:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-3">
-            <span className="inline-flex items-center rounded-full border border-primary-border bg-primary-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-strong">
-              Личный кабинет
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{emp.fullName}</h1>
-              <p className="mt-1 text-sm text-ink-muted">
-                {emp.position} · {emp.department}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 self-start rounded-2xl border border-line bg-surface-muted px-3 py-2 text-left">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-sm font-semibold text-primary-strong">
-              {period?.windowOpen ? "✓" : "—"}
-            </div>
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
-                {period ? "Период" : "Состояние"}
-              </div>
-              <div className="text-sm font-medium text-ink">
-                {period ? period.name : "Активный период не открыт"}
-              </div>
-              {period && (
-                <div className="text-xs text-ink-muted">
-                  {period.windowOpen
-                    ? `Окно открыто до ${period.windowEnd.toLocaleDateString("ru-RU")}`
-                    : "Окно выбора закрыто"}
-                </div>
-              )}
-            </div>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+            Витрина заботы
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+            Здравствуйте, {emp.fullName.split(" ")[1] || emp.fullName}
+          </h1>
         </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-line bg-surface-muted/70 p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">{stat.label}</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-ink">{stat.value}</div>
-              <div className="mt-1 text-xs text-ink-muted">{stat.helper}</div>
+        <div className="flex gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-xl border border-line bg-surface px-3 py-1.5 text-center">
+              <div className="text-[10px] font-medium uppercase tracking-[0.1em] text-ink-subtle">{s.label}</div>
+              <div className="text-lg font-semibold leading-none text-ink" data-numeric>{s.value}</div>
             </div>
           ))}
         </div>
-      </section>
+      </header>
+
+      {bannerSlides.length > 0 && <BannerCarousel slides={bannerSlides} />}
 
       {goal && (
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
@@ -366,51 +277,50 @@ export default async function OverviewPage() {
         </div>
 
         <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
-          <Card className="p-5">
-            <div className="text-sm font-semibold text-ink">Быстрые действия</div>
+          <Card className={cx("p-5", period?.windowOpen ? "border-primary-border bg-primary-soft/30" : "")}>
+            <div className="flex items-center gap-3">
+              <div
+                className={cx(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-semibold",
+                  period?.windowOpen ? "bg-primary text-on-brand" : "bg-surface-muted text-ink-muted",
+                )}
+              >
+                {period?.windowOpen ? "✓" : "—"}
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
+                  {period ? "Текущий период" : "Состояние"}
+                </div>
+                <div className="truncate text-sm font-semibold text-ink">
+                  {period ? period.name : "Активный период не открыт"}
+                </div>
+                {period && (
+                  <div className="text-xs text-ink-muted" data-numeric>
+                    {period.windowOpen
+                      ? `Окно открыто до ${period.windowEnd.toLocaleDateString("ru-RU")}`
+                      : "Окно выбора закрыто"}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-line bg-surface p-3 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-[0.1em] text-ink-subtle">Выбрано</div>
+                <div className="text-xl font-semibold text-ink" data-numeric>
+                  {activeItems.length}/{period?.maxSelections ?? 4}
+                </div>
+              </div>
+              <div className="rounded-xl border border-line bg-surface p-3 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-[0.1em] text-ink-subtle">Черновики</div>
+                <div className="text-xl font-semibold text-ink" data-numeric>{draftCount}</div>
+              </div>
+            </div>
             <Link
               href="/applications"
               className={buttonClass({ variant: "primary", fullWidth: true, className: "mt-4" })}
             >
               Мои заявки и купоны
             </Link>
-
-            <nav className="mt-5 border-t border-line-subtle pt-4">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-                Навигация
-              </div>
-              <ul className="-mx-2 flex flex-col">
-                {[
-                  {
-                    href: "/",
-                    label: "Обзор",
-                    icon: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z",
-                  },
-                  {
-                    href: "/applications",
-                    label: "Мои заявки и купоны",
-                    icon: "M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 3h6v4H9zM9 12h6M9 16h4",
-                  },
-                  {
-                    href: "/profile",
-                    label: "Профиль",
-                    icon: "M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
-                  },
-                ].map((l) => (
-                  <li key={l.href}>
-                    <Link
-                      href={l.href}
-                      className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d={l.icon} />
-                      </svg>
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
           </Card>
 
           {notice && (

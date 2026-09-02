@@ -208,14 +208,28 @@ export function FlexSelection({
                 windowOpen &&
                 c.isActive && (
                   <Button
-                    variant={isSel ? "danger" : "soft"}
+                    variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
                     onClick={() => onToggle(c.id)}
                     disabled={pending || atLimit}
                     loading={busyId === c.id}
                     fullWidth
                     className="mt-4"
                   >
-                    {isSel ? "Убрать из выбора" : atLimit ? "Достигнут лимит" : "Выбрать"}
+                    <span className="inline-flex items-center gap-1.5">
+                      {isSel ? (
+                        <>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                          В выборе — убрать
+                        </>
+                      ) : atLimit ? (
+                        "Лимит исчерпан"
+                      ) : (
+                        <>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                          Выбрать
+                        </>
+                      )}
+                    </span>
                   </Button>
                 )
               )}
