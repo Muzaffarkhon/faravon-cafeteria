@@ -40,16 +40,16 @@ export default async function PeriodsPage() {
         {periods.map((p) => (
           <li
             key={p.id}
-            className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm"
+            className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-5 shadow-sm"
           >
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-ink">{p.name}</span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-base font-semibold text-ink">{p.name}</span>
                 <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
                   {PERIOD_STATUS_LABELS[p.status]}
                 </Badge>
               </div>
-              <div className="mt-1 text-xs text-ink-muted">
+              <div className="mt-1.5 text-sm leading-6 text-ink-muted" data-numeric>
                 Период: {fmt(p.startDate)} — {fmt(p.endDate)} · Окно выбора: {fmt(p.windowStart)} —{" "}
                 {fmt(p.windowEnd)} · Лимит: {p.maxSelections} · Заявок: {p._count.applications}
               </div>

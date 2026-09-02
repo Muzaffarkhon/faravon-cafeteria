@@ -38,27 +38,27 @@ export default async function CardsPage() {
           </CardHeader>
           <ul className="divide-y divide-line-subtle">
             {byBlock(b).length === 0 && (
-              <li className="px-5 py-3 text-sm text-ink-subtle">Нет карточек.</li>
+              <li className="px-5 py-4 text-sm text-ink-subtle">Нет карточек.</li>
             )}
             {byBlock(b).map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                <div className="flex min-w-0 items-center gap-3">
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                <div className="flex min-w-0 items-center gap-3.5">
                   {c.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={c.imageUrl}
                       alt=""
                       loading="lazy"
-                      className="h-10 w-10 shrink-0 rounded-md border border-line object-cover"
+                      className="h-11 w-11 shrink-0 rounded-lg border border-line object-cover"
                     />
                   )}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <div className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-semibold text-ink">
                       {c.title}
                       {!c.isActive && <Badge tone="neutral">скоро</Badge>}
                       {c.status === "DRAFT" && <Badge tone="warning">{CARD_STATUS_LABELS.DRAFT}</Badge>}
                     </div>
-                    <div className="text-xs text-ink-subtle">
+                    <div className="mt-0.5 text-sm text-ink-subtle">
                       {c.partner?.name ? `${c.partner.name} · ` : ""}
                       {c.condition ?? c.description ?? "—"}
                       {c._count.items > 0 && ` · позиций: ${c._count.items}`}
