@@ -146,16 +146,32 @@ export default async function ApplicationsPage() {
 
                     {item.coupon &&
                       (() => {
-                        const qr = qrByCoupon.get(item.coupon.id);
+                        const c = item.coupon;
+                        const qr = qrByCoupon.get(c.id);
                         const expired =
-                          item.coupon.status === "ISSUED" &&
-                          isCouponExpired(item.coupon.validUntil);
+                          c.status === "EXPIRED" ||
+                          (c.status === "ISSUED" && isCouponExpired(c.validUntil));
+                        const live = c.status === "ISSUED" && !expired;
+                        // Пояснение под номером — почему QR есть / нет и что делать.
+                        const hint = expired
+                          ? "Срок действия купона истёк."
+                          : c.status === "USED"
+                            ? "Купон погашен у подрядчика."
+                            : c.status === "CANCELLED"
+                              ? "Купон аннулирован."
+                              : c.status === "CREATED"
+                                ? "Купон сформирован. QR для гашения появится после выдачи."
+                                : live && qr
+                                  ? "Покажите QR подрядчику для гашения."
+                                  : live
+                                    ? "QR временно недоступен — назовите подрядчику номер купона."
+                                    : null;
                         return (
                           <div
                             className={
-                              expired
-                                ? "mt-1 rounded-xl border border-line bg-surface-muted p-3"
-                                : "mt-1 rounded-xl border border-success-soft bg-success-soft/40 p-3"
+                              live
+                                ? "mt-1 rounded-xl border border-success-soft bg-success-soft/40 p-3"
+                                : "mt-1 rounded-xl border border-line bg-surface-muted p-3"
                             }
                           >
                             <div className="flex flex-wrap items-start gap-3">
@@ -167,24 +183,23 @@ export default async function ApplicationsPage() {
                               )}
                               <div
                                 className={
-                                  expired
-                                    ? "min-w-0 space-y-0.5 text-sm text-ink-muted"
-                                    : "min-w-0 space-y-0.5 text-sm text-success-strong"
+                                  live
+                                    ? "min-w-0 space-y-0.5 text-sm text-success-strong"
+                                    : "min-w-0 space-y-0.5 text-sm text-ink-muted"
                                 }
                               >
                                 <div className="font-semibold">Купон</div>
                                 <div className="font-mono" data-numeric>
-                                  № {item.coupon.number}
+                                  № {c.number}
                                 </div>
-                                {item.coupon.validUntil && (
-                                  <div className={expired ? "font-medium text-danger" : "text-success-strong/80"} data-numeric>
-                                    {expired ? "срок истёк " : "действует до "}
-                                    {item.coupon.validUntil.toLocaleDateString("ru-RU")}
+                                {c.validUntil && (live || c.status === "CREATED") && (
+                                  <div className={live ? "text-success-strong/80" : ""} data-numeric>
+                                    действует до {c.validUntil.toLocaleDateString("ru-RU")}
                                   </div>
                                 )}
-                                {qr && (
-                                  <div className="pt-1 text-xs text-success-strong/80">
-                                    Покажите QR подрядчику для гашения.
+                                {hint && (
+                                  <div className={live ? "pt-1 text-xs text-success-strong/80" : "pt-1 text-xs"}>
+                                    {hint}
                                   </div>
                                 )}
                               </div>

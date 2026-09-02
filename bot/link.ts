@@ -13,9 +13,16 @@ const OTP_TTL_HOURS = 24;
 
 export type LinkResult = { login: string; otp: string; fullName: string };
 
+/**
+ * Канонизируем номер к 9-значному национальному (Таджикистан): только цифры,
+ * отбрасываем код страны 992 и ведущий 0, берём последние 9. Так совпадают
+ * «+992 92 630 94 49», «992926309449» (из Telegram-контакта) и «926309449».
+ */
 export function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  return digits.length > 10 ? digits.slice(-10) : digits;
+  let d = String(raw).replace(/\D/g, "");
+  if (d.length >= 12 && d.startsWith("992")) d = d.slice(3);
+  if (d.length === 10 && d.startsWith("0")) d = d.slice(1);
+  return d.length > 9 ? d.slice(-9) : d;
 }
 
 async function issueOtp(userId: string, via: string): Promise<string> {
