@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { PetalDrift } from "@/components/petals";
+import { PetalParallax } from "@/components/petal-parallax";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
 const ICONS = {
@@ -101,6 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <PetalDrift fixed />
+      <PetalParallax />
       <AppShell groups={groups} roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}>
         {children}
       </AppShell>

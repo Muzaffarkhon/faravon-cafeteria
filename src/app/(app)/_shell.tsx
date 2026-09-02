@@ -321,7 +321,11 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 pt-4 pb-12 sm:pt-5 sm:pb-16">{children}</main>
+        <main className="mx-auto w-full max-w-6xl px-4 pt-4 pb-12 sm:pt-5 sm:pb-16">
+          <div key={pathname} className="animate-page">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

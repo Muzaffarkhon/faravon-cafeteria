@@ -437,6 +437,32 @@
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
+    /* Лёгкий параллакс за курсором — задаётся из PetalParallax */
+    transform: translate3d(var(--pd-mx, 0px), var(--pd-my, 0px), 0);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Плавное появление контента при переходе между разделами */
+  .animate-page {
+    animation: page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-page {
+      animation: none;
+    }
+    .petal-drift {
+      transition: none;
+    }
   }
   .petal-drift > i {
     position: absolute;
