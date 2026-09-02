@@ -3,8 +3,17 @@
 import { useState, useTransition } from "react";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
 import { lookupCoupon, redeemCoupon, type CouponView } from "./actions";
+import { CouponScanner } from "./_scanner";
 
 type Phase = "idle" | "found" | "done";
+
+/** Из результата сканирования достаёт номер купона (текст или ссылка ?number=). */
+function extractNumber(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/[?&]number=([^&\s]+)/i);
+  const val = m ? decodeURIComponent(m[1]) : s;
+  return val.toUpperCase();
+}
 
 export function ProviderConfirm() {
   const [number, setNumber] = useState("");
@@ -13,11 +22,10 @@ export function ProviderConfirm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  function onLookup(e: React.FormEvent) {
-    e.preventDefault();
+  function doLookup(value: string) {
     setError(null);
     start(async () => {
-      const r = await lookupCoupon(number);
+      const r = await lookupCoupon(value);
       if (r.error) {
         setError(r.error);
         setCoupon(null);
@@ -27,6 +35,19 @@ export function ProviderConfirm() {
         setPhase("found");
       }
     });
+  }
+
+  function onLookup(e: React.FormEvent) {
+    e.preventDefault();
+    doLookup(number);
+  }
+
+  function onScan(raw: string) {
+    const n = extractNumber(raw);
+    setNumber(n);
+    setPhase("idle");
+    setCoupon(null);
+    doLookup(n);
   }
 
   function onRedeem() {
@@ -71,6 +92,14 @@ export function ProviderConfirm() {
           </div>
         </Field>
       </form>
+
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs text-ink-subtle">или</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
+      <CouponScanner onScan={onScan} />
 
       {error && (
         <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">

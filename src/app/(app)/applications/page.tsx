@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { Badge, Card, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
+import { couponQrSvg } from "@/lib/qr";
 import { CancelItemButton } from "./_cancel-button";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -49,6 +50,16 @@ export default async function ApplicationsPage() {
   const allItems = applications.flatMap((a) => a.items);
   const coupons = allItems.filter((i) => i.coupon).length;
   const pending = allItems.filter((i) => i.status === "PENDING").length;
+
+  // QR только для действующих (выданных) купонов — для гашения у подрядчика.
+  const issuedCoupons = allItems
+    .map((i) => i.coupon)
+    .filter((c): c is NonNullable<typeof c> => !!c && c.status === "ISSUED");
+  const qrByCoupon = new Map(
+    await Promise.all(
+      issuedCoupons.map(async (c) => [c.id, await couponQrSvg(c.number)] as const),
+    ),
+  );
 
   return (
     <div className="space-y-8">
@@ -97,19 +108,38 @@ export default async function ApplicationsPage() {
                       </p>
                     )}
 
-                    {item.coupon && (
-                      <div className="mt-1 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-success-soft bg-success-soft/50 px-3 py-2 text-sm text-success-strong">
-                        <span className="font-semibold">Купон</span>
-                        <span className="font-mono" data-numeric>
-                          № {item.coupon.number}
-                        </span>
-                        {item.coupon.validUntil && (
-                          <span className="text-success-strong/80" data-numeric>
-                            · действует до {item.coupon.validUntil.toLocaleDateString("ru-RU")}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    {item.coupon &&
+                      (() => {
+                        const qr = qrByCoupon.get(item.coupon.id);
+                        return (
+                          <div className="mt-1 rounded-xl border border-success-soft bg-success-soft/40 p-3">
+                            <div className="flex flex-wrap items-start gap-3">
+                              {qr && (
+                                <div
+                                  className="shrink-0 rounded-lg bg-white p-2 shadow-xs [&>svg]:block [&>svg]:h-[108px] [&>svg]:w-[108px]"
+                                  dangerouslySetInnerHTML={{ __html: qr }}
+                                />
+                              )}
+                              <div className="min-w-0 space-y-0.5 text-sm text-success-strong">
+                                <div className="font-semibold">Купон</div>
+                                <div className="font-mono" data-numeric>
+                                  № {item.coupon.number}
+                                </div>
+                                {item.coupon.validUntil && (
+                                  <div className="text-success-strong/80" data-numeric>
+                                    действует до {item.coupon.validUntil.toLocaleDateString("ru-RU")}
+                                  </div>
+                                )}
+                                {qr && (
+                                  <div className="pt-1 text-xs text-success-strong/80">
+                                    Покажите QR подрядчику для гашения.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
