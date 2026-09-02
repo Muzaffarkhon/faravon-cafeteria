@@ -5,37 +5,39 @@
 
 */
 -- AlterEnum
+-- Removes roles [SUPERADMIN, CONTENT_MANAGER, APPROVER, HR_BP, ANALYST].
+-- Legacy admin roles are folded into C_AND_B; EMPLOYEE / CONTRACTOR are kept.
+-- The mapping is done inside the column-type USING clause over the text
+-- representation of the array, so no legacy value is ever written back into a
+-- column that is still typed as the old enum.
 BEGIN;
 CREATE TYPE "Role_new" AS ENUM ('C_AND_B', 'EMPLOYEE', 'CONTRACTOR');
--- Normalize existing user roles: map legacy/admin roles to C_AND_B, keep EMPLOYEE/CONTRACTOR.
-UPDATE "User" SET roles = (
-  SELECT COALESCE(array_agg(DISTINCT x), ARRAY['EMPLOYEE'])
-  FROM (
-    SELECT CASE
-      WHEN r IN ('EMPLOYEE','CONTRACTOR','C_AND_B') THEN r
-      WHEN r IN ('SUPERADMIN','CONTENT_MANAGER','APPROVER','HR_BP','ANALYST') THEN 'C_AND_B'
-    END as x
-    FROM unnest(roles) as r
-  ) t
-  WHERE x IS NOT NULL
-);
-
--- Normalize SLA escalation notifyRoles similarly
-UPDATE "SlaEscalationRule" SET "notifyRoles" = (
-  SELECT COALESCE(array_agg(DISTINCT x), ARRAY['C_AND_B'])
-  FROM (
-    SELECT CASE
-      WHEN r IN ('EMPLOYEE','CONTRACTOR','C_AND_B') THEN r
-      WHEN r IN ('SUPERADMIN','CONTENT_MANAGER','APPROVER','HR_BP','ANALYST') THEN 'C_AND_B'
-    END as x
-    FROM unnest("notifyRoles") as r
-  ) t
-  WHERE x IS NOT NULL
-);
 
 ALTER TABLE "public"."User" ALTER COLUMN "roles" DROP DEFAULT;
-ALTER TABLE "User" ALTER COLUMN "roles" TYPE "Role_new"[] USING ("roles"::text::"Role_new"[]);
-ALTER TABLE "SlaEscalationRule" ALTER COLUMN "notifyRoles" TYPE "Role_new"[] USING ("notifyRoles"::text::"Role_new"[]);
+
+-- A USING clause may not contain a subquery, so the legacy -> C_AND_B mapping
+-- is done by string-replacing on the array's text form (all enum labels are
+-- plain [A-Z_]+ and none is a substring of another, so this is unambiguous).
+ALTER TABLE "User" ALTER COLUMN "roles" TYPE "Role_new"[] USING (
+  replace(replace(replace(replace(replace(
+    "roles"::text,
+    'SUPERADMIN', 'C_AND_B'),
+    'CONTENT_MANAGER', 'C_AND_B'),
+    'APPROVER', 'C_AND_B'),
+    'HR_BP', 'C_AND_B'),
+    'ANALYST', 'C_AND_B')::"Role_new"[]
+);
+
+ALTER TABLE "SlaEscalationRule" ALTER COLUMN "notifyRoles" TYPE "Role_new"[] USING (
+  replace(replace(replace(replace(replace(
+    "notifyRoles"::text,
+    'SUPERADMIN', 'C_AND_B'),
+    'CONTENT_MANAGER', 'C_AND_B'),
+    'APPROVER', 'C_AND_B'),
+    'HR_BP', 'C_AND_B'),
+    'ANALYST', 'C_AND_B')::"Role_new"[]
+);
+
 ALTER TYPE "Role" RENAME TO "Role_old";
 ALTER TYPE "Role_new" RENAME TO "Role";
 DROP TYPE "public"."Role_old";
