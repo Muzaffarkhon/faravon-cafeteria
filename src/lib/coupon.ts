@@ -43,7 +43,16 @@ export async function redeemCouponByNumber(number: string, actorId: string) {
     throw new Error(`Купон нельзя погасить: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }
 
-  await db.coupon.update({ where: { id: coupon.id }, data: { status: "USED" } });
+  // Атомарный переход ISSUED → USED: условие в WHERE не даёт погасить один
+  // купон дважды при гонке (двойной клик, два устройства, один QR).
+  const claimed = await db.coupon.updateMany({
+    where: { id: coupon.id, status: "ISSUED" },
+    data: { status: "USED" },
+  });
+  if (claimed.count === 0) {
+    throw new Error("Купон уже погашен.");
+  }
+
   await audit({
     actorId,
     action: "COUPON_REDEEMED_BY_PROVIDER",

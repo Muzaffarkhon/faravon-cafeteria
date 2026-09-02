@@ -85,16 +85,17 @@ export async function issueCoupon(couponId: string) {
   if (coupon.status !== "CREATED") throw new Error("Купон уже выдан или недоступен для выдачи.");
   assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
 
-  await db.$transaction([
-    db.coupon.update({
-      where: { id: couponId },
-      data: { status: "ISSUED", issuedAt: new Date() },
-    }),
-    db.applicationItem.update({
-      where: { id: coupon.itemId },
-      data: { status: "COUPON_ISSUED" },
-    }),
-  ]);
+  // Атомарный переход CREATED → ISSUED — защита от гонки (двойной клик).
+  const claimed = await db.coupon.updateMany({
+    where: { id: couponId, status: "CREATED" },
+    data: { status: "ISSUED", issuedAt: new Date() },
+  });
+  if (claimed.count === 0) throw new Error("Купон уже выдан.");
+
+  await db.applicationItem.update({
+    where: { id: coupon.itemId },
+    data: { status: "COUPON_ISSUED" },
+  });
 
   await audit({
     actorId: s.user.id,
