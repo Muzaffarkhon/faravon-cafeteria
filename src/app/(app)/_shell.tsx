@@ -70,6 +70,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -94,6 +95,14 @@ export function AppShell({
       }
       return nv;
     });
+  }
+
+  // Клик по логотипу сворачивает/разворачивает сайдбар (только на десктопе —
+  // на мобильном сайдбар всегда полноэкранная шторка).
+  function onBrandClick() {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+      toggleCollapsed();
+    }
   }
 
   function toggleGroup(id: string) {
@@ -125,7 +134,7 @@ export function AppShell({
           collapsed && "justify-center px-0",
           active
             ? "bg-primary-soft text-primary-strong"
-            : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+            : "text-ink hover:bg-surface-muted",
         )}
       >
         <span
@@ -133,7 +142,7 @@ export function AppShell({
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
             active
               ? "bg-primary text-on-brand"
-              : "bg-surface-muted text-ink-muted group-hover/link:bg-surface-sunken group-hover/link:text-ink",
+              : "bg-surface-muted text-ink group-hover/link:bg-surface-sunken",
           )}
         >
           <Icon path={it.icon} />
@@ -142,7 +151,7 @@ export function AppShell({
           <span className="min-w-0 flex-1 truncate">
             {it.label}
             {it.soon && (
-              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-subtle">
+              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-muted">
                 скоро
               </span>
             )}
@@ -164,19 +173,35 @@ export function AppShell({
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      {/* Бренд */}
-      <div className={cx("flex items-center gap-2.5 px-4 py-4", collapsed && "justify-center px-0")}>
-        <BrandMark size={collapsed ? 28 : 30} priority />
-        {!collapsed && (
-          <div className="leading-tight">
-            <div className="text-sm font-semibold text-ink">Кафетерий льгот</div>
-            <div className="text-[11px] text-ink-muted">«Фаровон»</div>
-          </div>
-        )}
+      {/* Бренд — клик сворачивает меню (десктоп) */}
+      <div className="px-3 py-4">
+        <button
+          type="button"
+          onClick={onBrandClick}
+          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          className={cx(
+            "group/brand flex w-full items-center gap-2.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-surface-muted lg:cursor-pointer",
+            collapsed && "justify-center px-0",
+          )}
+        >
+          <BrandMark size={collapsed ? 28 : 30} priority />
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block text-sm font-semibold text-ink">Кафетерий льгот</span>
+                <span className="block text-[11px] text-ink-muted">«Фаровон»</span>
+              </span>
+              <Icon
+                path={I.collapse}
+                className="hidden h-4 w-4 shrink-0 text-ink-subtle opacity-0 transition-opacity group-hover/brand:opacity-100 lg:block"
+              />
+            </>
+          )}
+        </button>
       </div>
 
       {/* Навигация по группам */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
         {groups.map((g) => {
           const isClosed = !collapsed && closed[g.id];
           return (
@@ -185,7 +210,7 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.id)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-subtle hover:text-ink-muted"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted hover:text-ink"
                 >
                   {g.label}
                   <Icon
@@ -201,43 +226,6 @@ export function AppShell({
           );
         })}
       </nav>
-
-      {/* Низ: роль + профиль + выход + сворачивание */}
-      <div className="space-y-1 border-t border-line px-3 py-3">
-        {!collapsed && (
-          <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted">
-            <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
-            {roleLabel}
-          </div>
-        )}
-        {navLink({ href: "/profile", label: "Профиль", icon: I.profile })}
-        <form action={logout}>
-          <button
-            type="submit"
-            title={collapsed ? "Выйти" : undefined}
-            className={cx(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-muted">
-              <Icon path={I.logout} />
-            </span>
-            {!collapsed && <span>Выйти</span>}
-          </button>
-        </form>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className="mt-1 hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink-subtle transition-colors hover:bg-surface-muted hover:text-ink lg:flex"
-          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-            <Icon path={collapsed ? I.expand : I.collapse} />
-          </span>
-          {!collapsed && <span>Свернуть</span>}
-        </button>
-      </div>
     </div>
   );
 
@@ -248,7 +236,7 @@ export function AppShell({
       {/* Десктоп-сайдбар / мобильная шторка */}
       <aside
         className={cx(
-          "fixed inset-y-0 left-0 z-50 border-r border-line bg-surface/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-50 border-r border-line bg-surface transition-[transform,width] duration-200 ease-out",
           "w-[84vw] max-w-[20rem]",
           mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
           "lg:sticky lg:top-0 lg:z-30 lg:h-dvh lg:translate-x-0 lg:shadow-none",
@@ -278,7 +266,7 @@ export function AppShell({
       {/* Контент */}
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header
-          className="sticky top-0 z-20 flex items-center gap-2 border-b border-line/80 bg-surface/80 px-3 py-2 backdrop-blur-xl"
+          className="sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface px-3 py-2"
           style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
         >
           <button
@@ -311,19 +299,57 @@ export function AppShell({
             <BrandMark size={24} />
             <span className="text-sm font-semibold text-ink">Кафетерий льгот</span>
           </div>
-          <div className="ml-auto flex items-center gap-1">
-            <Link
-              href="/profile"
-              aria-label="Профиль"
+
+          {/* Профиль + выход — единое меню справа сверху */}
+          <div className="relative ml-auto">
+            <button
+              type="button"
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-label="Меню профиля"
+              aria-expanded={profileOpen}
               className={cx(
                 "flex h-9 w-9 items-center justify-center rounded-full border border-line transition-colors",
-                isActive("/profile")
+                isActive("/profile") || profileOpen
                   ? "bg-primary text-on-brand"
-                  : "bg-surface text-ink-muted hover:text-ink",
+                  : "bg-surface text-ink hover:bg-surface-muted",
               )}
             >
               <Icon path={I.profile} />
-            </Link>
+            </button>
+            {profileOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  onClick={() => setProfileOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-xl border border-line bg-surface shadow-xl">
+                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                    <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+                    {roleLabel}
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-surface-muted"
+                  >
+                    <Icon path={I.profile} className="h-4 w-4" />
+                    Профиль
+                  </Link>
+                  <form action={logout}>
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-danger-soft hover:text-danger"
+                    >
+                      <Icon path={I.logout} className="h-4 w-4" />
+                      Выйти
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
           </div>
         </header>
 

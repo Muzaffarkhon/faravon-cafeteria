@@ -71,10 +71,13 @@
   --line-strong: var(--sand-300);
   --line-subtle: var(--sand-100);
 
-  --ink:        var(--sand-900);
-  --ink-muted:  var(--sand-500);
-  --ink-subtle: var(--sand-400);
-  --ink-strong: var(--sand-950);
+  /* Текст — насыщенный нейтральный чёрный, без тёплой мути и без серого.
+     Вторичный текст тем же чёрным: иерархия держится на размере, начертании
+     и капсе, а не на осветлении цвета. */
+  --ink:        #000000;
+  --ink-muted:  #000000;
+  --ink-subtle: #1c1c1e;
+  --ink-strong: #000000;
   --on-brand:   #ffffff;
   --on-inverse: var(--sand-50);
 
@@ -128,9 +131,9 @@
     --line-strong: oklch(0.382 0.010 30);
     --line-subtle: oklch(0.258 0.008 30);
 
-    --ink: oklch(0.965 0.003 60);
-    --ink-muted: oklch(0.720 0.010 45);
-    --ink-subtle: oklch(0.560 0.010 45);
+    --ink: #ffffff;
+    --ink-muted: #ffffff;
+    --ink-subtle: #d2d2d4;
     --ink-strong: #ffffff;
     --on-inverse: var(--sand-900);
 
@@ -320,14 +323,38 @@
     text-size-adjust: 100%;
   }
 
+  /* Тонкие ненавязчивые полосы прокрутки вместо системных «толстых со стрелками»
+     (заметны на вложенных скроллах таблиц). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-subtle);
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
   body {
     background:
       radial-gradient(circle at top right, rgba(122, 19, 19, 0.08), transparent 26%),
       radial-gradient(circle at bottom left, rgba(242, 172, 145, 0.18), transparent 24%),
       linear-gradient(180deg, #fffaf8 0%, #fff7f4 12%, var(--canvas) 100%);
     color: var(--ink);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    /* Без принудительного сглаживания: на macOS `antialiased` делает текст
+       тоньше и «серее» — отдаём рендер браузеру, чёрный получается плотнее. */
   }
 
   :root[data-theme="dark"] body {
@@ -437,9 +464,6 @@
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
-    /* Лёгкий параллакс за курсором — задаётся из PetalParallax */
-    transform: translate3d(var(--pd-mx, 0px), var(--pd-my, 0px), 0);
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /* Плавное появление контента при переходе между разделами */
@@ -460,14 +484,12 @@
     .animate-page {
       animation: none;
     }
-    .petal-drift {
-      transition: none;
-    }
   }
   .petal-drift > i {
     position: absolute;
     display: block;
-    will-change: transform, opacity;
+    z-index: 1;
+    will-change: transform, translate, opacity;
     animation: petal-drift var(--pd-dur, 22s) linear var(--pd-delay, 0s) infinite;
   }
   @keyframes petal-drift {
@@ -497,12 +519,12 @@
       pointer-events: auto;
       cursor: grab;
     }
+    /* Дрейф ставится на паузу из JS (animation-play-state), сдвиг за курсором —
+       через свойство translate; здесь только курсор и порядок наложения, без
+       filter/opacity, чтобы соседние лепестки не перерисовывались. */
     .petal-drift.is-interactive > i.is-dragging {
       cursor: grabbing;
-      z-index: 2;
-      animation: none !important;
-      opacity: var(--pd-op, 0.5) !important;
-      filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.18));
+      z-index: 3;
     }
   }
 }

@@ -5,12 +5,16 @@ import { useEffect } from "react";
 /**
  * Лепестки можно перетаскивать мышью. Компонент не рисует разметку — он берёт
  * узлы `.petal-drift > i`, которые уже отрендерил <PetalDrift/>, и навешивает
- * pointer-события. Во время перетаскивания CSS-дрейф этого лепестка
- * останавливается и лепесток ведётся за курсором; при отпускании он плавно
- * гаснет и возвращается в дрейф снизу.
+ * pointer-события.
  *
- * Тач-устройства и prefers-reduced-motion не трогаем: там лепестки остаются
- * сквозными (pointer-events управляется классом `is-interactive`).
+ * Во время перетаскивания CSS-дрейф лепестка НЕ сбрасывается, а ставится на
+ * паузу (`animation-play-state: paused`), а сдвиг за курсором задаётся
+ * отдельным свойством `translate` (складывается с `transform` из keyframe).
+ * Так не нужен ни перезапуск анимации, ни принудительный reflow — поэтому
+ * остальные лепестки не дёргаются. На отпускании `translate` плавно
+ * возвращается к нулю, и дрейф продолжается ровно с того места, где замер.
+ *
+ * Тач-устройства и prefers-reduced-motion не трогаем.
  */
 export function PetalDrag() {
   useEffect(() => {
@@ -22,50 +26,53 @@ export function PetalDrag() {
 
     layer.classList.add("is-interactive");
 
-    let drag:
-      | { el: HTMLElement; grabX: number; grabY: number; css: string; pid: number }
-      | null = null;
+    let drag: { el: HTMLElement; startX: number; startY: number; pid: number } | null = null;
+
+    const settle = (el: HTMLElement) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.style.transition = "";
+        el.style.translate = "";
+        el.style.animationPlayState = "";
+        el.classList.remove("is-dragging");
+        el.removeEventListener("transitionend", finish);
+      };
+      el.addEventListener("transitionend", finish);
+      // подстраховка, если translate уже был нулевым и transitionend не придёт
+      window.setTimeout(finish, 520);
+      el.style.transition = "translate .45s cubic-bezier(.22, 1, .36, 1)";
+      el.style.translate = "0px 0px";
+    };
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0 || drag) return;
       const el = (e.target as HTMLElement | null)?.closest<HTMLElement>(".petal-drift > i");
       if (!el) return;
-      const r = el.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      drag = { el, grabX: e.clientX - cx, grabY: e.clientY - cy, css: el.style.cssText, pid: e.pointerId };
+      drag = { el, startX: e.clientX, startY: e.clientY, pid: e.pointerId };
       el.classList.add("is-dragging");
-      el.style.animation = "none";
-      el.style.left = `${cx}px`;
-      el.style.top = `${cy}px`;
-      el.style.transform = "translate(-50%, -50%)";
+      el.style.transition = "";
+      el.style.animationPlayState = "paused";
+      el.style.translate = "0px 0px";
       try {
         el.setPointerCapture(e.pointerId);
       } catch {
-        /* элемент мог быть заменён — не критично */
+        /* узел мог быть заменён — не критично */
       }
       e.preventDefault();
     };
 
     const onMove = (e: PointerEvent) => {
       if (!drag || e.pointerId !== drag.pid) return;
-      drag.el.style.left = `${e.clientX - drag.grabX}px`;
-      drag.el.style.top = `${e.clientY - drag.grabY}px`;
+      drag.el.style.translate = `${e.clientX - drag.startX}px ${e.clientY - drag.startY}px`;
     };
 
     const onUp = (e: PointerEvent) => {
       if (!drag || e.pointerId !== drag.pid) return;
-      const { el, css } = drag;
+      const { el } = drag;
       drag = null;
-      el.classList.remove("is-dragging");
-      el.style.transition = "opacity .5s ease";
-      el.style.opacity = "0";
-      window.setTimeout(() => {
-        el.style.cssText = css; // возвращаем исходные left%/top/переменные
-        el.style.animation = "none";
-        void el.offsetWidth; // reflow — чтобы keyframe стартовал заново
-        el.style.animation = "";
-      }, 520);
+      settle(el);
     };
 
     layer.addEventListener("pointerdown", onDown);

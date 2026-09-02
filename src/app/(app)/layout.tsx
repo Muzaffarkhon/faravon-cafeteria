@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { PetalDrift } from "@/components/petals";
-import { PetalParallax } from "@/components/petal-parallax";
 import { PetalDrag } from "@/components/petal-drag";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
@@ -107,7 +106,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       backdrop={
         <>
           <PetalDrift fixed />
-          <PetalParallax />
           <PetalDrag />
         </>
       }
