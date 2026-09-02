@@ -9,8 +9,10 @@ import {
   Badge,
   Card,
   EmptyState,
+  RowId,
   SectionTitle,
   Select,
+  Table,
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
@@ -105,87 +107,88 @@ export default async function CouponsPage({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="text-lg" count={coupons.length}>Реестр купонов</SectionTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <form method="get" className="flex flex-wrap items-center gap-2">
-              <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
-                <option value="">Все периоды</option>
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {PERIOD_STATUS_LABELS[p.status]}
-                  </option>
-                ))}
-              </Select>
-              <Select name="status" defaultValue={status ?? ""} className="w-auto py-1.5 text-sm">
-                <option value="">Все статусы</option>
-                {Object.entries(COUPON_STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </Select>
-              <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
-                <option value="">Все партнёры</option>
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-              <input
-                name="emp"
-                defaultValue={emp}
-                placeholder="ФИО сотрудника"
-                className="w-44 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
-              />
-              <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
-            </form>
+          <form method="get" className="flex flex-wrap items-center gap-2">
+            <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
+              <option value="">Все периоды</option>
+              {periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {PERIOD_STATUS_LABELS[p.status]}
+                </option>
+              ))}
+            </Select>
+            <Select name="status" defaultValue={status ?? ""} className="w-auto py-1.5 text-sm">
+              <option value="">Все статусы</option>
+              {Object.entries(COUPON_STATUS_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </Select>
+            <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
+              <option value="">Все партнёры</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            <input
+              name="emp"
+              defaultValue={emp}
+              placeholder="ФИО сотрудника"
+              className="w-40 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
+            />
+            <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
               Экспорт в XLSX
             </a>
-          </div>
+          </form>
         </div>
 
         {coupons.length === 0 ? (
           <EmptyState>Купонов по заданным условиям нет.</EmptyState>
         ) : (
-          <Card className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
+          <Card className="overflow-hidden">
+            <Table stickyHeader>
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 font-medium">Номер</th>
-                  <th className="px-4 py-2 font-medium">Сотрудник</th>
-                  <th className="px-4 py-2 font-medium">Льгота / партнёр</th>
-                  <th className="px-4 py-2 font-medium">Период</th>
-                  <th className="px-4 py-2 font-medium">Действует до</th>
-                  <th className="px-4 py-2 font-medium">Статус</th>
-                  <th className="px-4 py-2" />
+                  <th>Номер</th>
+                  <th>Сотрудник</th>
+                  <th>Льгота / партнёр</th>
+                  <th>Период</th>
+                  <th>Действует до</th>
+                  <th>Статус</th>
+                  <th className="text-right">Действия</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line-subtle">
+              <tbody>
                 {coupons.map((c) => (
-                  <tr key={c.id} className="transition-colors hover:bg-surface-muted/60">
-                    <td className="px-4 py-2.5 font-mono text-sm" data-numeric>{c.number}</td>
-                    <td className="px-4 py-2.5 text-ink">{c.employee.fullName}</td>
-                    <td className="px-4 py-2.5 text-ink">
+                  <tr key={c.id}>
+                    <td data-numeric>
+                      <div className="font-mono text-sm text-ink">{c.number}</div>
+                      <RowId id={c.id} className="mt-0.5" />
+                    </td>
+                    <td className="text-ink">{c.employee.fullName}</td>
+                    <td className="text-ink">
                       {c.item.card.title}
                       <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-ink-muted">{c.period.name}</td>
-                    <td className="px-4 py-2.5 text-ink-muted" data-numeric>
+                    <td>{c.period.name}</td>
+                    <td data-numeric>
                       {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
                     </td>
-                    <td className="px-4 py-2">
+                    <td>
                       <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
                         {COUPON_STATUS_LABELS[c.status]}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="text-right">
                       {c.status === "CREATED" && <IssueCouponButton couponId={c.id} />}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           </Card>
         )}
       </section>

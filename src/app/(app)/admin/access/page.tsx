@@ -8,7 +8,7 @@ import {
   ROLE_LABELS,
   can,
 } from "@/lib/rbac";
-import { Badge, Card, PageHeader, SectionTitle } from "@/components/ui";
+import { Badge, Card, PageHeader, RowId, SectionTitle, Table } from "@/components/ui";
 import { ALL_ROLES } from "../users/roles";
 import { AccessRowActions } from "./_row-actions";
 
@@ -86,28 +86,32 @@ export default async function AccessPage() {
       </section>
 
       <SectionTitle className="text-lg">Идентификация сотрудников</SectionTitle>
-      <Card className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
+      <Card className="overflow-hidden">
+        <Table stickyHeader>
+          <thead>
             <tr>
-              <th className="px-4 py-2 font-medium">Сотрудник</th>
-              <th className="px-4 py-2 font-medium">Подразделение</th>
-              <th className="px-4 py-2 font-medium">Телефон</th>
-              <th className="px-4 py-2 font-medium">Telegram</th>
-              <th className="px-4 py-2 font-medium">Вход</th>
-              <th className="px-4 py-2" />
+              <th>ID</th>
+              <th>Сотрудник</th>
+              <th>Подразделение</th>
+              <th>Телефон</th>
+              <th>Telegram</th>
+              <th>Вход</th>
+              <th className="text-right">Действия</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line-subtle">
+          <tbody>
             {employees.map((e) => {
               const code = codeByEmp.get(e.id);
               const loggedIn = !!e.user?.lastLoginAt;
               return (
-                <tr key={e.id} className="transition-colors hover:bg-surface-muted/60">
-                  <td className="px-4 py-2 font-medium text-ink">{e.fullName}</td>
-                  <td className="px-4 py-2 text-ink-muted">{e.department}</td>
-                  <td className="px-4 py-2 text-ink-muted">{e.phone ?? "—"}</td>
-                  <td className="px-4 py-2">
+                <tr key={e.id}>
+                  <td>
+                    <RowId id={e.id} />
+                  </td>
+                  <td className="font-medium text-ink">{e.fullName}</td>
+                  <td>{e.department}</td>
+                  <td>{e.phone ?? "—"}</td>
+                  <td>
                     {e.telegramId ? (
                       <Badge tone="success">привязан</Badge>
                     ) : (
@@ -119,21 +123,21 @@ export default async function AccessPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-xs text-ink-muted">
+                  <td className="text-xs text-ink-muted">
                     {loggedIn
                       ? e.user?.mustChangePassword
                         ? "ожидает смены пароля"
                         : `входил ${fmt(e.user!.lastLoginAt!)}`
                       : "не входил"}
                   </td>
-                  <td className="px-4 py-2">
+                  <td>
                     <AccessRowActions employeeId={e.id} linked={!!e.telegramId} />
                   </td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </Table>
       </Card>
     </div>
   );

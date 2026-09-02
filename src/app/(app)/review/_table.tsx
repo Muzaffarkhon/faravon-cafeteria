@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Badge, Button, Textarea } from "@/components/ui";
+import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 
 export type ReviewRow = {
@@ -126,11 +126,11 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
+      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+        <Table stickyHeader>
+          <thead>
             <tr>
-              <th className="w-8 px-3 py-2">
+              <th className="w-8">
                 <input
                   type="checkbox"
                   checked={allChecked}
@@ -139,17 +139,18 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                   className="h-4 w-4 accent-[var(--primary)]"
                 />
               </th>
-              <th className="px-3 py-2 font-medium">Сотрудник</th>
-              <th className="px-3 py-2 font-medium">Льгота / партнёр</th>
-              <th className="px-3 py-2 font-medium">Период</th>
-              <th className="px-3 py-2 font-medium">Подана</th>
-              <th className="px-3 py-2" />
+              <th>ID</th>
+              <th>Сотрудник</th>
+              <th>Льгота / партнёр</th>
+              <th>Период</th>
+              <th>Подана</th>
+              <th className="text-right">Действия</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line-subtle">
+          <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="align-top transition-colors hover:bg-surface-muted/50">
-                <td className="px-3 py-2.5">
+              <tr key={r.id} className="align-top">
+                <td>
                   <input
                     type="checkbox"
                     checked={sel.has(r.id)}
@@ -158,11 +159,14 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                     className="h-4 w-4 accent-[var(--primary)]"
                   />
                 </td>
-                <td className="px-3 py-2.5">
+                <td>
+                  <RowId id={r.id} />
+                </td>
+                <td>
                   <div className="font-medium text-ink">{r.employee}</div>
                   <div className="text-xs text-ink-subtle">{r.department}</div>
                 </td>
-                <td className="px-3 py-2.5">
+                <td>
                   <div className="text-ink">{r.card}</div>
                   <div className="text-xs text-ink-subtle">
                     {r.partner ?? "—"}
@@ -204,8 +208,8 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                     </p>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-ink-muted">{r.period}</td>
-                <td className="px-3 py-2.5 text-ink-muted">
+                <td className="text-ink-muted">{r.period}</td>
+                <td className="text-ink-muted">
                   {fmtDate(r.submittedAt)}
                   {r.overdue && (
                     <Badge tone="warning" className="ml-2">
@@ -213,7 +217,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                     </Badge>
                   )}
                 </td>
-                <td className="px-3 py-2.5">
+                <td>
                   {rejectingId !== r.id && (
                     <div className="flex justify-end gap-2">
                       <Button
@@ -241,7 +245,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       </div>
     </div>
   );

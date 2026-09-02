@@ -116,13 +116,16 @@ export function Button({
 const CONTROL_BASE =
   // text-base на мобильных (≥16px) — иначе iOS Safari зумит страницу при фокусе;
   // на sm+ возвращаем компактный 14px.
-  "control-focus w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
+  "control-focus rounded-md border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
   "shadow-xs outline-none transition-[border-color,box-shadow] duration-150 " +
   "placeholder:text-ink-subtle " +
   "disabled:bg-surface-muted disabled:text-ink-muted aria-[invalid=true]:border-danger";
 
+/** true, если в className уже задана ширина — тогда свой `w-full` не навязываем. */
+const hasWidthClass = (c?: string) => /(?:^|\s)(?:w-|min-w-|max-w-)\S/.test(c ?? "");
+
 export function inputClass(className?: string): string {
-  return cx(CONTROL_BASE, className);
+  return cx(CONTROL_BASE, !hasWidthClass(className) && "w-full", className);
 }
 
 export function Input({

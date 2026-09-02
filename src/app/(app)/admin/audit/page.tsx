@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { Card, EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
+import { Card, EmptyState, Input, PageHeader, Select, Table, buttonClass } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -114,39 +114,39 @@ export default async function AuditPage({
       {rows.length === 0 ? (
         <EmptyState>Записей нет.</EmptyState>
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
+        <Card className="overflow-hidden">
+          <Table stickyHeader>
+            <thead>
               <tr>
-                <th className="px-4 py-2 font-medium">Время</th>
-                <th className="px-4 py-2 font-medium">Кто</th>
-                <th className="px-4 py-2 font-medium">Действие</th>
-                <th className="px-4 py-2 font-medium">Объект</th>
-                <th className="px-4 py-2 font-medium">Изменение</th>
+                <th>Время</th>
+                <th>Кто</th>
+                <th>Действие</th>
+                <th>Объект</th>
+                <th>Изменение</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-subtle">
+            <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="align-top transition-colors hover:bg-surface-muted/60">
-                  <td className="whitespace-nowrap px-4 py-2 text-ink-muted" data-numeric>
+                <tr key={r.id} className="align-top">
+                  <td className="whitespace-nowrap text-ink-muted" data-numeric>
                     {r.createdAt.toLocaleString("ru-RU")}
                   </td>
-                  <td className="px-4 py-2 text-ink">{r.actor?.login ?? "—"}</td>
-                  <td className="px-4 py-2 text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>
-                  <td className="px-4 py-2 text-ink-muted">
+                  <td className="text-ink">{r.actor?.login ?? "—"}</td>
+                  <td className="text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>
+                  <td className="text-ink-muted">
                     {ENTITY_LABELS[r.entityType] ?? r.entityType}
                     {r.entityId && (
                       <div className="font-mono text-[10px] text-ink-subtle">{r.entityId}</div>
                     )}
                   </td>
-                  <td className="px-4 py-2 font-mono text-[11px] text-ink-subtle">
+                  <td className="font-mono text-[11px] text-ink-subtle">
                     {r.oldValue != null && <div>− {short(r.oldValue)}</div>}
                     {r.newValue != null && <div>+ {short(r.newValue)}</div>}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </Card>
       )}
     </div>
