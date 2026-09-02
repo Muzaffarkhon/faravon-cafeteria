@@ -60,11 +60,10 @@ export default async function EditUserPage({
         }
       />
 
-      <details open className="group rounded-2xl border border-line bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+      <section className="rounded-2xl border border-line bg-surface">
+        <div className="p-5">
           <SectionTitle>Данные сотрудника</SectionTitle>
-          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-        </summary>
+        </div>
         <div className="border-t border-line-subtle p-5">
           <EmployeeForm
             action={updateEmployee.bind(null, id)}
@@ -78,13 +77,12 @@ export default async function EditUserPage({
             submitLabel="Сохранить"
           />
         </div>
-      </details>
+      </section>
 
-      <details open className="group rounded-2xl border border-line bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+      <section className="rounded-2xl border border-line bg-surface">
+        <div className="p-5">
           <SectionTitle>Учётная запись и роли</SectionTitle>
-          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-        </summary>
+        </div>
         <div className="border-t border-line-subtle p-5">
           <AccountPanel
             employeeId={id}
@@ -100,13 +98,12 @@ export default async function EditUserPage({
             }
           />
         </div>
-      </details>
+      </section>
 
-      <details className="group rounded-2xl border border-line bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+      <section className="rounded-2xl border border-line bg-surface">
+        <div className="p-5">
           <SectionTitle>Приём / увольнение</SectionTitle>
-          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-        </summary>
+        </div>
         <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.isActive
@@ -119,13 +116,12 @@ export default async function EditUserPage({
           </p>
           <EmployeeActiveToggle employeeId={id} isActive={employee.isActive} />
         </div>
-      </details>
+      </section>
 
-      <details className="group rounded-2xl border border-line bg-surface">
-        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+      <section className="rounded-2xl border border-line bg-surface">
+        <div className="p-5">
           <SectionTitle>Архив</SectionTitle>
-          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-        </summary>
+        </div>
         <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.archivedAt
@@ -134,7 +130,7 @@ export default async function EditUserPage({
           </p>
           <EmployeeArchiveButton id={id} archived={!!employee.archivedAt} size="md" />
         </div>
-      </details>
+      </section>
     </div>
   );
 }
