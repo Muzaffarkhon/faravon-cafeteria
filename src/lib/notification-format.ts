@@ -18,6 +18,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
   SLA_ESCALATION: "Просроченная заявка на согласовании",
+  COUPON_CONFIRMED_BY_PROVIDER: "Купон погашен у партнёра",
 };
 
 /** Порядок событий в админке. */
@@ -28,6 +29,7 @@ export const NOTIFICATION_EVENTS = [
   "COUPON_CREATED",
   "COUPON_ISSUED",
   "SLA_ESCALATION",
+  "COUPON_CONFIRMED_BY_PROVIDER",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -60,6 +62,10 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
     body: "Заявка {employee}[[, {department}]] по льготе «{card}» ждёт решения больше {hours} ч (уровень {level}). Откройте раздел «Согласование».",
   },
+  COUPON_CONFIRMED_BY_PROVIDER: {
+    label: NOTIFICATION_LABELS.COUPON_CONFIRMED_BY_PROVIDER,
+    body: "Купон[[ № {number}]] по льготе «{card}» погашен у партнёра.",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -82,6 +88,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     hours: "72",
     level: "1",
   },
+  COUPON_CONFIRMED_BY_PROVIDER: { card: "Ковры «Кайраккум»", number: "FRV-202609-A1B2C3" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -92,6 +99,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   COUPON_CREATED: ["card", "number"],
   COUPON_ISSUED: ["card", "number"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
+  COUPON_CONFIRMED_BY_PROVIDER: ["card", "number"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

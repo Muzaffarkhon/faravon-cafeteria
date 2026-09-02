@@ -1,31 +1,28 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
-import { assertCan } from "@/lib/rbac";
-import { audit } from "@/lib/audit";
-import { notifyEmployee } from "@/lib/notify";
+import { apiGuard } from "@/lib/api-guard";
+import { redeemCouponByNumber } from "@/lib/coupon";
 
+export const runtime = "nodejs";
+
+/** Гашение купона подрядчиком по номеру. Право: coupons.confirm (роль CONTRACTOR). */
 export async function POST(req: Request) {
+  const g = await apiGuard("coupons.confirm");
+  if (g.response) return g.response;
+
   try {
-    const s = await requireSession();
-    assertCan(s.roles, "coupons.confirm");
-    const { number } = await req.json();
-    if (!number) return NextResponse.json({ error: "missing number" }, { status: 400 });
+    const body = (await req.json().catch(() => null)) as { number?: string } | null;
+    const number = body?.number?.trim();
+    if (!number) return NextResponse.json({ error: "Укажите номер купона." }, { status: 400 });
 
-    const coupon = await db.coupon.findUnique({ where: { number }, include: { item: true } });
-    if (!coupon) return NextResponse.json({ error: "coupon not found" }, { status: 404 });
-    if (coupon.status !== "ISSUED") return NextResponse.json({ error: "coupon not in ISSUED state" }, { status: 409 });
-
-    await db.$transaction([
-      db.coupon.update({ where: { id: coupon.id }, data: { status: "USED", updatedAt: new Date() } }),
-      db.applicationItem.update({ where: { id: coupon.itemId }, data: { status: "COUPON_ISSUED" } }),
-    ]);
-
-    await audit({ actorId: s.user.id, action: "COUPON_CONFIRMED_BY_PROVIDER", entityType: "Coupon", entityId: coupon.id, newValue: { number } });
-    await notifyEmployee({ employeeId: coupon.employeeId, event: "COUPON_CONFIRMED_BY_PROVIDER", payload: { number } });
-
-    return NextResponse.json({ ok: true });
-  } catch (e: unknown) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+    const coupon = await redeemCouponByNumber(number, g.session.user.id);
+    return NextResponse.json({ ok: true, number: coupon.number });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Ошибка";
+    const known =
+      msg.includes("не найден") || msg.includes("погасить") || msg.includes("погашен");
+    if (!known) console.error("[provider/confirm]", e);
+    return NextResponse.json({ error: known ? msg : "Не удалось погасить купон." }, {
+      status: known ? 409 : 500,
+    });
   }
 }

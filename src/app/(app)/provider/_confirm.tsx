@@ -1,0 +1,143 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { lookupCoupon, redeemCoupon, type CouponView } from "./actions";
+
+type Phase = "idle" | "found" | "done";
+
+export function ProviderConfirm() {
+  const [number, setNumber] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [coupon, setCoupon] = useState<CouponView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function onLookup(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    start(async () => {
+      const r = await lookupCoupon(number);
+      if (r.error) {
+        setError(r.error);
+        setCoupon(null);
+        setPhase("idle");
+      } else {
+        setCoupon(r.coupon ?? null);
+        setPhase("found");
+      }
+    });
+  }
+
+  function onRedeem() {
+    if (!coupon) return;
+    setError(null);
+    start(async () => {
+      const r = await redeemCoupon(coupon.number);
+      if (r.error) setError(r.error);
+      else setPhase("done");
+    });
+  }
+
+  function reset() {
+    setNumber("");
+    setCoupon(null);
+    setError(null);
+    setPhase("idle");
+  }
+
+  return (
+    <div className="max-w-lg space-y-4">
+      <form onSubmit={onLookup}>
+        <Field
+          label="Номер купона"
+          htmlFor="coupon-number"
+          hint="С купона сотрудника, формат FRV-YYYYMM-XXXXXX."
+        >
+          <div className="flex gap-2">
+            <Input
+              id="coupon-number"
+              value={number}
+              onChange={(e) => setNumber(e.target.value.toUpperCase())}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder="FRV-202609-A1B2C3"
+              className="font-mono"
+            />
+            <Button type="submit" loading={pending && phase === "idle"} className="shrink-0">
+              Найти
+            </Button>
+          </div>
+        </Field>
+      </form>
+
+      {error && (
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
+          {error}
+        </p>
+      )}
+
+      {coupon && phase !== "idle" && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-sm font-semibold text-ink" data-numeric>
+              {coupon.number}
+            </span>
+            <Badge tone={coupon.status === "USED" ? "neutral" : coupon.redeemable ? "success" : "warning"}>
+              {phase === "done" ? "Погашен" : coupon.statusLabel}
+            </Badge>
+          </div>
+
+          <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
+            <dt className="text-ink-muted">Сотрудник</dt>
+            <dd className="font-medium text-ink">{coupon.employee}</dd>
+            <dt className="text-ink-muted">Льгота</dt>
+            <dd className="font-medium text-ink">{coupon.card}</dd>
+            <dt className="text-ink-muted">Партнёр</dt>
+            <dd className="font-medium text-ink">{coupon.partner ?? "—"}</dd>
+            <dt className="text-ink-muted">Период</dt>
+            <dd className="font-medium text-ink">{coupon.period}</dd>
+            {coupon.validUntil && (
+              <>
+                <dt className="text-ink-muted">Действует до</dt>
+                <dd className="font-medium text-ink" data-numeric>{coupon.validUntil}</dd>
+              </>
+            )}
+          </dl>
+
+          <div className="mt-5 flex items-center gap-3">
+            {phase === "done" ? (
+              <>
+                <p className="text-sm font-medium text-success-strong" role="status">
+                  Купон погашен. Сотрудник получит уведомление.
+                </p>
+                <Button variant="ghost" size="sm" onClick={reset}>
+                  Следующий
+                </Button>
+              </>
+            ) : coupon.redeemable ? (
+              <>
+                <Button onClick={onRedeem} loading={pending}>
+                  Погасить купон
+                </Button>
+                <Button variant="ghost" onClick={reset} disabled={pending}>
+                  Отмена
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink-muted">
+                  Купон в статусе «{coupon.statusLabel}» — погасить нельзя.
+                </p>
+                <Button variant="ghost" size="sm" onClick={reset}>
+                  Другой купон
+                </Button>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
