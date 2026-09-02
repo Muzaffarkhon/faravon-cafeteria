@@ -293,20 +293,49 @@ export default async function OverviewPage() {
         <aside className="space-y-5">
           <Card className="p-5">
             <div className="text-sm font-semibold text-ink">Быстрые действия</div>
-            <div className="mt-4 flex flex-col gap-2.5">
-              <Link
-                href="/applications"
-                className={buttonClass({ variant: "primary", fullWidth: true })}
-              >
-                Мои заявки и купоны
-              </Link>
-              <Link
-                href="/profile"
-                className={buttonClass({ variant: "secondary", fullWidth: true })}
-              >
-                Профиль и безопасность
-              </Link>
-            </div>
+            <Link
+              href="/applications"
+              className={buttonClass({ variant: "primary", fullWidth: true, className: "mt-4" })}
+            >
+              Мои заявки и купоны
+            </Link>
+
+            <nav className="mt-5 border-t border-line-subtle pt-4">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+                Навигация
+              </div>
+              <ul className="-mx-2 flex flex-col">
+                {[
+                  {
+                    href: "/",
+                    label: "Обзор",
+                    icon: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z",
+                  },
+                  {
+                    href: "/applications",
+                    label: "Мои заявки и купоны",
+                    icon: "M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 3h6v4H9zM9 12h6M9 16h4",
+                  },
+                  {
+                    href: "/profile",
+                    label: "Профиль",
+                    icon: "M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+                  },
+                ].map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d={l.icon} />
+                      </svg>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </Card>
 
           {notice && (
