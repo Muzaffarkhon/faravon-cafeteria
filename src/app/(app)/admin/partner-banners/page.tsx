@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Button, Input, Table, Field } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Table } from "@/components/ui";
 
 type Banner = {
   id: string;
@@ -15,74 +15,141 @@ type Banner = {
 };
 
 export default function Page() {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [banners, setBanners] = useState<Banner[] | null>(null);
   const [form, setForm] = useState<Partial<Banner>>({ isActive: true });
+  const [saving, setSaving] = useState(false);
+  const editing = !!form.id;
 
   useEffect(() => {
-    fetch("/api/partner-banner").then((r) => r.json()).then(setBanners);
+    fetch("/api/partner-banner")
+      .then((r) => r.json())
+      .then(setBanners)
+      .catch(() => setBanners([]));
   }, []);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     const method = form.id ? "PUT" : "POST";
-    const res = await fetch("/api/partner-banner", { method, body: JSON.stringify(form), headers: { "content-type": "application/json" } });
-    const data = await res.json();
-    setForm({ isActive: true });
-    setBanners((s) => {
-      if (method === "POST") return [data, ...s];
-      return s.map((b) => (b.id === data.id ? data : b));
-    });
-  }
-
-  async function edit(b: Banner) {
-    setForm({ ...b });
+    try {
+      const res = await fetch("/api/partner-banner", {
+        method,
+        body: JSON.stringify(form),
+        headers: { "content-type": "application/json" },
+      });
+      const data = await res.json();
+      setForm({ isActive: true });
+      setBanners((s) => {
+        const list = s ?? [];
+        return method === "POST" ? [data, ...list] : list.map((b) => (b.id === data.id ? data : b));
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function remove(id: string) {
-    await fetch("/api/partner-banner", { method: "DELETE", body: JSON.stringify({ id }), headers: { "content-type": "application/json" } });
-    setBanners((s) => s.filter((b) => b.id !== id));
+    if (!confirm("Удалить баннер?")) return;
+    await fetch("/api/partner-banner", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+      headers: { "content-type": "application/json" },
+    });
+    setBanners((s) => (s ?? []).filter((b) => b.id !== id));
   }
 
-  return (
-    <div>
-      <h1>Partner Banners</h1>
-      <form onSubmit={save} style={{ marginBottom: 20 }}>
-        <Field label="Title">
-          <Input placeholder="title" value={form.title ?? ""} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
-        </Field>
-        <Field label="Partner ID">
-          <Input placeholder="partnerId" value={form.partnerId ?? ""} onChange={(e) => setForm((f) => ({ ...f, partnerId: e.target.value }))} />
-        </Field>
-        <Field label="Image URL">
-          <Input placeholder="imageUrl" value={form.imageUrl ?? ""} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} />
-        </Field>
-        <Field label="Href">
-          <Input placeholder="href" value={form.href ?? ""} onChange={(e) => setForm((f) => ({ ...f, href: e.target.value }))} />
-        </Field>
-        <Field label="Active">
-          <input type="checkbox" checked={!!form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} />
-        </Field>
-        <Button type="submit">Save</Button>
-      </form>
+  const set =
+    (k: "title" | "partnerId" | "imageUrl" | "href" | "subtitle") =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
 
-      <Table>
-        <thead>
-          <tr><th>Title</th><th>Partner</th><th>Active</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          {banners.map((b) => (
-            <tr key={b.id}>
-              <td>{b.title}</td>
-              <td>{b.partnerId}</td>
-              <td>{b.isActive ? "Yes" : "No"}</td>
-              <td>
-                <Button onClick={() => edit(b)} style={{ marginRight: 6 }}>Edit</Button>
-                <Button onClick={() => remove(b.id)}>Delete</Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Баннеры партнёров"
+        description="Промо-блоки, которые видит сотрудник в обзоре личного кабинета."
+      />
+
+      <Card className="p-5">
+        <div className="text-sm font-semibold text-ink">
+          {editing ? "Редактирование баннера" : "Новый баннер"}
+        </div>
+        <form onSubmit={save} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Заголовок" htmlFor="b-title" required>
+            <Input id="b-title" value={form.title ?? ""} onChange={set("title")} required />
+          </Field>
+          <Field label="ID партнёра" htmlFor="b-partner">
+            <Input id="b-partner" value={form.partnerId ?? ""} onChange={set("partnerId")} autoComplete="off" />
+          </Field>
+          <Field label="URL изображения" htmlFor="b-img">
+            <Input id="b-img" inputMode="url" value={form.imageUrl ?? ""} onChange={set("imageUrl")} />
+          </Field>
+          <Field label="Ссылка" htmlFor="b-href">
+            <Input id="b-href" inputMode="url" value={form.href ?? ""} onChange={set("href")} />
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={!!form.isActive}
+              onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+              className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
+            />
+            Активен
+          </label>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <Button type="submit" loading={saving}>
+              {editing ? "Сохранить" : "Добавить"}
+            </Button>
+            {editing && (
+              <Button type="button" variant="ghost" onClick={() => setForm({ isActive: true })}>
+                Отмена
+              </Button>
+            )}
+          </div>
+        </form>
+      </Card>
+
+      {banners === null ? (
+        <Card className="p-6 text-sm text-ink-muted">Загрузка…</Card>
+      ) : banners.length === 0 ? (
+        <EmptyState>Баннеров пока нет.</EmptyState>
+      ) : (
+        <Card>
+          <Table>
+            <thead>
+              <tr>
+                <th>Заголовок</th>
+                <th>Партнёр</th>
+                <th>Статус</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {banners.map((b) => (
+                <tr key={b.id}>
+                  <td className="font-medium text-ink">{b.title}</td>
+                  <td className="text-ink-muted">{b.partnerId ?? "—"}</td>
+                  <td>
+                    <Badge tone={b.isActive ? "success" : "neutral"}>
+                      {b.isActive ? "Активен" : "Выключен"}
+                    </Badge>
+                  </td>
+                  <td>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => setForm({ ...b })}>
+                        Изменить
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => remove(b.id)}>
+                        Удалить
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

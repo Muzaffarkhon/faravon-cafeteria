@@ -11,7 +11,7 @@ export default async function NewPartnerPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold text-ink">Новый партнёр</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">Новый партнёр</h1>
       <PartnerForm action={createPartner} submitLabel="Создать" />
     </div>
   );

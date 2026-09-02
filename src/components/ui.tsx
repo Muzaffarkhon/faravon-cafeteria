@@ -300,9 +300,9 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold text-ink">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">{title}</h1>
         {description && (
-          <p className="mt-1 text-sm text-ink-muted">{description}</p>
+          <p className="mt-1.5 text-sm text-ink-muted">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

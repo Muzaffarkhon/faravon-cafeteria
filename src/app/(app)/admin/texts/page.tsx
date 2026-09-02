@@ -18,7 +18,7 @@ export default async function TextsPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold text-ink">Текстовые блоки</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">Текстовые блоки</h1>
       <div className="space-y-4">
         {blocks.map((b) => (
           <div key={b.key}>
