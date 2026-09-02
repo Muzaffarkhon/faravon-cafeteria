@@ -191,16 +191,22 @@ async function main() {
   }
 
   const employees = [
-    { tab: "0001", login: "ivanov", fullName: "Иванов Иван Иванович", position: "Менеджер по продажам", department: "Коммерческий отдел", phone: "+992 900 111 001" },
-    { tab: "0002", login: "petrova", fullName: "Петрова Мария Сергеевна", position: "Бухгалтер", department: "Финансовый отдел", phone: "+992 900 111 002" },
-    { tab: "0003", login: "sidorov", fullName: "Сидоров Пётр Алексеевич", position: "Инженер", department: "Производство", phone: "+992 900 111 003" },
+    { login: "ivanov", fullName: "Иванов Иван Иванович", position: "Менеджер по продажам", department: "Коммерческий отдел", phone: "+992 900 111 001" },
+    { login: "petrova", fullName: "Петрова Мария Сергеевна", position: "Бухгалтер", department: "Финансовый отдел", phone: "+992 900 111 002" },
+    { login: "sidorov", fullName: "Сидоров Пётр Алексеевич", position: "Инженер", department: "Производство", phone: "+992 900 111 003" },
   ];
   for (const e of employees) {
-    const emp = await db.employee.upsert({
-      where: { tabNumber: e.tab },
-      update: { phone: e.phone },
-      create: { tabNumber: e.tab, fullName: e.fullName, position: e.position, department: e.department, phone: e.phone },
-    });
+    const existing = await db.employee.findFirst({ where: { fullName: e.fullName } });
+    const emp = existing
+      ? await db.employee.update({ where: { id: existing.id }, data: { phone: e.phone } })
+      : await db.employee.create({
+          data: {
+            fullName: e.fullName,
+            position: e.position,
+            department: e.department,
+            phone: e.phone,
+          },
+        });
     await db.user.upsert({
       where: { login: e.login },
       update: { employeeId: emp.id },

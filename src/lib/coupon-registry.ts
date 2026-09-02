@@ -6,7 +6,7 @@ export type CouponFilters = {
   periodId?: string;
   status?: CouponStatus;
   partnerId?: string;
-  employeeQuery?: string; // ФИО или табельный номер
+  employeeQuery?: string; // ФИО
 };
 
 const STATUSES: CouponStatus[] = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"];
@@ -20,14 +20,7 @@ export async function listCouponRegistry(f: CouponFilters) {
       ...(f.status ? { status: f.status } : {}),
       ...(f.partnerId ? { partnerId: f.partnerId } : {}),
       ...(q
-        ? {
-            employee: {
-              OR: [
-                { fullName: { contains: q, mode: "insensitive" } },
-                { tabNumber: { contains: q, mode: "insensitive" } },
-              ],
-            },
-          }
+        ? { employee: { fullName: { contains: q, mode: "insensitive" } } }
         : {}),
     },
     include: {

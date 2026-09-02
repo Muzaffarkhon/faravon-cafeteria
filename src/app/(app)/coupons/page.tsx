@@ -134,7 +134,7 @@ export default async function CouponsPage({
               <input
                 name="emp"
                 defaultValue={emp}
-                placeholder="Сотрудник / таб. №"
+                placeholder="ФИО сотрудника"
                 className="w-44 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
               />
               <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>

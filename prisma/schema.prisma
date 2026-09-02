@@ -67,7 +67,6 @@ enum EmploymentStatus {
 
 model Employee {
   id           String           @id @default(cuid())
-  tabNumber    String           @unique
   fullName     String
   position     String
   department   String
@@ -76,12 +75,15 @@ model Employee {
   status       EmploymentStatus @default(ACTIVE)
   terminatedAt DateTime?
   isActive     Boolean          @default(true)
+  archivedAt   DateTime?        // сотрудник в архиве — скрыт из основного списка, но история сохранена
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   user         User?
   applications Application[]
   coupons      Coupon[]
+
+  @@index([archivedAt])
 }
 
 model User {

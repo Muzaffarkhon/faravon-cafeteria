@@ -8,6 +8,7 @@ import { Badge, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 import { updateEmployee } from "../actions";
 import { EmployeeForm } from "../_form";
 import { AccountPanel, EmployeeActiveToggle } from "../_account";
+import { EmployeeArchiveButton } from "../_archive-button";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,12 @@ export default async function EditUserPage({
         description={`${employee.position} · ${employee.department}`}
         action={
           <div className="flex items-center gap-3">
-            {!employee.isActive && (
-              <Badge tone="muted">{EMPLOYMENT_STATUS_LABELS[employee.status]}</Badge>
+            {employee.archivedAt ? (
+              <Badge tone="muted">в архиве</Badge>
+            ) : (
+              !employee.isActive && (
+                <Badge tone="muted">{EMPLOYMENT_STATUS_LABELS[employee.status]}</Badge>
+              )
             )}
             <Link href="/admin/users" className={buttonClass({ variant: "secondary", size: "sm" })}>
               К списку
@@ -64,7 +69,6 @@ export default async function EditUserPage({
           <EmployeeForm
             action={updateEmployee.bind(null, id)}
             initial={{
-              tabNumber: employee.tabNumber,
               fullName: employee.fullName,
               position: employee.position,
               department: employee.department,
@@ -114,6 +118,21 @@ export default async function EditUserPage({
                 }.`}
           </p>
           <EmployeeActiveToggle employeeId={id} isActive={employee.isActive} />
+        </div>
+      </details>
+
+      <details className="group rounded-2xl border border-line bg-surface">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-5 [&::-webkit-details-marker]:hidden">
+          <SectionTitle>Архив</SectionTitle>
+          <svg className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="space-y-3 border-t border-line-subtle p-5">
+          <p className="text-sm text-ink-muted">
+            {employee.archivedAt
+              ? `В архиве с ${employee.archivedAt.toLocaleDateString("ru-RU")}. Запись скрыта из основного списка; вход закрыт. Восстановление вернёт её в список — вход включите отдельно.`
+              : "Архивирование убирает сотрудника из основного списка (история и заявки сохраняются) и закрывает вход. Подходит для давних записей, которые не нужно держать на виду."}
+          </p>
+          <EmployeeArchiveButton id={id} archived={!!employee.archivedAt} size="md" />
         </div>
       </details>
     </div>

@@ -38,7 +38,6 @@ export type EmployeeFormState = {
 };
 
 type EmployeeInput = {
-  tabNumber: string;
   fullName: string;
   position: string;
   department: string;
@@ -47,11 +46,9 @@ type EmployeeInput = {
 };
 
 function parseEmployee(formData: FormData): EmployeeInput {
-  const tabNumber = String(formData.get("tabNumber") ?? "").trim();
   const fullName = String(formData.get("fullName") ?? "").trim();
   const position = String(formData.get("position") ?? "").trim();
   const department = String(formData.get("department") ?? "").trim();
-  if (!tabNumber) throw new Error("Укажите табельный номер.");
   if (!fullName) throw new Error("Укажите ФИО.");
   // Буквы кириллицы (вкл. таджикские ғ ӣ қ ӯ ҳ ҷ), латиницы, пробел, дефис, апостроф, точка.
   if (!/^[A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ][A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ .'-]{1,}$/.test(fullName)) {
@@ -60,7 +57,6 @@ function parseEmployee(formData: FormData): EmployeeInput {
   if (!position) throw new Error("Укажите должность.");
   if (!department) throw new Error("Укажите подразделение.");
   return {
-    tabNumber,
     fullName,
     position,
     department,
@@ -83,9 +79,6 @@ export async function createEmployee(
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
 
-  const dup = await db.employee.findUnique({ where: { tabNumber: data.tabNumber } });
-  if (dup) return { error: `Табельный номер ${data.tabNumber} уже занят.` };
-
   const wantAccount = formData.get("createAccount") === "on";
   const login = normLogin(formData.get("login"));
   const roles = parseRoles(formData);
@@ -105,7 +98,7 @@ export async function createEmployee(
     action: "EMPLOYEE_CREATED",
     entityType: "Employee",
     entityId: employee.id,
-    newValue: { tabNumber: employee.tabNumber, fullName: employee.fullName },
+    newValue: { fullName: employee.fullName, position: employee.position },
   });
 
   let otp: string | undefined;
@@ -151,11 +144,6 @@ export async function updateEmployee(
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
 
-  if (data.tabNumber !== before.tabNumber) {
-    const dup = await db.employee.findUnique({ where: { tabNumber: data.tabNumber } });
-    if (dup) return { error: `Табельный номер ${data.tabNumber} уже занят.` };
-  }
-
   await db.employee.update({ where: { id }, data });
   await audit({
     actorId: s.user.id,
@@ -163,7 +151,6 @@ export async function updateEmployee(
     entityType: "Employee",
     entityId: id,
     oldValue: {
-      tabNumber: before.tabNumber,
       fullName: before.fullName,
       position: before.position,
       department: before.department,
@@ -396,6 +383,8 @@ export async function setEmployeeActive(
       isActive: active,
       status: active ? "ACTIVE" : "TERMINATED",
       terminatedAt: active ? null : new Date(),
+      // уволенный уходит в архив, возвращённый — обратно в активный список
+      archivedAt: active ? null : new Date(),
     },
   });
   if (emp.user) {
@@ -407,6 +396,42 @@ export async function setEmployeeActive(
     entityType: "Employee",
     entityId: employeeId,
     newValue: { isActive: active },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${employeeId}`);
+  revalidatePath("/admin/access");
+  return { ok: true };
+}
+
+/** Архив: убрать сотрудника из основного списка (или вернуть). История сохраняется. */
+export async function setEmployeeArchived(
+  employeeId: string,
+  archived: boolean,
+): Promise<AccountResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const emp = await db.employee.findUnique({ where: { id: employeeId }, include: { user: true } });
+  if (!emp) return { error: "Сотрудник не найден." };
+  if (emp.user && emp.user.id === s.user.id) {
+    return { error: "Нельзя архивировать собственную запись." };
+  }
+
+  await db.employee.update({
+    where: { id: employeeId },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+  // Архивной записи вход не нужен; при восстановлении вход включает администратор отдельно.
+  if (archived && emp.user?.isActive) {
+    await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
+  }
+  await audit({
+    actorId: s.user.id,
+    action: archived ? "EMPLOYEE_ARCHIVED" : "EMPLOYEE_RESTORED",
+    entityType: "Employee",
+    entityId: employeeId,
+    newValue: { archivedAt: archived },
   });
 
   revalidatePath("/admin/users");
@@ -443,7 +468,6 @@ export type ImportState = {
 
 /** Заголовки столбцов файла → ключ поля. Сопоставление без учёта регистра/пробелов. */
 const HEADER_ALIASES: Record<keyof ImportRow, string[]> = {
-  tabNumber: ["табельныйномер", "табельный", "таб.№", "таб№", "табномер", "tabnumber", "personnelnumber"],
   fullName: ["фио", "ф.и.о.", "имя", "сотрудник", "fullname", "name"],
   position: ["должность", "position", "title"],
   department: ["подразделение", "отдел", "department", "unit"],
@@ -452,7 +476,6 @@ const HEADER_ALIASES: Record<keyof ImportRow, string[]> = {
 };
 
 type ImportRow = {
-  tabNumber: string;
   fullName: string;
   position: string;
   department: string;
@@ -512,16 +535,16 @@ export async function importEmployees(
       if (aliases.includes(h) && !colOf[key]) colOf[key] = col;
     }
   });
-  if (!colOf.tabNumber || !colOf.fullName) {
+  if (!colOf.fullName) {
     return {
-      error:
-        "Не найдены обязательные столбцы «Табельный номер» и «ФИО». Скачайте шаблон и заполните его.",
+      error: "Не найден обязательный столбец «ФИО». Скачайте шаблон и заполните его.",
     };
   }
 
   const dryRun = formData.get("dryRun") === "on";
   const rowErrors: string[] = [];
-  const seen = new Set<string>();
+  const seenNames = new Set<string>(); // нормализованные ФИО из файла — защита от дублей
+  const touchedIds = new Set<string>(); // id всех задетых сотрудников — для деактивации отсутствующих
   let created = 0;
   let updated = 0;
 
@@ -530,21 +553,16 @@ export async function importEmployees(
     const get = (key: keyof ImportRow) =>
       colOf[key] ? cellText(row.getCell(colOf[key]!).value) : "";
 
-    const tabNumber = get("tabNumber");
     const fullName = get("fullName");
-    if (!tabNumber && !fullName) continue; // пустая строка
-    if (!tabNumber || !fullName) {
-      rowErrors.push(`Строка ${r}: пропущена — нет табельного номера или ФИО.`);
+    if (!fullName) continue; // пустая строка
+    const nameKey = norm(fullName);
+    if (seenNames.has(nameKey)) {
+      rowErrors.push(`Строка ${r}: ФИО «${fullName}» повторяется в файле — пропущена.`);
       continue;
     }
-    if (seen.has(tabNumber)) {
-      rowErrors.push(`Строка ${r}: табельный номер ${tabNumber} повторяется в файле — пропущена.`);
-      continue;
-    }
-    seen.add(tabNumber);
+    seenNames.add(nameKey);
 
     const data: ImportRow = {
-      tabNumber,
       fullName,
       position: get("position") || "—",
       department: get("department") || "—",
@@ -553,35 +571,48 @@ export async function importEmployees(
     };
 
     try {
-      const existing = await db.employee.findUnique({ where: { tabNumber } });
+      // Сопоставление по ФИО (без учёта регистра).
+      const existing = await db.employee.findFirst({
+        where: { fullName: { equals: fullName, mode: "insensitive" } },
+        select: { id: true },
+      });
       if (existing) {
-        if (!dryRun) await db.employee.update({ where: { tabNumber }, data });
+        if (!dryRun) await db.employee.update({ where: { id: existing.id }, data });
+        touchedIds.add(existing.id);
         updated++;
       } else {
-        if (!dryRun) await db.employee.create({ data });
+        if (!dryRun) {
+          const createdEmp = await db.employee.create({ data, select: { id: true } });
+          touchedIds.add(createdEmp.id);
+        }
         created++;
       }
     } catch (e) {
       const msg = e instanceof Error && /telegramId/.test(e.message)
         ? `Telegram ID уже привязан к другому сотруднику`
         : "ошибка записи";
-      rowErrors.push(`Строка ${r} (${tabNumber}): ${msg}.`);
+      rowErrors.push(`Строка ${r} («${fullName}»): ${msg}.`);
     }
   }
 
   let deactivated = 0;
   let deactivateList: string[] | undefined;
-  if (formData.get("deactivateAbsent") === "on" && seen.size > 0) {
+  if (formData.get("deactivateAbsent") === "on" && seenNames.size > 0) {
     const absent = await db.employee.findMany({
-      where: { isActive: true, tabNumber: { notIn: [...seen] } },
+      where: { isActive: true, id: { notIn: [...touchedIds] } },
       include: { user: true },
     });
-    deactivateList = absent.map((e) => `${e.fullName} (${e.tabNumber})`);
+    deactivateList = absent.map((e) => e.fullName);
     if (!dryRun) {
       for (const emp of absent) {
         await db.employee.update({
           where: { id: emp.id },
-          data: { isActive: false, status: "TERMINATED", terminatedAt: new Date() },
+          data: {
+            isActive: false,
+            status: "TERMINATED",
+            terminatedAt: new Date(),
+            archivedAt: new Date(),
+          },
         });
         if (emp.user) await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
       }
@@ -597,7 +628,7 @@ export async function importEmployees(
     actorId: s.user.id,
     action: "EMPLOYEES_IMPORTED",
     entityType: "Employee",
-    newValue: { created, updated, deactivated, rows: seen.size, file: file.name },
+    newValue: { created, updated, deactivated, rows: seenNames.size, file: file.name },
   });
 
   revalidatePath("/admin/users");

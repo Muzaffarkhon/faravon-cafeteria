@@ -10,7 +10,11 @@ async function main() {
     data: { passwordHash: h, mustChangePassword: false, otpExpiresAt: null, failedLoginCount: 0, lockedUntil: null },
   });
   await db.employee.updateMany({
-    where: { tabNumber: { in: ["0001", "0002", "0003"] } },
+    where: {
+      fullName: {
+        in: ["Иванов Иван Иванович", "Петрова Мария Сергеевна", "Сидоров Пётр Алексеевич"],
+      },
+    },
     data: { telegramId: null },
   });
   await db.identificationCode.deleteMany({});

@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
-import { Badge, Button, Field, Input } from "@/components/ui";
+import { Badge, Button, Field, Input, RowId } from "@/components/ui";
 import { RolePicker } from "./_form";
 import {
   createAccountForEmployee,
@@ -293,6 +293,9 @@ export function ServiceAccountRow({
   return (
     <>
       <tr className="transition-colors hover:bg-surface-muted/60">
+        <td className="px-4 py-2">
+          <RowId id={user.id} />
+        </td>
         <td className="px-4 py-2 font-medium text-ink">{user.login}</td>
         <td className="px-4 py-2 text-ink-muted">
           {user.roles.map((r) => ROLE_LABELS[r]).join(", ")}
@@ -356,7 +359,7 @@ export function ServiceAccountRow({
       </tr>
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={5} className="px-4 pb-3">
+          <td colSpan={6} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}

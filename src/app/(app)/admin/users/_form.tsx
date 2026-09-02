@@ -11,7 +11,6 @@ import { ALL_ROLES } from "./roles";
 import { OtpModal } from "./_otp-modal";
 
 export type EmployeeValues = {
-  tabNumber: string;
   fullName: string;
   position: string;
   department: string;
@@ -72,23 +71,6 @@ export function EmployeeForm({
           Изменения сохранены.
         </p>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Табельный номер" htmlFor="tabNumber" required>
-          <Input id="tabNumber" name="tabNumber" defaultValue={initial?.tabNumber ?? ""} inputMode="numeric" autoComplete="off" required />
-        </Field>
-        <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="+992 900 000 000"
-            defaultValue={initial?.phone ?? ""}
-          />
-        </Field>
-      </div>
-
       <Field label="ФИО" htmlFor="fullName" required hint="Фамилия Имя Отчество. Допускаются таджикские буквы (ғ ӣ қ ӯ ҳ ҷ).">
         <Input
           id="fullName"
@@ -113,6 +95,18 @@ export function EmployeeForm({
           />
         </Field>
       </div>
+
+      <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="off"
+          placeholder="+992 900 000 000"
+          defaultValue={initial?.phone ?? ""}
+        />
+      </Field>
 
       <Field
         label="Telegram ID"

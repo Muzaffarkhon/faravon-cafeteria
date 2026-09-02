@@ -14,7 +14,6 @@ export async function GET() {
   wb.creator = "Кафетерий льгот «Фаровон»";
   const ws = wb.addWorksheet("Сотрудники");
   ws.columns = [
-    { header: "Табельный номер", key: "tab", width: 18 },
     { header: "ФИО", key: "fio", width: 34 },
     { header: "Должность", key: "pos", width: 26 },
     { header: "Подразделение", key: "dep", width: 26 },
@@ -28,7 +27,6 @@ export async function GET() {
     cell.border = { bottom: { style: "thin", color: { argb: "FFBFBFBF" } } };
   });
   ws.addRow({
-    tab: "0001",
     fio: "Иванов Иван Иванович",
     pos: "Менеджер по продажам",
     dep: "Коммерческий отдел",
