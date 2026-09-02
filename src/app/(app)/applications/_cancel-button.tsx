@@ -13,7 +13,11 @@ export function CancelItemButton({ itemId }: { itemId: string }) {
     setErr(null);
     start(async () => {
       try {
-        await cancelItem(itemId);
+        const r = await cancelItem(itemId);
+        if (r?.error) {
+          setErr(r.error);
+          setConfirming(false);
+        }
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Ошибка");
         setConfirming(false);

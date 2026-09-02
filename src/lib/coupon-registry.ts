@@ -2,16 +2,33 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { CouponStatus } from "@prisma/client";
 
-export type CouponFilters = { periodId?: string; status?: CouponStatus };
+export type CouponFilters = {
+  periodId?: string;
+  status?: CouponStatus;
+  partnerId?: string;
+  employeeQuery?: string; // ФИО или табельный номер
+};
 
 const STATUSES: CouponStatus[] = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"];
 export const isCouponStatus = (v: string): v is CouponStatus => STATUSES.includes(v as CouponStatus);
 
 export async function listCouponRegistry(f: CouponFilters) {
+  const q = f.employeeQuery?.trim();
   return db.coupon.findMany({
     where: {
       ...(f.periodId ? { periodId: f.periodId } : {}),
       ...(f.status ? { status: f.status } : {}),
+      ...(f.partnerId ? { partnerId: f.partnerId } : {}),
+      ...(q
+        ? {
+            employee: {
+              OR: [
+                { fullName: { contains: q, mode: "insensitive" } },
+                { tabNumber: { contains: q, mode: "insensitive" } },
+              ],
+            },
+          }
+        : {}),
     },
     include: {
       employee: true,

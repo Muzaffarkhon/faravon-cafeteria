@@ -46,7 +46,8 @@ export function FlexSelection({
     setBusyId(id);
     start(async () => {
       try {
-        await toggleSelection(id);
+        const r = await toggleSelection(id);
+        if (r?.error) setError(r.error);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
       } finally {
@@ -60,7 +61,8 @@ export function FlexSelection({
     setBusyId("submit");
     start(async () => {
       try {
-        await submitSelection();
+        const r = await submitSelection();
+        if (r?.error) setError(r.error);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
       } finally {

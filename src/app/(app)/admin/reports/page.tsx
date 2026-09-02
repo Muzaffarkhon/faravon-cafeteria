@@ -179,7 +179,7 @@ export default async function ReportsPage({
           value={fmtPct(k.slaBreachPct)}
           pct={k.slaBreachPct}
           tone="bad"
-          hint={`${k.slaBreached} позиций (порог 5 дн.)`}
+          hint={`${k.slaBreached} позиций (порог 5 раб. дн.)`}
         />
       </div>
 

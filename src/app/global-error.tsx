@@ -1,0 +1,59 @@
+"use client";
+
+import { useEffect } from "react";
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <html lang="ru">
+      <body
+        style={{
+          margin: 0,
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "system-ui, sans-serif",
+          background: "#faf7f7",
+          color: "#1f1a1a",
+        }}
+      >
+        <div style={{ maxWidth: 420, padding: 24, textAlign: "center" }}>
+          <h1 style={{ fontSize: 18 }}>Сервис временно недоступен</h1>
+          <p style={{ fontSize: 14, color: "#6b6060" }}>
+            Попробуйте обновить страницу через минуту.
+          </p>
+          {error.digest && (
+            <p style={{ fontSize: 11, color: "#9a8f8f", fontFamily: "monospace" }}>
+              код: {error.digest}
+            </p>
+          )}
+          <button
+            onClick={reset}
+            style={{
+              marginTop: 16,
+              padding: "8px 16px",
+              border: 0,
+              borderRadius: 6,
+              background: "#c0392b",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Обновить
+          </button>
+        </div>
+      </body>
+    </html>
+  );
+}

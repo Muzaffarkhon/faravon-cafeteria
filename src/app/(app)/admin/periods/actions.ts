@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { runAction, type ActionResult } from "@/lib/action-result";
 
 export type PeriodFormState = { error?: string };
 
@@ -79,47 +80,56 @@ export async function updatePeriod(
   redirect("/admin/periods");
 }
 
-export async function setPeriodStatus(id: string, status: PeriodStatus) {
-  const s = await requireSession();
-  assertCan(s.roles, "periods.manage");
+export async function setPeriodStatus(
+  id: string,
+  status: PeriodStatus,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "periods.manage");
 
-  const period = await db.period.findUnique({ where: { id } });
-  if (!period) throw new Error("Период не найден.");
+    const period = await db.period.findUnique({ where: { id } });
+    if (!period) throw new Error("Период не найден.");
 
-  if (status === "OPEN") {
-    if (period.status === "CLOSED") throw new Error("Закрытый период нельзя открыть заново.");
-    const otherOpen = await db.period.findFirst({ where: { status: "OPEN", id: { not: id } } });
-    if (otherOpen) throw new Error(`Уже открыт период «${otherOpen.name}». Закройте его перед открытием нового.`);
-  }
-  if (status === "CLOSED" && period.status !== "OPEN") {
-    throw new Error("Закрыть можно только открытый период.");
-  }
-  if (status === "DRAFT") {
-    throw new Error("Вернуть период в черновик нельзя.");
-  }
+    if (status === "OPEN") {
+      if (period.status === "CLOSED") throw new Error("Закрытый период нельзя открыть заново.");
+      const otherOpen = await db.period.findFirst({ where: { status: "OPEN", id: { not: id } } });
+      if (otherOpen) {
+        throw new Error(
+          `Уже открыт период «${otherOpen.name}». Закройте его перед открытием нового.`,
+        );
+      }
+    }
+    if (status === "CLOSED" && period.status !== "OPEN") {
+      throw new Error("Закрыть можно только открытый период.");
+    }
+    if (status === "DRAFT") {
+      throw new Error("Вернуть период в черновик нельзя.");
+    }
 
-  await db.period.update({ where: { id }, data: { status } });
-  await audit({
-    actorId: s.user.id,
-    action: status === "OPEN" ? "PERIOD_OPENED" : "PERIOD_CLOSED",
-    entityType: "Period",
-    entityId: id,
-    oldValue: { status: period.status },
-    newValue: { status },
+    await db.period.update({ where: { id }, data: { status } });
+    await audit({
+      actorId: s.user.id,
+      action: status === "OPEN" ? "PERIOD_OPENED" : "PERIOD_CLOSED",
+      entityType: "Period",
+      entityId: id,
+      oldValue: { status: period.status },
+      newValue: { status },
+    });
+    revalidatePath("/admin/periods");
+    revalidatePath("/");
+    revalidatePath("/applications");
   });
-  revalidatePath("/admin/periods");
-  revalidatePath("/");
-  revalidatePath("/applications");
 }
 
-export async function deletePeriod(id: string) {
-  const s = await requireSession();
-  assertCan(s.roles, "periods.manage");
-  const apps = await db.application.count({ where: { periodId: id } });
-  if (apps > 0) {
-    throw new Error(`Нельзя удалить: в периоде ${apps} заявок.`);
-  }
-  await db.period.delete({ where: { id } });
-  await audit({ actorId: s.user.id, action: "PERIOD_DELETED", entityType: "Period", entityId: id });
-  revalidatePath("/admin/periods");
+export async function deletePeriod(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "periods.manage");
+    const apps = await db.application.count({ where: { periodId: id } });
+    if (apps > 0) throw new Error(`Нельзя удалить: в периоде ${apps} заявок.`);
+    await db.period.delete({ where: { id } });
+    await audit({ actorId: s.user.id, action: "PERIOD_DELETED", entityType: "Period", entityId: id });
+    revalidatePath("/admin/periods");
+  });
 }

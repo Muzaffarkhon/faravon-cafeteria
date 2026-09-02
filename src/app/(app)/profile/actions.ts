@@ -1,9 +1,9 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireSession, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 export type ProfilePwState = { ok?: boolean; error?: string };
 
@@ -27,7 +27,7 @@ export async function changeOwnPassword(
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user) return { error: "Пользователь не найден." };
 
-  const currentOk = await bcrypt.compare(current, user.passwordHash);
+  const currentOk = await verifyPassword(current, user.passwordHash);
   if (!currentOk) {
     await audit({
       actorId: user.id,
@@ -39,25 +39,55 @@ export async function changeOwnPassword(
     return { error: "Текущий пароль указан неверно." };
   }
 
-  if (await bcrypt.compare(password, user.passwordHash)) {
+  if (await verifyPassword(password, user.passwordHash)) {
     return { error: "Новый пароль должен отличаться от текущего." };
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  await db.user.update({
+  const passwordHash = await hashPassword(password);
+  const updated = await db.user.update({
     where: { id: user.id },
-    data: { passwordHash, mustChangePassword: false, otpExpiresAt: null },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+      otpExpiresAt: null,
+      sessionEpoch: { increment: 1 }, // §5.1: смена пароля завершает сессии на других устройствах
+    },
   });
   await audit({ actorId: user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: user.id, newValue: { self: true } });
 
-  // обновляем cookie-сессию (снимаем флаг обязательной смены, если был)
+  // текущая сессия остаётся живой — пересоздаём cookie с новым epoch
   await createSession({
     sub: user.id,
     login: user.login,
     roles: user.roles,
     employeeId: user.employeeId,
     mustChangePassword: false,
+    epoch: updated.sessionEpoch,
   });
 
+  return { ok: true };
+}
+
+/** §5.1: завершить сессии на всех других устройствах (текущая остаётся). */
+export async function revokeOtherSessions(): Promise<{ ok: true }> {
+  const session = await requireSession();
+  const updated = await db.user.update({
+    where: { id: session.user.id },
+    data: { sessionEpoch: { increment: 1 } },
+  });
+  await audit({
+    actorId: session.user.id,
+    action: "SESSIONS_REVOKED",
+    entityType: "User",
+    entityId: session.user.id,
+  });
+  await createSession({
+    sub: session.user.id,
+    login: session.user.login,
+    roles: session.user.roles,
+    employeeId: session.user.employeeId,
+    mustChangePassword: false,
+    epoch: updated.sessionEpoch,
+  });
   return { ok: true };
 }

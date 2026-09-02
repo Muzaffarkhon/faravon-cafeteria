@@ -3,9 +3,10 @@
 import { useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Field, Input, cx } from "@/components/ui";
+import { isSvgSafe, sanitizeSvg } from "@/lib/svg-sanitize";
 
-const ACCEPT = "image/png,image/jpeg,image/webp";
-const MAX_BYTES = 4 * 1024 * 1024;
+const ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
+const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ
 
 /**
  * Поле изображения карточки: загрузка файла в Vercel Blob либо ссылка вручную.
@@ -20,20 +21,32 @@ export function CardImageField({ initial }: { initial?: string | null }) {
 
   async function onPick(file: File) {
     setErr(null);
-    if (!file.type.startsWith("image/")) {
-      setErr("Нужен файл изображения (PNG, JPEG или WebP).");
+    const isSvg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
+    if (!file.type.startsWith("image/") && !isSvg) {
+      setErr("Нужен файл изображения: PNG, JPEG, WebP или SVG.");
       return;
     }
     if (file.size > MAX_BYTES) {
-      setErr("Файл больше 4 МБ — сожмите или уменьшите изображение.");
+      setErr("Файл больше 2 МБ — сожмите или уменьшите изображение.");
       return;
     }
     setBusy(true);
     try {
-      const blob = await upload(file.name, file, {
+      // SVG санитизируем перед загрузкой (§5.12)
+      let payload: File | Blob = file;
+      if (isSvg) {
+        const clean = sanitizeSvg(await file.text());
+        if (!isSvgSafe(clean)) {
+          setErr("SVG содержит потенциально опасные элементы. Загрузите PNG/JPEG.");
+          setBusy(false);
+          return;
+        }
+        payload = new Blob([clean], { type: "image/svg+xml" });
+      }
+      const blob = await upload(file.name, payload, {
         access: "public",
         handleUploadUrl: "/api/cards/upload",
-        contentType: file.type,
+        contentType: isSvg ? "image/svg+xml" : file.type,
       });
       setUrl(blob.url);
     } catch (e) {
@@ -105,7 +118,7 @@ export function CardImageField({ initial }: { initial?: string | null }) {
       )}
 
       <p className="mt-1 text-xs text-ink-muted">
-        PNG, JPEG или WebP, до 4 МБ.
+        PNG, JPEG, WebP или SVG, до 2 МБ.
       </p>
     </Field>
   );

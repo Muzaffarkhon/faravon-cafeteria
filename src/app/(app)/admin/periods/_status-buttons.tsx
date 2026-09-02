@@ -16,12 +16,13 @@ export function PeriodActions({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function run(fn: () => Promise<void>, confirmMsg?: string) {
+  function run(fn: () => Promise<{ error?: string }>, confirmMsg?: string) {
     if (confirmMsg && !confirm(confirmMsg)) return;
     setError(null);
     start(async () => {
       try {
-        await fn();
+        const r = await fn();
+        if (r?.error) setError(r.error);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
       }

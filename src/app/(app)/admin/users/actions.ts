@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import type { Role } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/lib/password";
 import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -109,7 +109,7 @@ export async function createEmployee(
     const user = await db.user.create({
       data: {
         login,
-        passwordHash: await bcrypt.hash(randomUUID(), 12),
+        passwordHash: await hashPassword(randomUUID()),
         mustChangePassword: true,
         roles,
         employeeId: employee.id,
@@ -203,7 +203,7 @@ export async function createAccountForEmployee(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 12),
+      passwordHash: await hashPassword(randomUUID()),
       mustChangePassword: true,
       roles,
       employeeId,
@@ -243,7 +243,7 @@ export async function createServiceAccount(
   const user = await db.user.create({
     data: {
       login,
-      passwordHash: await bcrypt.hash(randomUUID(), 12),
+      passwordHash: await hashPassword(randomUUID()),
       mustChangePassword: true,
       roles,
     },
@@ -374,9 +374,11 @@ export async function issuePassword(userId: string): Promise<AccountResult> {
 export type ImportState = {
   error?: string;
   ok?: boolean;
+  dryRun?: boolean;
   created?: number;
   updated?: number;
   deactivated?: number;
+  deactivateList?: string[];
   rowErrors?: string[];
 };
 
@@ -458,6 +460,7 @@ export async function importEmployees(
     };
   }
 
+  const dryRun = formData.get("dryRun") === "on";
   const rowErrors: string[] = [];
   const seen = new Set<string>();
   let created = 0;
@@ -493,10 +496,10 @@ export async function importEmployees(
     try {
       const existing = await db.employee.findUnique({ where: { tabNumber } });
       if (existing) {
-        await db.employee.update({ where: { tabNumber }, data });
+        if (!dryRun) await db.employee.update({ where: { tabNumber }, data });
         updated++;
       } else {
-        await db.employee.create({ data });
+        if (!dryRun) await db.employee.create({ data });
         created++;
       }
     } catch (e) {
@@ -508,19 +511,27 @@ export async function importEmployees(
   }
 
   let deactivated = 0;
-  if (formData.get("deactivateAbsent") === "on" && created + updated > 0) {
+  let deactivateList: string[] | undefined;
+  if (formData.get("deactivateAbsent") === "on" && seen.size > 0) {
     const absent = await db.employee.findMany({
       where: { isActive: true, tabNumber: { notIn: [...seen] } },
       include: { user: true },
     });
-    for (const emp of absent) {
-      await db.employee.update({
-        where: { id: emp.id },
-        data: { isActive: false, status: "TERMINATED", terminatedAt: new Date() },
-      });
-      if (emp.user) await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
-      deactivated++;
+    deactivateList = absent.map((e) => `${e.fullName} (${e.tabNumber})`);
+    if (!dryRun) {
+      for (const emp of absent) {
+        await db.employee.update({
+          where: { id: emp.id },
+          data: { isActive: false, status: "TERMINATED", terminatedAt: new Date() },
+        });
+        if (emp.user) await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
+      }
     }
+    deactivated = absent.length;
+  }
+
+  if (dryRun) {
+    return { ok: true, dryRun: true, created, updated, deactivated, deactivateList, rowErrors };
   }
 
   await audit({
@@ -532,5 +543,5 @@ export async function importEmployees(
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/access");
-  return { ok: true, created, updated, deactivated, rowErrors };
+  return { ok: true, created, updated, deactivated, deactivateList, rowErrors };
 }

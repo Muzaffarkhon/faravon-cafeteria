@@ -20,10 +20,20 @@ export type SessionPayload = {
   roles: Role[];
   employeeId: string | null;
   mustChangePassword: boolean;
+  epoch?: number; // §5.1: должен совпасть с User.sessionEpoch, иначе сессия отозвана
 };
 
 export async function createSession(payload: SessionPayload) {
-  const token = await new SignJWT(payload)
+  const epoch =
+    payload.epoch ??
+    (
+      await db.user.findUnique({
+        where: { id: payload.sub },
+        select: { sessionEpoch: true },
+      })
+    )?.sessionEpoch ??
+    0;
+  const token = await new SignJWT({ ...payload, epoch })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -65,6 +75,7 @@ export const getSession = cache(async () => {
     include: { employee: true },
   });
   if (!user || !user.isActive) return null;
+  if ((tok.epoch ?? 0) !== user.sessionEpoch) return null; // сессия отозвана «выйти со всех устройств»
   return {
     user,
     roles: user.roles,

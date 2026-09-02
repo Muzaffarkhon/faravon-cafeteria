@@ -17,8 +17,10 @@ export async function GET(req: NextRequest) {
   const periodId = q.get("period") || undefined;
   const statusRaw = q.get("status") || "";
   const status = isCouponStatus(statusRaw) ? statusRaw : undefined;
+  const partnerId = q.get("partner") || undefined;
+  const employeeQuery = q.get("emp") || undefined;
 
-  const coupons = await listCouponRegistry({ periodId, status });
+  const coupons = await listCouponRegistry({ periodId, status, partnerId, employeeQuery });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Кафетерий льгот «Фаровон»";

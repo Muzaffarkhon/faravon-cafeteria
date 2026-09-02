@@ -96,6 +96,7 @@ model User {
   failedLoginCount  Int       @default(0)
   lockedUntil       DateTime?
   otpExpiresAt      DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
+  sessionEpoch      Int       @default(0) // §5.1: bump — принудительный выход со всех устройств
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -107,6 +108,19 @@ model User {
   decisions      ApplicationItem[]      @relation("DecidedBy")
   cardEdits      BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits  NotificationTemplate[] @relation("NotificationTemplateEditor")
+}
+
+/// Попытки входа — для ограничения перебора по IP и журнала последних входов (§5.1)
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  login     String
+  ip        String
+  userAgent String?
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+  @@index([login, createdAt])
 }
 
 /// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
@@ -205,6 +219,8 @@ model Period {
   windowEnd      DateTime
   status         PeriodStatus @default(DRAFT)
   maxSelections  Int          @default(4)
+  windowOpenNotifiedAt   DateTime? // §5.10: разослано «окно выбора открыто»
+  windowClosingNotifiedAt DateTime? // §5.10: разослано напоминание «закроется через 3 дня»
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

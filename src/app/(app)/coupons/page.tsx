@@ -27,7 +27,12 @@ const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
 export default async function CouponsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; status?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    status?: string;
+    partner?: string;
+    emp?: string;
+  }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -36,8 +41,10 @@ export default async function CouponsPage({
   const sp = await searchParams;
   const periodId = sp.period || undefined;
   const status = sp.status && isCouponStatus(sp.status) ? sp.status : undefined;
+  const partnerId = sp.partner || undefined;
+  const emp = (sp.emp || "").trim();
 
-  const [awaiting, coupons, periods] = await Promise.all([
+  const [awaiting, coupons, periods, partners] = await Promise.all([
     db.applicationItem.findMany({
       where: { status: "APPROVED", coupon: null },
       include: {
@@ -46,13 +53,16 @@ export default async function CouponsPage({
       },
       orderBy: { decidedAt: "asc" },
     }),
-    listCouponRegistry({ periodId, status }),
+    listCouponRegistry({ periodId, status, partnerId, employeeQuery: emp || undefined }),
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
+    db.partner.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const exportQuery = new URLSearchParams();
   if (periodId) exportQuery.set("period", periodId);
   if (status) exportQuery.set("status", status);
+  if (partnerId) exportQuery.set("partner", partnerId);
+  if (emp) exportQuery.set("emp", emp);
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
@@ -96,7 +106,7 @@ export default async function CouponsPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="text-lg" count={coupons.length}>Реестр купонов</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <form method="get" className="flex items-center gap-2">
+            <form method="get" className="flex flex-wrap items-center gap-2">
               <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
                 <option value="">Все периоды</option>
                 {periods.map((p) => (
@@ -113,6 +123,20 @@ export default async function CouponsPage({
                   </option>
                 ))}
               </Select>
+              <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
+                <option value="">Все партнёры</option>
+                {partners.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+              <input
+                name="emp"
+                defaultValue={emp}
+                placeholder="Сотрудник / таб. №"
+                className="w-44 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
+              />
               <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
             </form>
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
