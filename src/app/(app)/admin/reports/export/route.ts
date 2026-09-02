@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     ["Доля отклонений", pct1(k.rejectionPct), `${k.rejected} из ${k.decided} решений`],
     ["Среднее время до решения, дн.", num1(k.avgDecisionDays), `p90: ${num1(k.p90DecisionDays)}`],
     ["Среднее время до выдачи купона, дн.", num1(k.avgIssueDays), `p90: ${num1(k.p90IssueDays)}`],
-    ["Нарушения SLA согласования", pct1(k.slaBreachPct), `${k.slaBreached} позиций (порог 5 дн.)`],
+    ["Нарушения SLA согласования", pct1(k.slaBreachPct), `${k.slaBreached} позиций (порог 5 раб. дн.)`],
   ];
   metricRows.forEach((r) => s1.addRow({ m: r[0], v: r[1], h: r[2] }));
 

@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
+import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
 import { ReviewTable, type ReviewRow } from "./_table";
 
 const PAGE_SIZE = 25;
-const DAY = 24 * 60 * 60 * 1000;
-const SLA_DAYS = 5; // §5.12
+const SLA_DAYS = 5; // §5.12: рабочих дней
 
 type SP = {
   q?: string;
@@ -52,8 +52,8 @@ export default async function ReviewPage({
   const where: Prisma.ApplicationItemWhereInput = { status: "PENDING" };
   if (Object.keys(appFilter).length) where.application = { is: appFilter };
   if (card) where.cardId = card;
-  const nowMs = new Date().getTime();
-  if (overdue) where.submittedAt = { lt: new Date(nowMs - SLA_DAYS * DAY) };
+  const slaCutoff = businessDaysAgo(SLA_DAYS);
+  if (overdue) where.submittedAt = { lt: slaCutoff };
 
   const orderBy: Prisma.ApplicationItemOrderByWithRelationInput =
     sort === "newest"
@@ -99,7 +99,7 @@ export default async function ReviewPage({
     condition: it.card.condition,
     period: it.application.period.name,
     submittedAt: it.submittedAt ? it.submittedAt.toISOString() : null,
-    overdue: !!it.submittedAt && nowMs - it.submittedAt.getTime() > SLA_DAYS * DAY,
+    overdue: !!it.submittedAt && isSlaBreached(it.submittedAt, SLA_DAYS),
   }));
 
   const pageHref = (n: number) => {

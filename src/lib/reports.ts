@@ -1,8 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { businessDaysBetween } from "@/lib/business-days";
 
 const DAY = 24 * 60 * 60 * 1000;
-const SLA_DAYS = 5; // §5.12: SLA согласования по умолчанию — 5 дней
+const SLA_DAYS = 5; // §5.12: SLA согласования по умолчанию — 5 рабочих дней
 
 function percentile(values: number[], p: number): number | null {
   if (values.length === 0) return null;
@@ -52,7 +53,7 @@ export async function computeReport(periodId: string) {
   const rejected = items.filter((i) => i.status === "REJECTED");
   const issued = items.filter((i) => i.status === "COUPON_ISSUED");
 
-  const now = Date.now();
+  const nowDate = new Date();
   const decisionTimes = decided
     .filter((i) => i.submittedAt && i.decidedAt)
     .map((i) => (i.decidedAt!.getTime() - i.submittedAt!.getTime()) / DAY);
@@ -60,9 +61,18 @@ export async function computeReport(periodId: string) {
     .filter((i) => i.coupon?.issuedAt && i.decidedAt)
     .map((i) => (i.coupon!.issuedAt!.getTime() - i.decidedAt!.getTime()) / DAY);
 
+  // §5.12: SLA считаем в РАБОЧИХ днях
   const slaBreached =
-    decisionTimes.filter((d) => d > SLA_DAYS).length +
-    submitted.filter((i) => i.status === "PENDING" && now - i.submittedAt!.getTime() > SLA_DAYS * DAY).length;
+    decided.filter(
+      (i) =>
+        i.submittedAt &&
+        i.decidedAt &&
+        businessDaysBetween(i.submittedAt, i.decidedAt) > SLA_DAYS,
+    ).length +
+    submitted.filter(
+      (i) =>
+        i.status === "PENDING" && businessDaysBetween(i.submittedAt!, nowDate) > SLA_DAYS,
+    ).length;
 
   // Топ льгот
   const bySelections = new Map<string, number>();

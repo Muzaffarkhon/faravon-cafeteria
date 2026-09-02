@@ -109,7 +109,7 @@ export default async function ReportsPage({
         <Metric label="Доля отклонений" value={fmtPct(k.rejectionPct)} hint={`${k.rejected} из ${k.decided} решений`} />
         <Metric label="Время до решения" value={fmtDays(k.avgDecisionDays)} hint={`p90: ${fmtDays(k.p90DecisionDays)}`} />
         <Metric label="Время до выдачи купона" value={fmtDays(k.avgIssueDays)} hint={`p90: ${fmtDays(k.p90IssueDays)}`} />
-        <Metric label="Нарушения SLA согласования" value={fmtPct(k.slaBreachPct)} hint={`${k.slaBreached} позиций (порог 5 дн.)`} />
+        <Metric label="Нарушения SLA согласования" value={fmtPct(k.slaBreachPct)} hint={`${k.slaBreached} позиций (порог 5 раб. дн.)`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
