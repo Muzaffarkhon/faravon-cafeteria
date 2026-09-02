@@ -30,6 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     items.push({ href: "/review", label: "Согласование", badge: pendingReview || undefined });
   if (can(roles, "coupons.manage")) items.push({ href: "/coupons", label: "Купоны" });
   if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Погашение купонов" });
+  if (can(roles, "coupons.confirm") && session.user.partnerId)
+    items.push({ href: "/advertising", label: "Реклама" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partner-banners", label: "Баннеры" });

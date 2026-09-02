@@ -158,10 +158,11 @@ model Partner {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  cards        BenefitCard[]
-  coupons      Coupon[]
-  banners      PartnerBanner[]
-  serviceUsers User[]
+  cards               BenefitCard[]
+  coupons             Coupon[]
+  banners             PartnerBanner[]
+  serviceUsers        User[]
+  advertisingRequests AdvertisingRequest[]
 }
 
 model BenefitCard {
@@ -326,6 +327,9 @@ model PartnerBanner {
 
 model AdvertisingRequest {
   id              String    @id @default(cuid())
+  // Заявку подаёт партнёр (учётка подрядчика, привязанная к партнёру).
+  partner         Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId       String?
   companyName     String
   contactName     String
   contactPhone    String
@@ -338,6 +342,8 @@ model AdvertisingRequest {
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([partnerId])
 }
 
 model TextBlock {

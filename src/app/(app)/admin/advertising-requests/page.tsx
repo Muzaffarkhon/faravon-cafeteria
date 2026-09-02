@@ -6,7 +6,9 @@ type Req = {
   id: string;
   companyName: string;
   contactName: string;
+  contactPhone: string;
   productName: string;
+  productDescription: string;
   budget?: string | null;
   status: string;
   submittedAt: string;
@@ -76,9 +78,14 @@ export default function Page() {
                 <tr key={r.id}>
                   <td>
                     <div className="font-medium text-ink">{r.companyName}</div>
-                    <div className="text-xs text-ink-subtle">{r.contactName}</div>
+                    <div className="text-xs text-ink-subtle">
+                      {r.contactName} · <span data-numeric>{r.contactPhone}</span>
+                    </div>
                   </td>
-                  <td>{r.productName}</td>
+                  <td>
+                    <div className="text-ink">{r.productName}</div>
+                    <div className="text-xs text-ink-subtle line-clamp-1">{r.productDescription}</div>
+                  </td>
                   <td data-numeric>{r.budget ?? "—"}</td>
                   <td>
                     <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>
