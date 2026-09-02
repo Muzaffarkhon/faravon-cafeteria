@@ -7,6 +7,8 @@ type Inset = { top?: number; bottom?: number; left?: number; right?: number };
 interface TgWebApp {
   ready?: () => void;
   expand?: () => void;
+  initData?: string;
+  platform?: string;
   safeAreaInset?: Inset;
   contentSafeAreaInset?: Inset;
   onEvent?: (event: string, cb: () => void) => void;
@@ -20,13 +22,22 @@ const EVENTS = ["safeAreaChanged", "contentSafeAreaChanged", "viewportChanged"];
  * кнопки («Закрыть», меню). Считываем отступы Telegram в CSS-переменную
  * --tg-top, чтобы шапка приложения не пряталась под ними. Вне Telegram
  * переменная остаётся 0 — на обычном сайте ничего не меняется.
+ *
+ * ВАЖНО: telegram-web-app.js создаёт window.Telegram.WebApp и в обычном
+ * браузере тоже — поэтому сначала проверяем, что запуск действительно из
+ * Telegram (initData / platform), иначе резерв в 64px давал пустую полосу.
  */
 export function TelegramChrome() {
   useEffect(() => {
     let stopped = false;
     let detach: (() => void) | undefined;
 
+    const isTelegram = (tg: TgWebApp) =>
+      (typeof tg.initData === "string" && tg.initData.length > 0) ||
+      (!!tg.platform && tg.platform !== "unknown");
+
     const setup = (tg: TgWebApp) => {
+      if (!isTelegram(tg)) return; // обычный браузер — ничего не трогаем
       tg.ready?.();
       tg.expand?.();
 
