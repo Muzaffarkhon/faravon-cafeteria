@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { PetalDrift } from "@/components/petals";
 import { PetalParallax } from "@/components/petal-parallax";
+import { PetalDrag } from "@/components/petal-drag";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
 const ICONS = {
@@ -100,12 +101,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     add("admin", "Аналитика и доступ", { href: "/admin/audit", label: "История", icon: ICONS.history });
 
   return (
-    <>
-      <PetalDrift fixed />
-      <PetalParallax />
-      <AppShell groups={groups} roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}>
-        {children}
-      </AppShell>
-    </>
+    <AppShell
+      groups={groups}
+      roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
+      backdrop={
+        <>
+          <PetalDrift fixed />
+          <PetalParallax />
+          <PetalDrag />
+        </>
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

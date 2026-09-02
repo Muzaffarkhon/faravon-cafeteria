@@ -483,5 +483,27 @@
   @media (prefers-reduced-motion: reduce) {
     .petal-drift > i { animation: none; opacity: 0.28; }
   }
+
+  /* Перетаскивание лепестков мышью (только точный указатель; включает
+     PetalDrag через класс .is-interactive на слое). Когда drag доступен,
+     слой поднимается над контентом (иначе лепестки не «поймать»), но сам
+     контейнер остаётся сквозным — курсор ловят только сами лепестки. */
+  @media (pointer: fine) {
+    .petal-drift.is-interactive {
+      z-index: 25;
+      opacity: 0.72; /* приглушаем передний слой, чтобы не мешал тексту */
+    }
+    .petal-drift.is-interactive > i {
+      pointer-events: auto;
+      cursor: grab;
+    }
+    .petal-drift.is-interactive > i.is-dragging {
+      cursor: grabbing;
+      z-index: 2;
+      animation: none !important;
+      opacity: var(--pd-op, 0.5) !important;
+      filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.18));
+    }
+  }
 }
 

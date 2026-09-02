@@ -56,10 +56,13 @@ const LS_GROUPS = "faravon.nav.groups";
 export function AppShell({
   groups,
   roleLabel,
+  backdrop,
   children,
 }: {
   groups: NavGroup[];
   roleLabel: string;
+  /** Ambient-слой (лепестки и т.п.) — рендерится внутри корня, за контентом. */
+  backdrop?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -240,6 +243,7 @@ export function AppShell({
 
   return (
     <div className="relative isolate flex min-h-dvh bg-canvas text-ink">
+      {backdrop}
       <LiveRefresh />
       {/* Десктоп-сайдбар / мобильная шторка */}
       <aside
