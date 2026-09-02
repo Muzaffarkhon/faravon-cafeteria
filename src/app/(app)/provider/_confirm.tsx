@@ -173,9 +173,11 @@ export function ProviderConfirm() {
             {phase === "found" && !coupon.redeemable && (
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm font-medium text-danger">
-                  {coupon.expired
-                    ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — погасить нельзя.`
-                    : `Купон в статусе «${coupon.statusLabel}» — погасить нельзя.`}
+                  {coupon.wrongPartner
+                    ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы гасите только свои купоны.`
+                    : coupon.expired
+                      ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — погасить нельзя.`
+                      : `Купон в статусе «${coupon.statusLabel}» — погасить нельзя.`}
                 </p>
                 <Button variant="secondary" onClick={reset}>
                   Другой купон

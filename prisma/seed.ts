@@ -160,17 +160,35 @@ async function main() {
   // ---- Users & employees ----
   const pass = await bcrypt.hash("Password1", 12);
 
-  async function makeStaff(login: string, roles: Role[], fullName: string, position: string) {
+  async function makeStaff(
+    login: string,
+    roles: Role[],
+    fullName: string,
+    position: string,
+    partnerId: string | null = null,
+  ) {
     await db.user.upsert({
       where: { login },
-      update: { roles },
-      create: { login, passwordHash: pass, mustChangePassword: false, roles },
+      update: { roles, partnerId },
+      create: { login, passwordHash: pass, mustChangePassword: false, roles, partnerId },
     });
     void fullName;
     void position;
   }
   await makeStaff("c_and_b", [Role.C_AND_B], "Админ C&B", "Контент и привилегии");
+  // Глобальный подрядчик без привязки — гасит купоны любого партнёра.
   await makeStaff("contractor", [Role.CONTRACTOR], "Подрядчик", "Вендор / провайдер");
+  // Подрядчик на каждого активного партнёра: логин p_<slug>, гасит только свои купоны.
+  for (const p of partnerData) {
+    if ((p.status ?? PartnerStatus.ACTIVE) !== PartnerStatus.ACTIVE) continue;
+    await makeStaff(
+      `p_${p.key}`,
+      [Role.CONTRACTOR],
+      `Подрядчик — ${p.name}`,
+      "Вендор партнёра",
+      partners[p.key],
+    );
+  }
 
   const employees = [
     { tab: "0001", login: "ivanov", fullName: "Иванов Иван Иванович", position: "Менеджер по продажам", department: "Коммерческий отдел", phone: "+992 900 111 001" },
@@ -228,7 +246,9 @@ async function main() {
     });
   }
 
-  console.log("Seed done. Logins: c_and_b / contractor / ivanov / petrova / sidorov — password: Password1");
+  console.log(
+    "Seed done. Logins: c_and_b / contractor / p_<партнёр> (напр. p_musaffo) / ivanov / petrova / sidorov — password: Password1",
+  );
 }
 
 main()

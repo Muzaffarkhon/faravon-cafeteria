@@ -14,12 +14,16 @@ export async function POST(req: Request) {
     const number = body?.number?.trim();
     if (!number) return NextResponse.json({ error: "Укажите номер купона." }, { status: 400 });
 
-    const coupon = await redeemCouponByNumber(number, g.session.user.id);
+    const coupon = await redeemCouponByNumber(number, g.session.user.id, g.session.user.partnerId);
     return NextResponse.json({ ok: true, number: coupon.number });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Ошибка";
     const known =
-      msg.includes("не найден") || msg.includes("погасить") || msg.includes("погашен");
+      msg.includes("не найден") ||
+      msg.includes("погасить") ||
+      msg.includes("погашен") ||
+      msg.includes("гасить") ||
+      msg.includes("партнёр");
     if (!known) console.error("[provider/confirm]", e);
     return NextResponse.json({ error: known ? msg : "Не удалось погасить купон." }, {
       status: known ? 409 : 500,

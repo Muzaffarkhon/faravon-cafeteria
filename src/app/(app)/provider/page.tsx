@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { ProviderConfirm } from "./_confirm";
@@ -7,6 +8,10 @@ export default async function ProviderPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "coupons.confirm")) redirect("/");
+
+  const partner = session.user.partnerId
+    ? await db.partner.findUnique({ where: { id: session.user.partnerId }, select: { name: true } })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -18,7 +23,9 @@ export default async function ProviderPage() {
           Погашение купонов
         </h1>
         <p className="text-sm text-ink-muted">
-          Введите номер купона сотрудника, проверьте данные и подтвердите использование.
+          {partner
+            ? `Вы гасите купоны партнёра «${partner.name}». Купоны других партнёров недоступны.`
+            : "Введите номер купона сотрудника, проверьте данные и подтвердите использование."}
         </p>
       </header>
 

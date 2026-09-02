@@ -240,12 +240,26 @@ export async function createServiceAccount(
   }
   const roles = parseRoles(formData);
 
+  // Привязка к партнёру — только для подрядчика; гасит купоны только своего партнёра.
+  const partnerIdRaw = String(formData.get("partnerId") ?? "").trim();
+  let partnerId: string | null = null;
+  if (partnerIdRaw) {
+    if (!roles.includes("CONTRACTOR")) {
+      return { error: "Партнёра можно привязать только к учётной записи с ролью «Подрядчик»." };
+    }
+    if (!(await db.partner.findUnique({ where: { id: partnerIdRaw } }))) {
+      return { error: "Выбранный партнёр не найден." };
+    }
+    partnerId = partnerIdRaw;
+  }
+
   const user = await db.user.create({
     data: {
       login,
       passwordHash: await hashPassword(randomUUID()),
       mustChangePassword: true,
       roles,
+      partnerId,
     },
   });
   await audit({
@@ -253,12 +267,43 @@ export async function createServiceAccount(
     action: "USER_CREATED",
     entityType: "User",
     entityId: user.id,
-    newValue: { login: user.login, roles: user.roles, service: true },
+    newValue: { login: user.login, roles: user.roles, service: true, partnerId },
   });
   const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
 
   revalidatePath("/admin/users");
   return { ok: true, otp };
+}
+
+/** Привязать/отвязать служебную учётную запись подрядчика от партнёра. */
+export async function setServicePartner(
+  userId: string,
+  partnerId: string | null,
+): Promise<AccountResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const before = await db.user.findUnique({ where: { id: userId } });
+  if (!before) return { error: "Учётная запись не найдена." };
+  if (partnerId && !before.roles.includes("CONTRACTOR")) {
+    return { error: "Партнёра можно привязать только к роли «Подрядчик»." };
+  }
+  if (partnerId && !(await db.partner.findUnique({ where: { id: partnerId } }))) {
+    return { error: "Выбранный партнёр не найден." };
+  }
+
+  await db.user.update({ where: { id: userId }, data: { partnerId } });
+  await audit({
+    actorId: s.user.id,
+    action: "USER_PARTNER_CHANGED",
+    entityType: "User",
+    entityId: userId,
+    oldValue: { partnerId: before.partnerId },
+    newValue: { partnerId },
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true };
 }
 
 export async function setUserRoles(userId: string, roles: Role[]): Promise<AccountResult> {

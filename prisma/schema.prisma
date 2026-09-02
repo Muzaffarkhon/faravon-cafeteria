@@ -103,11 +103,17 @@ model User {
   employee   Employee? @relation(fields: [employeeId], references: [id])
   employeeId String?   @unique
 
+  // Подрядчик привязан к партнёру: гасит только его купоны. null у CONTRACTOR = гасит любые.
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId String?
+
   auditLogs      AuditLog[]
   notifications  Notification[]
   decisions      ApplicationItem[]      @relation("DecidedBy")
   cardEdits      BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits  NotificationTemplate[] @relation("NotificationTemplateEditor")
+
+  @@index([partnerId])
 }
 
 /// Попытки входа — для ограничения перебора по IP и журнала последних входов (§5.1)
@@ -152,9 +158,10 @@ model Partner {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  cards   BenefitCard[]
-  coupons Coupon[]
-  banners PartnerBanner[]
+  cards        BenefitCard[]
+  coupons      Coupon[]
+  banners      PartnerBanner[]
+  serviceUsers User[]
 }
 
 model BenefitCard {

@@ -11,10 +11,13 @@ import {
   issuePassword,
   setAccountActive,
   setEmployeeActive,
+  setServicePartner,
   setUserRoles,
   type AccountResult,
 } from "./actions";
 import { ALL_ROLES } from "./roles";
+
+type PartnerOption = { id: string; name: string };
 
 function OtpBanner({ otp, login }: { otp: string; login?: string }) {
   return (
@@ -249,11 +252,21 @@ export function EmployeeActiveToggle({
 
 export function ServiceAccountRow({
   user,
+  partners,
 }: {
-  user: { id: string; login: string; roles: Role[]; isActive: boolean };
+  user: {
+    id: string;
+    login: string;
+    roles: Role[];
+    isActive: boolean;
+    partnerId: string | null;
+    partnerName: string | null;
+  };
+  partners: PartnerOption[];
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
+  const isContractor = user.roles.includes("CONTRACTOR");
 
   return (
     <>
@@ -261,6 +274,29 @@ export function ServiceAccountRow({
         <td className="px-4 py-2 font-medium text-ink">{user.login}</td>
         <td className="px-4 py-2 text-ink-muted">
           {user.roles.map((r) => ROLE_LABELS[r]).join(", ")}
+        </td>
+        <td className="px-4 py-2 text-ink-muted">
+          {isContractor ? (
+            <select
+              value={user.partnerId ?? ""}
+              disabled={pending}
+              onChange={(e) => {
+                setMsg(null);
+                const v = e.target.value || null;
+                start(async () => setMsg(await setServicePartner(user.id, v)));
+              }}
+              className="rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none"
+            >
+              <option value="">Все партнёры</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            "—"
+          )}
         </td>
         <td className="px-4 py-2">
           {user.isActive ? (
@@ -298,7 +334,7 @@ export function ServiceAccountRow({
       </tr>
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={4} className="px-4 pb-3">
+          <td colSpan={5} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}
@@ -313,7 +349,7 @@ export function ServiceAccountRow({
   );
 }
 
-export function NewServiceAccount() {
+export function NewServiceAccount({ partners }: { partners: PartnerOption[] }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<AccountResult, FormData>(
     createServiceAccount,
@@ -332,12 +368,31 @@ export function NewServiceAccount() {
     <form action={formAction} className="max-w-md space-y-4 rounded-md border border-line-subtle p-4">
       <p className="text-sm font-medium text-ink">Служебная учётная запись</p>
       <p className="text-xs text-ink-muted">
-        Для согласующих, HR BP и других административных ролей без карточки сотрудника.
+        Для C&B, подрядчиков и других ролей без карточки сотрудника.
       </p>
       <Field label="Логин" htmlFor="svc-login">
         <Input id="svc-login" name="login" autoCapitalize="none" spellCheck={false} required />
       </Field>
       <RolePicker defaultRoles={["C_AND_B"]} />
+      <Field
+        label="Партнёр"
+        htmlFor="svc-partner"
+        hint="Только для роли «Подрядчик»: учётка будет гасить купоны лишь этого партнёра. «Все партнёры» — без ограничения."
+      >
+        <select
+          id="svc-partner"
+          name="partnerId"
+          defaultValue=""
+          className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none"
+        >
+          <option value="">Все партнёры</option>
+          {partners.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       {state.error && (
         <p className="text-sm font-medium text-danger" role="alert">
           {state.error}

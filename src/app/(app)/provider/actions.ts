@@ -21,6 +21,7 @@ export type CouponView = {
   validUntil: string | null;
   expired: boolean;
   redeemable: boolean;
+  wrongPartner: boolean;
 };
 
 export type LookupResult = { coupon?: CouponView; error?: string };
@@ -37,6 +38,7 @@ export async function lookupCoupon(number: string): Promise<LookupResult> {
   if (!c) return { error: "Купон с таким номером не найден." };
 
   const expired = isCouponExpired(c.validUntil);
+  const wrongPartner = !!s.user.partnerId && c.partnerId !== s.user.partnerId;
 
   return {
     coupon: {
@@ -49,7 +51,8 @@ export async function lookupCoupon(number: string): Promise<LookupResult> {
       period: c.period.name,
       validUntil: c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : null,
       expired,
-      redeemable: c.status === "ISSUED" && !expired,
+      redeemable: c.status === "ISSUED" && !expired && !wrongPartner,
+      wrongPartner,
     },
   };
 }
@@ -58,7 +61,7 @@ export async function redeemCoupon(number: string): Promise<RedeemResult> {
   const s = await requireSession();
   assertCan(s.roles, "coupons.confirm");
   try {
-    await redeemCouponByNumber(number, s.user.id);
+    await redeemCouponByNumber(number, s.user.id, s.user.partnerId);
     revalidatePath("/provider");
     return { ok: true };
   } catch (e) {

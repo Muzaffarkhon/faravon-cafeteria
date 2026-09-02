@@ -14,7 +14,7 @@ export default async function UsersPage() {
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
 
-  const [employees, serviceUsers] = await Promise.all([
+  const [employees, serviceUsers, partners] = await Promise.all([
     db.employee.findMany({
       include: { user: { select: { login: true, roles: true, isActive: true } } },
       orderBy: [{ isActive: "desc" }, { fullName: "asc" }],
@@ -22,7 +22,9 @@ export default async function UsersPage() {
     db.user.findMany({
       where: { employeeId: null },
       orderBy: { login: "asc" },
+      include: { partner: { select: { name: true } } },
     }),
+    db.partner.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -124,6 +126,7 @@ export default async function UsersPage() {
               <tr>
                 <th className="px-4 py-2 font-medium">Логин</th>
                 <th className="px-4 py-2 font-medium">Роли</th>
+                <th className="px-4 py-2 font-medium">Партнёр</th>
                 <th className="px-4 py-2 font-medium">Статус</th>
                 <th className="px-4 py-2" />
               </tr>
@@ -132,12 +135,20 @@ export default async function UsersPage() {
               {serviceUsers.map((u) => (
                 <ServiceAccountRow
                   key={u.id}
-                  user={{ id: u.id, login: u.login, roles: u.roles, isActive: u.isActive }}
+                  user={{
+                    id: u.id,
+                    login: u.login,
+                    roles: u.roles,
+                    isActive: u.isActive,
+                    partnerId: u.partnerId,
+                    partnerName: u.partner?.name ?? null,
+                  }}
+                  partners={partners}
                 />
               ))}
               {serviceUsers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-ink-muted">
+                  <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
                     Служебных учётных записей нет.
                   </td>
                 </tr>
@@ -145,7 +156,7 @@ export default async function UsersPage() {
             </tbody>
           </table>
         </Card>
-        <NewServiceAccount />
+        <NewServiceAccount partners={partners} />
       </section>
     </div>
   );
