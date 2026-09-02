@@ -14,48 +14,101 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
 
 /* ------------------------------------------------------------------ Button --- */
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
-type ButtonSize = "sm" | "md";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "soft"
+  | "ghost"
+  | "danger"
+  | "success";
+type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium " +
-  "transition-[background-color,border-color,color,box-shadow] duration-150 " +
-  "disabled:opacity-50 disabled:pointer-events-none " +
+  "group/btn relative inline-flex select-none items-center justify-center gap-2 " +
+  "whitespace-nowrap rounded-lg font-semibold leading-none tracking-[-0.006em] " +
+  "transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out " +
+  "active:translate-y-px " +
+  "disabled:pointer-events-none disabled:opacity-55 disabled:shadow-none disabled:active:translate-y-0 " +
+  "aria-busy:pointer-events-none aria-busy:active:translate-y-0 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
+  // Основное действие — заливка брендом, многослойная тень, тактильное нажатие.
   primary:
-    "bg-primary text-on-brand shadow-xs hover:bg-primary-hover active:bg-primary-active",
+    "bg-primary text-on-brand shadow-sm hover:bg-primary-hover hover:shadow-md " +
+    "active:bg-primary-active active:shadow-xs",
+  // Вторичное — контурная кнопка на поверхности.
   secondary:
-    "border border-line-strong bg-surface text-ink shadow-xs hover:bg-surface-muted",
-  ghost: "text-ink-muted hover:bg-surface-muted hover:text-ink",
+    "border border-line-strong bg-surface text-ink shadow-xs " +
+    "hover:border-line-strong hover:bg-surface-muted active:bg-surface-sunken",
+  // Вторичное с акцентом — мягкая брендовая заливка.
+  soft:
+    "border border-primary-border/60 bg-primary-soft text-primary-strong " +
+    "hover:border-primary-border hover:bg-primary-soft-hover active:bg-primary-soft-hover",
+  ghost:
+    "text-ink-muted hover:bg-surface-muted hover:text-ink active:bg-surface-sunken",
   danger:
-    "border border-danger-border text-danger hover:bg-danger-soft active:bg-primary-soft-hover",
-  success: "bg-success text-on-brand shadow-xs hover:bg-success-strong",
+    "border border-danger-border text-danger shadow-xs " +
+    "hover:border-danger hover:bg-danger-soft active:bg-primary-soft-hover",
+  success:
+    "bg-success text-on-brand shadow-sm hover:bg-success-strong hover:shadow-md active:shadow-xs",
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  sm: "px-2.5 py-1 text-xs",
-  md: "px-3.5 py-2 text-sm",
+  sm: "h-8 gap-1.5 px-3 text-xs",
+  md: "h-10 px-4 text-sm",
+  lg: "h-12 px-5 text-[0.9375rem]",
 };
 
 export function buttonClass(
-  opts: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {},
+  opts: {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    fullWidth?: boolean;
+    className?: string;
+  } = {},
 ): string {
-  const { variant = "primary", size = "md", className } = opts;
-  return cx(BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size], className);
+  const { variant = "primary", size = "md", fullWidth, className } = opts;
+  return cx(
+    BUTTON_BASE,
+    BUTTON_VARIANT[variant],
+    BUTTON_SIZE[size],
+    fullWidth && "w-full",
+    className,
+  );
 }
 
 export function Button({
   variant,
   size,
+  fullWidth,
+  loading,
   className,
+  children,
+  disabled,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  fullWidth?: boolean;
+  loading?: boolean;
 }) {
-  return <button className={buttonClass({ variant, size, className })} {...props} />;
+  return (
+    <button
+      className={buttonClass({ variant, size, fullWidth, className })}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...props}
+    >
+      {loading && (
+        <span
+          aria-hidden="true"
+          className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
+        />
+      )}
+      {children}
+    </button>
+  );
 }
 
 /* ------------------------------------------------------------- Form controls --- */

@@ -29,28 +29,35 @@ export function FlexSelection({
   hasSubmittable: boolean;
 }) {
   const [pending, start] = useTransition();
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const selected = new Set(selectedIds);
   const usedCount = selectedIds.length;
 
   function onToggle(id: string) {
     setError(null);
+    setBusyId(id);
     start(async () => {
       try {
         await toggleSelection(id);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
+      } finally {
+        setBusyId(null);
       }
     });
   }
 
   function onSubmit() {
     setError(null);
+    setBusyId("submit");
     start(async () => {
       try {
         await submitSelection();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
+      } finally {
+        setBusyId(null);
       }
     });
   }
@@ -62,7 +69,7 @@ export function FlexSelection({
           Выбрано {usedCount} из {maxSelections}
         </p>
         {windowOpen && hasSubmittable && (
-          <Button onClick={onSubmit} disabled={pending || draftCount === 0} size="sm">
+          <Button onClick={onSubmit} disabled={draftCount === 0 || pending} loading={busyId === "submit"}>
             Подтвердить выбор ({draftCount})
           </Button>
         )}
@@ -101,8 +108,8 @@ export function FlexSelection({
                     />
                   )}
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-ink">{c.title}</div>
-                    {c.partner && <div className="text-xs text-ink-subtle">{c.partner}</div>}
+                    <div className="text-[0.9375rem] font-semibold leading-snug text-balance text-ink">{c.title}</div>
+                    {c.partner && <div className="mt-0.5 text-xs text-ink-subtle">{c.partner}</div>}
                   </div>
                 </div>
                 {!c.isActive && <Badge tone="neutral">скоро</Badge>}
@@ -111,11 +118,12 @@ export function FlexSelection({
 
               {windowOpen && c.isActive && (
                 <Button
-                  variant={isSel ? "danger" : "secondary"}
-                  size="sm"
+                  variant={isSel ? "danger" : "soft"}
                   onClick={() => onToggle(c.id)}
                   disabled={pending || (!isSel && usedCount >= maxSelections)}
-                  className="mt-3 w-full"
+                  loading={busyId === c.id}
+                  fullWidth
+                  className="mt-4"
                 >
                   {isSel ? "Убрать" : "Выбрать"}
                 </Button>
