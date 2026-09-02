@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
 import { logout } from "./actions";
+import { LiveRefresh } from "./_live-refresh";
 
 export type NavItem = {
   href: string;
@@ -239,6 +240,7 @@ export function AppShell({
 
   return (
     <div className="relative isolate flex min-h-dvh bg-canvas text-ink">
+      <LiveRefresh />
       {/* Десктоп-сайдбар / мобильная шторка */}
       <aside
         className={cx(
