@@ -203,11 +203,11 @@ export default async function OverviewPage() {
         </section>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.75fr]">
+      <div className="grid gap-6 lg:grid-cols-[1.35fr_0.72fr]">
         <div className="space-y-6">
           <section className="space-y-4">
             <SectionTitle className="text-lg">Программы признания</SectionTitle>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {recognition.map((c) => (
                 <li
                   key={c.id}
@@ -230,35 +230,43 @@ export default async function OverviewPage() {
 
           <section className="space-y-4">
             <SectionTitle className="text-lg">Витрина заботы</SectionTitle>
-            <ul className="grid gap-4 sm:grid-cols-2">
+            <ul className="grid gap-5 sm:grid-cols-2">
               {care.map((c) => (
                 <li
                   key={c.id}
-                  className="group flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 shadow-sm transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary-border hover:shadow-md"
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-primary-border hover:shadow-md"
                 >
-                  {c.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.imageUrl}
-                      alt=""
-                      className="h-14 w-14 shrink-0 rounded-xl border border-line object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-primary-soft text-primary-strong"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
-                      </svg>
-                    </span>
-                  )}
-                  <div className="min-w-0">
+                  <div className="relative h-44 overflow-hidden">
+                    {c.imageUrl ? (
+                      <>
+                        {/* Размытая рамка — увеличенная копия картинки позади чёткой */}
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 scale-125 bg-cover bg-center blur-2xl saturate-150"
+                          style={{ backgroundImage: `url("${c.imageUrl}")` }}
+                        />
+                        <div aria-hidden="true" className="absolute inset-0 bg-surface/20" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={c.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          className="absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] rounded-xl border border-white/40 object-cover shadow-md transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+                        />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-primary-soft text-primary-strong">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
                       Гарантировано всем
                     </p>
-                    <p className="mt-0.5 text-base font-semibold leading-snug text-balance text-ink line-clamp-2">
+                    <p className="mt-1 text-lg font-semibold leading-snug text-balance text-ink">
                       {c.title}
                     </p>
                   </div>
@@ -290,7 +298,7 @@ export default async function OverviewPage() {
           </section>
         </div>
 
-        <aside className="space-y-5">
+        <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
           <Card className="p-5">
             <div className="text-sm font-semibold text-ink">Быстрые действия</div>
             <Link
