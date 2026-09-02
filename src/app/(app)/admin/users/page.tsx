@@ -9,15 +9,21 @@ import { NewServiceAccount, ServiceAccountRow } from "./_account";
 
 export const dynamic = "force-dynamic";
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
 
-  const [employees, serviceUsers, partners] = await Promise.all([
+  const archiveView = (await searchParams).view === "archive";
+  const [employees, serviceUsers, partners, archivedCount] = await Promise.all([
     db.employee.findMany({
+      where: { isActive: !archiveView },
       include: { user: { select: { login: true, roles: true, isActive: true } } },
-      orderBy: [{ isActive: "desc" }, { fullName: "asc" }],
+      orderBy: { fullName: "asc" },
     }),
     db.user.findMany({
       where: { employeeId: null },
@@ -25,6 +31,7 @@ export default async function UsersPage() {
       include: { partner: { select: { name: true } } },
     }),
     db.partner.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.employee.count({ where: { isActive: false } }),
   ]);
 
   return (
@@ -35,20 +42,30 @@ export default async function UsersPage() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/admin/users/import"
+              href={archiveView ? "/admin/users" : "/admin/users?view=archive"}
               className={buttonClass({ variant: "secondary", size: "sm" })}
             >
-              Импорт из Excel
+              {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
             </Link>
-            <Link href="/admin/users/new" className={buttonClass({ size: "sm" })}>
-              Добавить сотрудника
-            </Link>
+            {!archiveView && (
+              <>
+                <Link
+                  href="/admin/users/import"
+                  className={buttonClass({ variant: "secondary", size: "sm" })}
+                >
+                  Импорт из Excel
+                </Link>
+                <Link href="/admin/users/new" className={buttonClass({ size: "sm" })}>
+                  Добавить сотрудника
+                </Link>
+              </>
+            )}
           </div>
         }
       />
 
       <section className="space-y-3">
-        <SectionTitle count={employees.length}>Сотрудники</SectionTitle>
+        <SectionTitle count={employees.length}>{archiveView ? "Архив сотрудников" : "Сотрудники"}</SectionTitle>
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-line-subtle text-left text-xs text-ink-muted">
@@ -115,6 +132,7 @@ export default async function UsersPage() {
         </Card>
       </section>
 
+      {!archiveView && (
       <section className="space-y-3">
         <SectionTitle count={serviceUsers.length}>Служебные учётные записи</SectionTitle>
         <p className="text-sm text-ink-muted">
@@ -158,6 +176,7 @@ export default async function UsersPage() {
         </Card>
         <NewServiceAccount partners={partners} />
       </section>
+      )}
     </div>
   );
 }

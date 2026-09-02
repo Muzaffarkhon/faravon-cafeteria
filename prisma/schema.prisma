@@ -177,6 +177,7 @@ model BenefitCard {
   status      CardStatus @default(PUBLISHED)
   sortOrder   Int        @default(0)
   minParticipants Int    @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
+  archivedAt  DateTime?  // карточка в архиве — не показывается сотрудникам и в основном списке
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -185,6 +186,8 @@ model BenefitCard {
 
   items    ApplicationItem[]
   versions BenefitCardVersion[]
+
+  @@index([archivedAt])
 }
 
 /// Снимок состояния карточки льготы на момент изменения (история версий).

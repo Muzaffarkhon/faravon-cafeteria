@@ -88,10 +88,10 @@ export default async function OverviewPage() {
   const period = await getCurrentPeriod();
 
   const [recognition, care, flex] = await Promise.all([
-    db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED" }, orderBy: { sortOrder: "asc" } }),
-    db.benefitCard.findMany({ where: { block: "CARE", status: "PUBLISHED" }, orderBy: { sortOrder: "asc" } }),
+    db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
+    db.benefitCard.findMany({ where: { block: "CARE", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
     db.benefitCard.findMany({
-      where: { block: "FLEX", status: "PUBLISHED" },
+      where: { block: "FLEX", status: "PUBLISHED", archivedAt: null },
       orderBy: { sortOrder: "asc" },
       include: { partner: true },
     }),

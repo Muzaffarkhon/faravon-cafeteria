@@ -122,6 +122,26 @@ export async function restoreCardVersionAction(versionId: string): Promise<void>
   revalidatePath("/");
 }
 
+/** Отправить карточку в архив / вернуть из архива. */
+export async function setCardArchived(id: string, archived: boolean): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "cards.manage");
+    await db.benefitCard.update({
+      where: { id },
+      data: { archivedAt: archived ? new Date() : null },
+    });
+    await audit({
+      actorId: s.user.id,
+      action: archived ? "CARD_ARCHIVED" : "CARD_RESTORED",
+      entityType: "BenefitCard",
+      entityId: id,
+    });
+    revalidatePath("/admin/cards");
+    revalidatePath("/");
+  });
+}
+
 export async function deleteCard(id: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
