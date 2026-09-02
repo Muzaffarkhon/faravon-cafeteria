@@ -49,7 +49,7 @@ export default async function PartnersPage() {
           <tbody className="divide-y divide-line-subtle">
             {partners.map((p) => (
               <tr key={p.id} className="transition-colors hover:bg-surface-muted/60">
-                <td className="px-4 py-2 font-medium text-ink">{p.name}</td>
+                <td className="px-4 py-2 font-medium text-ink">{p.name}<div className="font-mono text-[10px] font-normal text-ink-subtle">{p.id}</div></td>
                 <td className="px-4 py-2 text-ink-muted">{p.category ?? "—"}</td>
                 <td className="px-4 py-2 text-ink-muted">{p.discountType ?? "—"}</td>
                 <td className="px-4 py-2 text-ink-muted">{p._count.cards}</td>

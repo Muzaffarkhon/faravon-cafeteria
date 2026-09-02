@@ -65,7 +65,7 @@ export default async function UsersPage() {
             <tbody className="divide-y divide-line-subtle">
               {employees.map((e) => (
                 <tr key={e.id} className="transition-colors hover:bg-surface-muted/60">
-                  <td className="px-4 py-2 font-medium text-ink">{e.fullName}</td>
+                  <td className="px-4 py-2 font-medium text-ink">{e.fullName}<div className="font-mono text-[10px] font-normal text-ink-subtle">{e.id}</div></td>
                   <td className="px-4 py-2 text-ink-muted">{e.tabNumber}</td>
                   <td className="px-4 py-2 text-ink-muted">{e.department}</td>
                   <td className="px-4 py-2 text-ink-muted">{e.phone ?? "—"}</td>

@@ -24,6 +24,7 @@ const ICONS = {
   periods: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z||M4 10h16||M8 3v4||M16 3v4",
   access: "M14 7a4 4 0 1 0-3.5 3.97L4 17v3h3l1-1h2v-2h2l1.5-1.5A4 4 0 0 0 14 7z",
   users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
+  history: "M3 12a9 9 0 1 0 3-6.7L3 8||M3 3v5h5||M12 8v5l3 2",
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     add("admin", "Аналитика и доступ", { href: "/admin/access", label: "Доступ", icon: ICONS.access });
   if (can(roles, "users.manage"))
     add("admin", "Аналитика и доступ", { href: "/admin/users", label: "Пользователи", icon: ICONS.users });
+  if (can(roles, "audit.view"))
+    add("admin", "Аналитика и доступ", { href: "/admin/audit", label: "История", icon: ICONS.history });
 
   return (
     <>
