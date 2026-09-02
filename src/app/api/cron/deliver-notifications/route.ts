@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { deliverTelegramNotifications } from "@/lib/notification-delivery";
+import { runPeriodWindowNotifications } from "@/lib/period-notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,11 +17,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Оконные уведомления (§5.10) — ставим в очередь, затем доставляем всё разом.
+  let windows = { windowOpen: 0, windowClosing: 0 };
+  try {
+    windows = await runPeriodWindowNotifications();
+  } catch (e) {
+    console.error("[cron/deliver] оконные уведомления:", e);
+  }
+
   const result = await deliverTelegramNotifications({
     db,
     token: process.env.TELEGRAM_BOT_TOKEN,
     log: (m) => console.log(`[cron/deliver] ${m}`),
   });
 
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ok: true, ...result, ...windows });
 }

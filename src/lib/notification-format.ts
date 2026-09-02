@@ -18,6 +18,8 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
   SLA_ESCALATION: "Просроченная заявка на согласовании",
+  WINDOW_OPEN: "Открыто окно выбора льгот",
+  WINDOW_CLOSING: "Окно выбора скоро закроется",
 };
 
 /** Порядок событий в админке. */
@@ -28,6 +30,8 @@ export const NOTIFICATION_EVENTS = [
   "COUPON_CREATED",
   "COUPON_ISSUED",
   "SLA_ESCALATION",
+  "WINDOW_OPEN",
+  "WINDOW_CLOSING",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -60,6 +64,14 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
     body: "Заявка {employee}[[, {department}]] по льготе «{card}» ждёт решения больше {hours} ч (уровень {level}). Откройте раздел «Согласование».",
   },
+  WINDOW_OPEN: {
+    label: NOTIFICATION_LABELS.WINDOW_OPEN,
+    body: "Открыто окно выбора льгот[[ на период «{period}»]]. Выберите льготы до {windowEnd}.",
+  },
+  WINDOW_CLOSING: {
+    label: NOTIFICATION_LABELS.WINDOW_CLOSING,
+    body: "Окно выбора[[ на период «{period}»]] закроется {windowEnd}, а вы ещё не выбрали льготы. Успейте оформить выбор.",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -82,6 +94,8 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     hours: "72",
     level: "1",
   },
+  WINDOW_OPEN: { period: "III квартал 2026", windowEnd: "30.09.2026" },
+  WINDOW_CLOSING: { period: "III квартал 2026", windowEnd: "30.09.2026" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -92,6 +106,8 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   COUPON_CREATED: ["card", "number"],
   COUPON_ISSUED: ["card", "number"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
+  WINDOW_OPEN: ["period", "windowEnd"],
+  WINDOW_CLOSING: ["period", "windowEnd"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));
