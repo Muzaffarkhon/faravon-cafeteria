@@ -212,6 +212,22 @@ async function main() {
     });
   }
 
+  // ---- Демо-баннер партнёра для билборда на дашборде ----
+  const demoBannerTitle = "Тренажёрный зал «Мусаффо» — скидка до 30%";
+  const hasDemoBanner = await db.partnerBanner.findFirst({ where: { title: demoBannerTitle } });
+  if (!hasDemoBanner) {
+    await db.partnerBanner.create({
+      data: {
+        title: demoBannerTitle,
+        subtitle: "Для сотрудников «Фаровон» — по купону из кафетерия льгот",
+        partnerId: partners.musaffo ?? null,
+        href: null,
+        isActive: true,
+        sortOrder: 0,
+      },
+    });
+  }
+
   console.log("Seed done. Logins: c_and_b / contractor / ivanov / petrova / sidorov — password: Password1");
 }
 

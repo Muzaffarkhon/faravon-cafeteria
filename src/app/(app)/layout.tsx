@@ -32,6 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (can(roles, "coupons.confirm")) items.push({ href: "/provider", label: "Погашение купонов" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/cards", label: "Карточки" });
   if (can(roles, "partners.manage")) items.push({ href: "/admin/partners", label: "Партнёры" });
+  if (can(roles, "partners.manage")) items.push({ href: "/admin/partner-banners", label: "Баннеры" });
+  if (can(roles, "cards.manage")) items.push({ href: "/admin/advertising-requests", label: "Заявки на рекламу" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/texts", label: "Тексты" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/notifications", label: "Уведомления" });
   if (can(roles, "cards.manage")) items.push({ href: "/admin/sla", label: "SLA" });
