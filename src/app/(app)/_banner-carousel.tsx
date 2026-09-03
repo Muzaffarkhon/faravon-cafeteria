@@ -26,6 +26,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
 
+  const pressed = useRef(false);
   const dragging = useRef(false);
   const startX = useRef(0);
   const startPos = useRef(0);
@@ -85,28 +86,41 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (!loop) return;
-    dragging.current = true;
+    if (!loop || e.button !== 0) return; // только левая кнопка
+    pressed.current = true;
+    dragging.current = false;
     moved.current = false;
-    setAnimate(false);
-    setPaused(true);
     startX.current = e.clientX;
     startPos.current = pos;
     width.current = trackRef.current?.offsetWidth || 1;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setPaused(true);
   }
   function onPointerMove(e: React.PointerEvent) {
-    if (!dragging.current) return;
+    if (!pressed.current) return;
     const d = e.clientX - startX.current;
-    if (Math.abs(d) > 4) moved.current = true;
-    setPos(normalize(startPos.current - d / width.current));
+    if (Math.abs(d) > 6) {
+      moved.current = true;
+      if (!dragging.current) {
+        dragging.current = true;
+        setAnimate(false);
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {
+          /* noop */
+        }
+      }
+    }
+    if (dragging.current) setPos(normalize(startPos.current - d / width.current));
   }
   function onPointerUp() {
-    if (!dragging.current) return;
-    dragging.current = false;
+    if (!pressed.current) return;
+    pressed.current = false;
     setPaused(false);
-    setAnimate(true);
-    setPos((p) => Math.round(p)); // доводим до ближайшего слайда; settle сработает по transitionEnd
+    if (dragging.current) {
+      dragging.current = false;
+      setAnimate(true);
+      setPos((p) => Math.round(p)); // доводим до ближайшего слайда
+    }
   }
 
   const activeDot = loop ? (((Math.round(pos) % count) + count) % count) : 0;
@@ -125,6 +139,16 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onDragStart={(e) => e.preventDefault()}
+        onContextMenu={(e) => loop && e.preventDefault()}
+        onClickCapture={(e) => {
+          // если было перетаскивание — не даём сработать ссылке баннера
+          if (moved.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            moved.current = false;
+          }
+        }}
         style={{ touchAction: "pan-y" }}
       >
         <div
