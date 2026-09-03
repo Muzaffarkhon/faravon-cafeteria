@@ -141,21 +141,15 @@ export function CardImageField({ initial }: { initial?: string | null }) {
 
       {busy && (
         <div className="mt-2 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-subtle">
-            <div
-              className={cx(
-                "h-full rounded-full bg-primary",
-                stage === "upload" && pct > 0
-                  ? "transition-[width] duration-200"
-                  : "animate-pulse",
-              )}
-              style={{
-                width:
-                  stage === "optimize" || pct === 0
-                    ? "20%"
-                    : `${Math.max(pct, 4)}%`,
-              }}
-            />
+          <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-line-subtle">
+            {stage === "optimize" || pct === 0 ? (
+              <div className="progress-indeterminate bg-primary" />
+            ) : (
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-200"
+                style={{ width: `${Math.max(pct, 4)}%` }}
+              />
+            )}
           </div>
           <span className="shrink-0 text-right text-xs tabular-nums text-ink-muted">
             {stage === "optimize"

@@ -485,6 +485,27 @@
       animation: none;
     }
   }
+
+  /* Неопределённый прогресс: бегунок ездит по дорожке, пока нет процентов */
+  .progress-indeterminate {
+    position: absolute;
+    inset-block: 0;
+    inline-size: 40%;
+    border-radius: 9999px;
+    animation: progress-indeterminate 1.15s ease-in-out infinite;
+  }
+  @keyframes progress-indeterminate {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(275%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-indeterminate {
+      animation: none;
+      inline-size: 100%;
+      opacity: 0.5;
+    }
+  }
+
   .petal-drift > i {
     position: absolute;
     display: block;
