@@ -83,11 +83,18 @@ export async function deletePartner(id: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "partners.manage");
-    const cards = await db.benefitCard.count({ where: { partnerId: id } });
-    if (cards > 0) {
-      throw new Error(
-        `Нельзя удалить: партнёр связан с ${cards} карточк(ами). Переведите в архив.`,
-      );
+    const [cards, contractors, coupons] = await Promise.all([
+      db.benefitCard.count({ where: { partnerId: id } }),
+      db.user.count({ where: { partnerId: id } }),
+      db.coupon.count({ where: { partnerId: id } }),
+    ]);
+    if (cards > 0 || contractors > 0 || coupons > 0) {
+      const parts = [
+        cards > 0 && `${cards} карточк(ами)`,
+        contractors > 0 && `${contractors} учётк(ами) подрядчика`,
+        coupons > 0 && `${coupons} купон(ами)`,
+      ].filter(Boolean);
+      throw new Error(`Нельзя удалить: партнёр связан с ${parts.join(", ")}. Переведите в архив.`);
     }
     await db.partner.delete({ where: { id } });
     await audit({ actorId: s.user.id, action: "PARTNER_DELETED", entityType: "Partner", entityId: id });

@@ -46,14 +46,16 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
     [loop, count],
   );
 
+  // userPaused — явная остановка кнопкой; paused — временная (hover / фокус внутри).
+  const [userPaused, setUserPaused] = useState(false);
   useEffect(() => {
-    if (!loop || paused) return;
+    if (!loop || paused || userPaused) return;
     const t = setInterval(() => {
       setAnimate(true);
       setPos((p) => p + 1);
     }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [loop, paused]);
+  }, [loop, paused, userPaused]);
 
   // Когда pos вышел за среднюю копию — после завершения анимации бесшовно
   // возвращаем его в диапазон [count, 2*count) без анимации (слайд тот же).
@@ -129,8 +131,15 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   return (
     <section
       className="relative"
+      aria-roledescription="карусель"
+      aria-label="Баннеры партнёров"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(e) => {
+        // снимаем паузу, только когда фокус ушёл за пределы карусели
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setPaused(false);
+      }}
     >
       <div
         ref={trackRef}
@@ -233,6 +242,19 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white backdrop-blur transition hover:bg-black/55"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+          <button
+            type="button"
+            aria-label={userPaused ? "Возобновить автопрокрутку баннеров" : "Остановить автопрокрутку баннеров"}
+            aria-pressed={userPaused}
+            onClick={() => setUserPaused((v) => !v)}
+            className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition hover:bg-black/55"
+          >
+            {userPaused ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+            )}
           </button>
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
             {slides.map((s, i) => (

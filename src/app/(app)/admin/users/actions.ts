@@ -665,6 +665,19 @@ export async function importEmployees(
     const absent = existing.filter((e) => e.isActive && !seenNames.has(norm(e.fullName)));
     deactivateList = absent.map((e) => e.fullName);
     deactivated = absent.length;
+    // Предохранитель: сопоставление идёт по ФИО (нестабильный ключ). Если файл
+    // «увольняет» подозрительно много людей — это почти наверняка кривой файл
+    // (не тот лист, другая раскладка ФИО). Требуем сначала прогнать dry-run.
+    const activeCount = existing.filter((e) => e.isActive).length;
+    const cap = Math.max(15, Math.ceil(activeCount * 0.25));
+    if (!dryRun && absent.length > cap) {
+      return {
+        error:
+          `Импорт остановлен: файл деактивировал бы ${absent.length} сотрудников (порог ${cap}). ` +
+          `Сначала запустите предпросмотр (dry-run) и проверьте список — вероятно, в файле не тот лист или другой формат ФИО.`,
+        deactivateList,
+      };
+    }
     if (!dryRun && absent.length) {
       const now = new Date();
       for (const ids of chunk(absent.map((e) => e.id), 1000)) {
