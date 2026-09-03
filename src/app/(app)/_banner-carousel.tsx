@@ -194,7 +194,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
               </>
             );
             const cls =
-              "relative flex h-44 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-56";
+              "relative flex h-52 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-64";
             return b.linkHref ? (
               <a
                 key={`${b.id}-${i}`}

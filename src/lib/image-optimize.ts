@@ -26,7 +26,9 @@ export function isOptimizableRaster(type: string): boolean {
   return RASTER.has(type);
 }
 
-async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
+export async function loadBitmap(
+  file: File | Blob,
+): Promise<ImageBitmap | HTMLImageElement> {
   if (typeof createImageBitmap === "function") {
     try {
       return await createImageBitmap(file);
@@ -52,6 +54,28 @@ function canvasToBlob(
   quality: number,
 ): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+/**
+ * Кодирует уже отрисованный canvas в WebP (откат в JPEG) с понижением качества,
+ * пока результат не влезет в targetBytes. Возвращает лучший (последний) вариант.
+ */
+export async function encodeCanvasUnderLimit(
+  canvas: HTMLCanvasElement,
+  targetBytes = DEFAULT_TARGET_BYTES,
+): Promise<{ blob: Blob; type: "image/webp" | "image/jpeg" } | null> {
+  const probe = await canvasToBlob(canvas, "image/webp", 0.82);
+  const type: "image/webp" | "image/jpeg" =
+    probe && probe.type === "image/webp" ? "image/webp" : "image/jpeg";
+
+  let best: Blob | null = type === "image/webp" ? probe : null;
+  for (const q of QUALITY_STEPS) {
+    const blob = await canvasToBlob(canvas, type, q);
+    if (!blob) continue;
+    best = blob;
+    if (blob.size <= targetBytes) break;
+  }
+  return best ? { blob: best, type } : null;
 }
 
 /**
@@ -110,21 +134,11 @@ export async function optimizeImageFile(
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, outW, outH);
   if ("close" in bitmap) bitmap.close();
 
-  const webpProbe = await canvasToBlob(canvas, "image/webp", 0.8);
-  const outType =
-    webpProbe && webpProbe.type === "image/webp" ? "image/webp" : "image/jpeg";
-
-  let best: Blob | null = webpProbe && outType === "image/webp" ? webpProbe : null;
-  for (const q of QUALITY_STEPS) {
-    const blob = await canvasToBlob(canvas, outType, q);
-    if (!blob) continue;
-    best = blob;
-    if (blob.size <= targetBytes) break;
-  }
-
-  if (!best) {
+  const encoded = await encodeCanvasUnderLimit(canvas, targetBytes);
+  if (!encoded) {
     return { file, changed: false, width: srcW, height: srcH };
   }
+  const { blob: best, type: outType } = encoded;
 
   // Пережатое оказалось не легче исходника (бывает на маленьких PNG-иконках)
   // и исходник уже влезает — оставляем исходник.

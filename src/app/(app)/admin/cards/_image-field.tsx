@@ -71,8 +71,9 @@ export function CardImageField({ initial }: { initial?: string | null }) {
       setStage("upload");
       const blob = await upload(name, payload, {
         access: "public",
-        handleUploadUrl: "/api/cards/upload",
+        handleUploadUrl: "/api/blob/upload",
         contentType,
+        clientPayload: JSON.stringify({ purpose: "card" }),
         onUploadProgress: (e) => setPct(Math.round(e.percentage)),
       });
       setUrl(blob.url);

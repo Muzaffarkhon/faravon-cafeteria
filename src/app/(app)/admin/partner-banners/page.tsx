@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Table } from "@/components/ui";
+import { ImageUploadField } from "../../_components/image-upload-field";
+
+const BANNER_ASPECT = 4.5; // совпадает с рамкой карусели на широком экране
 
 type Banner = {
   id: string;
@@ -65,7 +68,7 @@ export default function Page() {
   }
 
   const set =
-    (k: "title" | "partnerId" | "imageUrl" | "href" | "subtitle") =>
+    (k: "title" | "partnerId" | "href" | "subtitle") =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -90,9 +93,16 @@ export default function Page() {
           <Field label="Подзаголовок" htmlFor="b-subtitle" className="sm:col-span-2">
             <Input id="b-subtitle" value={form.subtitle ?? ""} onChange={set("subtitle")} />
           </Field>
-          <Field label="URL изображения" htmlFor="b-img">
-            <Input id="b-img" inputMode="url" value={form.imageUrl ?? ""} onChange={set("imageUrl")} />
-          </Field>
+          <div className="sm:col-span-2">
+            <ImageUploadField
+              value={form.imageUrl ?? ""}
+              onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+              purpose="banner"
+              aspect={BANNER_ASPECT}
+              label="Изображение баннера"
+              hint="Загрузите фото и скадрируйте под баннер, либо вставьте ссылку."
+            />
+          </div>
           <Field label="Ссылка" htmlFor="b-href">
             <Input id="b-href" inputMode="url" value={form.href ?? ""} onChange={set("href")} />
           </Field>
