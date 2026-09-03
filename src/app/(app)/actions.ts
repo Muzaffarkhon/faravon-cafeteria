@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession, destroySession, readToken } from "@/lib/auth";
+import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { notifyApprovers } from "@/lib/notify";
@@ -17,6 +18,7 @@ import {
 
 async function employeeContext() {
   const s = await requireSession();
+  assertCan(s.roles, "application.select");
   if (!s.employee) throw new Error("Доступно только сотрудникам.");
   const period = await getCurrentPeriod();
   if (!period) throw new Error("Нет активного периода выбора.");

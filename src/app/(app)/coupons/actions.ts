@@ -7,7 +7,7 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
-import { groupProgressOne } from "@/lib/selection";
+import { groupApprovedCount } from "@/lib/selection";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
@@ -62,10 +62,10 @@ async function issueCouponImpl(couponId: string) {
   // Групповая льгота: выдать купон можно только после набора группы (§ minParticipants).
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
-    const have = await groupProgressOne(coupon.item.cardId, coupon.periodId);
+    const have = await groupApprovedCount(coupon.item.cardId, coupon.periodId);
     if (have < min) {
       throw new Error(
-        `Групповая льгота «${coupon.item.card.title}»: выбрали ${have} из ${min} сотрудников. Купон можно выдать после набора группы.`,
+        `Групповая льгота «${coupon.item.card.title}»: одобрено ${have} из ${min} участников. Купон можно выдать после того, как одобрят всю группу.`,
       );
     }
   }

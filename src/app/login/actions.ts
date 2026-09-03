@@ -32,7 +32,10 @@ export async function loginAction(
 ): Promise<LoginState> {
   const login = String(formData.get("login") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/") || "/";
+  // Только внутренний путь: /path без протокол-относительного //, без \, без \n.
+  // Иначе `redirect(next)` мог увести на внешний фишинг после успешного входа.
+  const nextRaw = String(formData.get("next") ?? "/");
+  const next = /^\/(?!\/)[^\s\\]*$/.test(nextRaw) ? nextRaw : "/";
   const honeypot = String(formData.get("company") ?? ""); // скрытое поле — заполняют только боты
 
   if (honeypot) return { error: "Неверный логин или пароль." };

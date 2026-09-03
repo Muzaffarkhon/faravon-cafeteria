@@ -15,6 +15,11 @@ export async function changePasswordAction(
   const session = await getSession();
   if (!session) redirect("/login");
 
+  // Этот экран — только принудительная смена после входа по OTP. Обычная смена
+  // пароля идёт через профиль (`changeOwnPassword`) и требует текущий пароль.
+  // Без этой проверки любая перехваченная сессия меняла пароль за один запрос.
+  if (!session.mustChangePassword) redirect("/profile");
+
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 

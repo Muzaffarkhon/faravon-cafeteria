@@ -39,8 +39,18 @@ export function countAgainstLimit(items: { status: string }[]) {
   return items.filter((i) => ACTIVE_FOR_LIMIT.includes(i.status as never)).length;
 }
 
-/** Статусы позиции, которые считаются «участием» в групповой льготе. */
+/**
+ * Статусы «участия» в групповой льготе для ОТОБРАЖЕНИЯ прогресса набора
+ * («X из N выбрали»). Включает ещё не одобренные заявки.
+ */
 const GROUP_COUNT_STATUSES = ["PENDING", "APPROVED", "COUPON_CREATED", "COUPON_ISSUED"] as const;
+
+/**
+ * Статусы, при которых участник РЕАЛЬНО в группе — только одобренные и дальше.
+ * По этому счётчику решаем, набралась ли группа для ВЫДАЧИ купонов: пока заявки
+ * PENDING, группы ещё нет (их могут отклонить по бюджету).
+ */
+const GROUP_ISSUE_STATUSES = ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED"] as const;
 
 /**
  * Сколько сотрудников выбрали (подтвердили) каждую из карточек в периоде.
@@ -63,7 +73,24 @@ export async function groupProgress(
   return new Map(rows.map((r) => [r.cardId, r._count._all]));
 }
 
-/** Прогресс по одной карточке. */
+/** Прогресс набора (для отображения) по одной карточке. */
 export async function groupProgressOne(cardId: string, periodId: string): Promise<number> {
   return (await groupProgress([cardId], periodId)).get(cardId) ?? 0;
+}
+
+/**
+ * Сколько ОДОБРЕННЫХ участников у групповой льготы — по этому числу решается,
+ * набралась ли группа для выдачи купонов (§ minParticipants).
+ */
+export async function groupApprovedCount(cardId: string, periodId: string): Promise<number> {
+  const rows = await db.applicationItem.groupBy({
+    by: ["cardId"],
+    where: {
+      cardId,
+      status: { in: [...GROUP_ISSUE_STATUSES] },
+      application: { is: { periodId } },
+    },
+    _count: { _all: true },
+  });
+  return rows[0]?._count._all ?? 0;
 }

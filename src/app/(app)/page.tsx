@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
 import { getCurrentPeriod, getApplicationWithItems, groupProgress } from "@/lib/selection";
 import { Card, SectionTitle, buttonClass, cx } from "@/components/ui";
+import { safeLinkHref, safeImageSrc, safeCssUrl } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
 import { BannerCarousel } from "./_banner-carousel";
 
@@ -123,14 +124,15 @@ export default async function OverviewPage() {
   const bannerSlides = banners.map((b) => {
     const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
-    const linkHref = cardHref ?? b.href ?? null;
+    const safeHref = safeLinkHref(b.href);
+    const linkHref = cardHref ?? safeHref;
     return {
       id: b.id,
       title: b.title,
       subtitle: b.subtitle,
-      imageUrl: b.imageUrl,
+      imageUrl: safeImageSrc(b.imageUrl),
       linkHref,
-      external: !cardHref && !!b.href && /^https?:\/\//.test(b.href),
+      external: !cardHref && !!safeHref && /^https?:\/\//i.test(safeHref),
       cta: cardHref ? "Перейти к льготе" : "Подробнее",
     };
   });
@@ -209,18 +211,20 @@ export default async function OverviewPage() {
                   className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-primary-border hover:shadow-md"
                 >
                   <div className="relative h-44 overflow-hidden">
-                    {c.imageUrl ? (
+                    {safeImageSrc(c.imageUrl) ? (
                       <>
                         {/* Размытая рамка — увеличенная копия картинки позади чёткой */}
-                        <div
-                          aria-hidden="true"
-                          className="absolute inset-0 scale-125 bg-cover bg-center blur-2xl saturate-150"
-                          style={{ backgroundImage: `url("${c.imageUrl}")` }}
-                        />
+                        {safeCssUrl(c.imageUrl) && (
+                          <div
+                            aria-hidden="true"
+                            className="absolute inset-0 scale-125 bg-cover bg-center blur-2xl saturate-150"
+                            style={{ backgroundImage: `url("${safeCssUrl(c.imageUrl)}")` }}
+                          />
+                        )}
                         <div aria-hidden="true" className="absolute inset-0 bg-surface/20" />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={c.imageUrl}
+                          src={safeImageSrc(c.imageUrl)!}
                           alt=""
                           loading="lazy"
                           className="absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] rounded-xl border border-white/40 object-cover shadow-md transition-transform duration-300 ease-out group-hover:scale-[1.02]"

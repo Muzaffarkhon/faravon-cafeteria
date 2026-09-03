@@ -58,11 +58,14 @@ const CONTACT_KEYBOARD = {
   },
 };
 
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function grantMessage(login: string, otp: string, fullName: string) {
   return (
-    `Здравствуйте, ${fullName}!\n\n` +
-    `🔑 Логин: <code>${login}</code>\n` +
-    `🔒 Одноразовый пароль: <code>${otp}</code>\n\n` +
+    `Здравствуйте, ${esc(fullName)}!\n\n` +
+    `🔑 Логин: <code>${esc(login)}</code>\n` +
+    `🔒 Одноразовый пароль: <code>${esc(otp)}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
     `Вход: ${PLATFORM_URL}/login`
   );

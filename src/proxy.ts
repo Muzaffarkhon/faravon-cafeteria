@@ -10,7 +10,11 @@ const PUBLIC_PATHS = [
 ];
 
 function secret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
+  const s = process.env.AUTH_SECRET;
+  // Fail-closed: без секрета не проверяем подпись пустым ключом (иначе можно
+  // подделать сессионный JWT), а роняем запрос — пусть чинят конфиг.
+  if (!s) throw new Error("AUTH_SECRET is not set");
+  return new TextEncoder().encode(s);
 }
 
 export async function proxy(req: NextRequest) {
