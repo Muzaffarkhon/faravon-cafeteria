@@ -12,6 +12,7 @@ type Card = {
   isActive: boolean;
   partner: string | null;
   imageUrl: string | null;
+  category: string | null;
   minParticipants: number;
   groupCount: number;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
@@ -112,8 +113,8 @@ export function FlexSelection({
         </p>
       )}
 
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {cards.map((c) => {
+      {(() => {
+        const renderCard = (c: Card) => {
           const isSel = selected.has(c.id);
           const atLimit = !isSel && usedCount >= maxSelections;
           return (
@@ -244,8 +245,38 @@ export function FlexSelection({
               </div>
             </li>
           );
-        })}
-      </ul>
+        };
+
+        // Группировка по категории карточки. Без категории — группа «Другое» в конце.
+        const groups = new Map<string, Card[]>();
+        for (const c of cards) {
+          const key = c.category?.trim() || "";
+          const arr = groups.get(key);
+          if (arr) arr.push(c);
+          else groups.set(key, [c]);
+        }
+        const keys = [...groups.keys()].sort((a, b) => {
+          if (a === "") return 1;
+          if (b === "") return -1;
+          return a.localeCompare(b, "ru");
+        });
+        const grouped = groups.size > 1;
+
+        return grouped ? (
+          <div className="space-y-6">
+            {keys.map((key) => (
+              <div key={key || "_"} className="space-y-3">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  {key || "Другое"}
+                </h4>
+                <ul className="grid gap-4 sm:grid-cols-2">{groups.get(key)!.map(renderCard)}</ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2">{cards.map(renderCard)}</ul>
+        );
+      })()}
 
       {/* Неподвижная панель подтверждения — как корзина, снизу справа. */}
       {windowOpen && (

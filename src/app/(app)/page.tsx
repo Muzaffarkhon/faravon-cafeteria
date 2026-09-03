@@ -260,6 +260,7 @@ export default async function OverviewPage() {
                 isActive: c.isActive,
                 partner: c.partner?.name ?? null,
                 imageUrl: c.imageUrl,
+                category: c.category,
                 minParticipants: c.minParticipants,
                 groupCount: groupCount.get(c.id) ?? 0,
                 lockedStatus:
