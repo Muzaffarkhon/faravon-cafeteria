@@ -48,6 +48,9 @@ export function guardedUpload(opts: {
     contentType: opts.contentType,
     clientPayload: JSON.stringify({ purpose: opts.purpose }),
     abortSignal: ctrl.signal,
+    // Частями с параллельной отправкой и повтором упавшей части — заметно
+    // устойчивее на плохой связи, чем один большой PUT.
+    multipart: opts.payload.size > 512 * 1024,
     onUploadProgress: (e) => {
       arm();
       opts.onProgress?.(Math.round(e.percentage));
