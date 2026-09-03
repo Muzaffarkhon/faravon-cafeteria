@@ -43,10 +43,18 @@ GitHub / проду) или **продуктового решения**. Пор�
    RPO ≤ 24 ч, RTO ≤ 4 ч. Проверить восстановление на пустой БД
    (`prisma migrate deploy` теперь проигрывается с нуля — проверено в CI).
 
-7. **Ветка `main` и защита.** После мержа `fix/launch-blockers` CI станет
-   зелёным (добавлен шаг `next build`). Включить branch protection на `main`
-   (обязательный статус `verify`) — сейчас red-PR'ы мержились. Нужен GitHub Pro
-   для приватного репо, либо ручной регламент «не мержить красное».
+7. **CI-шаг `next build`.** Пуш из этой сессии не может менять
+   `.github/workflows/` (нет scope `workflow`), поэтому изменение вынесено в
+   `docs/ci-add-build-step.patch`. Применить вручную:
+   ```bash
+   git apply docs/ci-add-build-step.patch && git add .github/workflows/ci.yml
+   git commit -m "ci: собирать приложение (next build)"
+   ```
+
+8. **Ветка `main` и защита.** После мержа `fix/launch-blockers` + патча выше
+   CI станет зелёным. Включить branch protection на `main` (обязательный статус
+   `verify`) — сейчас red-PR'ы мержились. Нужен GitHub Pro для приватного репо,
+   либо ручной регламент «не мержить красное».
 
 ## B. Сильно желательно (можно параллельно первым пользователям)
 
