@@ -34,12 +34,29 @@ async function createCouponImpl(itemId: string) {
 
   // Формируем и, если готово (не групповая или группа набрана), сразу выдаём.
   const coupon = await formCouponForItem(itemId, s.user.id);
-  await issueCouponIfReady(coupon.id, s.user.id);
+  const issued = await issueCouponIfReady(coupon.id, s.user.id);
   // issueCouponIfReady шлёт COUPON_ISSUED с deferFlush — доставляем сейчас,
   // иначе сообщение «купон готов» ждёт cron.
   flushTelegram();
 
   revalidateAll();
+
+  if (!issued) {
+    const item = await db.applicationItem.findUnique({
+      where: { id: itemId },
+      select: {
+        cardId: true,
+        card: { select: { minParticipants: true } },
+        application: { select: { periodId: true } },
+      },
+    });
+    if (item && item.card.minParticipants > 1) {
+      const have = await groupApprovedCount(item.cardId, item.application.periodId);
+      return {
+        notice: `Купон сформирован, но пока не выдан: групповая льгота, одобрено ${have} из ${item.card.minParticipants} участников. Он уйдёт сотруднику автоматически, когда одобрят всю группу.`,
+      };
+    }
+  }
 }
 
 /** Выдать сформированный купон сотруднику. */

@@ -15,8 +15,14 @@ export const maxDuration = 30;
 // закрывается, EventSource переподключается через `retry`. Пока соединение
 // живо, сервер каждые POLL_MS сверяет «сигнатуру» релевантных пользователю
 // данных и присылает событие `update` только при её изменении.
-const POLL_MS = 4000;
+const POLL_MS = 8000;
 const MAX_LIFETIME_MS = 25_000;
+
+// Мягкий лимит одновременных SSE-соединений на пользователя (в пределах одного
+// инстанса функции). Защита от «открыл 50 вкладок» → 50×N агрегатов каждые
+// POLL_MS. EventSource переподключается, поэтому кратковременный отказ безвреден.
+const MAX_CONN_PER_USER = 6;
+const liveConns = new Map<string, number>();
 
 type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
@@ -69,6 +75,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
   }
 
+  const uid = session.user.id;
+  const n = liveConns.get(uid) ?? 0;
+  if (n >= MAX_CONN_PER_USER) {
+    return NextResponse.json({ error: "Слишком много открытых соединений." }, { status: 429 });
+  }
+  liveConns.set(uid, n + 1);
+  const releaseConn = () => {
+    const cur = (liveConns.get(uid) ?? 1) - 1;
+    if (cur <= 0) liveConns.delete(uid);
+    else liveConns.set(uid, cur);
+  };
+
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setInterval> | undefined;
   let closed = false;
@@ -88,6 +106,7 @@ export async function GET(request: Request) {
         if (closed) return;
         closed = true;
         if (timer) clearInterval(timer);
+        releaseConn();
         try {
           controller.close();
         } catch {
@@ -136,6 +155,7 @@ export async function GET(request: Request) {
       }, POLL_MS);
     },
     cancel() {
+      if (!closed) releaseConn();
       closed = true;
       if (timer) clearInterval(timer);
     },
