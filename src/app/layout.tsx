@@ -32,6 +32,7 @@ export const viewport: Viewport = {
 
 // Ставит data-theme до отрисовки — без вспышки светлой темы у выбравших тёмную.
 const THEME_INIT = `try{var t=localStorage.getItem('faravon.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}`;
+const PWA_INIT = `(function(){window.__pwaPrompt=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;window.dispatchEvent(new Event('pwa-ready'));});})();`;
 
 export default function RootLayout({
   children,
@@ -42,6 +43,7 @@ export default function RootLayout({
     <html lang="ru" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script dangerouslySetInnerHTML={{ __html: PWA_INIT }} />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
