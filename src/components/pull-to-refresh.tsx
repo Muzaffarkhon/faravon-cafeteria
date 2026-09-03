@@ -19,6 +19,9 @@ export function PullToRefresh() {
   const isPullingRef = useRef(false);
   const isRefreshingRef = useRef(false);
   const hapticTriggeredRef = useRef(false);
+  // Держим актуальное значение в ref, чтобы обработчики touch не зависели от
+  // pullDistance и не перевешивались на каждый кадр перетаскивания.
+  const pullDistanceRef = useRef(0);
 
   useEffect(() => {
     isRefreshingRef.current = isRefreshing;
@@ -29,6 +32,11 @@ export function PullToRefresh() {
     if (typeof window === "undefined" || !("ontouchstart" in window || navigator.maxTouchPoints > 0)) {
       return;
     }
+
+    const applyPull = (d: number) => {
+      pullDistanceRef.current = d;
+      setPullDistance(d);
+    };
 
     const triggerHaptic = () => {
       try {
@@ -67,8 +75,8 @@ export function PullToRefresh() {
 
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
       if (scrollY > 1 || deltaY <= 0) {
-        if (pullDistance > 0) {
-          setPullDistance(0);
+        if (pullDistanceRef.current > 0) {
+          applyPull(0);
           setIsDragging(false);
         }
         return;
@@ -87,7 +95,7 @@ export function PullToRefresh() {
       }
 
       setIsDragging(true);
-      setPullDistance(distance);
+      applyPull(distance);
 
       if (distance >= THRESHOLD && !hapticTriggeredRef.current) {
         hapticTriggeredRef.current = true;
@@ -102,9 +110,9 @@ export function PullToRefresh() {
       isPullingRef.current = false;
       setIsDragging(false);
 
-      if (pullDistance >= THRESHOLD && !isRefreshingRef.current) {
+      if (pullDistanceRef.current >= THRESHOLD && !isRefreshingRef.current) {
         setIsRefreshing(true);
-        setPullDistance(THRESHOLD);
+        applyPull(THRESHOLD);
 
         startTransition(() => {
           router.refresh();
@@ -112,10 +120,10 @@ export function PullToRefresh() {
 
         setTimeout(() => {
           setIsRefreshing(false);
-          setPullDistance(0);
+          applyPull(0);
         }, 850);
       } else {
-        setPullDistance(0);
+        applyPull(0);
       }
     };
 
@@ -130,7 +138,7 @@ export function PullToRefresh() {
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [pullDistance, router]);
+  }, [router]);
 
   const isVisible = pullDistance > 6 || isRefreshing;
   const isReady = pullDistance >= THRESHOLD;

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
+import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -117,7 +118,7 @@ async function handle(msg: TgMessage) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!SECRET || req.headers.get("x-telegram-bot-api-secret-token") !== SECRET) {
+  if (!SECRET || !safeEqual(req.headers.get("x-telegram-bot-api-secret-token"), SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
