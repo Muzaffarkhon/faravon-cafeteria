@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { linkByPhone, linkByCode, reissueOtp } from "@/lib/telegram-link";
+import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,8 +61,16 @@ async function handle(msg: TgMessage) {
 
   try {
     if (msg.contact) {
-      if (msg.contact.user_id && msg.contact.user_id !== fromId) {
-        await send(chatId, "Пожалуйста, поделитесь <b>своим</b> контактом.");
+      // Принимаем номер, ТОЛЬКО если это подтверждённо собственный контакт
+      // отправителя (user_id совпадает с from.id). Отсутствие user_id = номер
+      // не привязан к Telegram или скрыт приватностью — доверять ему нельзя
+      // (иначе — захват аккаунта по чужому номеру из справочника).
+      if (msg.contact.user_id !== fromId) {
+        await send(
+          chatId,
+          "Нажмите кнопку «📱 Поделиться контактом» — она передаёт ваш собственный номер. " +
+            "Если номер не привязан к Telegram, получите код у HR и отправьте <code>/code ВАШКОД</code>.",
+        );
         return;
       }
       const g = await linkByPhone(msg.contact.phone_number, telegramId);
@@ -94,7 +102,14 @@ async function handle(msg: TgMessage) {
 
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
-    await send(chatId, `⚠️ ${e instanceof Error ? e.message : "Не удалось обработать запрос."}`);
+    // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
+    // логируем, пользователю — общая фраза (не оракул для перебора).
+    if (e instanceof SafeLinkError) {
+      await send(chatId, `⚠️ ${e.message}`);
+    } else {
+      console.error("[telegram] ошибка обработки update:", e);
+      await send(chatId, "⚠️ Не удалось обработать запрос. Попробуйте позже или обратитесь в HR.");
+    }
   }
 }
 

@@ -135,6 +135,19 @@ model LoginAttempt {
   @@index([login, createdAt])
 }
 
+/// Попытки идентификации в Telegram-боте (§5.1) — для rate-limit и защиты от
+/// перебора номеров/кодов и от массовой генерации OTP. Пишется на каждую
+/// попытку /code, /login и «поделиться контактом».
+model TelegramAuthAttempt {
+  id         String   @id @default(cuid())
+  telegramId String
+  kind       String // "phone" | "code" | "reissue"
+  ok         Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([telegramId, createdAt])
+}
+
 /// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
 model IdentificationCode {
   id         String    @id @default(cuid())

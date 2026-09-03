@@ -1,7 +1,10 @@
 /**
- * Логика идентификации сотрудника и выдачи OTP для Telegram-бота.
+ * Логика идентификации сотрудника и выдачи OTP для Telegram-бота (long polling).
  * Бот — отдельный процесс, поэтому использует собственный Prisma-клиент,
  * не завися от server-only модулей приложения. Схема БД общая.
+ *
+ * ВНИМАНИЕ: держать синхронным с src/lib/telegram-link.ts (webhook-версия) —
+ * правки безопасности вносить в оба файла.
  */
 import { randomInt } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
@@ -13,16 +16,49 @@ const OTP_TTL_HOURS = 24;
 
 export type LinkResult = { login: string; otp: string; fullName: string };
 
+/** Ошибка идентификации с безопасным для показа текстом. */
+export class SafeLinkError extends Error {}
+
 /**
  * Канонизируем номер к 9-значному национальному (Таджикистан): только цифры,
- * отбрасываем код страны 992 и ведущий 0, берём последние 9. Так совпадают
- * «+992 92 630 94 49», «992926309449» (из Telegram-контакта) и «926309449».
+ * отбрасываем код страны 992 и ведущий 0, берём последние 9.
  */
 export function normalizePhone(raw: string): string {
   let d = String(raw).replace(/\D/g, "");
   if (d.length >= 12 && d.startsWith("992")) d = d.slice(3);
   if (d.length === 10 && d.startsWith("0")) d = d.slice(1);
   return d.length > 9 ? d.slice(-9) : d;
+}
+
+// --- rate-limit (§5.1) ---
+const RL_WINDOW_MS = 15 * 60_000;
+const RL_MAX_ATTEMPTS = 8;
+const RL_REISSUE_WINDOW_MS = 60 * 60_000;
+const RL_MAX_REISSUE = 5;
+
+async function assertNotRateLimited(telegramId: string, kind: "phone" | "code" | "reissue") {
+  const since = new Date(Date.now() - RL_WINDOW_MS);
+  const total = await db.telegramAuthAttempt.count({ where: { telegramId, createdAt: { gt: since } } });
+  if (total >= RL_MAX_ATTEMPTS) {
+    throw new SafeLinkError("Слишком много попыток. Подождите 15 минут или обратитесь в HR.");
+  }
+  if (kind === "reissue") {
+    const reissueSince = new Date(Date.now() - RL_REISSUE_WINDOW_MS);
+    const reissues = await db.telegramAuthAttempt.count({
+      where: { telegramId, kind: "reissue", createdAt: { gt: reissueSince } },
+    });
+    if (reissues >= RL_MAX_REISSUE) {
+      throw new SafeLinkError("Слишком часто запрашиваете новый пароль. Попробуйте через час.");
+    }
+  }
+}
+
+async function recordAttempt(telegramId: string, kind: string, ok: boolean) {
+  try {
+    await db.telegramAuthAttempt.create({ data: { telegramId, kind, ok } });
+  } catch {
+    /* не критично */
+  }
 }
 
 async function issueOtp(userId: string, via: string): Promise<string> {
@@ -36,6 +72,7 @@ async function issueOtp(userId: string, via: string): Promise<string> {
       otpExpiresAt: new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
       failedLoginCount: 0,
       lockedUntil: null,
+      sessionEpoch: { increment: 1 }, // отзываем прежние сессии пользователя
     },
   });
   await db.auditLog.create({
@@ -44,68 +81,142 @@ async function issueOtp(userId: string, via: string): Promise<string> {
   return otp;
 }
 
+const EMP_SELECT = {
+  id: true,
+  fullName: true,
+  isActive: true,
+  status: true,
+  telegramId: true,
+} as const;
+
+type EmpRow = {
+  id: string;
+  fullName: string;
+  isActive: boolean;
+  status: string;
+  telegramId: string | null;
+};
+
 async function issueForEmployee(
-  employee: { id: string; fullName: string; isActive: boolean; status: string },
+  employee: EmpRow,
   telegramId: string,
   via: string,
+  opts: { allowRelink: boolean },
 ): Promise<LinkResult> {
   if (!employee.isActive || employee.status === "TERMINATED") {
-    throw new Error("Учётная запись сотрудника неактивна. Обратитесь в HR.");
+    throw new SafeLinkError("Учётная запись сотрудника неактивна. Обратитесь в HR.");
   }
   const user = await db.user.findUnique({ where: { employeeId: employee.id } });
-  if (!user) throw new Error("Для сотрудника не заведена учётная запись. Обратитесь в HR.");
-  if (!user.isActive) throw new Error("Учётная запись отключена. Обратитесь в HR.");
+  if (!user) throw new SafeLinkError("Для сотрудника не заведена учётная запись. Обратитесь в HR.");
+  if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
 
   const clash = await db.employee.findFirst({ where: { telegramId, NOT: { id: employee.id } } });
-  if (clash) throw new Error("Этот Telegram уже привязан к другому сотруднику.");
+  if (clash) throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Обратитесь в HR.");
+
+  if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
+    throw new SafeLinkError(
+      "К этому сотруднику уже привязан другой Telegram. Для смены обратитесь в HR за кодом.",
+    );
+  }
 
   await db.employee.update({ where: { id: employee.id }, data: { telegramId } });
   const otp = await issueOtp(user.id, via);
   await db.auditLog.create({
-    data: { actorId: user.id, action: "TELEGRAM_LINKED", entityType: "Employee", entityId: employee.id, newValue: { via } },
+    data: {
+      actorId: user.id,
+      action: "TELEGRAM_LINKED",
+      entityType: "Employee",
+      entityId: employee.id,
+      newValue: { via, relinked: Boolean(employee.telegramId && employee.telegramId !== telegramId) },
+    },
   });
   return { login: user.login, otp, fullName: employee.fullName };
 }
 
 export async function linkByPhone(phone: string, telegramId: string): Promise<LinkResult> {
-  const norm = normalizePhone(phone);
-  if (norm.length < 7) throw new Error("Не удалось распознать номер телефона.");
-  // Indexed-поиск по нормализованному номеру; фолбэк — для записей без бэкофилла.
-  let match = await db.employee.findFirst({
-    where: { phoneNormalized: norm },
-    select: { id: true, fullName: true, isActive: true, status: true },
-  });
-  if (!match) {
-    const legacy = await db.employee.findMany({
-      where: { phone: { not: null }, phoneNormalized: null },
-      select: { id: true, fullName: true, isActive: true, status: true, phone: true },
-    });
-    const hit = legacy.find((e) => normalizePhone(e.phone!) === norm);
-    if (hit) {
-      await db.employee.update({ where: { id: hit.id }, data: { phoneNormalized: norm } });
-      match = hit;
+  await assertNotRateLimited(telegramId, "phone");
+  let ok = false;
+  try {
+    const norm = normalizePhone(phone);
+    if (norm.length < 7) throw new SafeLinkError("Не удалось распознать номер телефона.");
+
+    let match = await db.employee.findFirst({ where: { phoneNormalized: norm }, select: EMP_SELECT });
+    if (!match) {
+      const legacy = await db.employee.findMany({
+        where: { phone: { not: null }, phoneNormalized: null },
+        select: { ...EMP_SELECT, phone: true },
+      });
+      const hits = legacy.filter((e) => normalizePhone(e.phone!) === norm);
+      if (hits.length === 1) {
+        await db.employee.update({ where: { id: hits[0].id }, data: { phoneNormalized: norm } });
+        match = hits[0];
+      } else if (hits.length > 1) {
+        throw new SafeLinkError(
+          "По этому номеру несколько сотрудников. Обратитесь в HR за кодом идентификации.",
+        );
+      }
     }
+    if (!match) {
+      throw new SafeLinkError(
+        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+      );
+    }
+    try {
+      const res = await issueForEmployee(match, telegramId, "telegram:phone", { allowRelink: false });
+      ok = true;
+      return res;
+    } catch (e) {
+      if (
+        e instanceof SafeLinkError &&
+        /обратитесь в HR за кодом|привязан другой Telegram/i.test(e.message)
+      ) {
+        throw e;
+      }
+      if (e instanceof SafeLinkError) {
+        throw new SafeLinkError(
+          "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+        );
+      }
+      throw e;
+    }
+  } finally {
+    await recordAttempt(telegramId, "phone", ok);
   }
-  if (!match) throw new Error("Сотрудник с таким номером не найден в справочнике. Обратитесь в HR.");
-  return issueForEmployee(match, telegramId, "telegram:phone");
 }
 
 export async function linkByCode(rawCode: string, telegramId: string): Promise<LinkResult> {
-  const code = rawCode.trim().toUpperCase();
-  const rec = await db.identificationCode.findUnique({ where: { code } });
-  if (!rec || rec.usedAt) throw new Error("Код недействителен или уже использован.");
-  if (rec.expiresAt < new Date()) throw new Error("Срок действия кода истёк. Запросите новый у HR.");
+  await assertNotRateLimited(telegramId, "code");
+  let ok = false;
+  try {
+    const code = rawCode.trim().toUpperCase();
+    const rec = await db.identificationCode.findUnique({ where: { code } });
+    if (!rec || rec.usedAt) throw new SafeLinkError("Код недействителен или уже использован.");
+    if (rec.expiresAt < new Date()) throw new SafeLinkError("Срок действия кода истёк. Запросите новый у HR.");
 
-  const employee = await db.employee.findUnique({ where: { id: rec.employeeId } });
-  if (!employee) throw new Error("Сотрудник не найден.");
+    const employee = await db.employee.findUnique({ where: { id: rec.employeeId }, select: EMP_SELECT });
+    if (!employee) throw new SafeLinkError("Сотрудник не найден.");
 
-  const result = await issueForEmployee(employee, telegramId, "telegram:code");
-  await db.identificationCode.update({ where: { id: rec.id }, data: { usedAt: new Date() } });
-  return result;
+    const result = await issueForEmployee(employee, telegramId, "telegram:code", { allowRelink: true });
+    await db.identificationCode.update({ where: { id: rec.id }, data: { usedAt: new Date() } });
+    ok = true;
+    return result;
+  } finally {
+    await recordAttempt(telegramId, "code", ok);
+  }
 }
 
 export async function reissueOtp(telegramId: string): Promise<LinkResult> {
-  const employee = await db.employee.findUnique({ where: { telegramId } });
-  if (!employee) throw new Error("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
-  return issueForEmployee(employee, telegramId, "telegram:reissue");
+  await assertNotRateLimited(telegramId, "reissue");
+  let ok = false;
+  try {
+    const employee = await db.employee.findUnique({ where: { telegramId }, select: EMP_SELECT });
+    if (!employee) {
+      throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
+    }
+    const res = await issueForEmployee(employee, telegramId, "telegram:reissue", { allowRelink: true });
+    ok = true;
+    return res;
+  } finally {
+    await recordAttempt(telegramId, "reissue", ok);
+  }
 }

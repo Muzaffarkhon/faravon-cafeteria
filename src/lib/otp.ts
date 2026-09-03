@@ -34,6 +34,9 @@ export async function issueOtpForUser(userId: string, actorNote = "telegram-bot"
       otpExpiresAt: new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
       failedLoginCount: 0,
       lockedUntil: null,
+      // Выдача нового OTP = «начать вход заново»: отзываем все прежние сессии
+      // этого пользователя (защита, если аккаунт был скомпрометирован).
+      sessionEpoch: { increment: 1 },
     },
   });
   await audit({ actorId: userId, action: "OTP_ISSUED", entityType: "User", entityId: userId, newValue: { via: actorNote } });
