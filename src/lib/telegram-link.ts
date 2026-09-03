@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
+import { normalizePhone } from "@/lib/phone";
 
 /**
  * Идентификация сотрудника и выдача OTP — для webhook-роута Telegram-бота (§5.1).
@@ -10,17 +11,7 @@ import { issueOtpForUser } from "@/lib/otp";
 
 export type LinkResult = { login: string; otp: string; fullName: string };
 
-/**
- * Канонизируем номер к 9-значному национальному (Таджикистан): только цифры,
- * отбрасываем код страны 992 и ведущий 0, берём последние 9. Так совпадают
- * «+992 92 630 94 49», «992926309449» (из Telegram-контакта) и «926309449».
- */
-export function normalizePhone(raw: string): string {
-  let d = String(raw).replace(/\D/g, "");
-  if (d.length >= 12 && d.startsWith("992")) d = d.slice(3);
-  if (d.length === 10 && d.startsWith("0")) d = d.slice(1);
-  return d.length > 9 ? d.slice(-9) : d;
-}
+export { normalizePhone };
 
 async function issueForEmployee(
   employee: { id: string; fullName: string; isActive: boolean; status: string },
@@ -52,8 +43,23 @@ async function issueForEmployee(
 export async function linkByPhone(phone: string, telegramId: string): Promise<LinkResult> {
   const norm = normalizePhone(phone);
   if (norm.length < 7) throw new Error("Не удалось распознать номер телефона.");
-  const candidates = await db.employee.findMany({ where: { phone: { not: null } } });
-  const match = candidates.find((e) => normalizePhone(e.phone!) === norm);
+  // Прямой indexed-поиск по нормализованному номеру (без загрузки всего справочника).
+  let match = await db.employee.findFirst({
+    where: { phoneNormalized: norm },
+    select: { id: true, fullName: true, isActive: true, status: true },
+  });
+  // Фолбэк для записей, где phoneNormalized ещё не заполнен (созданы до бэкофилла).
+  if (!match) {
+    const legacy = await db.employee.findMany({
+      where: { phone: { not: null }, phoneNormalized: null },
+      select: { id: true, fullName: true, isActive: true, status: true, phone: true },
+    });
+    const hit = legacy.find((e) => normalizePhone(e.phone!) === norm);
+    if (hit) {
+      await db.employee.update({ where: { id: hit.id }, data: { phoneNormalized: norm } });
+      match = hit;
+    }
+  }
   if (!match) throw new Error("Сотрудник с таким номером не найден в справочнике. Обратитесь в HR.");
   return issueForEmployee(match, telegramId, "telegram:phone");
 }

@@ -28,11 +28,24 @@ export async function computeReport(periodId: string) {
     db.user.count({ where: { roles: { has: "EMPLOYEE" }, lastLoginAt: { not: null } } }),
   ]);
 
+  // Только нужные поля — при тысячах заявок это в разы меньше памяти/трафика.
   const apps = await db.application.findMany({
     where: { periodId },
-    include: {
-      employee: { include: { user: { select: { lastLoginAt: true } } } },
-      items: { include: { card: { include: { partner: true } }, coupon: true } },
+    select: {
+      employeeId: true,
+      employee: {
+        select: { department: true, user: { select: { lastLoginAt: true } } },
+      },
+      items: {
+        select: {
+          status: true,
+          submittedAt: true,
+          decidedAt: true,
+          decisionComment: true,
+          card: { select: { title: true } },
+          coupon: { select: { issuedAt: true } },
+        },
+      },
     },
   });
 

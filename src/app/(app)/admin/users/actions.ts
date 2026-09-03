@@ -10,7 +10,13 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
+import { normalizePhone } from "@/lib/phone";
 import { ALL_ROLES } from "./roles";
+
+/** Данные сотрудника + производный `phoneNormalized` для indexed-поиска при входе через Telegram. */
+function withPhoneNormalized<T extends { phone: string | null }>(d: T) {
+  return { ...d, phoneNormalized: d.phone ? normalizePhone(d.phone) : null };
+}
 
 function parseRoles(formData: FormData): Role[] {
   const picked = formData.getAll("roles").map(String);
@@ -92,7 +98,7 @@ export async function createEmployee(
     if (loginDup) return { error: `Логин «${login}» уже занят.` };
   }
 
-  const employee = await db.employee.create({ data });
+  const employee = await db.employee.create({ data: withPhoneNormalized(data) });
   await audit({
     actorId: s.user.id,
     action: "EMPLOYEE_CREATED",
@@ -144,7 +150,7 @@ export async function updateEmployee(
     return { error: e instanceof Error ? e.message : "Ошибка" };
   }
 
-  await db.employee.update({ where: { id }, data });
+  await db.employee.update({ where: { id }, data: withPhoneNormalized(data) });
   await audit({
     actorId: s.user.id,
     action: "EMPLOYEE_UPDATED",
@@ -630,10 +636,14 @@ export async function importEmployees(
   // 3) Массовые записи: createMany + update-транзакции батчами.
   if (!dryRun) {
     try {
-      if (toCreate.length) await db.employee.createMany({ data: toCreate });
+      if (toCreate.length) {
+        await db.employee.createMany({ data: toCreate.map(withPhoneNormalized) });
+      }
       for (const batch of chunk(toUpdate, 400)) {
         await db.$transaction(
-          batch.map((u) => db.employee.update({ where: { id: u.id }, data: u.data })),
+          batch.map((u) =>
+            db.employee.update({ where: { id: u.id }, data: withPhoneNormalized(u.data) }),
+          ),
         );
       }
     } catch {

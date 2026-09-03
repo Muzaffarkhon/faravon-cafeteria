@@ -2,6 +2,7 @@ import { PrismaClient, Block, PartnerStatus, PeriodStatus, Role } from "@prisma/
 import bcrypt from "bcryptjs";
 import { DEFAULT_TEMPLATES } from "../src/lib/notification-format";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS } from "../src/lib/rbac";
+import { normalizePhone } from "../src/lib/phone";
 
 const db = new PrismaClient();
 
@@ -198,14 +199,19 @@ async function main() {
   ];
   for (const e of employees) {
     const existing = await db.employee.findFirst({ where: { fullName: e.fullName } });
+    const phoneNormalized = normalizePhone(e.phone);
     const emp = existing
-      ? await db.employee.update({ where: { id: existing.id }, data: { phone: e.phone } })
+      ? await db.employee.update({
+          where: { id: existing.id },
+          data: { phone: e.phone, phoneNormalized },
+        })
       : await db.employee.create({
           data: {
             fullName: e.fullName,
             position: e.position,
             department: e.department,
             phone: e.phone,
+            phoneNormalized,
           },
         });
     await db.user.upsert({

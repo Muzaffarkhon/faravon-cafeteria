@@ -70,8 +70,22 @@ async function issueForEmployee(
 export async function linkByPhone(phone: string, telegramId: string): Promise<LinkResult> {
   const norm = normalizePhone(phone);
   if (norm.length < 7) throw new Error("Не удалось распознать номер телефона.");
-  const candidates = await db.employee.findMany({ where: { phone: { not: null } } });
-  const match = candidates.find((e) => normalizePhone(e.phone!) === norm);
+  // Indexed-поиск по нормализованному номеру; фолбэк — для записей без бэкофилла.
+  let match = await db.employee.findFirst({
+    where: { phoneNormalized: norm },
+    select: { id: true, fullName: true, isActive: true, status: true },
+  });
+  if (!match) {
+    const legacy = await db.employee.findMany({
+      where: { phone: { not: null }, phoneNormalized: null },
+      select: { id: true, fullName: true, isActive: true, status: true, phone: true },
+    });
+    const hit = legacy.find((e) => normalizePhone(e.phone!) === norm);
+    if (hit) {
+      await db.employee.update({ where: { id: hit.id }, data: { phoneNormalized: norm } });
+      match = hit;
+    }
+  }
   if (!match) throw new Error("Сотрудник с таким номером не найден в справочнике. Обратитесь в HR.");
   return issueForEmployee(match, telegramId, "telegram:phone");
 }
