@@ -1,37 +1,62 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
-import { Badge, Card, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; q?: string; page?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
 
-  const archiveView = (await searchParams).view === "archive";
+  const sp = await searchParams;
+  const archiveView = sp.view === "archive";
+  const q = (sp.q ?? "").trim();
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  const [employees, serviceUsers, partners, archivedCount] = await Promise.all([
+  const empWhere: Prisma.EmployeeWhereInput = {
+    archivedAt: archiveView ? { not: null } : null,
+    ...(q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: "insensitive" } },
+            { department: { contains: q, mode: "insensitive" } },
+            { user: { is: { login: { contains: q, mode: "insensitive" } } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [empTotal, employees, serviceUsers, partners, archivedCount] = await Promise.all([
+    db.employee.count({ where: empWhere }),
     db.employee.findMany({
-      where: { archivedAt: archiveView ? { not: null } : null },
+      where: empWhere,
       include: { user: { select: { login: true, roles: true, isActive: true } } },
       orderBy: { fullName: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
-    // Служебные учётки показываем только в основном списке (в архиве их нет).
-    archiveView
+    // Служебные — их немного; показываем на первой странице основного списка.
+    archiveView || page > 1
       ? Promise.resolve([])
       : db.user.findMany({
-          where: { employeeId: null },
+          where: {
+            employeeId: null,
+            ...(q ? { login: { contains: q, mode: "insensitive" } } : {}),
+          },
           orderBy: { login: "asc" },
           include: { partner: { select: { name: true } } },
         }),
@@ -39,7 +64,17 @@ export default async function UsersPage({
     db.employee.count({ where: { archivedAt: { not: null } } }),
   ]);
 
-  const total = employees.length + serviceUsers.length;
+  const pages = Math.max(1, Math.ceil(empTotal / PAGE_SIZE));
+  const rowsOnPage = employees.length + serviceUsers.length;
+
+  const pageHref = (n: number) => {
+    const p = new URLSearchParams();
+    if (archiveView) p.set("view", "archive");
+    if (q) p.set("q", q);
+    if (n > 1) p.set("page", String(n));
+    const str = p.toString();
+    return str ? `/admin/users?${str}` : "/admin/users";
+  };
 
   return (
     <div className="space-y-4">
@@ -74,11 +109,29 @@ export default async function UsersPage({
         }
       />
 
-      <p className="text-sm text-ink-muted">
-        {archiveView
-          ? `Архив сотрудников — ${employees.length}. Запись скрыта из основного списка, история сохранена.`
-          : `Всего — ${total}: сотрудников ${employees.length}, служебных ${serviceUsers.length}.`}
-      </p>
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        {archiveView && <input type="hidden" name="view" value="archive" />}
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Поиск: ФИО, логин, подразделение"
+          className="w-64 py-1.5 text-sm"
+        />
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>Найти</button>
+        {q && (
+          <Link
+            href={archiveView ? "/admin/users?view=archive" : "/admin/users"}
+            className="text-xs text-ink-muted hover:text-ink hover:underline"
+          >
+            сбросить
+          </Link>
+        )}
+        <span className="ml-auto text-sm text-ink-muted">
+          {archiveView
+            ? `Архив: ${empTotal}`
+            : `Сотрудников: ${empTotal}${q ? " (по фильтру)" : ""}`}
+        </span>
+      </form>
 
       <Card className="overflow-hidden">
         <Table stickyHeader>
@@ -161,16 +214,42 @@ export default async function UsersPage({
               />
             ))}
 
-            {total === 0 && (
+            {rowsOnPage === 0 && (
               <tr>
                 <td colSpan={7} className="py-6 text-center text-ink-muted">
-                  {archiveView ? "Архив пуст." : "Записей пока нет."}
+                  {q ? "Ничего не найдено." : archiveView ? "Архив пуст." : "Записей пока нет."}
                 </td>
               </tr>
             )}
           </tbody>
         </Table>
       </Card>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-ink-muted">
+            Стр. {page} из {pages}
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={pageHref(page - 1)}
+                className={buttonClass({ variant: "secondary", size: "sm" })}
+              >
+                Назад
+              </Link>
+            )}
+            {page < pages && (
+              <Link
+                href={pageHref(page + 1)}
+                className={buttonClass({ variant: "secondary", size: "sm" })}
+              >
+                Вперёд
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

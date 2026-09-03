@@ -1,25 +1,51 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Role } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
-import { Badge, Card, PageHeader, RowId, SectionTitle, Table } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
 
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
 
-export default async function AccessPage() {
+export default async function AccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "access.manage")) redirect("/");
 
-  const [employees, activeCodes, permRows] = await Promise.all([
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim();
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+
+  const where: Prisma.EmployeeWhereInput = q
+    ? {
+        OR: [
+          { fullName: { contains: q, mode: "insensitive" } },
+          { department: { contains: q, mode: "insensitive" } },
+          { phone: { contains: q } },
+        ],
+      }
+    : {};
+
+  const [empTotal, employees, activeCodes, permRows] = await Promise.all([
+    db.employee.count({ where }),
     db.employee.findMany({
+      where,
       include: {
         user: { select: { lastLoginAt: true, mustChangePassword: true, otpExpiresAt: true } },
       },
       orderBy: { fullName: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
     db.identificationCode.findMany({
       where: { usedAt: null, expiresAt: { gt: new Date() } },
@@ -27,6 +53,14 @@ export default async function AccessPage() {
     db.rolePermission.findMany({ select: { role: true, permission: true, allowed: true } }),
   ]);
   const codeByEmp = new Map(activeCodes.map((c) => [c.employeeId, c]));
+  const pages = Math.max(1, Math.ceil(empTotal / PAGE_SIZE));
+  const pageHref = (n: number) => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (n > 1) p.set("page", String(n));
+    const str = p.toString();
+    return str ? `/admin/access?${str}` : "/admin/access";
+  };
 
   // Матрица из БД + дефолты из кода для прав, по которым строк нет.
   const seen = new Set(permRows.map((r) => r.permission));
@@ -55,6 +89,26 @@ export default async function AccessPage() {
       </section>
 
       <SectionTitle className="text-lg">Идентификация сотрудников</SectionTitle>
+
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Поиск: ФИО, подразделение, телефон"
+          className="w-64 py-1.5 text-sm"
+        />
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>Найти</button>
+        {q && (
+          <Link href="/admin/access" className="text-xs text-ink-muted hover:text-ink hover:underline">
+            сбросить
+          </Link>
+        )}
+        <span className="ml-auto text-sm text-ink-muted">
+          Сотрудников: {empTotal}
+          {q ? " (по фильтру)" : ""}
+        </span>
+      </form>
+
       <Card className="overflow-hidden">
         <Table stickyHeader>
           <thead>
@@ -105,9 +159,42 @@ export default async function AccessPage() {
                 </tr>
               );
             })}
+            {employees.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-ink-muted">
+                  {q ? "Ничего не найдено." : "Сотрудников пока нет."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </Table>
       </Card>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-ink-muted">
+            Стр. {page} из {pages}
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={pageHref(page - 1)}
+                className={buttonClass({ variant: "secondary", size: "sm" })}
+              >
+                Назад
+              </Link>
+            )}
+            {page < pages && (
+              <Link
+                href={pageHref(page + 1)}
+                className={buttonClass({ variant: "secondary", size: "sm" })}
+              >
+                Вперёд
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

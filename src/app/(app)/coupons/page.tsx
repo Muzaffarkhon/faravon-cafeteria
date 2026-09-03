@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
-import { listCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
+import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import {
   Badge,
@@ -34,6 +34,7 @@ export default async function CouponsPage({
     status?: string;
     partner?: string;
     emp?: string;
+    page?: string;
   }>;
 }) {
   const session = await getSession();
@@ -45,8 +46,12 @@ export default async function CouponsPage({
   const status = sp.status && isCouponStatus(sp.status) ? sp.status : undefined;
   const partnerId = sp.partner || undefined;
   const emp = (sp.emp || "").trim();
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+  const PAGE_SIZE = 50;
+  const AWAITING_CAP = 200;
 
-  const [awaiting, coupons, periods, partners] = await Promise.all([
+  const filters = { periodId, status, partnerId, employeeQuery: emp || undefined };
+  const [awaiting, awaitingTotal, coupons, couponsTotal, periods, partners] = await Promise.all([
     db.applicationItem.findMany({
       where: { status: "APPROVED", coupon: null },
       include: {
@@ -54,11 +59,25 @@ export default async function CouponsPage({
         application: { include: { employee: true, period: true } },
       },
       orderBy: { decidedAt: "asc" },
+      take: AWAITING_CAP,
     }),
-    listCouponRegistry({ periodId, status, partnerId, employeeQuery: emp || undefined }),
+    db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }),
+    listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
+    countCouponRegistry(filters),
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
     db.partner.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+  const pages = Math.max(1, Math.ceil(couponsTotal / PAGE_SIZE));
+  const pageHref = (n: number) => {
+    const p = new URLSearchParams();
+    if (periodId) p.set("period", periodId);
+    if (status) p.set("status", status);
+    if (partnerId) p.set("partner", partnerId);
+    if (emp) p.set("emp", emp);
+    if (n > 1) p.set("page", String(n));
+    const str = p.toString();
+    return str ? `/coupons?${str}` : "/coupons";
+  };
 
   const exportQuery = new URLSearchParams();
   if (periodId) exportQuery.set("period", periodId);
@@ -78,9 +97,14 @@ export default async function CouponsPage({
 
       {/* Одобренные позиции без купона */}
       <section className="space-y-3">
-        <SectionTitle className="text-lg" count={awaiting.length}>
+        <SectionTitle className="text-lg" count={awaitingTotal}>
           Ожидают формирования купона
         </SectionTitle>
+        {awaitingTotal > awaiting.length && (
+          <p className="text-sm text-ink-muted">
+            Показаны первые {awaiting.length}. Сформируйте купоны, чтобы разобрать очередь.
+          </p>
+        )}
         {awaiting.length === 0 ? (
           <EmptyState>Нет одобренных позиций без купона.</EmptyState>
         ) : (
@@ -106,7 +130,7 @@ export default async function CouponsPage({
       {/* Реестр купонов */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle className="text-lg" count={coupons.length}>Реестр купонов</SectionTitle>
+          <SectionTitle className="text-lg" count={couponsTotal}>Реестр купонов</SectionTitle>
           <form method="get" className="flex flex-wrap items-center gap-2">
             <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
               <option value="">Все периоды</option>
@@ -190,6 +214,32 @@ export default async function CouponsPage({
               </tbody>
             </Table>
           </Card>
+        )}
+
+        {pages > 1 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-ink-muted">
+              Стр. {page} из {pages}
+            </span>
+            <div className="flex gap-2">
+              {page > 1 && (
+                <a
+                  href={pageHref(page - 1)}
+                  className={buttonClass({ variant: "secondary", size: "sm" })}
+                >
+                  Назад
+                </a>
+              )}
+              {page < pages && (
+                <a
+                  href={pageHref(page + 1)}
+                  className={buttonClass({ variant: "secondary", size: "sm" })}
+                >
+                  Вперёд
+                </a>
+              )}
+            </div>
+          </div>
         )}
       </section>
     </div>
