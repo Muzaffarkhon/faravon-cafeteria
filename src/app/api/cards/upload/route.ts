@@ -20,6 +20,17 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 const MAX_BYTES = 2 * 1024 * 1024; // 2 МБ
 
 export async function POST(request: Request): Promise<NextResponse> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      {
+        error:
+          "Хранилище изображений не настроено: нет BLOB_READ_WRITE_TOKEN. " +
+          "На Vercel — добавьте Blob-store (Storage → Create → Blob); локально — `vercel env pull`.",
+      },
+      { status: 503 },
+    );
+  }
+
   const body = (await request.json()) as HandleUploadBody;
 
   try {

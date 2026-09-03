@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { Field, Input, cx } from "@/components/ui";
 import { isSvgSafe, sanitizeSvg } from "@/lib/svg-sanitize";
+import { isOptimizableRaster, optimizeImageFile } from "@/lib/image-optimize";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
-const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ
+const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ — лимит на итоговый файл
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024; // исходник до сжатия (фото с телефона)
 
 /**
  * Поле изображения карточки: загрузка файла в Vercel Blob либо ссылка вручную.
@@ -15,6 +17,8 @@ const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ
 export function CardImageField({ initial }: { initial?: string | null }) {
   const [url, setUrl] = useState(initial ?? "");
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<"optimize" | "upload" | null>(null);
+  const [pct, setPct] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,33 +30,58 @@ export function CardImageField({ initial }: { initial?: string | null }) {
       setErr("Нужен файл изображения: PNG, JPEG, WebP или SVG.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setErr("Файл больше 2 МБ — сожмите или уменьшите изображение.");
+    if (file.size > MAX_SOURCE_BYTES) {
+      setErr("Файл больше 25 МБ — это слишком тяжёлый исходник.");
       return;
     }
     setBusy(true);
+    setPct(0);
     try {
-      // SVG санитизируем перед загрузкой (§5.12)
       let payload: File | Blob = file;
+      let name = file.name;
+      let contentType = file.type;
+
       if (isSvg) {
+        // SVG санитизируем перед загрузкой (§5.12), без пережатия
         const clean = sanitizeSvg(await file.text());
         if (!isSvgSafe(clean)) {
           setErr("SVG содержит потенциально опасные элементы. Загрузите PNG/JPEG.");
-          setBusy(false);
           return;
         }
         payload = new Blob([clean], { type: "image/svg+xml" });
+        contentType = "image/svg+xml";
+      } else if (isOptimizableRaster(file.type)) {
+        // Фото ужимаем по стороне и пережимаем в WebP/JPEG под лимит 2 МБ
+        setStage("optimize");
+        const { file: optimized } = await optimizeImageFile(file, {
+          targetBytes: MAX_BYTES,
+        });
+        payload = optimized;
+        name = optimized.name;
+        contentType = optimized.type;
       }
-      const blob = await upload(file.name, payload, {
+
+      if (payload.size > MAX_BYTES) {
+        setErr(
+          "Не удалось ужать до 2 МБ — уменьшите изображение вручную или загрузите менее детализированное.",
+        );
+        return;
+      }
+
+      setStage("upload");
+      const blob = await upload(name, payload, {
         access: "public",
         handleUploadUrl: "/api/cards/upload",
-        contentType: isSvg ? "image/svg+xml" : file.type,
+        contentType,
+        onUploadProgress: (e) => setPct(Math.round(e.percentage)),
       });
       setUrl(blob.url);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Не удалось загрузить файл.");
     } finally {
       setBusy(false);
+      setStage(null);
+      setPct(0);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -97,7 +126,6 @@ export function CardImageField({ initial }: { initial?: string | null }) {
             busy && "opacity-60",
           )}
         />
-        {busy && <span className="text-xs text-ink-muted">Загрузка…</span>}
         <button
           type="button"
           onClick={() => setManual((v) => !v)}
@@ -106,6 +134,23 @@ export function CardImageField({ initial }: { initial?: string | null }) {
           {manual ? "скрыть ссылку" : "указать ссылку"}
         </button>
       </div>
+
+      {busy && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-subtle">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-200"
+              style={{
+                width:
+                  stage === "optimize" ? "15%" : `${Math.max(pct, 4)}%`,
+              }}
+            />
+          </div>
+          <span className="w-24 shrink-0 text-right text-xs tabular-nums text-ink-muted">
+            {stage === "optimize" ? "Оптимизация…" : `Загрузка ${pct}%`}
+          </span>
+        </div>
+      )}
 
       {manual && (
         <Input
@@ -118,7 +163,8 @@ export function CardImageField({ initial }: { initial?: string | null }) {
       )}
 
       <p className="mt-1 text-xs text-ink-muted">
-        PNG, JPEG, WebP или SVG, до 2 МБ.
+        PNG, JPEG, WebP или SVG. Фото сжимается автоматически — можно грузить
+        снимок с телефона как есть.
       </p>
     </Field>
   );
