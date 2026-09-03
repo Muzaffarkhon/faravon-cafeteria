@@ -68,6 +68,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [profileOpen, setProfileOpen] = useState(false);
@@ -295,9 +296,84 @@ export function AppShell({
               <Icon path={I.forward} />
             </button>
           </div>
-          <div className="ml-1 flex items-center gap-2 lg:hidden">
-            <BrandMark size={24} />
-            <span className="text-sm font-semibold text-ink">Кафетерий льгот</span>
+          <div className="relative ml-1 flex items-center lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Категории меню"
+              aria-expanded={mobileMenuOpen}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+            >
+              <BrandMark size={22} />
+              <span>Кафетерий</span>
+              <Icon
+                path={I.chevron}
+                className={cx("h-3.5 w-3.5 text-ink-muted transition-transform duration-200", mobileMenuOpen && "rotate-180")}
+              />
+            </button>
+
+            {mobileMenuOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div className="absolute left-0 top-11 z-50 w-72 max-w-[calc(100vw-32px)] max-h-[calc(100vh-100px)] overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                    Категории разделов
+                  </div>
+                  <div className="mt-1 space-y-1">
+                    {groups.map((g) => {
+                      const isGroupActive = g.items.some((it) => isActive(it.href));
+                      return (
+                        <details
+                          key={g.id}
+                          open={isGroupActive}
+                          className="group/cat overflow-hidden rounded-xl border border-line/60 bg-surface-muted/40"
+                        >
+                          <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-surface-muted list-none">
+                            <span>{g.label}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="rounded-full bg-surface-sunken px-1.5 py-0.5 text-[10px] font-normal text-ink-muted">
+                                {g.items.length}
+                              </span>
+                              <Icon
+                                path={I.chevron}
+                                className="h-3 w-3 text-ink-muted transition-transform group-open/cat:rotate-180"
+                              />
+                            </div>
+                          </summary>
+                          <div className="space-y-0.5 bg-surface p-1">
+                            {g.items.map((it) => {
+                              const active = isActive(it.href);
+                              return (
+                                <Link
+                                  key={it.href}
+                                  href={it.href}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={cx(
+                                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                                    active
+                                      ? "bg-primary-soft font-semibold text-primary"
+                                      : "text-ink hover:bg-surface-muted",
+                                  )}
+                                >
+                                  <Icon path={it.icon} className="h-4 w-4 shrink-0" />
+                                  <span className="truncate">{it.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Профиль + выход — единое меню справа сверху */}
