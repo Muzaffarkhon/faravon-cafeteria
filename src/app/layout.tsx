@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { TelegramChrome } from "@/components/telegram-chrome";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default function RootLayout({
         <TelegramChrome />
         {children}
         <PwaInstallBanner />
+        <PullToRefresh />
       </body>
     </html>
   );
