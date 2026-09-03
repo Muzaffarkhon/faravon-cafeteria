@@ -84,6 +84,8 @@ model Employee {
   coupons      Coupon[]
 
   @@index([archivedAt])
+  @@index([fullName])
+  @@index([isActive])
 }
 
 model User {
@@ -253,6 +255,7 @@ model Application {
   items ApplicationItem[]
 
   @@unique([employeeId, periodId])
+  @@index([periodId])
 }
 
 model ApplicationItem {
@@ -312,6 +315,11 @@ model Coupon {
   validUntil      DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  @@index([periodId])
+  @@index([status])
+  @@index([employeeId])
+  @@index([partnerId])
 }
 
 model PartnerBanner {

@@ -4,6 +4,9 @@ import { can } from "@/lib/rbac";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { ImportForm } from "./_form";
 
+// Импорт большого справочника может идти дольше стандартных 15 с.
+export const maxDuration = 60;
+
 export default async function ImportUsersPage() {
   const session = await getSession();
   if (!session) redirect("/login");

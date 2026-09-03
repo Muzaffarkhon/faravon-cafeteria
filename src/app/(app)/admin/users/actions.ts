@@ -489,6 +489,12 @@ const norm = (s: unknown) =>
     .replace(/\s+/g, "")
     .trim();
 
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 function cellText(v: ExcelJS.CellValue): string {
   if (v == null) return "";
   if (typeof v === "object") {
@@ -542,11 +548,33 @@ export async function importEmployees(
   }
 
   const dryRun = formData.get("dryRun") === "on";
+  const wantDeactivate = formData.get("deactivateAbsent") === "on";
   const rowErrors: string[] = [];
-  const seenNames = new Set<string>(); // нормализованные ФИО из файла — защита от дублей
-  const touchedIds = new Set<string>(); // id всех задетых сотрудников — для деактивации отсутствующих
-  let created = 0;
-  let updated = 0;
+
+  // 1) Один запрос — все существующие сотрудники (для сопоставления в памяти).
+  const existing = await db.employee.findMany({
+    select: {
+      id: true,
+      fullName: true,
+      position: true,
+      department: true,
+      phone: true,
+      isActive: true,
+      telegramId: true,
+    },
+  });
+  const byName = new Map<string, (typeof existing)[number]>();
+  const tgOwner = new Map<string, string>(); // telegramId -> employeeId
+  for (const e of existing) {
+    byName.set(norm(e.fullName), e);
+    if (e.telegramId) tgOwner.set(e.telegramId, e.id);
+  }
+
+  // 2) Разбор всех строк файла в память.
+  const seenNames = new Set<string>();
+  const tgInFile = new Set<string>();
+  const toCreate: ImportRow[] = [];
+  const toUpdate: { id: string; data: ImportRow }[] = [];
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -562,63 +590,78 @@ export async function importEmployees(
     }
     seenNames.add(nameKey);
 
+    const prev = byName.get(nameKey);
+
+    let telegramId = get("telegramId") || null;
+    if (telegramId) {
+      const owner = tgOwner.get(telegramId);
+      if (tgInFile.has(telegramId) || (owner && owner !== prev?.id)) {
+        rowErrors.push(
+          `Строка ${r} («${fullName}»): Telegram ID уже привязан к другому — импортирован без него.`,
+        );
+        telegramId = null;
+      } else {
+        tgInFile.add(telegramId);
+      }
+    }
+
     const data: ImportRow = {
       fullName,
       position: get("position") || "—",
       department: get("department") || "—",
       phone: get("phone") || null,
-      telegramId: get("telegramId") || null,
+      telegramId,
     };
 
-    try {
-      // Сопоставление по ФИО (без учёта регистра).
-      const existing = await db.employee.findFirst({
-        where: { fullName: { equals: fullName, mode: "insensitive" } },
-        select: { id: true },
-      });
-      if (existing) {
-        if (!dryRun) await db.employee.update({ where: { id: existing.id }, data });
-        touchedIds.add(existing.id);
-        updated++;
-      } else {
-        if (!dryRun) {
-          const createdEmp = await db.employee.create({ data, select: { id: true } });
-          touchedIds.add(createdEmp.id);
-        }
-        created++;
-      }
-    } catch (e) {
-      const msg = e instanceof Error && /telegramId/.test(e.message)
-        ? `Telegram ID уже привязан к другому сотруднику`
-        : "ошибка записи";
-      rowErrors.push(`Строка ${r} («${fullName}»): ${msg}.`);
+    if (!prev) {
+      toCreate.push(data);
+    } else if (
+      // обновляем только при реальном изменении — иначе повторный импорт ничего не пишет
+      prev.position !== data.position ||
+      prev.department !== data.department ||
+      (prev.phone ?? null) !== data.phone ||
+      (prev.telegramId ?? null) !== data.telegramId ||
+      prev.fullName !== data.fullName
+    ) {
+      toUpdate.push({ id: prev.id, data });
     }
   }
 
+  // 3) Массовые записи: createMany + update-транзакции батчами.
+  if (!dryRun) {
+    try {
+      if (toCreate.length) await db.employee.createMany({ data: toCreate });
+      for (const batch of chunk(toUpdate, 400)) {
+        await db.$transaction(
+          batch.map((u) => db.employee.update({ where: { id: u.id }, data: u.data })),
+        );
+      }
+    } catch {
+      return { error: "Не удалось записать данные. Проверьте файл и повторите." };
+    }
+  }
+
+  // 4) Деактивация отсутствующих — по нормализованным ФИО, одним updateMany на батч.
   let deactivated = 0;
   let deactivateList: string[] | undefined;
-  if (formData.get("deactivateAbsent") === "on" && seenNames.size > 0) {
-    const absent = await db.employee.findMany({
-      where: { isActive: true, id: { notIn: [...touchedIds] } },
-      include: { user: true },
-    });
+  if (wantDeactivate && seenNames.size > 0) {
+    const absent = existing.filter((e) => e.isActive && !seenNames.has(norm(e.fullName)));
     deactivateList = absent.map((e) => e.fullName);
-    if (!dryRun) {
-      for (const emp of absent) {
-        await db.employee.update({
-          where: { id: emp.id },
-          data: {
-            isActive: false,
-            status: "TERMINATED",
-            terminatedAt: new Date(),
-            archivedAt: new Date(),
-          },
+    deactivated = absent.length;
+    if (!dryRun && absent.length) {
+      const now = new Date();
+      for (const ids of chunk(absent.map((e) => e.id), 1000)) {
+        await db.employee.updateMany({
+          where: { id: { in: ids } },
+          data: { isActive: false, status: "TERMINATED", terminatedAt: now, archivedAt: now },
         });
-        if (emp.user) await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
+        await db.user.updateMany({ where: { employeeId: { in: ids } }, data: { isActive: false } });
       }
     }
-    deactivated = absent.length;
   }
+
+  const created = toCreate.length;
+  const updated = toUpdate.length;
 
   if (dryRun) {
     return { ok: true, dryRun: true, created, updated, deactivated, deactivateList, rowErrors };
