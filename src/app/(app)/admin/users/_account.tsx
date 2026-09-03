@@ -292,15 +292,21 @@ export function ServiceAccountRow({
 
   return (
     <>
-      <tr className="transition-colors hover:bg-surface-muted/60">
-        <td className="px-4 py-2">
+      <tr>
+        <td>
           <RowId id={user.id} />
         </td>
-        <td className="px-4 py-2 font-medium text-ink">{user.login}</td>
-        <td className="px-4 py-2 text-ink-muted">
-          {user.roles.map((r) => ROLE_LABELS[r]).join(", ")}
+        <td>
+          <Badge tone="neutral">Служебная</Badge>
         </td>
-        <td className="px-4 py-2 text-ink-muted">
+        <td>
+          <span className="font-medium text-ink">{user.login}</span>
+          <span className="ml-1.5 text-xs text-ink-muted">
+            ({user.roles.map((r) => ROLE_LABELS[r]).join(", ")})
+          </span>
+        </td>
+        <td className="text-ink-muted">—</td>
+        <td className="text-ink-muted">
           {isContractor ? (
             <select
               value={user.partnerId ?? ""}
@@ -323,14 +329,14 @@ export function ServiceAccountRow({
             "—"
           )}
         </td>
-        <td className="px-4 py-2">
+        <td>
           {user.isActive ? (
             <Badge tone="success">активна</Badge>
           ) : (
             <Badge tone="muted">отключена</Badge>
           )}
         </td>
-        <td className="px-4 py-2">
+        <td>
           <div className="flex items-center justify-end gap-2">
             <Button
               variant="secondary"
@@ -359,7 +365,7 @@ export function ServiceAccountRow({
       </tr>
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={6} className="px-4 pb-3">
+          <td colSpan={7} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}

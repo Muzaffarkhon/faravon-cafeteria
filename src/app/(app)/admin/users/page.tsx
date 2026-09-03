@@ -7,22 +7,19 @@ import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { Badge, Card, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
-import { UsersTabs } from "./_users-tabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; tab?: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
 
-  const sp = await searchParams;
-  const tab = sp.tab === "service" ? "service" : "staff";
-  const archiveView = sp.view === "archive";
+  const archiveView = (await searchParams).view === "archive";
 
   const [employees, serviceUsers, partners, archivedCount] = await Promise.all([
     db.employee.findMany({
@@ -30,61 +27,68 @@ export default async function UsersPage({
       include: { user: { select: { login: true, roles: true, isActive: true } } },
       orderBy: { fullName: "asc" },
     }),
-    db.user.findMany({
-      where: { employeeId: null },
-      orderBy: { login: "asc" },
-      include: { partner: { select: { name: true } } },
-    }),
+    // Служебные учётки показываем только в основном списке (в архиве их нет).
+    archiveView
+      ? Promise.resolve([])
+      : db.user.findMany({
+          where: { employeeId: null },
+          orderBy: { login: "asc" },
+          include: { partner: { select: { name: true } } },
+        }),
     db.partner.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.employee.count({ where: { archivedAt: { not: null } } }),
   ]);
 
-  const commonActions = (
-    <Link href="/admin/users/new" className={cx(buttonClass({ size: "sm" }), "shrink-0")}>
-      Добавить
-    </Link>
-  );
+  const total = employees.length + serviceUsers.length;
 
-  const staffActions = archiveView ? (
-    <Link
-      href="/admin/users?tab=staff"
-      className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-    >
-      К активным
-    </Link>
-  ) : (
-    <>
-      <Link
-        href="/admin/users?view=archive"
-        className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-      >
-        Архив{archivedCount ? ` (${archivedCount})` : ""}
-      </Link>
-      <Link
-        href="/admin/users/import"
-        className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-      >
-        Импорт из Excel
-      </Link>
-    </>
-  );
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Пользователи и роли"
+        description="Единый список: карточки сотрудников и служебные учётные записи для входа на платформу."
+        action={
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+            <Link
+              href={archiveView ? "/admin/users" : "/admin/users?view=archive"}
+              className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
+            >
+              {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+            </Link>
+            {!archiveView && (
+              <>
+                <Link
+                  href="/admin/users/import"
+                  className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
+                >
+                  Импорт из Excel
+                </Link>
+                <Link
+                  href="/admin/users/new"
+                  className={cx(buttonClass({ size: "sm" }), "shrink-0")}
+                >
+                  Добавить
+                </Link>
+              </>
+            )}
+          </div>
+        }
+      />
 
-  const staffBlock = (
-    <div className="space-y-3">
       <p className="text-sm text-ink-muted">
         {archiveView
           ? `Архив сотрудников — ${employees.length}. Запись скрыта из основного списка, история сохранена.`
-          : `Сотрудников — ${employees.length}.`}
+          : `Всего — ${total}: сотрудников ${employees.length}, служебных ${serviceUsers.length}.`}
       </p>
+
       <Card className="overflow-hidden">
         <Table stickyHeader>
           <thead>
             <tr>
               <th>ID</th>
-              <th>ФИО</th>
-              <th>Подразделение</th>
-              <th>Телефон</th>
+              <th>Тип</th>
               <th>Учётная запись</th>
+              <th>ФИО</th>
+              <th>Подразделение / партнёр</th>
               <th>Статус</th>
               <th className="text-right">Действия</th>
             </tr>
@@ -95,13 +99,13 @@ export default async function UsersPage({
                 <td>
                   <RowId id={e.id} />
                 </td>
-                <td className="font-medium text-ink">{e.fullName}</td>
-                <td>{e.department}</td>
-                <td>{e.phone ?? "—"}</td>
+                <td>
+                  <Badge tone="brand">Сотрудник</Badge>
+                </td>
                 <td>
                   {e.user ? (
                     <span>
-                      {e.user.login}
+                      <span className="font-medium text-ink">{e.user.login}</span>
                       <span className="ml-1.5 text-xs text-ink-muted">
                         ({e.user.roles.map((r) => ROLE_LABELS[r]).join(", ")})
                       </span>
@@ -115,6 +119,8 @@ export default async function UsersPage({
                     <Badge tone="warning">нет входа</Badge>
                   )}
                 </td>
+                <td className="font-medium text-ink">{e.fullName}</td>
+                <td>{e.department}</td>
                 <td>
                   {e.archivedAt ? (
                     <Badge tone="muted">
@@ -139,38 +145,7 @@ export default async function UsersPage({
                 </td>
               </tr>
             ))}
-            {employees.length === 0 && (
-              <tr>
-                <td colSpan={7} className="py-6 text-center text-ink-muted">
-                  {archiveView ? "Архив пуст." : "Сотрудников пока нет."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </Card>
-    </div>
-  );
 
-  const serviceBlock = (
-    <div className="space-y-3">
-      <p className="text-sm text-ink-muted">
-        Служебные учётные записи — {serviceUsers.length}. Административные роли без карточки
-        сотрудника (согласующий, HR BP, контент-менеджер и т.п.). Создать — кнопкой «Добавить».
-      </p>
-      <Card className="overflow-hidden">
-        <Table stickyHeader>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Логин</th>
-              <th>Роли</th>
-              <th>Партнёр</th>
-              <th>Статус</th>
-              <th className="text-right">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
             {serviceUsers.map((u) => (
               <ServiceAccountRow
                 key={u.id}
@@ -185,32 +160,17 @@ export default async function UsersPage({
                 partners={partners}
               />
             ))}
-            {serviceUsers.length === 0 && (
+
+            {total === 0 && (
               <tr>
-                <td colSpan={6} className="py-6 text-center text-ink-muted">
-                  Служебных учётных записей нет.
+                <td colSpan={7} className="py-6 text-center text-ink-muted">
+                  {archiveView ? "Архив пуст." : "Записей пока нет."}
                 </td>
               </tr>
             )}
           </tbody>
         </Table>
       </Card>
-    </div>
-  );
-
-  return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Пользователи и роли"
-        description="Справочник сотрудников и служебные учётные записи для входа на платформу."
-      />
-      <UsersTabs
-        initial={tab}
-        commonActions={commonActions}
-        staffActions={staffActions}
-        staff={staffBlock}
-        service={serviceBlock}
-      />
     </div>
   );
 }
