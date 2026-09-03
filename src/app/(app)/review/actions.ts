@@ -35,6 +35,10 @@ async function decideContext(itemId: string) {
     include: { application: true, card: true },
   });
   if (!item) throw new Error("Позиция не найдена.");
+  // Разделение полномочий: согласующий не решает по своей собственной заявке.
+  if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
+    throw new Error("Нельзя решать по собственной заявке — требуется другой согласующий.");
+  }
   return { session: s, item };
 }
 
@@ -155,6 +159,9 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         include: { application: true, card: true },
       });
       if (!item) throw new Error("позиция не найдена");
+      if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
+        throw new Error("нельзя решать по собственной заявке");
+      }
 
       if (item.status !== "APPROVED") {
         assertTransition(item.status, "APPROVED", "C_AND_B");
@@ -225,6 +232,9 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
         include: { application: true, card: true },
       });
       if (!item) throw new Error("позиция не найдена");
+      if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
+        throw new Error("нельзя решать по собственной заявке");
+      }
       assertTransition(item.status, "REJECTED", "C_AND_B");
       await db.applicationItem.update({
         where: { id },

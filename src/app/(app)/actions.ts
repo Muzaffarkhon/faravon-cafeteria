@@ -42,7 +42,12 @@ async function toggleSelectionImpl(cardId: string) {
   const existing = withItems?.items.find((i) => i.cardId === cardId);
 
   if (existing && existing.status === "DRAFT") {
-    await db.applicationItem.delete({ where: { id: existing.id } });
+    // Условное удаление: только пока позиция всё ещё DRAFT — иначе гонка с
+    // submitSelection (DRAFT→PENDING) удалила бы уже отправленную заявку.
+    const del = await db.applicationItem.deleteMany({
+      where: { id: existing.id, status: "DRAFT" },
+    });
+    if (del.count === 0) throw new Error("Позиция уже отправлена на согласование.");
     await audit({ actorId: session.user.id, action: "SELECTION_REMOVED", entityType: "ApplicationItem", entityId: existing.id });
   } else if (existing) {
     // Одна льгота — один раз за период (ТЗ v2 §5.6): повторно выбрать нельзя.
@@ -52,13 +57,24 @@ async function toggleSelectionImpl(cardId: string) {
       throw new Error("Вы уже отменяли эту льготу в текущем периоде. Выберите другую.");
     throw new Error("Эта льгота уже выбрана и находится в обработке.");
   } else {
-    const used = countAgainstLimit(withItems?.items ?? []);
-    if (used >= period.maxSelections) {
-      throw new Error(`Можно выбрать не более ${period.maxSelections} льгот.`);
-    }
-    const item = await db.applicationItem.create({
-      data: { applicationId: app.id, cardId, status: "DRAFT" },
-    });
+    // Счёт + создание в одной сериализуемой транзакции — иначе две вкладки
+    // одного сотрудника могли обе пройти проверку `used < maxSelections` и
+    // добавить больше лимита.
+    const item = await db.$transaction(
+      async (tx) => {
+        const current = await tx.applicationItem.findMany({
+          where: { applicationId: app.id },
+          select: { status: true },
+        });
+        if (countAgainstLimit(current) >= period.maxSelections) {
+          throw new Error(`Можно выбрать не более ${period.maxSelections} льгот.`);
+        }
+        return tx.applicationItem.create({
+          data: { applicationId: app.id, cardId, status: "DRAFT" },
+        });
+      },
+      { isolationLevel: "Serializable" },
+    );
     await audit({ actorId: session.user.id, action: "SELECTION_ADDED", entityType: "ApplicationItem", entityId: item.id });
   }
   revalidatePath("/");

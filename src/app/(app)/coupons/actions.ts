@@ -70,17 +70,21 @@ async function issueCouponImpl(couponId: string) {
     }
   }
 
-  // Атомарный переход CREATED → ISSUED — защита от гонки (двойной клик).
-  const claimed = await db.coupon.updateMany({
-    where: { id: couponId, status: "CREATED" },
-    data: { status: "ISSUED", issuedAt: new Date() },
+  // Атомарный переход CREATED → ISSUED + позиция — в одной транзакции
+  // (защита от гонки «двойной клик» и от рассинхрона купон/позиция).
+  const claimedOk = await db.$transaction(async (tx) => {
+    const claimed = await tx.coupon.updateMany({
+      where: { id: couponId, status: "CREATED" },
+      data: { status: "ISSUED", issuedAt: new Date() },
+    });
+    if (claimed.count === 0) return false;
+    await tx.applicationItem.update({
+      where: { id: coupon.itemId },
+      data: { status: "COUPON_ISSUED" },
+    });
+    return true;
   });
-  if (claimed.count === 0) throw new Error("Купон уже выдан.");
-
-  await db.applicationItem.update({
-    where: { id: coupon.itemId },
-    data: { status: "COUPON_ISSUED" },
-  });
+  if (!claimedOk) throw new Error("Купон уже выдан.");
 
   await audit({
     actorId: s.user.id,

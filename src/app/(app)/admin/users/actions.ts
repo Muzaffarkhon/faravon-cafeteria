@@ -125,7 +125,7 @@ export async function createEmployee(
       entityId: user.id,
       newValue: { login: user.login, roles: user.roles, employeeId: employee.id },
     });
-    otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+    otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
   }
 
   revalidatePath("/admin/users");
@@ -213,7 +213,7 @@ export async function createAccountForEmployee(
     entityId: user.id,
     newValue: { login: user.login, roles: user.roles, employeeId },
   });
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
 
   revalidatePath(`/admin/users/${employeeId}`);
   revalidatePath("/admin/users");
@@ -266,7 +266,7 @@ export async function createServiceAccount(
     entityId: user.id,
     newValue: { login: user.login, roles: user.roles, service: true, partnerId },
   });
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
 
   revalidatePath("/admin/users");
   return { ok: true, otp };
@@ -454,7 +454,14 @@ export async function issuePassword(userId: string): Promise<AccountResult> {
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return { error: "Учётная запись не найдена." };
 
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
+  await audit({
+    actorId: s.user.id,
+    action: "PASSWORD_ISSUED_BY_ADMIN",
+    entityType: "User",
+    entityId: user.id,
+    newValue: { adminLogin: s.user.login },
+  });
   revalidatePath("/admin/users");
   return { ok: true, otp };
 }

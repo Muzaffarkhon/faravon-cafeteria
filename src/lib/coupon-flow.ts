@@ -70,16 +70,22 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
     if (have < min) return false;
   }
 
-  const claimed = await db.coupon.updateMany({
-    where: { id: couponId, status: "CREATED" },
-    data: { status: "ISSUED", issuedAt: new Date() },
+  // Атомарный переход купона + позиции в одной транзакции: иначе падение между
+  // ними оставляло купон ISSUED, а позицию — в COUPON_CREATED (рассинхрон).
+  const claimedOk = await db.$transaction(async (tx) => {
+    const claimed = await tx.coupon.updateMany({
+      where: { id: couponId, status: "CREATED" },
+      data: { status: "ISSUED", issuedAt: new Date() },
+    });
+    if (claimed.count === 0) return false;
+    await tx.applicationItem.update({
+      where: { id: coupon.itemId },
+      data: { status: "COUPON_ISSUED" },
+    });
+    return true;
   });
-  if (claimed.count === 0) return false;
+  if (!claimedOk) return false;
 
-  await db.applicationItem.update({
-    where: { id: coupon.itemId },
-    data: { status: "COUPON_ISSUED" },
-  });
   await audit({
     actorId,
     action: "COUPON_ISSUED",

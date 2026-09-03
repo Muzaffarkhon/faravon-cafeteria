@@ -30,27 +30,39 @@ export async function runPeriodWindowNotifications(): Promise<{
   for (const p of periods) {
     // --- «окно открыто» — всем сотрудникам с учётной записью ---
     if (!p.windowOpenNotifiedAt && p.windowStart <= now && p.windowEnd > now) {
-      const users = await db.user.findMany({
-        where: { isActive: true, employee: { isActive: true } },
-        select: { id: true },
+      // Сначала атомарно «забираем» период (флаг ставится ДО рассылки). Если
+      // count===0 — параллельный запуск cron уже занялся этим, выходим.
+      const claim = await db.period.updateMany({
+        where: { id: p.id, windowOpenNotifiedAt: null },
+        data: { windowOpenNotifiedAt: now },
       });
-      if (users.length) {
-        await db.notification.createMany({
-          data: users.map((u) => ({
-            userId: u.id,
-            event: "WINDOW_OPEN",
-            channel: "TELEGRAM",
-            payload: { period: p.name, windowEnd: fmt(p.windowEnd) },
-          })),
+      if (claim.count === 1) {
+        const users = await db.user.findMany({
+          where: { isActive: true, employee: { isActive: true } },
+          select: { id: true },
         });
-        windowOpen += users.length;
+        if (users.length) {
+          await db.notification.createMany({
+            data: users.map((u) => ({
+              userId: u.id,
+              event: "WINDOW_OPEN",
+              channel: "TELEGRAM",
+              payload: { period: p.name, windowEnd: fmt(p.windowEnd) },
+            })),
+          });
+          windowOpen += users.length;
+        }
       }
-      await db.period.update({ where: { id: p.id }, data: { windowOpenNotifiedAt: now } });
     }
 
     // --- «закроется через 3 дня» — сотрудникам без выбора ---
     const leadStart = new Date(p.windowEnd.getTime() - CLOSING_LEAD_DAYS * DAY);
     if (!p.windowClosingNotifiedAt && now >= leadStart && now < p.windowEnd) {
+      const claimClosing = await db.period.updateMany({
+        where: { id: p.id, windowClosingNotifiedAt: null },
+        data: { windowClosingNotifiedAt: now },
+      });
+      if (claimClosing.count === 0) continue; // параллельный запуск уже занялся
       const chosen = await db.application.findMany({
         where: {
           periodId: p.id,
@@ -75,7 +87,6 @@ export async function runPeriodWindowNotifications(): Promise<{
         });
         windowClosing += targets.length;
       }
-      await db.period.update({ where: { id: p.id }, data: { windowClosingNotifiedAt: now } });
     }
   }
 
