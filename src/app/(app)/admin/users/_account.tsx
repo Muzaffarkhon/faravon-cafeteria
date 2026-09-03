@@ -374,8 +374,15 @@ export function ServiceAccountRow({
   );
 }
 
-export function NewServiceAccount({ partners }: { partners: PartnerOption[] }) {
-  const [open, setOpen] = useState(false);
+export function NewServiceAccount({
+  partners,
+  embedded = false,
+}: {
+  partners: PartnerOption[];
+  /** true — форма раскрыта сразу, без кнопки-открывашки и «Закрыть» (для единого шага создания). */
+  embedded?: boolean;
+}) {
+  const [open, setOpen] = useState(embedded);
   const [state, formAction, pending] = useActionState<AccountResult, FormData>(
     createServiceAccount,
     {},
@@ -390,11 +397,22 @@ export function NewServiceAccount({ partners }: { partners: PartnerOption[] }) {
   }
 
   return (
-    <form action={formAction} className="max-w-md space-y-4 rounded-md border border-line-subtle p-4">
-      <p className="text-sm font-medium text-ink">Служебная учётная запись</p>
-      <p className="text-xs text-ink-muted">
-        Для C&B, подрядчиков и других ролей без карточки сотрудника.
-      </p>
+    <form
+      action={formAction}
+      className={
+        embedded
+          ? "max-w-xl space-y-4"
+          : "max-w-md space-y-4 rounded-md border border-line-subtle p-4"
+      }
+    >
+      {!embedded && (
+        <>
+          <p className="text-sm font-medium text-ink">Служебная учётная запись</p>
+          <p className="text-xs text-ink-muted">
+            Для C&B, подрядчиков и других ролей без карточки сотрудника.
+          </p>
+        </>
+      )}
       <Field label="Логин" htmlFor="svc-login">
         <Input id="svc-login" name="login" autoCapitalize="none" spellCheck={false} required />
       </Field>
@@ -428,9 +446,11 @@ export function NewServiceAccount({ partners }: { partners: PartnerOption[] }) {
         <Button type="submit" loading={pending}>
           {pending ? "Создание…" : "Создать"}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-          Закрыть
-        </Button>
+        {!embedded && (
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            Закрыть
+          </Button>
+        )}
       </div>
     </form>
   );

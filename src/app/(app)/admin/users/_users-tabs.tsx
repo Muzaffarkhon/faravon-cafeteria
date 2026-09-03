@@ -13,11 +13,13 @@ type TabKey = "staff" | "service";
  */
 export function UsersTabs({
   initial,
+  commonActions,
   staffActions,
   staff,
   service,
 }: {
   initial: TabKey;
+  commonActions?: React.ReactNode;
   staffActions: React.ReactNode;
   staff: React.ReactNode;
   service: React.ReactNode;
@@ -58,6 +60,7 @@ export function UsersTabs({
           {tabBtn("staff", "Сотрудники")}
           {tabBtn("service", "Служебные")}
         </div>
+        {commonActions}
         <div className={cx("flex flex-wrap items-center gap-2", tab !== "staff" && "hidden")}>
           {staffActions}
         </div>

@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { Badge, Card, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
-import { NewServiceAccount, ServiceAccountRow } from "./_account";
+import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { UsersTabs } from "./_users-tabs";
 
@@ -39,6 +39,12 @@ export default async function UsersPage({
     db.employee.count({ where: { archivedAt: { not: null } } }),
   ]);
 
+  const commonActions = (
+    <Link href="/admin/users/new" className={cx(buttonClass({ size: "sm" }), "shrink-0")}>
+      Добавить
+    </Link>
+  );
+
   const staffActions = archiveView ? (
     <Link
       href="/admin/users?tab=staff"
@@ -59,9 +65,6 @@ export default async function UsersPage({
         className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
       >
         Импорт из Excel
-      </Link>
-      <Link href="/admin/users/new" className={cx(buttonClass({ size: "sm" }), "shrink-0")}>
-        Добавить сотрудника
       </Link>
     </>
   );
@@ -153,9 +156,8 @@ export default async function UsersPage({
     <div className="space-y-3">
       <p className="text-sm text-ink-muted">
         Служебные учётные записи — {serviceUsers.length}. Административные роли без карточки
-        сотрудника (согласующий, HR BP, контент-менеджер и т.п.).
+        сотрудника (согласующий, HR BP, контент-менеджер и т.п.). Создать — кнопкой «Добавить».
       </p>
-      <NewServiceAccount partners={partners} />
       <Card className="overflow-hidden">
         <Table stickyHeader>
           <thead>
@@ -204,6 +206,7 @@ export default async function UsersPage({
       />
       <UsersTabs
         initial={tab}
+        commonActions={commonActions}
         staffActions={staffActions}
         staff={staffBlock}
         service={serviceBlock}
