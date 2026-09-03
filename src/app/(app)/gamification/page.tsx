@@ -27,8 +27,9 @@ export default async function GamificationPage() {
         <div className="space-y-1.5">
           <p className="text-lg font-semibold text-ink">Раздел в разработке</p>
           <p className="mx-auto max-w-md text-sm leading-6 text-ink-muted">
-            Здесь появятся баллы за активность, достижения, рейтинги подразделений
-            и награды за выбор льгот. Следите за обновлениями.
+            Здесь появятся баллы за выполнение задач и активность, достижения,
+            рейтинги подразделений и льготы, которые можно получить за
+            накопленные баллы. Следите за обновлениями.
           </p>
         </div>
       </Card>
