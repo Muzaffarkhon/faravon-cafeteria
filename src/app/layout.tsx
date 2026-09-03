@@ -1,11 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { TelegramChrome } from "@/components/telegram-chrome";
+import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Кафетерий льгот «Фаровон»",
   description: "Платформа выбора и получения корпоративных льгот",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Кафетерий",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -34,6 +43,7 @@ export default function RootLayout({
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
         <TelegramChrome />
         {children}
+        <PwaInstallBanner />
       </body>
     </html>
   );
