@@ -67,6 +67,14 @@ export function guardedUpload(opts: {
       if (cancelled || ctrl.signal.aborted) {
         throw new Error("Загрузка отменена.");
       }
+      const msg = e instanceof Error ? e.message : "";
+      if (/retrieve the client token|client token/i.test(msg)) {
+        // /api/blob/upload не отдал токен — почти всегда не настроен Blob-store
+        throw new Error(
+          "Хранилище изображений недоступно: не настроен BLOB_READ_WRITE_TOKEN. " +
+            "Локально — добавьте токен в .env; на проде — подключите Blob-store.",
+        );
+      }
       throw e instanceof Error ? e : new Error("Не удалось загрузить файл.");
     });
 
