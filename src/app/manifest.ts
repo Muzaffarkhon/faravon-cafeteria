@@ -2,12 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "Кафетерий льгот «Фаровон»",
     short_name: "Кафетерий",
     description: "Платформа выбора и получения корпоративных льгот",
     start_url: "/",
+    scope: "/",
     display: "standalone",
-    orientation: "portrait-primary",
+    orientation: "any",
     background_color: "#ffffff",
     theme_color: "#ffffff",
     icons: [

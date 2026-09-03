@@ -35,20 +35,24 @@ export function PwaInstallBanner() {
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    if (!checkIsEligible()) return;
-
-    // Регистрация Service Worker для соответствия требованиям PWA
-    if ("serviceWorker" in navigator) {
+    // Безусловная регистрация Service Worker (критично для PWA на ПК Chrome / Edge)
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
 
-    // Перехватываем событие beforeinstallprompt (Android / Chrome)
+    // Перехватываем событие beforeinstallprompt (Android / Chrome на ПК)
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+
+    if (!checkIsEligible()) {
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      };
+    }
 
     // Определение iOS Safari
     const userAgent = window.navigator.userAgent.toLowerCase();

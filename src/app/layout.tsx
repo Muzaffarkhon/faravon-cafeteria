@@ -8,6 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Кафетерий льгот «Фаровон»",
   description: "Платформа выбора и получения корпоративных льгот",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -37,6 +42,9 @@ export default function RootLayout({
     <html lang="ru" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       {/* suppressHydrationWarning: расширения браузера (антибаннеры, менеджеры
           паролей) дописывают атрибуты в <body> до гидратации — это не наш рассинхрон */}
