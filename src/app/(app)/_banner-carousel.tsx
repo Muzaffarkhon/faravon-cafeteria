@@ -16,50 +16,101 @@ export type BannerSlide = {
 const AUTOPLAY_MS = 6000;
 
 export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
-  const [index, setIndex] = useState(0);
-  const [dx, setDx] = useState(0);
+  const count = slides.length;
+  const loop = count > 1;
+
+  // Три копии подряд; позиция живёт вокруг средней копии — так при любом
+  // направлении (и автопрокрутке, и перетаскивании) слева и справа всегда
+  // есть реальные слайды, «отскока назад» в конце нет.
+  const [pos, setPos] = useState(count); // единицы = ширина слайда
+  const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const activeRef = useRef(false);
-  const startXRef = useRef(0);
-  const movedRef = useRef(false);
-  const widthRef = useRef(1);
+
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startPos = useRef(0);
+  const width = useRef(1);
+  const moved = useRef(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const count = slides.length;
-  const clamp = useCallback((i: number) => (i + count) % count, [count]);
-  const go = useCallback((i: number) => setIndex((cur) => clamp(cur + i)), [clamp]);
+  // держим pos в пределах средней копии [count, 2*count)
+  const normalize = useCallback(
+    (p: number) => {
+      if (!loop) return p;
+      let n = p;
+      while (n >= 2 * count) n -= count;
+      while (n < count) n += count;
+      return n;
+    },
+    [loop, count],
+  );
 
   useEffect(() => {
-    if (count < 2 || paused) return;
-    const t = setInterval(() => setIndex((c) => clamp(c + 1)), AUTOPLAY_MS);
+    if (!loop || paused) return;
+    const t = setInterval(() => {
+      setAnimate(true);
+      setPos((p) => p + 1);
+    }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [count, paused, clamp]);
+  }, [loop, paused]);
+
+  // Когда pos вышел за среднюю копию — после завершения анимации бесшовно
+  // возвращаем его в диапазон [count, 2*count) без анимации (слайд тот же).
+  useEffect(() => {
+    if (!loop) return;
+    const n = normalize(pos);
+    if (n === pos) return;
+    const id = setTimeout(
+      () => {
+        setAnimate(false);
+        setPos(n);
+      },
+      animate ? 520 : 0,
+    );
+    return () => clearTimeout(id);
+  }, [pos, animate, loop, normalize]);
+
+  function step(delta: number) {
+    setAnimate(true);
+    setPos((p) => p + delta);
+  }
+
+  function goToDot(i: number) {
+    setAnimate(true);
+    setPos((p) => {
+      const base = Math.round(p);
+      const cur = ((base % count) + count) % count;
+      return base + (i - cur);
+    });
+  }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (count < 2) return;
-    activeRef.current = true;
-    setDragging(true);
-    movedRef.current = false;
-    startXRef.current = e.clientX;
-    widthRef.current = trackRef.current?.offsetWidth || 1;
+    if (!loop) return;
+    dragging.current = true;
+    moved.current = false;
+    setAnimate(false);
+    setPaused(true);
+    startX.current = e.clientX;
+    startPos.current = pos;
+    width.current = trackRef.current?.offsetWidth || 1;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function onPointerMove(e: React.PointerEvent) {
-    if (!activeRef.current) return;
-    const d = e.clientX - startXRef.current;
-    if (Math.abs(d) > 4) movedRef.current = true;
-    setDx(d);
+    if (!dragging.current) return;
+    const d = e.clientX - startX.current;
+    if (Math.abs(d) > 4) moved.current = true;
+    setPos(normalize(startPos.current - d / width.current));
   }
   function onPointerUp() {
-    if (!activeRef.current) return;
-    activeRef.current = false;
-    setDragging(false);
-    const threshold = widthRef.current * 0.18;
-    if (dx <= -threshold) go(1);
-    else if (dx >= threshold) go(-1);
-    setDx(0);
+    if (!dragging.current) return;
+    dragging.current = false;
+    setPaused(false);
+    setAnimate(true);
+    setPos((p) => Math.round(p)); // доводим до ближайшего слайда; settle сработает по transitionEnd
   }
+
+  const activeDot = loop ? (((Math.round(pos) % count) + count) % count) : 0;
+  const rendered = loop ? [...slides, ...slides, ...slides] : slides;
 
   return (
     <section
@@ -69,7 +120,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
     >
       <div
         ref={trackRef}
-        className="overflow-hidden rounded-[26px]"
+        className={cx("overflow-hidden rounded-[26px]", loop && "cursor-grab active:cursor-grabbing")}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -77,10 +128,10 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
         style={{ touchAction: "pan-y" }}
       >
         <div
-          className={cx("flex", !dragging && "transition-transform duration-500 ease-out")}
-          style={{ transform: `translateX(calc(${-index * 100}% + ${dx}px))` }}
+          className={cx("flex", animate && "transition-transform duration-500 ease-out")}
+          style={{ transform: `translateX(-${pos * 100}%)` }}
         >
-          {slides.map((b) => {
+          {rendered.map((b, i) => {
             const inner = (
               <>
                 {b.imageUrl && (
@@ -122,18 +173,18 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
               "relative flex h-44 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-56";
             return b.linkHref ? (
               <a
-                key={b.id}
+                key={`${b.id}-${i}`}
                 href={b.linkHref}
                 {...(b.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 onClick={(e) => {
-                  if (movedRef.current) e.preventDefault();
+                  if (moved.current) e.preventDefault();
                 }}
                 className={cls}
               >
                 {inner}
               </a>
             ) : (
-              <div key={b.id} className={cls}>
+              <div key={`${b.id}-${i}`} className={cls}>
                 {inner}
               </div>
             );
@@ -141,12 +192,12 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
         </div>
       </div>
 
-      {count > 1 && (
+      {loop && (
         <>
           <button
             type="button"
             aria-label="Предыдущий баннер"
-            onClick={() => go(-1)}
+            onClick={() => step(-1)}
             className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white backdrop-blur transition hover:bg-black/55"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
@@ -154,7 +205,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
           <button
             type="button"
             aria-label="Следующий баннер"
-            onClick={() => go(1)}
+            onClick={() => step(1)}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white backdrop-blur transition hover:bg-black/55"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -165,10 +216,10 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                 key={s.id}
                 type="button"
                 aria-label={`Баннер ${i + 1}`}
-                onClick={() => setIndex(i)}
+                onClick={() => goToDot(i)}
                 className={cx(
                   "h-1.5 rounded-full transition-all",
-                  i === index ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80",
+                  i === activeDot ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80",
                 )}
               />
             ))}
