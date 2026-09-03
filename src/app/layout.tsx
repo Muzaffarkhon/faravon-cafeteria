@@ -41,6 +41,7 @@ export default function RootLayout({
     <html lang="ru" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;});})();` }} />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />

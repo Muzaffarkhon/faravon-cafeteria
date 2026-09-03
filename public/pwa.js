@@ -3,30 +3,40 @@
 // PWA (Progressive Web App): добавление на домашний экран (Android / iOS / PC)
 // ═══════════════════════════════════════════════════════════
 (function initPWA(){
+  // Очищаем старую блокировку на 7 дней, если она осталась в браузере
+  try {
+    localStorage.removeItem('faravon_pwa_dismissed');
+  } catch (e) {}
+
+  // 1. Всегда сразу регистрируем Service Worker
+  if ('serviceWorker' in navigator) {
+    var regSW = function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    };
+    if (document.readyState === 'complete') {
+      regSW();
+    } else {
+      window.addEventListener('load', regSW);
+    }
+  }
+
   // Не показываем внутри Telegram WebApp или если уже установлено (standalone)
   var isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator && window.navigator.standalone);
   var isTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
   if (isStandalone || isTelegram) return;
 
-  // Проверяем, не скрывал ли пользователь баннер за последние 7 дней
-  var dismissedAt = null;
+  // Проверяем, не закрывал ли пользователь в текущей сессии
+  var isDismissed = false;
   try {
-    dismissedAt = localStorage.getItem('faravon_pwa_dismissed');
+    isDismissed = sessionStorage.getItem('faravon_pwa_closed') === '1';
   } catch (e) {}
-  if (dismissedAt && (Date.now() - parseInt(dismissedAt, 10)) < 7 * 86400000) return;
+  if (isDismissed) return;
 
-  // Регистрация Service Worker
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('/sw.js').catch(function(){});
-    });
-  }
-
-  var deferredPrompt = null;
+  var deferredPrompt = window.__pwaPrompt || null;
 
   function dismiss(){
     try {
-      localStorage.setItem('faravon_pwa_dismissed', String(Date.now()));
+      sessionStorage.setItem('faravon_pwa_closed', '1');
     } catch (e) {}
     var b = document.getElementById('pwaInstallBanner');
     if(b) b.remove();
@@ -106,10 +116,16 @@
     }
   }
 
+  // Если prompt уже был перехвачен
+  if (deferredPrompt) {
+    showBanner('android');
+  }
+
   // 1. Android & Chrome Desktop: beforeinstallprompt
   window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
     deferredPrompt = e;
+    window.__pwaPrompt = e;
     showBanner('android');
   });
 
