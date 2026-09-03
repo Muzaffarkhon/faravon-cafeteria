@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { TelegramChrome } from "@/components/telegram-chrome";
-import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import "./globals.css";
 
@@ -32,7 +31,6 @@ export const viewport: Viewport = {
 
 // Ставит data-theme до отрисовки — без вспышки светлой темы у выбравших тёмную.
 const THEME_INIT = `try{var t=localStorage.getItem('faravon.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}`;
-const PWA_INIT = `(function(){window.__pwaPrompt=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;window.dispatchEvent(new Event('pwa-ready'));});})();`;
 
 export default function RootLayout({
   children,
@@ -43,7 +41,6 @@ export default function RootLayout({
     <html lang="ru" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
-        <script dangerouslySetInnerHTML={{ __html: PWA_INIT }} />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -52,9 +49,9 @@ export default function RootLayout({
           паролей) дописывают атрибуты в <body> до гидратации — это не наш рассинхрон */}
       <body className="min-h-full bg-canvas text-ink" suppressHydrationWarning>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+        <Script src="/pwa.js" strategy="afterInteractive" />
         <TelegramChrome />
         {children}
-        <PwaInstallBanner />
         <PullToRefresh />
       </body>
     </html>
