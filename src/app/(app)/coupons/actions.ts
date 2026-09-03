@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
-import { notifyEmployee } from "@/lib/notify";
+import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { groupProgressOne } from "@/lib/selection";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { runAction, type ActionResult } from "@/lib/action-result";
@@ -35,6 +35,9 @@ async function createCouponImpl(itemId: string) {
   // Формируем и, если готово (не групповая или группа набрана), сразу выдаём.
   const coupon = await formCouponForItem(itemId, s.user.id);
   await issueCouponIfReady(coupon.id, s.user.id);
+  // issueCouponIfReady шлёт COUPON_ISSUED с deferFlush — доставляем сейчас,
+  // иначе сообщение «купон готов» ждёт cron.
+  flushTelegram();
 
   revalidateAll();
 }

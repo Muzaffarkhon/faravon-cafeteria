@@ -44,37 +44,60 @@ export async function approveItem(itemId: string): Promise<ActionResult> {
 
 async function approveItemImpl(itemId: string) {
   const { session, item } = await decideContext(itemId);
-  assertTransition(item.status, "APPROVED", "C_AND_B");
 
-  await db.applicationItem.update({
-    where: { id: itemId },
-    data: {
-      status: "APPROVED",
-      decidedById: session.user.id,
-      decidedAt: new Date(),
-      decisionComment: null,
-    },
-  });
-  await audit({
-    actorId: session.user.id,
-    action: "ITEM_APPROVED",
-    entityType: "ApplicationItem",
-    entityId: itemId,
-    oldValue: { status: item.status },
-    newValue: { status: "APPROVED" },
-  });
-  await notifyEmployee({
-    employeeId: item.application.employeeId,
-    event: "ITEM_APPROVED",
-    payload: { card: item.card.title },
-    deferFlush: true,
-  });
-  await issueAfterApprove(item, item.card.minParticipants, session.user.id);
+  // Одобрение и выпуск купона — два отдельных шага. Одобрение фиксируется
+  // сразу; выпуск купона повторяем идемпотентно (formCouponForItem /
+  // issueCouponIfReady сами это умеют). Повторный клик «Одобрить» по уже
+  // одобренной позиции — это до-выпуск купона, если он сорвался в прошлый раз.
+  if (item.status !== "APPROVED") {
+    assertTransition(item.status, "APPROVED", "C_AND_B");
+
+    await db.applicationItem.update({
+      where: { id: itemId },
+      data: {
+        status: "APPROVED",
+        decidedById: session.user.id,
+        decidedAt: new Date(),
+        decisionComment: null,
+      },
+    });
+    await audit({
+      actorId: session.user.id,
+      action: "ITEM_APPROVED",
+      entityType: "ApplicationItem",
+      entityId: itemId,
+      oldValue: { status: item.status },
+      newValue: { status: "APPROVED" },
+    });
+    await notifyEmployee({
+      employeeId: item.application.employeeId,
+      event: "ITEM_APPROVED",
+      payload: { card: item.card.title },
+      deferFlush: true,
+    });
+  }
+
+  const revalidate = () => {
+    revalidatePath("/review");
+    revalidatePath("/");
+    revalidatePath("/applications");
+  };
+
+  // Сбой выпуска купона не отменяет одобрение: позиция остаётся APPROVED,
+  // а сообщение подсказывает повторить.
+  try {
+    await issueAfterApprove(item, item.card.minParticipants, session.user.id);
+  } catch (e) {
+    flushTelegram();
+    revalidate();
+    throw new Error(
+      `Позиция одобрена, но купон не сформирован: ${
+        e instanceof Error ? e.message : "ошибка"
+      }. Нажмите «Одобрить» ещё раз, чтобы повторить выпуск.`,
+    );
+  }
   flushTelegram();
-
-  revalidatePath("/review");
-  revalidatePath("/");
-  revalidatePath("/applications");
+  revalidate();
 }
 
 export async function rejectItem(itemId: string, comment: string): Promise<ActionResult> {
@@ -132,32 +155,46 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         include: { application: true, card: true },
       });
       if (!item) throw new Error("позиция не найдена");
-      assertTransition(item.status, "APPROVED", "C_AND_B");
-      await db.applicationItem.update({
-        where: { id },
-        data: {
-          status: "APPROVED",
-          decidedById: s.user.id,
-          decidedAt: new Date(),
-          decisionComment: null,
-        },
-      });
-      await audit({
-        actorId: s.user.id,
-        action: "ITEM_APPROVED",
-        entityType: "ApplicationItem",
-        entityId: id,
-        oldValue: { status: item.status },
-        newValue: { status: "APPROVED", bulk: true },
-      });
-      await notifyEmployee({
-        employeeId: item.application.employeeId,
-        event: "ITEM_APPROVED",
-        payload: { card: item.card.title },
-        deferFlush: true,
-      });
-      await issueAfterApprove(item, item.card.minParticipants, s.user.id);
+
+      if (item.status !== "APPROVED") {
+        assertTransition(item.status, "APPROVED", "C_AND_B");
+        await db.applicationItem.update({
+          where: { id },
+          data: {
+            status: "APPROVED",
+            decidedById: s.user.id,
+            decidedAt: new Date(),
+            decisionComment: null,
+          },
+        });
+        await audit({
+          actorId: s.user.id,
+          action: "ITEM_APPROVED",
+          entityType: "ApplicationItem",
+          entityId: id,
+          oldValue: { status: item.status },
+          newValue: { status: "APPROVED", bulk: true },
+        });
+        await notifyEmployee({
+          employeeId: item.application.employeeId,
+          event: "ITEM_APPROVED",
+          payload: { card: item.card.title },
+          deferFlush: true,
+        });
+      }
+      // Позиция одобрена — засчитываем; сбой выпуска купона не отменяет
+      // одобрения, только добавляет предупреждение (повторный bulkApprove
+      // по этим id до-выпустит купон идемпотентно).
       ok++;
+      try {
+        await issueAfterApprove(item, item.card.minParticipants, s.user.id);
+      } catch (e) {
+        errors.push(
+          `${id.slice(-6)}: одобрено, но купон не сформирован — ${
+            e instanceof Error ? e.message : "ошибка"
+          }`,
+        );
+      }
     } catch (e) {
       errors.push(`${id.slice(-6)}: ${e instanceof Error ? e.message : "ошибка"}`);
     }

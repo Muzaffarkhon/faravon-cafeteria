@@ -38,8 +38,21 @@ export async function POST(req: Request) {
 
   // При первом одобрении заявки автоматически заводим черновик баннера партнёра
   // с уже подставленными данными — C&B останется дооформить (картинка, ссылка) и включить.
+  // Проверяем по журналу аудита, что баннер по этой заявке ещё не заводили —
+  // иначе повторное одобрение (после возврата в PENDING/REJECTED) плодит дубли.
   let bannerId: string | null = null;
-  if (status === "APPROVED" && before.status !== "APPROVED") {
+  const spawnedBefore =
+    status === "APPROVED"
+      ? await db.auditLog.findFirst({
+          where: {
+            action: "PARTNER_BANNER_CREATED",
+            entityType: "PartnerBanner",
+            newValue: { path: ["fromAdRequest"], equals: id },
+          },
+          select: { id: true },
+        })
+      : null;
+  if (status === "APPROVED" && !spawnedBefore) {
     const banner = await db.partnerBanner.create({
       data: {
         partnerId: before.partnerId,
