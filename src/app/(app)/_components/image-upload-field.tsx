@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { Button, Field, Input, cx } from "@/components/ui";
 import { isSvgSafe, sanitizeSvg } from "@/lib/svg-sanitize";
 import { isOptimizableRaster, optimizeImageFile } from "@/lib/image-optimize";
 import { renderCroppedFile, type CropRect } from "@/lib/image-crop";
+import { guardedUpload } from "@/lib/blob-upload";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ — лимит на итоговый файл
@@ -80,6 +80,7 @@ export function ImageUploadField({
   const [focus, setFocus] = useState({ x: 0.5, y: 0.5 });
   const boxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
 
   // Рамка меняет размер вместе с шириной колонки — следим ResizeObserver'ом.
   useEffect(() => {
@@ -152,15 +153,20 @@ export function ImageUploadField({
       return false;
     }
     setStage("upload");
-    const blob = await upload(name, payload, {
-      access: "public",
-      handleUploadUrl: "/api/blob/upload",
+    const task = guardedUpload({
+      name,
+      payload,
       contentType,
-      clientPayload: JSON.stringify({ purpose }),
-      onUploadProgress: (e) => setPct(Math.round(e.percentage)),
+      purpose,
+      onProgress: setPct,
     });
-    onChange(blob.url);
-    return true;
+    cancelRef.current = task.cancel;
+    try {
+      onChange(await task.done);
+      return true;
+    } finally {
+      cancelRef.current = null;
+    }
   }
 
   async function confirmCrop() {
@@ -250,13 +256,34 @@ export function ImageUploadField({
     <div className="mt-2 flex items-center gap-2">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-subtle">
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-200"
-          style={{ width: stage === "process" ? "15%" : `${Math.max(pct, 4)}%` }}
+          className={cx(
+            "h-full rounded-full bg-primary",
+            stage === "upload" && pct > 0
+              ? "transition-[width] duration-200"
+              : "animate-pulse",
+          )}
+          style={{
+            width:
+              stage === "process" || pct === 0 ? "20%" : `${Math.max(pct, 4)}%`,
+          }}
         />
       </div>
-      <span className="w-24 shrink-0 text-right text-xs tabular-nums text-ink-muted">
-        {stage === "process" ? "Обработка…" : `Загрузка ${pct}%`}
+      <span className="shrink-0 text-right text-xs tabular-nums text-ink-muted">
+        {stage === "process"
+          ? "Обработка…"
+          : pct > 0
+            ? `Загрузка ${pct}%`
+            : "Загрузка…"}
       </span>
+      {stage === "upload" && (
+        <button
+          type="button"
+          onClick={() => cancelRef.current?.()}
+          className="shrink-0 text-xs font-medium text-danger hover:underline"
+        >
+          Отмена
+        </button>
+      )}
     </div>
   ) : null;
 

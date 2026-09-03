@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { Field, Input, cx } from "@/components/ui";
 import { isSvgSafe, sanitizeSvg } from "@/lib/svg-sanitize";
 import { isOptimizableRaster, optimizeImageFile } from "@/lib/image-optimize";
+import { guardedUpload } from "@/lib/blob-upload";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ — лимит на итоговый файл
@@ -22,6 +22,7 @@ export function CardImageField({ initial }: { initial?: string | null }) {
   const [err, setErr] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
 
   async function onPick(file: File) {
     setErr(null);
@@ -69,17 +70,19 @@ export function CardImageField({ initial }: { initial?: string | null }) {
       }
 
       setStage("upload");
-      const blob = await upload(name, payload, {
-        access: "public",
-        handleUploadUrl: "/api/blob/upload",
+      const task = guardedUpload({
+        name,
+        payload,
         contentType,
-        clientPayload: JSON.stringify({ purpose: "card" }),
-        onUploadProgress: (e) => setPct(Math.round(e.percentage)),
+        purpose: "card",
+        onProgress: setPct,
       });
-      setUrl(blob.url);
+      cancelRef.current = task.cancel;
+      setUrl(await task.done);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Не удалось загрузить файл.");
     } finally {
+      cancelRef.current = null;
       setBusy(false);
       setStage(null);
       setPct(0);
@@ -140,16 +143,36 @@ export function CardImageField({ initial }: { initial?: string | null }) {
         <div className="mt-2 flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-subtle">
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-200"
+              className={cx(
+                "h-full rounded-full bg-primary",
+                stage === "upload" && pct > 0
+                  ? "transition-[width] duration-200"
+                  : "animate-pulse",
+              )}
               style={{
                 width:
-                  stage === "optimize" ? "15%" : `${Math.max(pct, 4)}%`,
+                  stage === "optimize" || pct === 0
+                    ? "20%"
+                    : `${Math.max(pct, 4)}%`,
               }}
             />
           </div>
-          <span className="w-24 shrink-0 text-right text-xs tabular-nums text-ink-muted">
-            {stage === "optimize" ? "Оптимизация…" : `Загрузка ${pct}%`}
+          <span className="shrink-0 text-right text-xs tabular-nums text-ink-muted">
+            {stage === "optimize"
+              ? "Оптимизация…"
+              : pct > 0
+                ? `Загрузка ${pct}%`
+                : "Загрузка…"}
           </span>
+          {stage === "upload" && (
+            <button
+              type="button"
+              onClick={() => cancelRef.current?.()}
+              className="shrink-0 text-xs font-medium text-danger hover:underline"
+            >
+              Отмена
+            </button>
+          )}
         </div>
       )}
 
