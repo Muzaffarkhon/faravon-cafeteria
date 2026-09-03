@@ -55,8 +55,10 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 px-3 text-xs",
-  md: "h-10 px-4 text-sm",
+  // Мобильный минимум тач-таргета (HIG: 44pt) выдержан на md/lg;
+  // sm — для плотных таблиц на десктопе, тоже увеличен с 32px.
+  sm: "h-9 gap-1.5 px-3 text-[13px]",
+  md: "h-11 px-4 text-sm",
   lg: "h-12 px-5 text-[0.9375rem]",
 };
 
@@ -359,7 +361,7 @@ export function SectionTitle({
   return (
     <h2
       className={cx(
-        "text-base font-semibold text-primary-strong",
+        "text-lg font-semibold text-primary-strong",
         className,
       )}
     >
