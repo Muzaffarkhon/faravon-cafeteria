@@ -235,7 +235,7 @@ export function Card({
   return (
     <div
       className={cx(
-        "rounded-xl border border-line bg-surface shadow-sm",
+        "rounded-[18px] bg-surface shadow-sm",
         className,
       )}
       {...props}
