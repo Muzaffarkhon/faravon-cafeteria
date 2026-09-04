@@ -42,8 +42,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <script dangerouslySetInnerHTML={{ __html: `(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;});})();` }} />
-        <link rel="manifest" href="/manifest.webmanifest" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        {/* manifest + apple-touch-icon приходят из export const metadata ниже */}
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       {/* suppressHydrationWarning: расширения браузера (антибаннеры, менеджеры
