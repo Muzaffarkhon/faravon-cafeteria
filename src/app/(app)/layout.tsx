@@ -67,7 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (canManageCoupons)
     add("work", "Работа", { href: "/coupons", label: "Купоны", icon: ICONS.coupons, badge: pendingCoupons || undefined });
   if (can(roles, "coupons.confirm"))
-    add("work", "Работа", { href: "/provider", label: "Активация купонов", icon: ICONS.scan });
+    add("work", "Работа", { href: "/provider", label: "Касса партнёра", icon: ICONS.scan });
   if (can(roles, "coupons.confirm") && session.user.partnerId)
     add("work", "Работа", { href: "/advertising", label: "Реклама", icon: ICONS.ad });
 

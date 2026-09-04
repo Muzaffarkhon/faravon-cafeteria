@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Badge, Button, Card, Field, Input, cx } from "@/components/ui";
-import { lookupCoupon, redeemCoupon, type CouponView } from "./actions";
+import { Button, Field, Input, cx } from "@/components/ui";
+import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CouponView } from "./actions";
 import { CouponScanner } from "./_scanner";
 
-type Phase = "idle" | "found" | "done";
+type Phase = "idle" | "found" | "not_found" | "no_benefit" | "done";
 
 /** Из результата сканирования достаёт номер купона (текст или ссылка ?number=). */
 function extractNumber(raw: string): string {
@@ -15,42 +15,53 @@ function extractNumber(raw: string): string {
   return val.toUpperCase();
 }
 
+function ResultIcon({ tone }: { tone: "success" | "neutral" }) {
+  return (
+    <div
+      className={cx(
+        "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold",
+        tone === "success" ? "bg-success text-on-brand" : "bg-surface-sunken text-primary",
+      )}
+      aria-hidden="true"
+    >
+      {tone === "success" ? "✓" : "!"}
+    </div>
+  );
+}
+
 export function ProviderConfirm() {
-  const [number, setNumber] = useState("");
+  // ── Основной сценарий: касса партнёра, поиск по телефону ──
+  const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [coupon, setCoupon] = useState<CouponView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notFoundName, setNotFoundName] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  function doLookup(value: string) {
+  // ── Резервный сценарий: ручной ввод номера купона / QR ──
+  const [manualOpen, setManualOpen] = useState(false);
+  const [number, setNumber] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
+
+  function onPhoneSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
     start(async () => {
-      const r = await lookupCoupon(value);
-      if (r.error) {
-        setError(r.error);
-        setCoupon(null);
-        setPhase("idle");
-      } else {
-        setCoupon(r.coupon ?? null);
+      const r = await lookupCouponByPhone(phone);
+      if (r.status === "found") {
+        setCoupon(r.coupon);
         setPhase("found");
+      } else if (r.status === "no_benefit") {
+        setNotFoundName(r.employee);
+        setPhase("no_benefit");
+      } else {
+        setNotFoundName(null);
+        setPhase("not_found");
       }
     });
   }
 
-  function onLookup(e: React.FormEvent) {
-    e.preventDefault();
-    doLookup(number);
-  }
-
-  function onScan(raw: string) {
-    const n = extractNumber(raw);
-    setNumber(n);
-    setPhase("idle");
-    setCoupon(null);
-    doLookup(n);
-  }
-
-  function onRedeem() {
+  function onActivate() {
     if (!coupon) return;
     setError(null);
     start(async () => {
@@ -61,125 +72,207 @@ export function ProviderConfirm() {
   }
 
   function reset() {
-    setNumber("");
+    setPhone("");
     setCoupon(null);
+    setNotFoundName(null);
     setError(null);
     setPhase("idle");
   }
 
-  return (
-    <div className="max-w-lg space-y-4">
-      <form onSubmit={onLookup}>
-        <Field
-          label="Номер купона"
-          htmlFor="coupon-number"
-          hint="С купона сотрудника, формат FRV-YYYYMM-XXXXXX."
-        >
-          <div className="flex gap-2">
-            <Input
-              id="coupon-number"
-              value={number}
-              onChange={(e) => setNumber(e.target.value.toUpperCase())}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              placeholder="FRV-202609-A1B2C3"
-              className="font-mono"
-            />
-            <Button type="submit" loading={pending && phase === "idle"} className="shrink-0">
-              Найти
-            </Button>
+  function doManualLookup(value: string) {
+    setManualError(null);
+    start(async () => {
+      const r = await lookupCoupon(value);
+      if (r.error) {
+        setManualError(r.error);
+        setCoupon(null);
+        setPhase("idle");
+      } else {
+        setCoupon(r.coupon ?? null);
+        setPhase("found");
+      }
+    });
+  }
+
+  function onManualSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    doManualLookup(number);
+  }
+
+  function onScan(raw: string) {
+    const n = extractNumber(raw);
+    setNumber(n);
+    doManualLookup(n);
+  }
+
+  // ── Найдено: карточка с данными и активацией ──
+  if (phase === "found" && coupon) {
+    return (
+      <div className="mx-auto max-w-sm">
+        <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
+          <ResultIcon tone="success" />
+          <div className="font-display text-[17px] font-bold text-ink">{coupon.employee}</div>
+          <div className="mt-1 text-[13px] text-ink-muted">{coupon.department}</div>
+
+          <div className="my-5 rounded-2xl bg-primary-soft p-4">
+            <div className="text-[12px] font-bold uppercase tracking-[0.06em] text-primary-strong">
+              Действующая льгота
+            </div>
+            <div className="mt-1.5 text-[16px] font-bold text-ink">{coupon.card}</div>
+            {coupon.condition && (
+              <div className="mt-1 font-display text-[22px] font-bold text-primary">
+                {coupon.condition}
+              </div>
+            )}
           </div>
-        </Field>
-      </form>
 
-      <CouponScanner onScan={onScan} />
+          {error && (
+            <p className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
+              {error}
+            </p>
+          )}
 
-      {error && (
-        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
-          {error}
+          {coupon.redeemable ? (
+            <Button fullWidth size="lg" loading={pending} onClick={onActivate} className="mb-2">
+              Активировать скидку
+            </Button>
+          ) : (
+            <p className="mb-2 text-sm font-medium text-danger">
+              {coupon.wrongPartner
+                ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы активируете только свои купоны.`
+                : `Купон в статусе «${coupon.statusLabel}» — активировать нельзя.`}
+            </p>
+          )}
+          <Button variant="ghost" fullWidth onClick={reset} disabled={pending}>
+            Следующий клиент
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Активировано ──
+  if (phase === "done") {
+    return (
+      <div className="mx-auto max-w-sm">
+        <div className="rounded-[24px] bg-success p-9 text-center text-on-brand shadow-md">
+          <div className="mb-2 text-[40px] font-bold" aria-hidden="true">
+            ✓
+          </div>
+          <div className="font-display text-[17px] font-bold">Скидка применена</div>
+          <div className="mt-1 text-[13px] text-on-brand/85">Купон отмечен как использованный</div>
+          <button
+            type="button"
+            onClick={reset}
+            className="mt-5 w-full rounded-[14px] bg-on-brand py-3.5 text-sm font-bold text-success-strong transition-colors hover:bg-on-brand/90"
+          >
+            Следующий клиент
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Не найдено / нет действующей льготы ──
+  if (phase === "not_found" || phase === "no_benefit") {
+    return (
+      <div className="mx-auto max-w-sm">
+        <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
+          <ResultIcon tone="neutral" />
+          <div className="font-display text-[17px] font-bold text-ink">
+            {phase === "no_benefit" ? `${notFoundName} — нет действующей льготы` : "Сотрудник не найден"}
+          </div>
+          <p className="mt-1.5 text-[13px] leading-6 text-ink-muted">
+            {phase === "no_benefit"
+              ? "У сотрудника нет выданного купона у вашего партнёра."
+              : "Проверьте номер телефона или попросите клиента показать QR купона."}
+          </p>
+          <Button fullWidth className="mt-5" onClick={reset}>
+            Попробовать снова
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Исходное состояние: ввод телефона ──
+  return (
+    <div className="mx-auto max-w-sm space-y-4">
+      <div className="rounded-[24px] bg-surface p-6 shadow-md">
+        <form onSubmit={onPhoneSubmit}>
+          <label
+            htmlFor="cashier-phone"
+            className="mb-2 block text-[12px] font-bold uppercase tracking-[0.06em] text-ink-muted"
+          >
+            Номер телефона клиента
+          </label>
+          <Input
+            id="cashier-phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+992 __ ___ __ __"
+            className="mb-3.5 rounded-[14px] py-4 text-center text-xl font-bold"
+          />
+          <Button type="submit" fullWidth size="lg" loading={pending}>
+            Проверить
+          </Button>
+        </form>
+
+        <div className="my-4 flex items-center gap-2.5">
+          <span className="h-px flex-1 bg-line" />
+          <span className="text-[11px] text-ink-subtle">или</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={() => {
+            setManualOpen((v) => !v);
+            setManualError(null);
+          }}
+        >
+          Ввести номер купона / сканировать QR
+        </Button>
+      </div>
+
+      {!manualOpen && (
+        <p className="text-center text-xs leading-6 text-ink-subtle">
+          Работает, даже если сотрудник не знает про программу — кассир вводит номер телефона,
+          система сама находит льготу.
         </p>
       )}
 
-      {coupon && phase !== "idle" && (
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-sm font-semibold text-ink" data-numeric>
-              {coupon.number}
-            </span>
-            <Badge tone={coupon.status === "USED" ? "neutral" : coupon.redeemable ? "success" : "warning"}>
-              {phase === "done" ? "Активирован" : coupon.statusLabel}
-            </Badge>
-          </div>
-
-          <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
-            <dt className="text-ink-muted">Сотрудник</dt>
-            <dd className="font-medium text-ink">{coupon.employee}</dd>
-            <dt className="text-ink-muted">Льгота</dt>
-            <dd className="font-medium text-ink">{coupon.card}</dd>
-            <dt className="text-ink-muted">Партнёр</dt>
-            <dd className="font-medium text-ink">{coupon.partner ?? "—"}</dd>
-            <dt className="text-ink-muted">Период</dt>
-            <dd className="font-medium text-ink">{coupon.period}</dd>
-            {coupon.validUntil && (
-              <>
-                <dt className="text-ink-muted">Действует до</dt>
-                <dd
-                  className={cx("font-medium", coupon.expired ? "text-danger" : "text-ink")}
-                  data-numeric
-                >
-                  {coupon.validUntil}
-                  {coupon.expired && " · срок истёк"}
-                </dd>
-              </>
-            )}
-          </dl>
-
-          <div className="mt-5 space-y-3">
-            {phase === "done" && (
-              <>
-                <p
-                  className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm font-medium text-success-strong"
-                  role="status"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                  Купон активирован. Сотрудник получит уведомление.
-                </p>
-                <Button onClick={reset} fullWidth size="lg" autoFocus>
-                  Активировать следующий купон
-                </Button>
-              </>
-            )}
-
-            {phase === "found" && coupon.redeemable && (
-              <div className="flex items-center gap-3">
-                <Button onClick={onRedeem} loading={pending}>
-                  Активировать купон
-                </Button>
-                <Button variant="ghost" onClick={reset} disabled={pending}>
-                  Отмена
+      {manualOpen && (
+        <div className="space-y-4 rounded-[18px] bg-surface p-5 shadow-sm">
+          <form onSubmit={onManualSubmit}>
+            <Field label="Номер купона" htmlFor="coupon-number" hint="Формат FRV-YYYYMM-XXXXXX.">
+              <div className="flex gap-2">
+                <Input
+                  id="coupon-number"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value.toUpperCase())}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  placeholder="FRV-202609-A1B2C3"
+                  className="font-mono"
+                />
+                <Button type="submit" loading={pending} className="shrink-0">
+                  Найти
                 </Button>
               </div>
-            )}
-
-            {phase === "found" && !coupon.redeemable && (
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm font-medium text-danger">
-                  {coupon.wrongPartner
-                    ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы активируете только свои купоны.`
-                    : coupon.expired
-                      ? `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil}` : ""} — активировать нельзя.`
-                      : `Купон в статусе «${coupon.statusLabel}» — активировать нельзя.`}
-                </p>
-                <Button variant="secondary" onClick={reset}>
-                  Другой купон
-                </Button>
-              </div>
-            )}
-          </div>
-        </Card>
+            </Field>
+          </form>
+          <CouponScanner onScan={onScan} />
+          {manualError && (
+            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
+              {manualError}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
