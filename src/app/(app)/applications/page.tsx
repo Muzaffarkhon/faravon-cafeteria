@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
-import { Badge, Card, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
+import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
 import { isCouponExpired } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { couponQrSvg } from "@/lib/qr";
+import { safeImageSrc } from "@/lib/safe-url";
 import { CancelItemButton } from "./_cancel-button";
 import { QrZoom } from "./_qr-zoom";
 
@@ -79,11 +80,8 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          Личный кабинет
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+      <header className="space-y-1">
+        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
           Мои заявки и купоны
         </h1>
         <p className="text-sm text-ink-muted" data-numeric>
@@ -91,32 +89,51 @@ export default async function ApplicationsPage() {
         </p>
       </header>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {applications.map((app) => (
-          <Card key={app.id} className="overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-line-subtle bg-surface-muted/60 px-5 py-3.5">
-              <div className="text-[0.9375rem] font-semibold text-ink">{app.period.name}</div>
+          <section key={app.id} className="space-y-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+                {app.period.name}
+              </div>
               <span className="text-xs text-ink-muted" data-numeric>
                 позиций: {app.items.length}
               </span>
             </div>
 
-            <ul className="divide-y divide-line-subtle">
+            <ul className="space-y-3">
               {app.items.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 py-4">
-                  <div className="min-w-0 space-y-1.5">
-                    <div className="text-base font-semibold leading-snug text-balance text-ink">
-                      {item.card.title}
-                    </div>
-                    <div className="text-sm text-ink-muted">
-                      {item.card.partner?.name ?? "Без партнёра"}
-                      {item.submittedAt && (
-                        <span data-numeric>
-                          {" · подано "}
-                          {item.submittedAt.toLocaleDateString("ru-RU")}
-                        </span>
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 rounded-[18px] bg-surface p-5 shadow-sm"
+                >
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-surface-sunken">
+                      {safeImageSrc(item.card.imageUrl) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={safeImageSrc(item.card.imageUrl)!}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-[repeating-linear-gradient(135deg,var(--sand-200)_0_8px,var(--sand-100)_8px_16px)]" />
                       )}
                     </div>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="text-base font-bold leading-snug text-balance text-ink">
+                        {item.card.title}
+                      </div>
+                      <div className="text-sm text-ink-muted">
+                        {item.card.partner?.name ?? "Без партнёра"}
+                        {item.submittedAt && (
+                          <span data-numeric>
+                            {" · подано "}
+                            {item.submittedAt.toLocaleDateString("ru-RU")}
+                          </span>
+                        )}
+                      </div>
 
                     {item.status === "REJECTED" && item.decisionComment && (
                       <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
@@ -206,6 +223,7 @@ export default async function ApplicationsPage() {
                           </div>
                         );
                       })()}
+                    </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
@@ -219,7 +237,7 @@ export default async function ApplicationsPage() {
                 </li>
               ))}
             </ul>
-          </Card>
+          </section>
         ))}
       </div>
     </div>
