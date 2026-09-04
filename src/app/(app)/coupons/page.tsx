@@ -88,11 +88,8 @@ export default async function CouponsPage({
 
   return (
     <div className="space-y-10">
-      <header className="space-y-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          HR
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">Купоны</h1>
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">Купоны</h1>
       </header>
 
       {/* Одобренные позиции без купона */}

@@ -33,8 +33,8 @@ function Metric({
 }) {
   return (
     <Card className="flex flex-col p-4">
-      <div className="text-[0.8125rem] text-ink-muted">{label}</div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</div>
+      <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">{label}</div>
+      <div className="mt-2 text-[28px] font-bold tracking-tight text-primary-strong tabular-nums">{value}</div>
       {pct != null && (
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
           <div
@@ -62,7 +62,7 @@ function BarList({
   return (
     <Card className="p-4">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-primary-strong">{title}</h3>
+        <h3 className="text-sm font-bold text-ink">{title}</h3>
         <span className="text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
       </div>
       {rows.length === 0 ? (
