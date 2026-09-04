@@ -1,5 +1,8 @@
 // Faravon Cafeteria PWA Service Worker
-const CACHE_NAME = 'faravon-cafeteria-v1';
+// Намеренно минимальный: НИЧЕГО не кэшируем (нет офлайн-режима). Задача SW —
+// только сделать приложение «устанавливаемым». Перехватываем как можно меньше,
+// чтобы случайно не кэшировать авторизованные страницы / OTP / купоны на общем
+// устройстве и не ломать SSE.
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -7,24 +10,31 @@ self.addEventListener('install', () => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.map((k) => {
-          if (k !== CACHE_NAME) return caches.delete(k);
-        })
-      )
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass through requests, allow browser network cache
-  if (event.request.method !== 'GET') return;
-  
-  // Only handle http/https requests
-  if (!event.request.url.startsWith('http')) return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
 
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  let url;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return;
+  }
+  // Только свой origin.
+  if (url.origin !== self.location.origin) return;
+  // Не трогаем API, SSE-поток и вход — пусть идут напрямую в сеть.
+  if (url.pathname.startsWith('/api/') || url.pathname === '/login') return;
+  // Обрабатываем только навигации по страницам (не статику, не data/blob).
+  if (req.mode !== 'navigate') return;
+
+  // Сеть напрямую, без записи в кэш. При офлайне отдаём управление браузеру
+  // (его собственная страница «нет сети»).
+  event.respondWith(fetch(req));
 });

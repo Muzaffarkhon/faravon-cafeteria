@@ -1,0 +1,22 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 563cdb4..a0d921e 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -31,6 +31,7 @@ jobs:
+     env:
+       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+       AUTH_SECRET: ci-placeholder-not-a-secret-0000000000000000
++      NEXT_TELEMETRY_DISABLED: "1"
+ 
+     steps:
+       - uses: actions/checkout@v5
+@@ -60,3 +61,9 @@ jobs:
+           --from-url "$DATABASE_URL"
+           --to-schema-datamodel ./prisma/schema.prisma
+           --exit-code
++
++      # Собираем приложение — ловим ошибки Next (RSC-границы, сериализация,
++      # коллизии роутов), которые `tsc --noEmit` не видит. БД к этому шагу уже
++      # с актуальной схемой (migrate deploy выше).
++      - name: Build (Next.js)
++        run: npx next build

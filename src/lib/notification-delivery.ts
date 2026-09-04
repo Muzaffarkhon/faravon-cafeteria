@@ -11,10 +11,16 @@ const TG_API = "https://api.telegram.org";
 
 async function sendTelegram(token: string, chatId: string, text: string): Promise<boolean> {
   try {
+    // Без parse_mode: тексты уведомлений — обычный текст из шаблонов
+    // (NotificationTemplate) с подстановкой названий карточек и комментариев.
+    // При parse_mode:"HTML" любой «<», «&» или «>» в этих данных (напр. карточка
+    // «Спорт & фитнес» или причина отказа «бюджет < 5000») приводил к ответу
+    // Telegram { ok:false } → уведомление зависало в бесконечном ретрае и
+    // сотрудник его не получал никогда.
     const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      body: JSON.stringify({ chat_id: chatId, text }),
     });
     const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
     return !!data?.ok;
@@ -46,10 +52,14 @@ export async function deliverTelegramNotifications(opts: {
   });
   const templates = new Map(templateRows.map((t) => [t.event, t.body]));
 
+  // Не пытаемся вечно: уведомления старше 7 дней (бот заблокирован, чат удалён,
+  // «отравленное» сообщение) больше не выбираем — иначе они забивают очередь.
+  const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const pending = await db.notification.findMany({
     where: {
       deliveredAt: null,
       channel: "TELEGRAM",
+      sentAt: { gt: new Date(Date.now() - STALE_MS) },
       user: { is: { employee: { is: { telegramId: { not: null } } } } },
     },
     select: {

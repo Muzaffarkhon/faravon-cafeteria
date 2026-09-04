@@ -13,7 +13,8 @@ export default function AppError({
 }) {
   const router = useRouter();
   useEffect(() => {
-    console.error(error);
+    // Не выводим полный объект ошибки (стек) в консоль посетителя — только digest.
+    console.error(`Ошибка страницы${error.digest ? ` (${error.digest})` : ""}`);
   }, [error]);
 
   return (

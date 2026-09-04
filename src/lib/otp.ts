@@ -23,7 +23,13 @@ export function generateIdCode(): string {
  * Выдать пользователю одноразовый пароль (замещает текущий), включить обязательную смену
  * при первом входе. Возвращает OTP в открытом виде — его отправляет Telegram-бот.
  */
-export async function issueOtpForUser(userId: string, actorNote = "telegram-bot"): Promise<string> {
+export async function issueOtpForUser(
+  userId: string,
+  actorNote = "telegram-bot",
+  /** Кто инициировал выдачу (для аудита). По умолчанию — сам пользователь
+   *  (self-service через бот); при выдаче админом передавать id админа. */
+  actorId: string = userId,
+): Promise<string> {
   const otp = generateOtp();
   const passwordHash = await hashPassword(otp);
   await db.user.update({
@@ -34,9 +40,12 @@ export async function issueOtpForUser(userId: string, actorNote = "telegram-bot"
       otpExpiresAt: new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
       failedLoginCount: 0,
       lockedUntil: null,
+      // Выдача нового OTP = «начать вход заново»: отзываем все прежние сессии
+      // этого пользователя (защита, если аккаунт был скомпрометирован).
+      sessionEpoch: { increment: 1 },
     },
   });
-  await audit({ actorId: userId, action: "OTP_ISSUED", entityType: "User", entityId: userId, newValue: { via: actorNote } });
+  await audit({ actorId, action: "OTP_ISSUED", entityType: "User", entityId: userId, newValue: { via: actorNote } });
   return otp;
 }
 

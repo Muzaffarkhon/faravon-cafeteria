@@ -110,7 +110,9 @@ model User {
   employeeId String?   @unique
 
   // Подрядчик привязан к партнёру: гасит только его купоны. null у CONTRACTOR = гасит любые.
-  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  // Restrict: партнёра с привязанными подрядчиками нельзя удалить (иначе scoped-
+  // подрядчик тихо становился бы «глобальным» после SetNull).
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
   auditLogs      AuditLog[]
@@ -133,6 +135,19 @@ model LoginAttempt {
 
   @@index([ip, createdAt])
   @@index([login, createdAt])
+}
+
+/// Попытки идентификации в Telegram-боте (§5.1) — для rate-limit и защиты от
+/// перебора номеров/кодов и от массовой генерации OTP. Пишется на каждую
+/// попытку /code, /login и «поделиться контактом».
+model TelegramAuthAttempt {
+  id         String   @id @default(cuid())
+  telegramId String
+  kind       String // "phone" | "code" | "reissue"
+  ok         Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([telegramId, createdAt])
 }
 
 /// Одноразовый код идентификации сотрудника в Telegram-боте (§5.1, способ «код от HR»)
@@ -187,7 +202,7 @@ model BenefitCard {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  partner   Partner? @relation(fields: [partnerId], references: [id])
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
   items    ApplicationItem[]
@@ -303,7 +318,7 @@ model Coupon {
   number          String       @unique
   item            ApplicationItem @relation(fields: [itemId], references: [id])
   itemId          String       @unique
-  partner         Partner?     @relation(fields: [partnerId], references: [id])
+  partner         Partner?     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId       String?
   employee        Employee     @relation(fields: [employeeId], references: [id])
   employeeId      String
@@ -408,6 +423,7 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
+  @@index([actorId])
   @@index([createdAt])
 }
 

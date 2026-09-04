@@ -20,8 +20,14 @@ export type LoginState = { error?: string };
 
 async function clientMeta() {
   const h = await headers();
+  // На Vercel `x-vercel-forwarded-for` проставляет платформа и его нельзя
+  // подделать из запроса. У обычного `x-forwarded-for` доверять можно только
+  // ПРАВОМУ элементу (ближайший к платформе хоп) — левый задаёт клиент, из-за
+  // чего лимит перебора по IP раньше обходился сменой заголовка на каждый запрос.
+  const vercel = h.get("x-vercel-forwarded-for")?.trim();
   const fwd = h.get("x-forwarded-for");
-  const ip = (fwd ? fwd.split(",")[0] : h.get("x-real-ip") || "").trim() || "unknown";
+  const rightmost = fwd ? fwd.split(",").map((s) => s.trim()).filter(Boolean).pop() : undefined;
+  const ip = vercel || rightmost || h.get("x-real-ip")?.trim() || "unknown";
   const userAgent = h.get("user-agent")?.slice(0, 300) ?? null;
   return { ip, userAgent };
 }
@@ -32,7 +38,10 @@ export async function loginAction(
 ): Promise<LoginState> {
   const login = String(formData.get("login") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/") || "/";
+  // Только внутренний путь: /path без протокол-относительного //, без \, без \n.
+  // Иначе `redirect(next)` мог увести на внешний фишинг после успешного входа.
+  const nextRaw = String(formData.get("next") ?? "/");
+  const next = /^\/(?!\/)[^\s\\]*$/.test(nextRaw) ? nextRaw : "/";
   const honeypot = String(formData.get("company") ?? ""); // скрытое поле — заполняют только боты
 
   if (honeypot) return { error: "Неверный логин или пароль." };

@@ -1,21 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** QR-код купона с увеличением по нажатию: оверлей по центру экрана. */
 export function QrZoom({ svg, number }: { svg: string; number: string }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    if (open) {
+      const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+      window.addEventListener("keydown", onKey);
+      closeRef.current?.focus(); // фокус в модалку
+      wasOpen.current = true;
+      return () => window.removeEventListener("keydown", onKey);
+    }
+    if (wasOpen.current) {
+      wasOpen.current = false;
+      triggerRef.current?.focus(); // вернуть фокус на кнопку после закрытия
+    }
   }, [open]);
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Увеличить QR-код"
@@ -41,6 +52,7 @@ export function QrZoom({ svg, number }: { svg: string; number: string }) {
             </span>
           </div>
           <button
+            ref={closeRef}
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Закрыть"

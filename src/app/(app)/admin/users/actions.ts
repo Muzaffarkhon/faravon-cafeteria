@@ -125,7 +125,7 @@ export async function createEmployee(
       entityId: user.id,
       newValue: { login: user.login, roles: user.roles, employeeId: employee.id },
     });
-    otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+    otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
   }
 
   revalidatePath("/admin/users");
@@ -213,7 +213,7 @@ export async function createAccountForEmployee(
     entityId: user.id,
     newValue: { login: user.login, roles: user.roles, employeeId },
   });
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
 
   revalidatePath(`/admin/users/${employeeId}`);
   revalidatePath("/admin/users");
@@ -266,7 +266,7 @@ export async function createServiceAccount(
     entityId: user.id,
     newValue: { login: user.login, roles: user.roles, service: true, partnerId },
   });
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
 
   revalidatePath("/admin/users");
   return { ok: true, otp };
@@ -454,7 +454,14 @@ export async function issuePassword(userId: string): Promise<AccountResult> {
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return { error: "Учётная запись не найдена." };
 
-  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`);
+  const otp = await issueOtpForUser(user.id, `admin:${s.user.login}`, s.user.id);
+  await audit({
+    actorId: s.user.id,
+    action: "PASSWORD_ISSUED_BY_ADMIN",
+    entityType: "User",
+    entityId: user.id,
+    newValue: { adminLogin: s.user.login },
+  });
   revalidatePath("/admin/users");
   return { ok: true, otp };
 }
@@ -658,6 +665,19 @@ export async function importEmployees(
     const absent = existing.filter((e) => e.isActive && !seenNames.has(norm(e.fullName)));
     deactivateList = absent.map((e) => e.fullName);
     deactivated = absent.length;
+    // Предохранитель: сопоставление идёт по ФИО (нестабильный ключ). Если файл
+    // «увольняет» подозрительно много людей — это почти наверняка кривой файл
+    // (не тот лист, другая раскладка ФИО). Требуем сначала прогнать dry-run.
+    const activeCount = existing.filter((e) => e.isActive).length;
+    const cap = Math.max(15, Math.ceil(activeCount * 0.25));
+    if (!dryRun && absent.length > cap) {
+      return {
+        error:
+          `Импорт остановлен: файл деактивировал бы ${absent.length} сотрудников (порог ${cap}). ` +
+          `Сначала запустите предпросмотр (dry-run) и проверьте список — вероятно, в файле не тот лист или другой формат ФИО.`,
+        deactivateList,
+      };
+    }
     if (!dryRun && absent.length) {
       const now = new Date();
       for (const ids of chunk(absent.map((e) => e.id), 1000)) {

@@ -10,7 +10,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    console.error(`Ошибка приложения${error.digest ? ` (${error.digest})` : ""}`);
   }, [error]);
 
   return (

@@ -12,11 +12,12 @@ function ActionButton({
 }: {
   label: string;
   pendingLabel: string;
-  onRun: () => Promise<{ error?: string }>;
+  onRun: () => Promise<{ error?: string; notice?: string }>;
   variant: "primary" | "success";
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <span className="inline-flex flex-col items-end">
@@ -26,10 +27,12 @@ function ActionButton({
         disabled={pending}
         onClick={() => {
           setError(null);
+          setNotice(null);
           start(async () => {
             try {
               const r = await onRun();
               if (r?.error) setError(r.error);
+              else if (r?.notice) setNotice(r.notice);
             } catch (e) {
               setError(e instanceof Error ? e.message : "Ошибка");
             }
@@ -41,6 +44,11 @@ function ActionButton({
       {error && (
         <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
           {error}
+        </span>
+      )}
+      {notice && !error && (
+        <span className="mt-1 max-w-[16rem] text-right text-[11px] text-ink-muted" role="status">
+          {notice}
         </span>
       )}
     </span>

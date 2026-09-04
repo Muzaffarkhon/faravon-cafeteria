@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { linkByPhone, linkByCode, reissueOtp } from "@/lib/telegram-link";
+import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
+import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,11 +37,14 @@ const CONTACT_KEYBOARD = {
   },
 };
 
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function grantMessage(login: string, otp: string, fullName: string) {
   return (
-    `Здравствуйте, ${fullName}!\n\n` +
-    `🔑 Логин: <code>${login}</code>\n` +
-    `🔒 Одноразовый пароль: <code>${otp}</code>\n\n` +
+    `Здравствуйте, ${esc(fullName)}!\n\n` +
+    `🔑 Логин: <code>${esc(login)}</code>\n` +
+    `🔒 Одноразовый пароль: <code>${esc(otp)}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
     (PLATFORM_URL ? `Вход: ${PLATFORM_URL}/login` : "")
   );
@@ -61,8 +65,16 @@ async function handle(msg: TgMessage) {
 
   try {
     if (msg.contact) {
-      if (msg.contact.user_id && msg.contact.user_id !== fromId) {
-        await send(chatId, "Пожалуйста, поделитесь <b>своим</b> контактом.");
+      // Принимаем номер, ТОЛЬКО если это подтверждённо собственный контакт
+      // отправителя (user_id совпадает с from.id). Отсутствие user_id = номер
+      // не привязан к Telegram или скрыт приватностью — доверять ему нельзя
+      // (иначе — захват аккаунта по чужому номеру из справочника).
+      if (msg.contact.user_id !== fromId) {
+        await send(
+          chatId,
+          "Нажмите кнопку «📱 Поделиться контактом» — она передаёт ваш собственный номер. " +
+            "Если номер не привязан к Telegram, получите код у HR и отправьте <code>/code ВАШКОД</code>.",
+        );
         return;
       }
       const g = await linkByPhone(msg.contact.phone_number, telegramId);
@@ -94,12 +106,19 @@ async function handle(msg: TgMessage) {
 
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
-    await send(chatId, `⚠️ ${e instanceof Error ? e.message : "Не удалось обработать запрос."}`);
+    // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
+    // логируем, пользователю — общая фраза (не оракул для перебора).
+    if (e instanceof SafeLinkError) {
+      await send(chatId, `⚠️ ${e.message}`);
+    } else {
+      console.error("[telegram] ошибка обработки update:", e);
+      await send(chatId, "⚠️ Не удалось обработать запрос. Попробуйте позже или обратитесь в HR.");
+    }
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!SECRET || req.headers.get("x-telegram-bot-api-secret-token") !== SECRET) {
+  if (!SECRET || !safeEqual(req.headers.get("x-telegram-bot-api-secret-token"), SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

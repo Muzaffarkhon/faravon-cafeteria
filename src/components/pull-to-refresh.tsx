@@ -19,8 +19,8 @@ export function PullToRefresh() {
   const isPullingRef = useRef(false);
   const isRefreshingRef = useRef(false);
   const hapticTriggeredRef = useRef(false);
-  // Зеркало pullDistance для обработчиков — чтобы эффект со слушателями
-  // не пересоздавался на каждый кадр жеста.
+  // Держим актуальное значение в ref, чтобы обработчики touch не зависели от
+  // pullDistance и не перевешивались на каждый кадр перетаскивания.
   const pullDistanceRef = useRef(0);
 
   useEffect(() => {
@@ -33,9 +33,9 @@ export function PullToRefresh() {
       return;
     }
 
-    const setPull = (v: number) => {
-      pullDistanceRef.current = v;
-      setPullDistance(v);
+    const applyPull = (d: number) => {
+      pullDistanceRef.current = d;
+      setPullDistance(d);
     };
 
     const triggerHaptic = () => {
@@ -76,7 +76,7 @@ export function PullToRefresh() {
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
       if (scrollY > 1 || deltaY <= 0) {
         if (pullDistanceRef.current > 0) {
-          setPull(0);
+          applyPull(0);
           setIsDragging(false);
         }
         return;
@@ -95,7 +95,7 @@ export function PullToRefresh() {
       }
 
       setIsDragging(true);
-      setPull(distance);
+      applyPull(distance);
 
       if (distance >= THRESHOLD && !hapticTriggeredRef.current) {
         hapticTriggeredRef.current = true;
@@ -112,7 +112,7 @@ export function PullToRefresh() {
 
       if (pullDistanceRef.current >= THRESHOLD && !isRefreshingRef.current) {
         setIsRefreshing(true);
-        setPull(THRESHOLD);
+        applyPull(THRESHOLD);
 
         startTransition(() => {
           router.refresh();
@@ -120,10 +120,10 @@ export function PullToRefresh() {
 
         setTimeout(() => {
           setIsRefreshing(false);
-          setPull(0);
+          applyPull(0);
         }, 850);
       } else {
-        setPull(0);
+        applyPull(0);
       }
     };
 

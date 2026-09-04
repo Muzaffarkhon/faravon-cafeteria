@@ -11,22 +11,35 @@ import { runAction, type ActionResult } from "@/lib/action-result";
 
 export type PeriodFormState = { error?: string };
 
+// Таджикистан: UTC+5, без переходов на летнее время.
+const TZ = "+05:00";
+
 function parse(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Укажите название периода.");
 
-  const date = (k: string, label: string) => {
+  // Дату из <input type="date"> (YYYY-MM-DD) трактуем в поясе Душанбе:
+  // «start» — начало этого дня по местному, «end» — конец дня по местному.
+  // Раньше `new Date("2026-09-30")` = полночь UTC = 05:00 в Душанбе, поэтому
+  // окно закрывалось на день раньше.
+  const date = (k: string, label: string, boundary: "start" | "end") => {
     const v = String(formData.get(k) ?? "").trim();
     if (!v) throw new Error(`Укажите дату: ${label}.`);
-    const d = new Date(v);
+    let iso = v;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      iso = boundary === "start" ? `${v}T00:00:00.000${TZ}` : `${v}T23:59:59.999${TZ}`;
+    } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v)) {
+      iso = `${v}${TZ}`; // datetime-local без пояса — тоже местное время
+    }
+    const d = new Date(iso);
     if (Number.isNaN(d.getTime())) throw new Error(`Некорректная дата: ${label}.`);
     return d;
   };
 
-  const startDate = date("startDate", "начало периода");
-  const endDate = date("endDate", "конец периода");
-  const windowStart = date("windowStart", "начало окна выбора");
-  const windowEnd = date("windowEnd", "конец окна выбора");
+  const startDate = date("startDate", "начало периода", "start");
+  const endDate = date("endDate", "конец периода", "end");
+  const windowStart = date("windowStart", "начало окна выбора", "start");
+  const windowEnd = date("windowEnd", "конец окна выбора", "end");
 
   if (startDate > endDate) throw new Error("Начало периода позже его конца.");
   if (windowStart > windowEnd) throw new Error("Начало окна выбора позже его конца.");
