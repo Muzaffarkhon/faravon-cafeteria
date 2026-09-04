@@ -337,7 +337,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{title}</h1>
         {description && (
           <p className="mt-1.5 text-sm text-ink-muted">{description}</p>
         )}
@@ -384,7 +384,8 @@ export function EmptyState({
   return (
     <div
       className={cx(
-        "petal-field flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-6 py-10 text-center",
+        "flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-14 text-center",
+        "bg-canvas bg-[radial-gradient(circle_at_center,var(--brand-100)_0_1.5px,transparent_1.6px)] [background-size:22px_22px]",
         className,
       )}
     >

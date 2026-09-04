@@ -79,11 +79,8 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          Личный кабинет
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+      <header className="space-y-1.5">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Мои заявки и купоны
         </h1>
         <p className="text-sm text-ink-muted" data-numeric>

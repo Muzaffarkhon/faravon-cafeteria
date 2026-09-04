@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 
 export type ReviewRow = {
@@ -26,6 +27,8 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [rowErr, setRowErr] = useState<Record<string, string>>({});
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectText, setRejectText] = useState("");
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const approveRow = rows.find((r) => r.id === approveId) ?? null;
 
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const allChecked = sel.size > 0 && allIds.every((id) => sel.has(id));
@@ -224,7 +227,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                         variant="success"
                         size="sm"
                         disabled={pending}
-                        onClick={() => runRow(r.id, () => approveItem(r.id))}
+                        onClick={() => setApproveId(r.id)}
                       >
                         Одобрить
                       </Button>
@@ -247,6 +250,26 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
           </tbody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={!!approveId}
+        title="Одобрить заявку?"
+        message={
+          approveRow ? (
+            <>
+              {approveRow.employee} — {approveRow.card}. Сотруднику будет выдан купон.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Одобрить"
+        tone="success"
+        busy={pending}
+        onConfirm={() => {
+          if (approveId) runRow(approveId, () => approveItem(approveId));
+          setApproveId(null);
+        }}
+        onClose={() => setApproveId(null)}
+      />
     </div>
   );
 }
