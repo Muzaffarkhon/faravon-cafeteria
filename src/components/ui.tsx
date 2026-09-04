@@ -337,7 +337,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">{title}</h1>
+        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">{title}</h1>
         {description && (
           <p className="mt-1.5 text-sm text-ink-muted">{description}</p>
         )}

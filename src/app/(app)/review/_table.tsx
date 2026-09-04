@@ -18,6 +18,8 @@ export type ReviewRow = {
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("ru-RU") : "—");
 
+type Confirm = { message: string; onConfirm: () => void };
+
 export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
@@ -26,6 +28,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [rowErr, setRowErr] = useState<Record<string, string>>({});
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectText, setRejectText] = useState("");
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
 
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const allChecked = sel.size > 0 && allIds.every((id) => sel.has(id));
@@ -86,7 +89,12 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
               variant="success"
               size="sm"
               disabled={pending}
-              onClick={() => runBulk("approve")}
+              onClick={() =>
+                setConfirm({
+                  message: `Одобрить выбранные позиции (${sel.size})? Сотрудникам будут выданы купоны.`,
+                  onConfirm: () => runBulk("approve"),
+                })
+              }
             >
               Одобрить выбранные
             </Button>
@@ -126,7 +134,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
         <Table stickyHeader>
           <thead>
             <tr>
@@ -224,7 +232,12 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                         variant="success"
                         size="sm"
                         disabled={pending}
-                        onClick={() => runRow(r.id, () => approveItem(r.id))}
+                        onClick={() =>
+                          setConfirm({
+                            message: `${r.employee} — ${r.card}. Сотруднику будет выдан купон.`,
+                            onConfirm: () => runRow(r.id, () => approveItem(r.id)),
+                          })
+                        }
                       >
                         Одобрить
                       </Button>
@@ -247,6 +260,45 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
           </tbody>
         </Table>
       </div>
+
+      {confirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+            onClick={() => setConfirm(null)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-[380px] rounded-[20px] bg-surface p-6 shadow-2xl"
+          >
+            <h2 className="text-[17px] font-bold text-ink">Одобрить заявку?</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-muted">{confirm.message}</p>
+            <div className="mt-5 flex gap-2">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={pending}
+                onClick={() => setConfirm(null)}
+              >
+                Отмена
+              </Button>
+              <Button
+                variant="success"
+                fullWidth
+                disabled={pending}
+                onClick={() => {
+                  confirm.onConfirm();
+                  setConfirm(null);
+                }}
+              >
+                Одобрить
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
