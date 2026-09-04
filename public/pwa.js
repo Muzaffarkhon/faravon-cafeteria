@@ -46,7 +46,7 @@
     if(document.getElementById('pwaInstallBanner')) return;
     var host = document.createElement('div');
     host.id = 'pwaInstallBanner';
-    host.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:440px;margin:0 auto;z-index:9999;background:var(--card,#ffffff);border:1px solid var(--border,#e2e8f0);box-shadow:0 12px 36px rgba(0,0,0,0.22);border-radius:14px;padding:12px 14px;font-family:inherit;display:flex;flex-direction:column;gap:10px;animation:pwaFadeIn .25s ease-out;';
+    host.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:440px;margin:0 auto;z-index:9999;background:var(--surface,#ffffff);border:1px solid var(--line,#e2e8f0);box-shadow:0 12px 36px rgba(0,0,0,0.22);border-radius:14px;padding:12px 14px;font-family:inherit;display:flex;flex-direction:column;gap:10px;animation:pwaFadeIn .25s ease-out;';
     
     if(!document.getElementById('pwaAnimStyles')){
       var st = document.createElement('style');
@@ -60,13 +60,13 @@
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<img src="/icons/icon-192.png" width="42" height="42" style="border-radius:10px;flex:none;box-shadow:0 2px 6px rgba(0,0,0,0.12)">' +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-weight:700;font-size:13.5px;color:var(--text,#0f172a);line-height:1.25">Кафетерий льгот «Фаровон»</div>' +
-            '<div style="font-size:11.5px;color:var(--muted,#64748b);margin-top:2px">Установите на главный экран для быстрого доступа</div>' +
+            '<div style="font-weight:700;font-size:13.5px;color:var(--ink,#0f172a);line-height:1.25">Кафетерий льгот «Фаровон»</div>' +
+            '<div style="font-size:11.5px;color:var(--ink-muted,#64748b);margin-top:2px">Установите на главный экран для быстрого доступа</div>' +
           '</div>' +
-          '<button id="btnPwaClose" type="button" aria-label="Закрыть" style="border:none;background:transparent;color:var(--muted,#94a3b8);font-size:16px;cursor:pointer;padding:4px;line-height:1">✕</button>' +
+          '<button id="btnPwaClose" type="button" aria-label="Закрыть" style="border:none;background:transparent;color:var(--ink-muted,#94a3b8);font-size:16px;cursor:pointer;padding:4px;line-height:1">✕</button>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px">' +
-          '<button id="btnPwaLater" type="button" style="border:none;background:transparent;color:var(--muted,#64748b);font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer">Позже</button>' +
+          '<button id="btnPwaLater" type="button" style="border:none;background:transparent;color:var(--ink-muted,#64748b);font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer">Позже</button>' +
           '<button id="btnPwaInstall" type="button" style="min-height:32px;font-size:12px;padding:0 14px;border-radius:8px;cursor:pointer;background:#e11d48;color:#ffffff;border:none;font-weight:600">Установить</button>' +
         '</div>';
       document.body.appendChild(host);
@@ -89,13 +89,13 @@
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<img src="/icons/apple-touch-icon.png" width="38" height="38" style="border-radius:9px;flex:none;box-shadow:0 2px 6px rgba(0,0,0,0.12)">' +
             '<div>' +
-              '<div style="font-weight:700;font-size:13px;color:var(--text,#0f172a)">Установка на iPhone / iPad</div>' +
-              '<div style="font-size:11.5px;color:var(--muted,#64748b)">Как добавить сайт на экран «Домой»:</div>' +
+              '<div style="font-weight:700;font-size:13px;color:var(--ink,#0f172a)">Установка на iPhone / iPad</div>' +
+              '<div style="font-size:11.5px;color:var(--ink-muted,#64748b)">Как добавить сайт на экран «Домой»:</div>' +
             '</div>' +
           '</div>' +
-          '<button id="btnPwaClose" type="button" aria-label="Закрыть" style="border:none;background:transparent;color:var(--muted,#94a3b8);font-size:16px;cursor:pointer;padding:4px;line-height:1">✕</button>' +
+          '<button id="btnPwaClose" type="button" aria-label="Закрыть" style="border:none;background:transparent;color:var(--ink-muted,#94a3b8);font-size:16px;cursor:pointer;padding:4px;line-height:1">✕</button>' +
         '</div>' +
-        '<div style="font-size:12px;color:var(--text,#0f172a);display:flex;flex-direction:column;gap:6px;padding-left:4px;margin-top:2px">' +
+        '<div style="font-size:12px;color:var(--ink,#0f172a);display:flex;flex-direction:column;gap:6px;padding-left:4px;margin-top:2px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
             '<span style="background:rgba(225,29,72,0.1);color:#e11d48;font-weight:700;font-size:10.5px;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center">1</span>' +
             '<span>Нажмите значок <b>«Поделиться»</b> внизу Safari:</span>' +
