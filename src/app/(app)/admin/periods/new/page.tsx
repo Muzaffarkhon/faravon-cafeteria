@@ -11,7 +11,7 @@ export default async function NewPeriodPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink">Новый период</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">Новый период</h1>
       <p className="text-sm text-ink-muted">
         Период создаётся в статусе «Черновик». Откройте его на странице списка, когда всё готово.
       </p>

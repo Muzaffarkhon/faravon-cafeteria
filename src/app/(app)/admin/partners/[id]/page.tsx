@@ -22,7 +22,7 @@ export default async function EditPartnerPage({
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink">Партнёр: {partner.name}</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">Партнёр: {partner.name}</h1>
       <PartnerForm action={action} initial={partner} submitLabel="Сохранить" />
     </div>
   );
