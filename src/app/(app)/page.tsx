@@ -42,12 +42,10 @@ export default async function OverviewPage() {
     return (
       <div className="space-y-6">
         <div className="space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-            Панель управления
-          </span>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">Кабинет</h1>
+          <p className="text-sm text-ink-muted">
             Вы вошли как {roles.map((r) => ROLE_LABELS[r]).join(", ")}
-          </h1>
+          </p>
         </div>
 
         {links.length === 0 ? (
@@ -62,15 +60,15 @@ export default async function OverviewPage() {
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className="group flex h-full items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-sm transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary-border hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
+                  className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-[0.9375rem] font-semibold text-ink">{l.label}</div>
+                    <div className="text-[0.9375rem] font-bold text-ink">{l.label}</div>
                     <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
                   </div>
                   <span
                     aria-hidden="true"
-                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14M13 6l6 6-6 6" />
