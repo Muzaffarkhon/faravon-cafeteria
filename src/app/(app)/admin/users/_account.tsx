@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
-import { Badge, Button, Field, Input, RowId } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, Field, Input, RowId } from "@/components/ui";
 import { RolePicker } from "./_form";
 import {
   createAccountForEmployee,
@@ -239,6 +239,16 @@ export function EmployeeActiveToggle({
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  function toggle() {
+    setErr(null);
+    start(async () => {
+      const r = await setEmployeeActive(employeeId, !isActive);
+      if (r.error) setErr(r.error);
+      setConfirming(false);
+    });
+  }
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -246,21 +256,20 @@ export function EmployeeActiveToggle({
         variant={isActive ? "danger" : "success"}
         size="sm"
         disabled={pending}
-        onClick={() => {
-          if (
-            isActive &&
-            !confirm("Деактивировать сотрудника? Вход в его учётную запись будет закрыт.")
-          )
-            return;
-          setErr(null);
-          start(async () => {
-            const r = await setEmployeeActive(employeeId, !isActive);
-            if (r.error) setErr(r.error);
-          });
-        }}
+        onClick={() => (isActive ? setConfirming(true) : toggle())}
       >
         {isActive ? "Деактивировать сотрудника" : "Вернуть в активные"}
       </Button>
+      {confirming && (
+        <ConfirmDialog
+          title="Деактивировать сотрудника?"
+          message="Вход в его учётную запись будет закрыт немедленно."
+          confirmLabel="Деактивировать"
+          pending={pending}
+          onConfirm={toggle}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
       {err && (
         <span className="text-xs font-medium text-danger" role="alert">
           {err}

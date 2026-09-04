@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Badge, Button, Field, Input } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, Field, Input } from "@/components/ui";
 import {
   linkOwnTelegram,
   unlinkOwnTelegram,
@@ -50,6 +50,17 @@ export function TelegramLink({ linked }: { linked: boolean }) {
   const [code, setCode] = useState<string | null>(null);
   const [isLinked, setIsLinked] = useState(linked);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  function doUnlink() {
+    setError(null);
+    start(async () => {
+      const r = await unlinkOwnTelegram();
+      if ("error" in r) setError(r.error);
+      else setIsLinked(false);
+      setConfirming(false);
+    });
+  }
 
   return (
     <div className="mt-4 space-y-3">
@@ -71,20 +82,7 @@ export function TelegramLink({ linked }: { linked: boolean }) {
           <p className="mt-1 font-mono text-lg font-semibold text-primary-strong">{code}</p>
         </div>
       ) : isLinked ? (
-        <Button
-          variant="danger"
-          size="sm"
-          disabled={pending}
-          onClick={() => {
-            if (!confirm("Отвязать Telegram от вашей учётной записи?")) return;
-            setError(null);
-            start(async () => {
-              const r = await unlinkOwnTelegram();
-              if ("error" in r) setError(r.error);
-              else setIsLinked(false);
-            });
-          }}
-        >
+        <Button variant="danger" size="sm" disabled={pending} onClick={() => setConfirming(true)}>
           Отвязать Telegram
         </Button>
       ) : (
@@ -109,6 +107,17 @@ export function TelegramLink({ linked }: { linked: boolean }) {
         <p className="text-sm font-medium text-danger" role="alert">
           {error}
         </p>
+      )}
+
+      {confirming && (
+        <ConfirmDialog
+          title="Отвязать Telegram?"
+          message="Уведомления и вход через бота перестанут работать, пока вы не привяжете аккаунт заново."
+          confirmLabel="Отвязать"
+          pending={pending}
+          onConfirm={doUnlink}
+          onCancel={() => setConfirming(false)}
+        />
       )}
     </div>
   );

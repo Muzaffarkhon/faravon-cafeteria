@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui";
+import { Button, ConfirmDialog } from "@/components/ui";
 import { setPeriodStatus, deletePeriod } from "./actions";
+
+type Confirm = { title: string; message: string; confirmLabel: string; danger?: boolean; run: () => Promise<{ error?: string }> };
 
 export function PeriodActions({
   id,
@@ -15,9 +17,9 @@ export function PeriodActions({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
 
-  function run(fn: () => Promise<{ error?: string }>, confirmMsg?: string) {
-    if (confirmMsg && !confirm(confirmMsg)) return;
+  function run(fn: () => Promise<{ error?: string }>) {
     setError(null);
     start(async () => {
       try {
@@ -25,6 +27,8 @@ export function PeriodActions({
         if (r?.error) setError(r.error);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
+      } finally {
+        setConfirm(null);
       }
     });
   }
@@ -48,10 +52,12 @@ export function PeriodActions({
             size="sm"
             disabled={pending}
             onClick={() =>
-              run(
-                () => setPeriodStatus(id, "CLOSED"),
-                `Закрыть период «${name}»? Подача и изменение заявок станут недоступны.`,
-              )
+              setConfirm({
+                title: "Закрыть период?",
+                message: `Период «${name}»: подача и изменение заявок станут недоступны.`,
+                confirmLabel: "Закрыть",
+                run: () => setPeriodStatus(id, "CLOSED"),
+              })
             }
           >
             Закрыть
@@ -62,7 +68,14 @@ export function PeriodActions({
             variant="danger"
             size="sm"
             disabled={pending}
-            onClick={() => run(() => deletePeriod(id), `Удалить период «${name}»?`)}
+            onClick={() =>
+              setConfirm({
+                title: "Удалить период?",
+                message: `«${name}» будет удалён безвозвратно.`,
+                confirmLabel: "Удалить",
+                run: () => deletePeriod(id),
+              })
+            }
           >
             Удалить
           </Button>
@@ -72,6 +85,16 @@ export function PeriodActions({
         <span className="max-w-[240px] text-right text-[11px] font-medium text-danger" role="alert">
           {error}
         </span>
+      )}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          pending={pending}
+          onConfirm={() => run(confirm.run)}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   );
