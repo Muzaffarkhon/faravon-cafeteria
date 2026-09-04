@@ -111,6 +111,47 @@ export function Button({
   );
 }
 
+/**
+ * Модальное подтверждение деструктивного/значимого действия — не должно быть
+ * ни одобрения, ни удаления без явного клика (клик по фону тоже отменяет).
+ */
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  variant = "primary",
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  title: ReactNode;
+  message: ReactNode;
+  confirmLabel: string;
+  /** Цвет кнопки подтверждения: primary — брендовый красный (удаление и т.п.), success — зелёный (одобрение). */
+  variant?: "primary" | "success";
+  pending?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onCancel} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-[380px] rounded-[20px] bg-surface p-6 shadow-2xl">
+        <h2 className="text-[17px] font-bold text-ink">{title}</h2>
+        <div className="mt-2 text-sm leading-6 text-ink-muted">{message}</div>
+        <div className="mt-5 flex gap-2.5">
+          <Button variant={variant} fullWidth disabled={pending} onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+          <Button variant="secondary" fullWidth disabled={pending} onClick={onCancel}>
+            Отмена
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------- Form controls --- */
 
 const CONTROL_BASE =

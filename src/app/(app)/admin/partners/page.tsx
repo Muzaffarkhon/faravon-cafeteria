@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PARTNER_STATUS_LABELS } from "@/lib/labels";
-import { Badge, Card, PageHeader, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
+import { Badge, PageHeader, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { DeletePartnerButton } from "./_delete-button";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -34,7 +34,7 @@ export default async function PartnersPage() {
         }
       />
 
-      <Card className="overflow-hidden">
+      <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
         <Table stickyHeader>
           <thead>
             <tr>
@@ -77,7 +77,7 @@ export default async function PartnersPage() {
             ))}
           </tbody>
         </Table>
-      </Card>
+      </div>
     </div>
   );
 }

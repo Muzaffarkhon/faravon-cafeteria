@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, RowId, Table, Textarea } from "@/components/ui";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 
 export type ReviewRow = {
@@ -262,42 +262,18 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
       </div>
 
       {confirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            onClick={() => setConfirm(null)}
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-full max-w-[380px] rounded-[20px] bg-surface p-6 shadow-2xl"
-          >
-            <h2 className="text-[17px] font-bold text-ink">Одобрить заявку?</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-muted">{confirm.message}</p>
-            <div className="mt-5 flex gap-2">
-              <Button
-                variant="secondary"
-                fullWidth
-                disabled={pending}
-                onClick={() => setConfirm(null)}
-              >
-                Отмена
-              </Button>
-              <Button
-                variant="success"
-                fullWidth
-                disabled={pending}
-                onClick={() => {
-                  confirm.onConfirm();
-                  setConfirm(null);
-                }}
-              >
-                Одобрить
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Одобрить заявку?"
+          message={confirm.message}
+          confirmLabel="Одобрить"
+          variant="success"
+          pending={pending}
+          onConfirm={() => {
+            confirm.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   );
