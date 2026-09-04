@@ -10,13 +10,19 @@ import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
 
+const microLabel = (text: string) => (
+  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+    {text}
+  </span>
+);
+
 function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/";
   const [state, formAction, pending] = useActionState(loginAction, initial);
 
   return (
-    <form action={formAction} className="mt-6 space-y-4">
+    <form action={formAction} className="space-y-4">
       <input type="hidden" name="next" value={next} />
       {/* honeypot: скрыт от людей, заполняют боты (§5.1) */}
       <input
@@ -27,11 +33,24 @@ function LoginForm() {
         aria-hidden="true"
         className="absolute left-[-9999px] h-0 w-0 opacity-0"
       />
-      <Field label="Логин" htmlFor="login">
-        <Input id="login" name="login" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
+      <Field label={microLabel("Логин")} htmlFor="login">
+        <Input
+          id="login"
+          name="login"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+        />
       </Field>
-      <Field label="Пароль" htmlFor="password" error={state.error}>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+      <Field label={microLabel("Пароль")} htmlFor="password" error={state.error}>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
       </Field>
 
       <Button type="submit" loading={pending} fullWidth size="lg">
@@ -48,26 +67,40 @@ export default function LoginPage() {
       style={{ paddingTop: "max(1rem, var(--tg-top))" }}
     >
       <PetalDrift />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 shadow-lg">
-        <div className="flex flex-col items-center text-center">
-          <BrandMark size={56} />
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-ink">Кафетерий льгот</h1>
-          <p className="mt-1 text-sm text-ink-muted">Группа компаний «Фаровон»</p>
+
+      <div className="relative z-10 w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
+        {/* Красная шапка */}
+        <div className="bg-primary px-7 pb-8 pt-10 text-center">
+          <BrandMark size={56} priority className="mx-auto" />
+          <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
+            Кафетерий льгот
+          </h1>
+          <p className="mt-1.5 text-sm text-on-brand/80">Ваши льготы. Просто.</p>
         </div>
 
-        <Suspense fallback={<div className="mt-6 h-52" />}>
-          <LoginForm />
-        </Suspense>
+        {/* Белое тело */}
+        <div className="bg-surface p-7">
+          <Suspense fallback={<div className="h-[13.5rem]" />}>
+            <LoginForm />
+          </Suspense>
 
-        <p className="mt-6 text-center text-xs leading-relaxed text-ink-subtle">
-          Логин и одноразовый пароль сотрудник получает в Telegram-боте.
-          {process.env.NODE_ENV !== "production" && (
-            <>
-              <br />
-              Демо-доступ: c_and_b / contractor / ivanov, пароль Password1
-            </>
-          )}
-        </p>
+          <div className="my-5 flex items-center gap-2.5">
+            <span className="h-px flex-1 bg-line" />
+            <span className="text-[11px] text-ink-subtle">как получить доступ</span>
+            <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <p className="text-center text-xs leading-relaxed text-ink-subtle">
+            Логин и одноразовый пароль сотрудник получает в Telegram-боте
+            «Фаровон» — код привяжется автоматически.
+            {process.env.NODE_ENV !== "production" && (
+              <>
+                <br />
+                Демо: c_and_b / contractor / ivanov · пароль Password1
+              </>
+            )}
+          </p>
+        </div>
       </div>
     </main>
   );
