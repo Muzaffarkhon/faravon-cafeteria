@@ -359,7 +359,7 @@ export function SectionTitle({
   return (
     <h2
       className={cx(
-        "text-base font-semibold text-primary-strong",
+        "font-display text-base font-bold text-ink",
         className,
       )}
     >
