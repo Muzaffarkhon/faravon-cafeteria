@@ -229,6 +229,12 @@
   --font-mono:
     ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas,
     monospace;
+  /* Заголовочный (display). Подключить лицензионный Tilda Sans woff2 в
+     public/fonts/ + next/font/local — тогда шрифт из макета подхватится
+     автоматически. До тех пор — близкий системный гуманистический стек. */
+  --font-display:
+    "Tilda Sans", "Tilda Sans VF", "Golos Text", "Segoe UI", ui-rounded,
+    system-ui, var(--font-sans);
 }
 
 @theme inline {
@@ -321,6 +327,16 @@
     font-family: var(--font-sans);
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+  }
+
+  /* Заголовки — display-гарнитура (Tilda Sans / близкий системный стек).
+     Точечно можно переопределить классом font-sans. */
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 
   /* Тонкие ненавязчивые полосы прокрутки вместо системных «толстых со стрелками»
