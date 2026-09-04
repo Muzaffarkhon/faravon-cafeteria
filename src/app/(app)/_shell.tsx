@@ -46,6 +46,7 @@ const I = {
   collapse: "M11 17l-5-5 5-5||M18 17l-5-5 5-5",
   expand: "M13 17l5-5-5-5||M6 17l5-5-5-5",
   chevron: "M6 9l6 6 6-6",
+  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z||M9 22V12h6v10",
   profile: "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z||M4 21v-1a8 8 0 0 1 16 0v1",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4||M16 17l5-5-5-5||M21 12H9",
 };
@@ -152,7 +153,7 @@ export function AppShell({
           <span className="min-w-0 flex-1 truncate">
             {it.label}
             {it.soon && (
-              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-muted">
+              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-muted">
                 скоро
               </span>
             )}
@@ -201,8 +202,11 @@ export function AppShell({
         </button>
       </div>
 
-      {/* Навигация по группам */}
+      {/* Навигация по группам; «Главная» закреплена над всеми группами
+          и видна при любой роли — раньше ссылка на «/» была только у сотрудников. */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+        {navLink({ href: "/", label: "Главная", icon: I.home })}
+        {groups.length > 0 && <div className="mx-auto my-2 h-px w-[85%] bg-line" aria-hidden="true" />}
         {groups.map((g) => {
           const isClosed = !collapsed && closed[g.id];
           return (
@@ -211,7 +215,7 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.id)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted hover:text-ink"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted hover:text-ink"
                 >
                   {g.label}
                   <Icon
@@ -250,7 +254,7 @@ export function AppShell({
           type="button"
           onClick={() => setMobileOpen(false)}
           aria-label="Закрыть меню"
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-ink-muted hover:bg-surface-muted lg:hidden"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted lg:hidden"
         >
           <Icon path={I.close} />
         </button>
@@ -270,11 +274,12 @@ export function AppShell({
           className="sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface px-3 py-2"
           style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
         >
+          {/* Управляющие кнопки хедера — единый тач-таргет 44×44 (HIG: Mobility) */}
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Открыть меню"
-            className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted lg:hidden"
           >
             <Icon path={I.menu} />
           </button>
@@ -283,7 +288,7 @@ export function AppShell({
               type="button"
               onClick={() => router.back()}
               aria-label="Назад"
-              className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted hover:text-ink"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted hover:text-ink"
             >
               <Icon path={I.back} />
             </button>
@@ -291,7 +296,7 @@ export function AppShell({
               type="button"
               onClick={() => router.forward()}
               aria-label="Вперёд"
-              className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted hover:text-ink"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted hover:text-ink"
             >
               <Icon path={I.forward} />
             </button>
@@ -302,13 +307,13 @@ export function AppShell({
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label="Категории меню"
               aria-expanded={mobileMenuOpen}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+              className="flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
             >
               <BrandMark size={22} />
               <span>Кафетерий</span>
               <Icon
                 path={I.chevron}
-                className={cx("h-3.5 w-3.5 text-ink-muted transition-transform duration-200", mobileMenuOpen && "rotate-180")}
+                className={cx("h-4 w-4 text-ink-muted transition-transform duration-200", mobileMenuOpen && "rotate-180")}
               />
             </button>
 
@@ -325,6 +330,21 @@ export function AppShell({
                   <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                     Категории разделов
                   </div>
+                  {/* Закреплённая «Главная» — доступна из шторки-дропдауна при любой роли */}
+                  <Link
+                    href="/"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-current={isActive("/") ? "page" : undefined}
+                    className={cx(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-3 text-sm font-medium transition-colors",
+                      isActive("/")
+                        ? "bg-primary-soft font-semibold text-primary"
+                        : "text-ink hover:bg-surface-muted",
+                    )}
+                  >
+                    <Icon path={I.home} className="h-5 w-5 shrink-0" />
+                    <span>Главная</span>
+                  </Link>
                   <div className="mt-1 space-y-1">
                     {groups.map((g) => {
                       const isGroupActive = g.items.some((it) => isActive(it.href));
@@ -334,15 +354,15 @@ export function AppShell({
                           open={isGroupActive}
                           className="group/cat overflow-hidden rounded-xl border border-line/60 bg-surface-muted/40"
                         >
-                          <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-surface-muted list-none">
+                          <summary className="flex cursor-pointer items-center justify-between px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted list-none">
                             <span>{g.label}</span>
                             <div className="flex items-center gap-1.5">
-                              <span className="rounded-full bg-surface-sunken px-1.5 py-0.5 text-[10px] font-normal text-ink-muted">
+                              <span className="rounded-full bg-surface-sunken px-1.5 py-0.5 text-[11px] font-normal text-ink-muted">
                                 {g.items.length}
                               </span>
                               <Icon
                                 path={I.chevron}
-                                className="h-3 w-3 text-ink-muted transition-transform group-open/cat:rotate-180"
+                                className="h-4 w-4 text-ink-muted transition-transform group-open/cat:rotate-180"
                               />
                             </div>
                           </summary>
@@ -355,13 +375,13 @@ export function AppShell({
                                   href={it.href}
                                   onClick={() => setMobileMenuOpen(false)}
                                   className={cx(
-                                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                                    "flex items-center gap-2.5 rounded-lg px-3 py-3 text-sm font-medium transition-colors",
                                     active
                                       ? "bg-primary-soft font-semibold text-primary"
                                       : "text-ink hover:bg-surface-muted",
                                   )}
                                 >
-                                  <Icon path={it.icon} className="h-4 w-4 shrink-0" />
+                                  <Icon path={it.icon} className="h-5 w-5 shrink-0" />
                                   <span className="truncate">{it.label}</span>
                                 </Link>
                               );
@@ -384,7 +404,7 @@ export function AppShell({
               aria-label="Меню профиля"
               aria-expanded={profileOpen}
               className={cx(
-                "flex h-9 w-9 items-center justify-center rounded-full border border-line transition-colors",
+                "flex h-11 w-11 items-center justify-center rounded-full border border-line transition-colors",
                 isActive("/profile") || profileOpen
                   ? "bg-primary text-on-brand"
                   : "bg-surface text-ink hover:bg-surface-muted",
@@ -409,17 +429,17 @@ export function AppShell({
                   <Link
                     href="/profile"
                     onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-surface-muted"
+                    className="flex items-center gap-2.5 px-3 py-3 text-sm font-medium text-ink transition-colors hover:bg-surface-muted"
                   >
-                    <Icon path={I.profile} className="h-4 w-4" />
+                    <Icon path={I.profile} className="h-5 w-5" />
                     Профиль
                   </Link>
                   <form action={logout}>
                     <button
                       type="submit"
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-danger-soft hover:text-danger"
+                      className="flex w-full items-center gap-2.5 px-3 py-3 text-sm font-medium text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
-                      <Icon path={I.logout} className="h-4 w-4" />
+                      <Icon path={I.logout} className="h-5 w-5" />
                       Выйти
                     </button>
                   </form>

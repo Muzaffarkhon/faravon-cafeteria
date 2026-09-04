@@ -8,7 +8,6 @@ import { PetalDrag } from "@/components/petal-drag";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
 const ICONS = {
-  overview: "M4 4h7v7H4z||M13 4h7v7h-7z||M4 13h7v7H4z||M13 13h7v7h-7z",
   applications: "M6 2h12v20l-3-2-3 2-3-2-3 2z||M9 8h6||M9 12h6",
   gamification: "M8 21h8||M12 17v4||M7 4h10v5a5 5 0 0 1-10 0z||M17 5h2a2 2 0 0 1 0 4h-2||M7 5H5a2 2 0 0 0 0 4h2",
   review: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 12l2 2 4-4",
@@ -58,7 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
 
   if (session.employee) {
-    add("cabinet", "Кабинет", { href: "/", label: "Обзор", icon: ICONS.overview });
+    // Ссылка на «/» («Главная») закреплена в AppShell для всех ролей —
+    // отдельный пункт «Обзор» в группе «Кабинет» больше не нужен.
     add("cabinet", "Кабинет", { href: "/applications", label: "Мои заявки и купоны", icon: ICONS.applications });
     add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
