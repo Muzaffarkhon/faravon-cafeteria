@@ -150,7 +150,7 @@ export function AppShell({
               выставляет и overflow-y:auto (правило CSS для перпендикулярной
               оси), из-за чего выпадающий список внутри просто обрезался. */}
           {moreGroups.length > 0 && (
-            <div className="relative shrink-0">
+            <div className="relative shrink-0" onMouseLeave={() => setMoreOpen(false)}>
               <button
                 type="button"
                 onClick={() => setMoreOpen((v) => !v)}
@@ -211,7 +211,7 @@ export function AppShell({
           )}
 
           {/* Профиль */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0" onMouseLeave={() => setProfileOpen(false)}>
             <button
               type="button"
               onClick={() => setProfileOpen((v) => !v)}
