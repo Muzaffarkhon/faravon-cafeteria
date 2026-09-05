@@ -132,7 +132,12 @@ export function AppShell({
                   <Icon path={it.icon} />
                   <span className="whitespace-nowrap">{it.label}</span>
                   {it.badge ? (
-                    <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-on-brand/25 px-1 text-[11px] font-bold leading-none tabular-nums">
+                    <span
+                      className={cx(
+                        "ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none tabular-nums",
+                        active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
+                      )}
+                    >
                       {it.badge > 99 ? "99+" : it.badge}
                     </span>
                   ) : null}

@@ -40,12 +40,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canDecide = can(roles, "applications.decide");
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
+  const canConfirmCoupons = can(roles, "coupons.confirm");
+  const partnerId = session.user.partnerId;
 
-  const [pendingReview, pendingCoupons, pendingAdRequests] = await Promise.all([
-    canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
-    canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
-    canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
-  ]);
+  const [pendingReview, pendingCoupons, pendingAdRequests, myCouponsReady, partnerCouponsReady] =
+    await Promise.all([
+      canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
+      canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
+      canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
+      session.employee
+        ? db.coupon.count({ where: { employeeId: session.employee.id, status: "ISSUED" } })
+        : 0,
+      canConfirmCoupons && partnerId
+        ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
+        : 0,
+    ]);
 
   const groups: NavGroup[] = [];
   const add = (gid: string, glabel: string, item: NavItem) => {
@@ -59,16 +68,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (session.employee) {
     add("cabinet", "Кабинет", { href: "/", label: "Обзор", icon: ICONS.overview });
-    add("cabinet", "Кабинет", { href: "/applications", label: "Мои заявки и купоны", icon: ICONS.applications });
+    add("cabinet", "Кабинет", {
+      href: "/applications",
+      label: "Мои заявки и купоны",
+      icon: ICONS.applications,
+      badge: myCouponsReady || undefined,
+    });
     add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
   if (canDecide)
     add("work", "Работа", { href: "/review", label: "Согласование", icon: ICONS.review, badge: pendingReview || undefined });
   if (canManageCoupons)
     add("work", "Работа", { href: "/coupons", label: "Купоны", icon: ICONS.coupons, badge: pendingCoupons || undefined });
-  if (can(roles, "coupons.confirm"))
-    add("work", "Работа", { href: "/provider", label: "Касса партнёра", icon: ICONS.scan });
-  if (can(roles, "coupons.confirm") && session.user.partnerId)
+  if (canConfirmCoupons)
+    add("work", "Работа", {
+      href: "/provider",
+      label: "Касса партнёра",
+      icon: ICONS.scan,
+      badge: partnerCouponsReady || undefined,
+    });
+  if (canConfirmCoupons && partnerId)
     add("work", "Работа", { href: "/advertising", label: "Реклама", icon: ICONS.ad });
 
   if (can(roles, "cards.manage"))
