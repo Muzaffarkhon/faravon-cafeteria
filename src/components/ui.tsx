@@ -25,7 +25,7 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_BASE =
   "group/btn relative inline-flex select-none items-center justify-center gap-2 " +
-  "whitespace-nowrap rounded-lg font-semibold leading-none tracking-[-0.006em] " +
+  "whitespace-nowrap rounded-[10px] font-semibold leading-none tracking-[-0.006em] " +
   "transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out " +
   "active:translate-y-px " +
   "disabled:pointer-events-none disabled:opacity-55 disabled:shadow-none disabled:active:translate-y-0 " +
@@ -157,7 +157,7 @@ export function ConfirmDialog({
 const CONTROL_BASE =
   // text-base на мобильных (≥16px) — иначе iOS Safari зумит страницу при фокусе;
   // на sm+ возвращаем компактный 14px.
-  "control-focus rounded-md border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
+  "control-focus rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
   "shadow-xs outline-none transition-[border-color,box-shadow] duration-150 " +
   "placeholder:text-ink-subtle " +
   "disabled:bg-surface-muted disabled:text-ink-muted aria-[invalid=true]:border-danger";
@@ -280,11 +280,13 @@ export function Table({
     >
       <table
         className={cx(
-          "w-full border-collapse text-sm [&_th]:px-3 [&_th]:py-2 [&_th]:text-left " +
-            "[&_th]:font-medium [&_th]:text-ink-muted [&_td]:px-3 [&_td]:py-2 " +
-            "[&_td]:border-t [&_td]:border-line-subtle [&_tbody_tr:hover]:bg-surface-muted",
+          "w-full border-collapse text-sm [&_thead]:bg-surface-muted " +
+            "[&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-bold " +
+            "[&_th]:uppercase [&_th]:tracking-[0.06em] [&_th]:text-ink-muted " +
+            "[&_td]:px-3 [&_td]:py-2 [&_td]:border-t [&_td]:border-line-subtle " +
+            "[&_tbody_tr:hover]:bg-surface-muted",
           stickyHeader &&
-            "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-surface " +
+            "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-surface-muted " +
               "[&_thead_th]:shadow-[inset_0_-1px_0_var(--line)]",
           className,
         )}
@@ -425,7 +427,7 @@ export function EmptyState({
   return (
     <div
       className={cx(
-        "petal-field flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-6 py-10 text-center",
+        "petal-field flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-10 text-center",
         className,
       )}
     >
