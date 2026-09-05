@@ -25,10 +25,10 @@ type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_BASE =
   "group/btn relative inline-flex select-none items-center justify-center gap-2 " +
-  "whitespace-nowrap rounded-[10px] font-semibold leading-none tracking-[-0.006em] " +
+  "whitespace-nowrap rounded-[10px] font-semibold leading-none tracking-[-0.006em] cursor-pointer " +
   "transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out " +
   "active:translate-y-px " +
-  "disabled:pointer-events-none disabled:opacity-55 disabled:shadow-none disabled:active:translate-y-0 " +
+  "disabled:pointer-events-none disabled:cursor-default disabled:opacity-55 disabled:shadow-none disabled:active:translate-y-0 " +
   "aria-busy:pointer-events-none aria-busy:active:translate-y-0 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]";
 

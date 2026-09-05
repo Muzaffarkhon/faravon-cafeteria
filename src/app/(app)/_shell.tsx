@@ -96,7 +96,7 @@ export function AppShell({
 
   const pill = (active: boolean) =>
     cx(
-      "flex shrink-0 items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold transition-colors",
+      "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold transition-colors",
       active
         ? "bg-primary text-on-brand"
         : "text-ink hover:bg-surface-muted",
@@ -213,7 +213,7 @@ export function AppShell({
               aria-label="Меню профиля"
               aria-expanded={profileOpen}
               className={cx(
-                "flex h-9 w-9 items-center justify-center rounded-full border border-line transition-colors",
+                "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
                 isActive("/profile") || profileOpen
                   ? "bg-primary text-on-brand"
                   : "bg-surface text-ink hover:bg-surface-muted",
@@ -296,7 +296,7 @@ export function AppShell({
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
             className={cx(
-              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-colors",
+              "relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-colors",
               moreActive || moreOpen ? "text-primary" : "text-ink-muted",
             )}
           >
