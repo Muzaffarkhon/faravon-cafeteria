@@ -17,31 +17,39 @@ type Kind = "employee" | "service";
 export function NewAccount({ partners }: { partners: { id: string; name: string }[] }) {
   const [kind, setKind] = useState<Kind>("employee");
 
-  const tab = (key: Kind, label: string) => (
+  const tab = (key: Kind, label: string, sub: string) => (
     <button
       type="button"
       onClick={() => setKind(key)}
       aria-current={kind === key ? "page" : undefined}
       className={cx(
-        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+        "flex-1 rounded-lg px-4 py-2.5 text-left transition-colors",
         kind === key ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
       )}
     >
-      {label}
+      <span className="block text-sm font-semibold">{label}</span>
+      <span
+        className={cx(
+          "block text-xs",
+          kind === key ? "text-on-brand/80" : "text-ink-muted",
+        )}
+      >
+        {sub}
+      </span>
     </button>
   );
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-xl border border-line bg-surface p-0.5">
-        {tab("employee", "Сотрудник")}
-        {tab("service", "Служебная")}
+      <div className="flex gap-1 rounded-xl border border-line bg-surface p-1">
+        {tab("employee", "Сотрудник компании", "ФИО, должность, подразделение")}
+        {tab("service", "Подрядчик / служебная", "только логин и роль")}
       </div>
 
       <p className="text-sm text-ink-muted">
         {kind === "employee"
-          ? "Карточка сотрудника (ФИО, должность, подразделение). При необходимости сразу создайте вход на платформу с нужными ролями."
-          : "Учётная запись для роли без карточки сотрудника: C&B, подрядчик и т.п. Нужны только логин и роль."}
+          ? "Карточка сотрудника: ФИО, должность и подразделение обязательны. При необходимости сразу создайте вход на платформу с нужными ролями."
+          : "Учётная запись без карточки сотрудника — для подрядчика (активация купонов), C&B и других ролей. Должность и подразделение не нужны: только логин, роль и — для подрядчика — партнёр."}
       </p>
 
       <div hidden={kind !== "employee"}>
