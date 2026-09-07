@@ -41,20 +41,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
   const canConfirmCoupons = can(roles, "coupons.confirm");
+  const canManageFeedback = can(roles, "feedback.manage");
+  const canBroadcastPromo = can(roles, "promo.broadcast");
   const partnerId = session.user.partnerId;
+  const partner = partnerId
+    ? await db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
+    : null;
+  const isTaxiContractor = canBroadcastPromo && !!partnerId && partner?.deliveryMode === "PHONE_PROMO";
 
-  const [pendingReview, pendingCoupons, pendingAdRequests, myCouponsReady, partnerCouponsReady] =
-    await Promise.all([
-      canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
-      canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
-      canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
-      session.employee
-        ? db.coupon.count({ where: { employeeId: session.employee.id, status: "ISSUED" } })
-        : 0,
-      canConfirmCoupons && partnerId
-        ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
-        : 0,
-    ]);
+  const [
+    pendingReview,
+    pendingCoupons,
+    pendingAdRequests,
+    myCouponsReady,
+    partnerCouponsReady,
+    pendingFeedback,
+  ] = await Promise.all([
+    canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
+    canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
+    canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
+    session.employee
+      ? db.coupon.count({ where: { employeeId: session.employee.id, status: "ISSUED" } })
+      : 0,
+    canConfirmCoupons && partnerId
+      ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
+      : 0,
+    canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
+  ]);
 
   const groups: NavGroup[] = [];
   const add = (gid: string, glabel: string, item: NavItem) => {
@@ -74,13 +87,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       icon: ICONS.applications,
       badge: myCouponsReady || undefined,
     });
+    add("cabinet", "Кабинет", { href: "/feedback", label: "Обратная связь", icon: ICONS.inbox });
     add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
   if (canDecide)
     add("work", "Работа", { href: "/review", label: "Согласование", icon: ICONS.review, badge: pendingReview || undefined });
   if (canManageCoupons)
     add("work", "Работа", { href: "/coupons", label: "Купоны", icon: ICONS.coupons, badge: pendingCoupons || undefined });
-  if (canConfirmCoupons)
+  if (isTaxiContractor)
+    add("work", "Работа", {
+      href: "/provider/taxi",
+      label: "Промокоды",
+      icon: ICONS.coupons,
+    });
+  else if (canConfirmCoupons)
     add("work", "Работа", {
       href: "/provider",
       label: "Касса партнёра",
@@ -108,6 +128,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (can(roles, "cards.manage"))
     add("catalog", "Каталог", { href: "/admin/notifications", label: "Уведомления", icon: ICONS.bell });
 
+  if (canManageFeedback)
+    add("admin", "Аналитика и доступ", {
+      href: "/admin/feedback",
+      label: "Обратная связь",
+      icon: ICONS.inbox,
+      badge: pendingFeedback || undefined,
+    });
   if (can(roles, "reports.view"))
     add("admin", "Аналитика и доступ", { href: "/admin/reports", label: "Отчёты", icon: ICONS.reports });
   if (can(roles, "cards.manage"))

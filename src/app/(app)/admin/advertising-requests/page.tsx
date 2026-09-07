@@ -46,6 +46,10 @@ export default function Page() {
     try {
       const res = await fetch("/api/advertising/admin", { method: "POST", body: form });
       const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert(data?.error ?? "Не удалось изменить статус заявки.");
+        return;
+      }
       setItems((s) => (s ?? []).map((it) => (it.id === id ? { ...it, status } : it)));
       router.refresh(); // обновить счётчик в меню
       // После одобрения — сразу в баннеры, там уже создан черновик с данными заявки.
@@ -115,7 +119,7 @@ export default function Page() {
                       <Button
                         variant="danger"
                         size="sm"
-                        disabled={busyId === r.id || r.status === "REJECTED"}
+                        disabled={busyId === r.id || r.status === "REJECTED" || r.status === "APPROVED"}
                         onClick={() => updateStatus(r.id, "REJECTED")}
                       >
                         Отклонить
