@@ -188,14 +188,14 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
             {grants.map((p) => (
               <li
                 key={p}
-                className="rounded bg-surface px-1.5 py-0.5 text-[11px] text-ink ring-1 ring-line"
+                className="rounded bg-surface px-1.5 py-0.5 text-xs text-ink ring-1 ring-line"
               >
                 {PERMISSION_LABELS[p]}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-[11px] text-ink-subtle">
+          <p className="mt-1 text-xs text-ink-subtle">
             Ролей не выбрано — доступа к разделам нет.
           </p>
         )}

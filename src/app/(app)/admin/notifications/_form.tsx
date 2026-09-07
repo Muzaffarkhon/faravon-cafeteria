@@ -43,16 +43,16 @@ export function TemplateForm({
       <div className="mb-2 flex items-center gap-2">
         <span className="font-mono text-xs text-ink-subtle">{event}</span>
         {overridden ? (
-          <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[0.6875rem] font-medium text-primary-strong">
+          <span className="rounded bg-primary-soft px-1.5 py-0.5 text-xs font-medium text-primary-strong">
             изменён
           </span>
         ) : (
-          <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[0.6875rem] text-ink-subtle">
+          <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs text-ink-subtle">
             по умолчанию
           </span>
         )}
         {overridden && editedAt && (
-          <span className="text-[0.6875rem] text-ink-subtle">
+          <span className="text-xs text-ink-subtle">
             {editedBy ? `${editedBy}, ` : ""}
             {editedAt}
           </span>

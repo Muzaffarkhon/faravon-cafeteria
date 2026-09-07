@@ -180,7 +180,9 @@ export function FlexSelection({
                 <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
                 {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
 
-                {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
+                {c.condition && (
+                  <p className="mt-2 text-sm font-medium leading-6 text-ink">{c.condition}</p>
+                )}
 
               {c.minParticipants > 1 &&
                 (() => {
@@ -207,7 +209,7 @@ export function FlexSelection({
                         />
                       </div>
                       {!done && (
-                        <p className="mt-1 text-[11px] text-ink-subtle">
+                        <p className="mt-1 text-xs text-ink-subtle">
                           Скидка заработает, когда льготу выберут {c.minParticipants} сотрудников.
                         </p>
                       )}
@@ -260,7 +262,7 @@ export function FlexSelection({
                         <div className="mt-3 rounded-lg bg-surface-muted p-3">
                           <label
                             htmlFor={`phone-${c.id}`}
-                            className="text-[12px] font-medium text-ink-muted"
+                            className="text-sm font-medium text-ink-muted"
                           >
                             Номер для промокода на поездку
                           </label>
@@ -273,7 +275,7 @@ export function FlexSelection({
                             placeholder="+992 XX XXX XX XX"
                             className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
                           />
-                          <p className="mt-1 text-[11px] text-ink-subtle">
+                          <p className="mt-1 text-xs text-ink-subtle">
                             По умолчанию — номер из профиля. Промокод придёт на указанный номер.
                           </p>
                           <Button

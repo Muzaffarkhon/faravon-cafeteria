@@ -204,7 +204,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                   aria-hidden="true"
                   className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
                 />
-                <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
+                <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
                   {KIND_LABEL[b.kind ?? "partner"]}
                 </div>
                 <div className="relative z-10 max-w-2xl p-5 sm:p-6">
@@ -212,7 +212,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                     {b.title}
                   </h2>
                   {b.subtitle && (
-                    <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
+                    <p className="mt-1.5 text-sm font-medium leading-6 text-white/90 line-clamp-2">{b.subtitle}</p>
                   )}
                   {b.linkHref && (
                     <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">

@@ -107,7 +107,7 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
     );
     await audit({ actorId: session.user.id, action: "SELECTION_ADDED", entityType: "ApplicationItem", entityId: item.id });
   }
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function submitSelection(): Promise<ActionResult> {
@@ -146,7 +146,7 @@ async function submitSelectionImpl() {
     },
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/applications");
   revalidatePath("/review");
 }
@@ -174,7 +174,7 @@ async function cancelItemImpl(itemId: string) {
   assertTransition(item.status, "CANCELLED", "EMPLOYEE");
   await db.applicationItem.update({ where: { id: itemId }, data: { status: "CANCELLED" } });
   await audit({ actorId: session.user.id, action: "ITEM_CANCELLED", entityType: "ApplicationItem", entityId: itemId });
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/applications");
 }
 

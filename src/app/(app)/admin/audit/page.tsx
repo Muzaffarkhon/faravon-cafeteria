@@ -138,10 +138,10 @@ export default async function AuditPage({
                   <td className="text-ink-muted">
                     {ENTITY_LABELS[r.entityType] ?? r.entityType}
                     {r.entityId && (
-                      <div className="font-mono text-[10px] text-ink-subtle">{r.entityId}</div>
+                      <div className="font-mono text-[11px] text-ink-subtle">{r.entityId}</div>
                     )}
                   </td>
-                  <td className="font-mono text-[11px] text-ink-subtle">
+                  <td className="font-mono text-xs text-ink-subtle">
                     {r.oldValue != null && <div>− {short(r.oldValue)}</div>}
                     {r.newValue != null && <div>+ {short(r.newValue)}</div>}
                   </td>

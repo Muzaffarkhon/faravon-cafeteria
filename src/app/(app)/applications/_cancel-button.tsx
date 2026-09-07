@@ -42,7 +42,7 @@ export function CancelItemButton({ itemId }: { itemId: string }) {
         </Button>
       )}
       {err && (
-        <span className="text-[11px] font-medium text-danger" role="alert">
+        <span className="text-xs font-medium text-danger" role="alert">
           {err}
         </span>
       )}

@@ -47,7 +47,7 @@ export function EmployeeArchiveButton({
         />
       )}
       {err && (
-        <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
+        <span className="mt-1 text-xs font-medium text-danger" role="alert">
           {err}
         </span>
       )}

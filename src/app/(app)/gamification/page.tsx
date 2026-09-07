@@ -11,7 +11,7 @@ export default async function GamificationPage() {
         <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
           Геймификация
         </h1>
-        <span className="rounded-full bg-primary-soft px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong">
+        <span className="rounded-full bg-primary-soft px-3.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-primary-strong">
           Скоро
         </span>
       </header>

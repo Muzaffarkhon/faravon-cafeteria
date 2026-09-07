@@ -30,7 +30,7 @@ export default function AppError({
         обратитесь к администратору.
       </p>
       {error.digest && (
-        <p className="mt-2 font-mono text-[11px] text-ink-subtle">код: {error.digest}</p>
+        <p className="mt-2 font-mono text-xs text-ink-subtle">код: {error.digest}</p>
       )}
       <div className="mt-5 flex justify-center gap-3">
         <Button onClick={reset}>Повторить</Button>

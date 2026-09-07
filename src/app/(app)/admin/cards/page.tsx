@@ -53,7 +53,7 @@ export default async function CardsPage({
 
       {BLOCKS.map((b) => (
         <section key={b} className="space-y-3">
-          <h2 className="px-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+          <h2 className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
             {BLOCK_LABELS[b]} <span className="font-normal">({byBlock(b).length})</span>
           </h2>
           {byBlock(b).length === 0 ? (

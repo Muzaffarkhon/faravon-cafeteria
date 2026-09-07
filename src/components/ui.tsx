@@ -281,7 +281,7 @@ export function Table({
       <table
         className={cx(
           "w-full border-collapse text-sm [&_thead]:bg-surface-muted " +
-            "[&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-bold " +
+            "[&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-bold " +
             "[&_th]:uppercase [&_th]:tracking-[0.06em] [&_th]:text-ink-muted " +
             "[&_td]:px-3 [&_td]:py-2 [&_td]:border-t [&_td]:border-line-subtle " +
             "[&_tbody_tr:hover]:bg-surface-muted",
@@ -309,7 +309,7 @@ export function RowId({ id, className }: { id: string; className?: string }) {
       title={id}
       className={cx(
         "inline-flex select-all items-center rounded-md bg-surface-muted px-1.5 py-0.5 " +
-          "font-mono text-[10px] leading-none tracking-tight text-ink-subtle",
+          "font-mono text-[11px] leading-none tracking-tight text-ink-subtle",
         className,
       )}
     >
@@ -349,7 +349,7 @@ export function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold",
         BADGE_TONE[tone],
         className,
       )}

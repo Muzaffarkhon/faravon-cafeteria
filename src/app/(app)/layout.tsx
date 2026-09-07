@@ -5,6 +5,7 @@ import { ROLE_LABELS, can } from "@/lib/rbac";
 import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
+import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
 const ICONS = {
@@ -68,6 +69,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : 0,
     canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
   ]);
+
+  // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
+  let selectionStat: { used: number; drafts: number; max: number } | null = null;
+  if (session.employee) {
+    const sctx = await resolveSelectionContext();
+    if (sctx.targetPeriod) {
+      const appw = await getApplicationWithItems(session.employee.id, sctx.targetPeriod.id);
+      const its = appw?.items ?? [];
+      selectionStat = {
+        used: its.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status)).length,
+        drafts: its.filter((i) => i.status === "DRAFT").length,
+        max: sctx.targetPeriod.maxSelections,
+      };
+    }
+  }
 
   const groups: NavGroup[] = [];
   const add = (gid: string, glabel: string, item: NavItem) => {
@@ -152,6 +168,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppShell
       groups={groups}
       roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
+      selectionStat={selectionStat}
       backdrop={
         <>
           <PetalDrift fixed />

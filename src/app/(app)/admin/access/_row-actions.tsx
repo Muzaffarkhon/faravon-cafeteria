@@ -61,7 +61,7 @@ export function AccessRowActions({
         )}
       </div>
       {error && (
-        <span className="text-[11px] font-medium text-danger" role="alert">
+        <span className="text-xs font-medium text-danger" role="alert">
           {error}
         </span>
       )}

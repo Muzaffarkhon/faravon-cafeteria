@@ -33,7 +33,7 @@ function Metric({
 }) {
   return (
     <div className="flex flex-col rounded-[18px] bg-surface p-5 shadow-sm">
-      <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">{label}</div>
+      <div className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">{label}</div>
       <div className="mt-2 font-display text-[28px] font-bold text-primary-strong tabular-nums">
         {value}
       </div>
@@ -65,7 +65,7 @@ function BarList({
     <div className="rounded-[20px] bg-surface p-6 shadow-sm sm:p-7">
       <div className="flex items-baseline justify-between">
         <h3 className="font-display text-[15px] font-bold text-ink">{title}</h3>
-        <span className="text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
+        <span className="text-xs uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
       </div>
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-ink-subtle">Нет данных.</p>

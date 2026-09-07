@@ -42,12 +42,12 @@ function ActionButton({
         {pending ? pendingLabel : label}
       </Button>
       {error && (
-        <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
+        <span className="mt-1 text-xs font-medium text-danger" role="alert">
           {error}
         </span>
       )}
       {notice && !error && (
-        <span className="mt-1 max-w-[16rem] text-right text-[11px] text-ink-muted" role="status">
+        <span className="mt-1 max-w-[16rem] text-right text-xs text-ink-muted" role="status">
           {notice}
         </span>
       )}

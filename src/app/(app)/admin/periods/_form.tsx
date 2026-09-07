@@ -59,7 +59,7 @@ export function PeriodForm({
           <Input id="windowEnd" type="date" name="windowEnd" defaultValue={d(initial?.windowEnd)} required />
         </Field>
       </div>
-      <p className="-mt-1 text-[13px] leading-6 text-ink-muted">
+      <p className="-mt-1 text-sm leading-6 text-ink-muted">
         Окно выбора обычно открывается в предыдущем месяце (до начала периода). Если сотрудник
         выберет льготу уже после старта периода, выбор автоматически перенесётся на следующий
         месяц.

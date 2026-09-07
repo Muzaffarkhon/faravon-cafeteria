@@ -112,10 +112,10 @@ export function ProviderConfirm() {
         <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
           <ResultIcon tone="success" />
           <div className="font-display text-[17px] font-bold text-ink">{coupon.employee}</div>
-          <div className="mt-1 text-[13px] text-ink-muted">{coupon.department}</div>
+          <div className="mt-1 text-sm text-ink-muted">{coupon.department}</div>
 
           <div className="my-5 rounded-2xl bg-primary-soft p-4">
-            <div className="text-[12px] font-bold uppercase tracking-[0.06em] text-primary-strong">
+            <div className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary-strong">
               Действующая льгота
             </div>
             <div className="mt-1.5 text-[16px] font-bold text-ink">{coupon.card}</div>
@@ -160,7 +160,7 @@ export function ProviderConfirm() {
             ✓
           </div>
           <div className="font-display text-[17px] font-bold">Скидка применена</div>
-          <div className="mt-1 text-[13px] text-on-brand/85">Купон отмечен как использованный</div>
+          <div className="mt-1 text-sm text-on-brand/85">Купон отмечен как использованный</div>
           <button
             type="button"
             onClick={reset}
@@ -182,7 +182,7 @@ export function ProviderConfirm() {
           <div className="font-display text-[17px] font-bold text-ink">
             {phase === "no_benefit" ? `${notFoundName} — нет действующей льготы` : "Сотрудник не найден"}
           </div>
-          <p className="mt-1.5 text-[13px] leading-6 text-ink-muted">
+          <p className="mt-1.5 text-sm leading-6 text-ink-muted">
             {phase === "no_benefit"
               ? "У сотрудника нет выданного купона у вашего партнёра."
               : "Проверьте номер телефона или попросите клиента показать QR купона."}
@@ -202,7 +202,7 @@ export function ProviderConfirm() {
         <form onSubmit={onPhoneSubmit}>
           <label
             htmlFor="cashier-phone"
-            className="mb-2 block text-[12px] font-bold uppercase tracking-[0.06em] text-ink-muted"
+            className="mb-2 block text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted"
           >
             Номер телефона клиента
           </label>
@@ -222,7 +222,7 @@ export function ProviderConfirm() {
 
         <div className="my-4 flex items-center gap-2.5">
           <span className="h-px flex-1 bg-line" />
-          <span className="text-[11px] text-ink-subtle">или</span>
+          <span className="text-xs text-ink-subtle">или</span>
           <span className="h-px flex-1 bg-line" />
         </div>
 
