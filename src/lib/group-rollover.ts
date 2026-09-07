@@ -46,6 +46,7 @@ export async function carryUnfilledGroupSelections(
     });
     if (items.length === 0) continue;
     cards++;
+    const carriedSourceIds: string[] = [];
 
     for (const it of items) {
       const employeeId = it.application.employeeId;
@@ -60,6 +61,8 @@ export async function carryUnfilledGroupSelections(
         where: { applicationId_cardId: { applicationId: app.id, cardId: card.id } },
       });
       if (exists) continue;
+
+      carriedSourceIds.push(it.id);
 
       const createdItem = await db.applicationItem.create({
         data: {
@@ -88,6 +91,20 @@ export async function carryUnfilledGroupSelections(
         deferFlush: true,
       });
     }
+
+    // Исходные позиции в закрытом периоде закрываем (перенос уже создал новые),
+    // а сформированные под ненабравшуюся группу купоны (CREATED) — аннулируем,
+    // иначе они «висят» в реестре как готовые к выдаче.
+    if (carriedSourceIds.length > 0) {
+      await db.applicationItem.updateMany({
+        where: { id: { in: carriedSourceIds } },
+        data: { status: "CANCELLED" },
+      });
+    }
+    await db.coupon.updateMany({
+      where: { status: "CREATED", periodId: closedPeriodId, item: { is: { cardId: card.id } } },
+      data: { status: "CANCELLED" },
+    });
   }
 
   if (carried > 0) flushTelegram();

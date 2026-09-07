@@ -70,10 +70,18 @@ async function issueCouponImpl(couponId: string) {
 
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
-    include: { item: { include: { card: true } }, employee: true },
+    include: {
+      item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
+      employee: true,
+    },
   });
   if (!coupon) throw new Error("Купон не найден.");
   if (coupon.status !== "CREATED") throw new Error("Купон уже выдан или недоступен для выдачи.");
+  if (coupon.item.card.partner?.deliveryMode === "PHONE_PROMO") {
+    throw new Error(
+      "Льгота выдаётся по номеру телефона — QR не отправляется. Промокод рассылает подрядчик.",
+    );
+  }
   assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
 
   // Групповая льгота: выдать купон можно только после набора группы (§ minParticipants).

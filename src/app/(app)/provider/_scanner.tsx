@@ -6,6 +6,10 @@ import { Button } from "@/components/ui";
 
 type Props = {
   onScan: (text: string) => void;
+  /** Сразу включить камеру, как только компонент понял, что скан возможен. */
+  autoStart?: boolean;
+  /** Скан недоступен (десктоп) или камера не запустилась — родитель показывает ручной ввод. */
+  onFallback?: () => void;
 };
 
 interface TgScan {
@@ -16,12 +20,14 @@ interface TgScan {
   closeScanQrPopup?: () => void;
 }
 
-export function CouponScanner({ onScan }: Props) {
+export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Скан имеет смысл только на телефоне/планшете или внутри Telegram.
   // На ноутбуке/десктопе с веба сканер прячем — остаётся ручной ввод номера.
   const [canScan, setCanScan] = useState(false);
+  const [resolved, setResolved] = useState(false);
+  const autoStartedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -45,7 +51,18 @@ export function CouponScanner({ onScan }: Props) {
     const touch = (navigator.maxTouchPoints ?? 0) > 0;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCanScan(hasTgScan || (coarsePointer && touch));
+    setResolved(true);
   }, []);
+
+  // Камера-первый сценарий (§касса): как только известно, что скан возможен —
+  // сразу включаем камеру; если нет — просим родителя показать ручной ввод.
+  useEffect(() => {
+    if (!resolved || !autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    if (canScan) void start();
+    else onFallback?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved, autoStart, canScan]);
 
   async function start() {
     setError(null);
@@ -64,6 +81,7 @@ export function CouponScanner({ onScan }: Props) {
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Камера недоступна в этом браузере. Введите номер вручную.");
+      onFallback?.();
       return;
     }
     try {
@@ -86,6 +104,7 @@ export function CouponScanner({ onScan }: Props) {
           : "Не удалось включить камеру. Введите номер вручную.",
       );
       stop();
+      onFallback?.();
     }
   }
 
@@ -118,17 +137,12 @@ export function CouponScanner({ onScan }: Props) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-3">
-        <span className="h-px flex-1 bg-line" />
-        <span className="text-xs text-ink-subtle">или</span>
-        <span className="h-px flex-1 bg-line" />
-      </div>
       {!active ? (
-        <Button type="button" variant="secondary" onClick={start}>
+        <Button type="button" variant="secondary" fullWidth onClick={start}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10" />
           </svg>
-          Сканировать QR
+          Включить камеру
         </Button>
       ) : (
         <div className="space-y-2">

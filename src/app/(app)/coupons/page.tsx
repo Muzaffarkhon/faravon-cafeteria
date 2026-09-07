@@ -49,10 +49,20 @@ export default async function CouponsPage({
   const PAGE_SIZE = 50;
   const AWAITING_CAP = 200;
 
+  const now = new Date();
+  // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
+  // работающий по номеру телефона (промокод рассылает подрядчик).
+  const awaitingWhere = {
+    status: "APPROVED" as const,
+    coupon: null,
+    application: { is: { period: { is: { status: { not: "CLOSED" as const }, endDate: { gte: now } } } } },
+    NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
+  };
+
   const filters = { periodId, status, partnerId, employeeQuery: emp || undefined };
   const [awaiting, awaitingTotal, coupons, couponsTotal, periods, partners] = await Promise.all([
     db.applicationItem.findMany({
-      where: { status: "APPROVED", coupon: null },
+      where: awaitingWhere,
       include: {
         card: { include: { partner: true } },
         application: { include: { employee: true, period: true } },
@@ -60,7 +70,7 @@ export default async function CouponsPage({
       orderBy: { decidedAt: "asc" },
       take: AWAITING_CAP,
     }),
-    db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }),
+    db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
@@ -183,31 +193,53 @@ export default async function CouponsPage({
                 </tr>
               </thead>
               <tbody>
-                {coupons.map((c) => (
-                  <tr key={c.id}>
-                    <td data-numeric>
-                      <div className="font-mono text-sm text-ink">{c.number}</div>
-                      <RowId id={c.id} className="mt-0.5" />
-                    </td>
-                    <td className="text-ink">{c.employee.fullName}</td>
-                    <td className="text-ink">
-                      {c.item.card.title}
-                      <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
-                    </td>
-                    <td>{c.period.name}</td>
-                    <td data-numeric>
-                      {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
-                    </td>
-                    <td>
-                      <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
-                        {COUPON_STATUS_LABELS[c.status]}
-                      </Badge>
-                    </td>
-                    <td className="text-right">
-                      {c.status === "CREATED" && <IssueCouponButton couponId={c.id} />}
-                    </td>
-                  </tr>
-                ))}
+                {coupons.map((c) => {
+                  const periodEnded = c.period.status === "CLOSED" || c.period.endDate < now;
+                  const expired = !!c.validUntil && c.validUntil < now;
+                  const showExpired = expired && (c.status === "ISSUED" || c.status === "CREATED");
+                  const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
+                  return (
+                    <tr key={c.id}>
+                      <td data-numeric>
+                        <div className="font-mono text-sm text-ink">{c.number}</div>
+                        <RowId id={c.id} className="mt-0.5" />
+                      </td>
+                      <td className="text-ink">{c.employee.fullName}</td>
+                      <td className="text-ink">
+                        {c.item.card.title}
+                        <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
+                      </td>
+                      <td>
+                        {c.period.name}
+                        {periodEnded && (
+                          <span className="ml-1.5 text-xs font-semibold text-warning-strong">завершён</span>
+                        )}
+                      </td>
+                      <td data-numeric>
+                        {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
+                      </td>
+                      <td>
+                        {showExpired ? (
+                          <Badge tone="warning">Просрочен</Badge>
+                        ) : (
+                          <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
+                            {COUPON_STATUS_LABELS[c.status]}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        {c.status === "CREATED" &&
+                          (phonePromo ? (
+                            <span className="text-xs text-ink-subtle">по номеру телефона</span>
+                          ) : periodEnded || expired ? (
+                            <span className="text-xs text-ink-subtle">период завершён</span>
+                          ) : (
+                            <IssueCouponButton couponId={c.id} />
+                          ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </div>

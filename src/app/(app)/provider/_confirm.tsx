@@ -38,8 +38,9 @@ export function ProviderConfirm() {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // ── Резервный сценарий: ручной ввод номера купона / QR ──
+  // ── Резервный сценарий: сканирование QR (камера сразу), ручной ввод — если не распозналось ──
   const [manualOpen, setManualOpen] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [number, setNumber] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
 
@@ -231,10 +232,11 @@ export function ProviderConfirm() {
           fullWidth
           onClick={() => {
             setManualOpen((v) => !v);
+            setShowManual(false);
             setManualError(null);
           }}
         >
-          Ввести номер купона / сканировать QR
+          Сканировать QR / ввести номер купона
         </Button>
       </div>
 
@@ -247,26 +249,42 @@ export function ProviderConfirm() {
 
       {manualOpen && (
         <div className="space-y-4 rounded-[18px] bg-surface p-5 shadow-sm">
-          <form onSubmit={onManualSubmit}>
-            <Field label="Номер купона" htmlFor="coupon-number" hint="Формат FRV-YYYYMM-XXXXXX.">
-              <div className="flex gap-2">
-                <Input
-                  id="coupon-number"
-                  value={number}
-                  onChange={(e) => setNumber(e.target.value.toUpperCase())}
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  placeholder="FRV-202609-A1B2C3"
-                  className="font-mono"
-                />
-                <Button type="submit" loading={pending} className="shrink-0">
-                  Найти
-                </Button>
-              </div>
-            </Field>
-          </form>
-          <CouponScanner onScan={onScan} />
+          {/* Камера включается сразу; ручной ввод появляется, если QR не считался. */}
+          <CouponScanner onScan={onScan} autoStart onFallback={() => setShowManual(true)} />
+
+          {!showManual && (
+            <button
+              type="button"
+              onClick={() => setShowManual(true)}
+              className="mx-auto block text-sm font-medium text-primary-strong underline underline-offset-2"
+            >
+              QR не считывается — ввести номер вручную
+            </button>
+          )}
+
+          {showManual && (
+            <form onSubmit={onManualSubmit}>
+              <Field label="Номер купона" htmlFor="coupon-number" hint="Формат FRV-YYYYMM-XXXXXX.">
+                <div className="flex gap-2">
+                  <Input
+                    id="coupon-number"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value.toUpperCase())}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    placeholder="FRV-202609-A1B2C3"
+                    className="font-mono"
+                    autoFocus
+                  />
+                  <Button type="submit" loading={pending} className="shrink-0">
+                    Найти
+                  </Button>
+                </div>
+              </Field>
+            </form>
+          )}
+
           {manualError && (
             <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
               {manualError}
