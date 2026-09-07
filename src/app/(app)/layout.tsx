@@ -70,6 +70,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
   ]);
 
+  // Имя рядом с кнопкой профиля: «Фамилия И.» у сотрудника, иначе — логин.
+  const displayName = (() => {
+    if (session.employee?.fullName) {
+      const parts = session.employee.fullName.trim().split(/\s+/);
+      const surname = parts[0] ?? "";
+      const initial = parts[1]?.[0];
+      return initial ? `${surname} ${initial}.` : surname;
+    }
+    return session.user.login;
+  })();
+
   // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
   let selectionStat: { used: number; drafts: number; max: number } | null = null;
   if (session.employee) {
@@ -168,6 +179,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppShell
       groups={groups}
       roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
+      displayName={displayName}
       selectionStat={selectionStat}
       backdrop={
         <>

@@ -56,15 +56,15 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   ITEM_APPROVED: {
     label: NOTIFICATION_LABELS.ITEM_APPROVED,
-    body: "Ваша позиция «{card}» одобрена согласующим.",
+    body: "Ваша позиция «{card}»[[ (период: {period})]] одобрена согласующим.",
   },
   ITEM_REJECTED: {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,
-    body: "Ваша позиция «{card}» отклонена.[[ Причина: {comment}]]",
+    body: "Ваша позиция «{card}»[[ (период: {period})]] отклонена.[[ Причина: {comment}]]",
   },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "Купон[[ № {number}]] по льготе «{card}» готов. Предъявите его партнёру.",
+    body: "Купон[[ № {number}]] по льготе «{card}»[[ (период: {period})]] готов. Предъявите его партнёру.",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
@@ -72,7 +72,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   COUPON_CONFIRMED_BY_PROVIDER: {
     label: NOTIFICATION_LABELS.COUPON_CONFIRMED_BY_PROVIDER,
-    body: "Купон[[ № {number}]] по льготе «{card}» активирован у партнёра.",
+    body: "Купон[[ № {number}]] по льготе «{card}»[[ (период: {period})]] активирован у партнёра.",
   },
   WINDOW_OPEN: {
     label: NOTIFICATION_LABELS.WINDOW_OPEN,
@@ -84,15 +84,15 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   TAXI_REQUEST_APPROVED: {
     label: NOTIFICATION_LABELS.TAXI_REQUEST_APPROVED,
-    body: "Одобрена заявка сотрудника {employee} на поездки[[ («{card}»)]]. Телефон: {phone}. Заведите промокод в своей системе и отправьте его сотрудникам через раздел «Промокоды».",
+    body: "Одобрена заявка сотрудника {employee} на поездки[[ («{card}»)]][[ (период: {period})]]. Телефон: {phone}. Заведите промокод в своей системе и отправьте его сотрудникам через раздел «Промокоды».",
   },
   TAXI_APPROVED_EMPLOYEE: {
     label: NOTIFICATION_LABELS.TAXI_APPROVED_EMPLOYEE,
-    body: "Ваша позиция «{card}» одобрена. Промокод на поездку придёт в этот чат от партнёра.",
+    body: "Ваша позиция «{card}»[[ (период: {period})]] одобрена. Промокод на поездку придёт в этот чат от партнёра.",
   },
   TAXI_PROMO_CODE: {
     label: NOTIFICATION_LABELS.TAXI_PROMO_CODE,
-    body: "Ваш промокод на поездку[[ по льготе «{card}»]]:\n{promo}",
+    body: "Ваш промокод на поездку[[ по льготе «{card}»]][[ (период: {period})]]:\n{promo}",
   },
   DAILY_DIGEST: {
     label: NOTIFICATION_LABELS.DAILY_DIGEST,
@@ -100,7 +100,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   GROUP_CARRIED_OVER: {
     label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
-    body: "Групповая льгота «{card}» не набрала нужное число участников. Ваш выбор перенесён на следующий период — отменить можно с 25-го числа до его начала.",
+    body: "Групповая льгота «{card}» не набрала нужное число участников. Ваш выбор перенесён на следующий период[[ («{period}»)]] — отменить можно с 25-го числа до его начала.",
   },
 };
 
@@ -113,9 +113,9 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     countNoun: "позиции",
     period: "III квартал 2026",
   },
-  ITEM_APPROVED: { card: "Абонемент в бассейн" },
-  ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде" },
-  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123" },
+  ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026" },
+  ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде", period: "Сентябрь 2026" },
+  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123", period: "Сентябрь 2026" },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
     department: "Отдел продаж",
@@ -123,31 +123,31 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     hours: "72",
     level: "1",
   },
-  COUPON_CONFIRMED_BY_PROVIDER: { card: "Ковры «Кайраккум»", number: "FRV-202609-A1B2C3" },
+  COUPON_CONFIRMED_BY_PROVIDER: { card: "Ковры «Кайраккум»", number: "FRV-202609-A1B2C3", period: "Сентябрь 2026" },
   WINDOW_OPEN: { period: "III квартал 2026", windowEnd: "30.09.2026" },
   WINDOW_CLOSING: { period: "III квартал 2026", windowEnd: "30.09.2026" },
-  TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000" },
-  TAXI_APPROVED_EMPLOYEE: { card: "Такси на работу" },
-  TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026" },
+  TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000", period: "Сентябрь 2026" },
+  TAXI_APPROVED_EMPLOYEE: { card: "Такси на работу", period: "Сентябрь 2026" },
+  TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026" },
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1" },
-  GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)" },
+  GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
 export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
-  ITEM_APPROVED: ["card"],
-  ITEM_REJECTED: ["card", "comment"],
-  COUPON_ISSUED: ["card", "number"],
+  ITEM_APPROVED: ["card", "period"],
+  ITEM_REJECTED: ["card", "comment", "period"],
+  COUPON_ISSUED: ["card", "number", "period"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
-  COUPON_CONFIRMED_BY_PROVIDER: ["card", "number"],
+  COUPON_CONFIRMED_BY_PROVIDER: ["card", "number", "period"],
   WINDOW_OPEN: ["period", "windowEnd"],
   WINDOW_CLOSING: ["period", "windowEnd"],
-  TAXI_REQUEST_APPROVED: ["employee", "card", "phone"],
-  TAXI_APPROVED_EMPLOYEE: ["card"],
-  TAXI_PROMO_CODE: ["card", "promo"],
+  TAXI_REQUEST_APPROVED: ["employee", "card", "phone", "period"],
+  TAXI_APPROVED_EMPLOYEE: ["card", "period"],
+  TAXI_PROMO_CODE: ["card", "promo", "period"],
   DAILY_DIGEST: ["text"],
-  GROUP_CARRIED_OVER: ["card"],
+  GROUP_CARRIED_OVER: ["card", "period"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

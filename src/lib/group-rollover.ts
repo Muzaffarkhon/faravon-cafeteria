@@ -87,7 +87,7 @@ export async function carryUnfilledGroupSelections(
       await notifyEmployee({
         employeeId,
         event: "GROUP_CARRIED_OVER",
-        payload: { card: card.title },
+        payload: { card: card.title, period: next.name },
         deferFlush: true,
       });
     }

@@ -111,6 +111,54 @@ export async function linkOwnTelegram(): Promise<{ code: string } | { error: str
   return { code };
 }
 
+/**
+ * Служебная учётная запись (без карточки сотрудника — подрядчик, C&B) сама
+ * привязывает Telegram по числовому ID (узнаётся командой /id в боте).
+ */
+export async function setOwnTelegramId(
+  _prev: ProfileContactState,
+  formData: FormData,
+): Promise<ProfileContactState> {
+  const session = await requireSession();
+  if (session.user.employeeId) {
+    return { error: "У вашей учётки есть карточка сотрудника — используйте кнопку «Привязать Telegram» выше." };
+  }
+  const telegramId = String(formData.get("telegramId") ?? "").trim();
+  if (!/^\d{4,20}$/.test(telegramId)) {
+    return { error: "Telegram ID — это число. Узнать: отправьте боту команду /id." };
+  }
+  const clash = await db.user.findFirst({
+    where: { telegramId, id: { not: session.user.id } },
+    select: { id: true },
+  });
+  if (clash) return { error: "Этот Telegram уже привязан к другой учётной записи." };
+
+  await db.user.update({ where: { id: session.user.id }, data: { telegramId } });
+  await audit({
+    actorId: session.user.id,
+    action: "TELEGRAM_LINKED",
+    entityType: "User",
+    entityId: session.user.id,
+    newValue: { self: true },
+  });
+  revalidatePath("/profile");
+  return { ok: true };
+}
+
+export async function unlinkOwnTelegramId(): Promise<{ ok: true } | { error: string }> {
+  const session = await requireSession();
+  await db.user.update({ where: { id: session.user.id }, data: { telegramId: null } });
+  await audit({
+    actorId: session.user.id,
+    action: "TELEGRAM_UNLINKED",
+    entityType: "User",
+    entityId: session.user.id,
+    newValue: { self: true },
+  });
+  revalidatePath("/profile");
+  return { ok: true };
+}
+
 /** Сотрудник сам отвязывает свой Telegram. */
 export async function unlinkOwnTelegram(): Promise<{ ok: true } | { error: string }> {
   const session = await requireSession();

@@ -51,12 +51,15 @@ const PRIMARY_GROUPS = new Set(["cabinet", "work"]);
 export function AppShell({
   groups,
   roleLabel,
+  displayName,
   selectionStat,
   backdrop,
   children,
 }: {
   groups: NavGroup[];
   roleLabel: string;
+  /** «Фамилия И.» (или логин) — рядом с кнопкой профиля. */
+  displayName?: string;
   /** Счётчики выбора льгот в закреплённой шапке (только у сотрудника). */
   selectionStat?: { used: number; drafts: number; max: number } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
@@ -232,7 +235,12 @@ export function AppShell({
           )}
 
           {/* Профиль */}
-          <div className="relative shrink-0" onMouseLeave={() => setProfileOpen(false)}>
+          <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
+            {displayName && (
+              <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
+                {displayName}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setProfileOpen((v) => !v)}

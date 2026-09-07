@@ -70,7 +70,7 @@ export async function notifyTaxiContractorOnApprove(item: {
   id: string;
   contactPhone: string | null;
   card: { title: string; partnerId: string | null };
-  application: { employee: { fullName: string; phone: string | null } };
+  application: { employee: { fullName: string; phone: string | null }; period: { name: string } };
 }): Promise<void> {
   const partnerId = item.card.partnerId;
   if (!partnerId) return;
@@ -87,7 +87,12 @@ export async function notifyTaxiContractorOnApprove(item: {
       userId: u.id,
       event: "TAXI_REQUEST_APPROVED",
       channel: "TELEGRAM",
-      payload: { employee: item.application.employee.fullName, phone, card: item.card.title },
+      payload: {
+        employee: item.application.employee.fullName,
+        phone,
+        card: item.card.title,
+        period: item.application.period.name,
+      },
     })),
   });
   flushTelegram();
@@ -116,13 +121,18 @@ export async function broadcastTaxiPromo(
     select: { id: true, employeeId: true },
   });
   const cardByEmployee = new Map(recipients.map((r) => [r.employeeId, r.card]));
+  const periodByEmployee = new Map(recipients.map((r) => [r.employeeId, r.period]));
 
   await db.notification.createMany({
     data: users.map((u) => ({
       userId: u.id,
       event: "TAXI_PROMO_CODE",
       channel: "TELEGRAM",
-      payload: { promo: code, card: cardByEmployee.get(u.employeeId ?? "") ?? "" },
+      payload: {
+        promo: code,
+        card: cardByEmployee.get(u.employeeId ?? "") ?? "",
+        period: periodByEmployee.get(u.employeeId ?? "") ?? "",
+      },
     })),
   });
 

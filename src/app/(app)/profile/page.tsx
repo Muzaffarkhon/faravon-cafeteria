@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
-import { ContactEditor, TelegramLink } from "./_contacts";
+import { ContactEditor, TelegramLink, ServiceTelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
 import { ThemeToggle } from "./_theme-toggle";
 
@@ -69,18 +69,22 @@ export default async function ProfilePage() {
         <ThemeToggle />
       </div>
 
-      {employee && (
-        <div className="rounded-[18px] bg-surface p-6 shadow-sm">
-          <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
-          <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-            Телефон и привязка к Telegram-боту нужны для входа и уведомлений.
-          </p>
-          <ContactEditor phone={employee.phone} />
-          <div className="mt-5 border-t border-line-subtle pt-4">
-            <TelegramLink linked={!!employee.telegramId} />
-          </div>
-        </div>
-      )}
+      <div className="rounded-[18px] bg-surface p-6 shadow-sm">
+        <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
+        <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
+          Привязка к Telegram-боту нужна для входа и уведомлений.
+        </p>
+        {employee ? (
+          <>
+            <ContactEditor phone={employee.phone} />
+            <div className="mt-5 border-t border-line-subtle pt-4">
+              <TelegramLink linked={!!employee.telegramId} />
+            </div>
+          </>
+        ) : (
+          <ServiceTelegramLink linked={!!user.telegramId} />
+        )}
+      </div>
 
       <div className="rounded-[18px] bg-surface p-6 shadow-sm">
         <SectionTitle className="text-lg">Смена пароля</SectionTitle>

@@ -71,7 +71,10 @@ export async function formCouponForItem(itemId: string, actorId: string) {
 export async function issueCouponIfReady(couponId: string, actorId: string): Promise<boolean> {
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
-    include: { item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } } },
+    include: {
+      item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
+      period: { select: { name: true } },
+    },
   });
   if (!coupon || coupon.status !== "CREATED") return false;
   // Партнёр «по номеру телефона» — QR не выдаём (защита для ранее заведённых купонов).
@@ -109,7 +112,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { card: coupon.item.card.title, number: coupon.number },
+    payload: { card: coupon.item.card.title, number: coupon.number, period: coupon.period.name },
     deferFlush: true,
   });
   return true;

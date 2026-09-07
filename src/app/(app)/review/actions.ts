@@ -15,7 +15,11 @@ type ApprovedItem = {
   id: string;
   cardId: string;
   contactPhone: string | null;
-  application: { periodId: string; employee: { fullName: string; phone: string | null } };
+  application: {
+    periodId: string;
+    employee: { fullName: string; phone: string | null };
+    period: { name: string };
+  };
   card: { title: string; partnerId: string | null; minParticipants: number; partner: { deliveryMode: string } | null };
 };
 
@@ -31,7 +35,7 @@ async function issueAfterApprove(item: ApprovedItem, actorId: string) {
       id: item.id,
       contactPhone: item.contactPhone,
       card: { title: item.card.title, partnerId: item.card.partnerId },
-      application: { employee: item.application.employee },
+      application: { employee: item.application.employee, period: item.application.period },
     });
     return;
   }
@@ -48,7 +52,12 @@ async function decideContext(itemId: string) {
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
     include: {
-      application: { include: { employee: { select: { fullName: true, phone: true } } } },
+      application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
       card: { include: { partner: { select: { deliveryMode: true } } } },
     },
   });
@@ -96,7 +105,7 @@ async function approveItemImpl(itemId: string) {
       // Партнёр «по номеру телефона» — сотруднику не про купон/QR, а про промокод от партнёра.
       event:
         item.card.partner?.deliveryMode === "PHONE_PROMO" ? "TAXI_APPROVED_EMPLOYEE" : "ITEM_APPROVED",
-      payload: { card: item.card.title },
+      payload: { card: item.card.title, period: item.application.period.name },
       deferFlush: true,
     });
   }
@@ -154,7 +163,7 @@ async function rejectItemImpl(itemId: string, comment: string) {
   await notifyEmployee({
     employeeId: item.application.employeeId,
     event: "ITEM_REJECTED",
-    payload: { card: item.card.title, comment: trimmed },
+    payload: { card: item.card.title, comment: trimmed, period: item.application.period.name },
   });
 
   revalidatePath("/review");
@@ -177,7 +186,12 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
       const item = await db.applicationItem.findUnique({
         where: { id },
         include: {
-          application: { include: { employee: { select: { fullName: true, phone: true } } } },
+          application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
           card: { include: { partner: { select: { deliveryMode: true } } } },
         },
       });
@@ -211,7 +225,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
             item.card.partner?.deliveryMode === "PHONE_PROMO"
               ? "TAXI_APPROVED_EMPLOYEE"
               : "ITEM_APPROVED",
-          payload: { card: item.card.title },
+          payload: { card: item.card.title, period: item.application.period.name },
           deferFlush: true,
         });
       }
@@ -256,7 +270,12 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
       const item = await db.applicationItem.findUnique({
         where: { id },
         include: {
-          application: { include: { employee: { select: { fullName: true, phone: true } } } },
+          application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
           card: { include: { partner: { select: { deliveryMode: true } } } },
         },
       });
@@ -285,7 +304,7 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
       await notifyEmployee({
         employeeId: item.application.employeeId,
         event: "ITEM_REJECTED",
-        payload: { card: item.card.title, comment: trimmed },
+        payload: { card: item.card.title, comment: trimmed, period: item.application.period.name },
         deferFlush: true,
       });
       ok++;

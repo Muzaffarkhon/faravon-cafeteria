@@ -84,7 +84,7 @@ export async function redeemCouponByNumber(
 ) {
   const coupon = await db.coupon.findUnique({
     where: { number: normalizeNumber(number) },
-    include: { item: { include: { card: true } }, partner: true },
+    include: { item: { include: { card: true } }, partner: true, period: { select: { name: true } } },
   });
   if (!coupon) throw new Error("Купон с таким номером не найден.");
   if (actorPartnerId && coupon.partnerId !== actorPartnerId) {
@@ -142,7 +142,7 @@ export async function redeemCouponByNumber(
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_CONFIRMED_BY_PROVIDER",
-    payload: { number: coupon.number, card: coupon.item.card.title },
+    payload: { number: coupon.number, card: coupon.item.card.title, period: coupon.period.name },
   });
   return coupon;
 }

@@ -73,6 +73,7 @@ async function issueCouponImpl(couponId: string) {
     include: {
       item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
       employee: true,
+      period: { select: { name: true } },
     },
   });
   if (!coupon) throw new Error("Купон не найден.");
@@ -121,7 +122,7 @@ async function issueCouponImpl(couponId: string) {
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { card: coupon.item.card.title, number: coupon.number },
+    payload: { card: coupon.item.card.title, number: coupon.number, period: coupon.period.name },
   });
 
   revalidateAll();
