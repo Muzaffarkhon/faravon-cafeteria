@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { isSafeLinkHref } from "@/lib/safe-url";
 
 export type AdRequestState = { ok?: boolean; error?: string };
 
@@ -28,13 +29,20 @@ export async function submitAdvertisingRequest(
   const contactPhone = s(formData.get("contactPhone"));
   const productName = s(formData.get("productName"));
   const productDescription = s(formData.get("productDescription"));
-  const budget = s(formData.get("budget")) || null;
+  const androidUrl = s(formData.get("androidUrl")) || null;
+  const iosUrl = s(formData.get("iosUrl")) || null;
 
   if (!contactName || !contactPhone || !productName || !productDescription) {
     return { error: "Заполните контактное лицо, телефон, продукт и описание." };
   }
   if (!/^[+()\d][\d\s()-]{4,}$/.test(contactPhone)) {
     return { error: "Телефон: цифры, пробелы и знаки + ( ) -, минимум 5 символов." };
+  }
+  if (androidUrl && !isSafeLinkHref(androidUrl)) {
+    return { error: "Ссылка на приложение для Android должна быть http(s)-адресом." };
+  }
+  if (iosUrl && !isSafeLinkHref(iosUrl)) {
+    return { error: "Ссылка на приложение в App Store должна быть http(s)-адресом." };
   }
 
   const rec = await db.advertisingRequest.create({
@@ -45,7 +53,8 @@ export async function submitAdvertisingRequest(
       contactPhone,
       productName,
       productDescription,
-      budget,
+      androidUrl,
+      iosUrl,
     },
   });
   await audit({

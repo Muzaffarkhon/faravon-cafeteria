@@ -132,7 +132,11 @@ export default async function OverviewPage() {
     const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
     const safeHref = safeLinkHref(b.href);
-    const linkHref = cardHref ?? safeHref;
+    const androidUrl = safeLinkHref(b.androidUrl);
+    const iosUrl = safeLinkHref(b.iosUrl);
+    const appHref = androidUrl ?? iosUrl;
+    // Приоритет клика: ссылка на приложение → якорь на льготу → произвольная ссылка.
+    const linkHref = appHref ?? cardHref ?? safeHref;
     return {
       id: b.id,
       kind: b.kind === "NEWS" ? ("news" as const) : ("partner" as const),
@@ -140,8 +144,10 @@ export default async function OverviewPage() {
       subtitle: b.subtitle,
       imageUrl: safeImageSrc(b.imageUrl),
       linkHref,
-      external: !cardHref && !!safeHref && /^https?:\/\//i.test(safeHref),
-      cta: cardHref ? "Перейти к льготе" : "Подробнее",
+      androidUrl,
+      iosUrl,
+      external: !!appHref || (!cardHref && !!safeHref && /^https?:\/\//i.test(safeHref)),
+      cta: appHref ? "Установить приложение" : cardHref ? "Перейти к льготе" : "Подробнее",
     };
   });
 

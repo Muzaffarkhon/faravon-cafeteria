@@ -13,6 +13,8 @@ type Banner = {
   subtitle?: string | null;
   imageUrl?: string | null;
   href?: string | null;
+  androidUrl?: string | null;
+  iosUrl?: string | null;
   isActive: boolean;
   startsAt?: string | null;
   endsAt?: string | null;
@@ -70,7 +72,7 @@ export default function Page() {
   }
 
   const set =
-    (k: "title" | "partnerId" | "href" | "subtitle") =>
+    (k: "title" | "partnerId" | "href" | "subtitle" | "androidUrl" | "iosUrl") =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -116,8 +118,14 @@ export default function Page() {
               hint="Загрузите фото и скадрируйте под баннер, либо вставьте ссылку."
             />
           </div>
-          <Field label="Ссылка" htmlFor="b-href">
+          <Field label="Ссылка" htmlFor="b-href" hint="Куда ведёт клик по баннеру, если ссылки на приложение не заданы.">
             <Input id="b-href" inputMode="url" value={form.href ?? ""} onChange={set("href")} />
+          </Field>
+          <Field label="Приложение · Android" htmlFor="b-android" hint="Google Play или .apk. Клик по баннеру на Android ведёт сюда.">
+            <Input id="b-android" inputMode="url" value={form.androidUrl ?? ""} onChange={set("androidUrl")} placeholder="https://play.google.com/…" />
+          </Field>
+          <Field label="Приложение · iOS" htmlFor="b-ios" hint="App Store. Клик по баннеру на iPhone/iPad ведёт сюда.">
+            <Input id="b-ios" inputMode="url" value={form.iosUrl ?? ""} onChange={set("iosUrl")} placeholder="https://apps.apple.com/…" />
           </Field>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input

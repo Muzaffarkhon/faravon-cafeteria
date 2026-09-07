@@ -72,6 +72,11 @@ export async function POST(req: Request) {
         partnerId: before.partnerId,
         title: before.productName,
         subtitle: before.productDescription.slice(0, 300),
+        // Ссылки на приложение из заявки переносим в баннер; href — на первую
+        // из них, чтобы клик по баннеру вёл в стор (C&B может уточнить).
+        androidUrl: before.androidUrl,
+        iosUrl: before.iosUrl,
+        href: before.androidUrl ?? before.iosUrl ?? null,
         isActive: false,
         sortOrder: 0,
       },

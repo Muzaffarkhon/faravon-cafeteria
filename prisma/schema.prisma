@@ -383,6 +383,8 @@ model PartnerBanner {
   subtitle  String?
   imageUrl  String?
   href      String?
+  androidUrl String?   // ссылка на приложение для Android (Google Play или прямой .apk)
+  iosUrl     String?   // ссылка на приложение в App Store
   isActive  Boolean    @default(true)
   sortOrder Int        @default(0)
   startsAt  DateTime?
@@ -401,7 +403,8 @@ model AdvertisingRequest {
   contactPhone    String
   productName     String
   productDescription String
-  budget          String?
+  androidUrl      String?   // ссылка на приложение для Android (Google Play или прямой .apk)
+  iosUrl          String?   // ссылка на приложение в App Store
   status          String    @default("PENDING")
   submittedAt     DateTime  @default(now())
   reviewedAt      DateTime?

@@ -10,9 +10,21 @@ export type BannerSlide = {
   subtitle: string | null;
   imageUrl: string | null;
   linkHref: string | null;
+  androidUrl?: string | null;
+  iosUrl?: string | null;
   external: boolean;
   cta: string;
 };
+
+/** Ссылка на приложение под платформу устройства (§реклама): Android → Google Play,
+ *  iOS → App Store; иначе — любая заданная. */
+function resolveAppHref(b: BannerSlide): string | null {
+  if (!b.androidUrl && !b.iosUrl) return null;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+  if (/iP(hone|ad|od)/.test(ua) && b.iosUrl) return b.iosUrl;
+  if (/Android/i.test(ua) && b.androidUrl) return b.androidUrl;
+  return b.androidUrl ?? b.iosUrl ?? null;
+}
 
 const KIND_LABEL: Record<NonNullable<BannerSlide["kind"]>, string> = {
   partner: "Партнёр",
@@ -221,7 +233,16 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                 href={b.linkHref}
                 {...(b.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 onClick={(e) => {
-                  if (moved.current) e.preventDefault();
+                  if (moved.current) {
+                    e.preventDefault();
+                    return;
+                  }
+                  // Ссылка на приложение: открываем стор под платформу устройства.
+                  const appHref = resolveAppHref(b);
+                  if (appHref && appHref !== b.linkHref) {
+                    e.preventDefault();
+                    window.open(appHref, "_blank", "noopener,noreferrer");
+                  }
                 }}
                 className={cls}
               >

@@ -10,7 +10,8 @@ type Req = {
   contactPhone: string;
   productName: string;
   productDescription: string;
-  budget?: string | null;
+  androidUrl?: string | null;
+  iosUrl?: string | null;
   status: string;
   submittedAt: string;
 };
@@ -79,7 +80,7 @@ export default function Page() {
               <tr>
                 <th>Компания / контакт</th>
                 <th>Продукт</th>
-                <th>Бюджет</th>
+                <th>Приложение</th>
                 <th>Статус</th>
                 <th>Подана</th>
                 <th />
@@ -98,7 +99,24 @@ export default function Page() {
                     <div className="text-ink">{r.productName}</div>
                     <div className="text-xs text-ink-subtle line-clamp-1">{r.productDescription}</div>
                   </td>
-                  <td data-numeric>{r.budget ?? "—"}</td>
+                  <td className="text-xs">
+                    {r.androidUrl || r.iosUrl ? (
+                      <div className="flex flex-col gap-0.5">
+                        {r.androidUrl && (
+                          <a href={r.androidUrl} target="_blank" rel="noopener noreferrer" className="text-primary-strong underline">
+                            Android
+                          </a>
+                        )}
+                        {r.iosUrl && (
+                          <a href={r.iosUrl} target="_blank" rel="noopener noreferrer" className="text-primary-strong underline">
+                            iOS
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-ink-subtle">—</span>
+                    )}
+                  </td>
                   <td>
                     <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>
                       {STATUS_LABEL[r.status] ?? r.status}
