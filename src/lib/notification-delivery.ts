@@ -159,8 +159,13 @@ export async function deliverTelegramNotifications(opts: {
 
     let ok: boolean;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
-      // §11: вместо текстового кода — QR-картинка купона с подписью.
-      ok = await sendTelegramQr(token, tgId, payload.number, "🔔 " + body);
+      // §11: вместо текстового кода — QR-картинка купона. В подписи — только
+      // название льготы (код сотруднику больше не нужен, партнёр сканирует QR).
+      const card = typeof payload.card === "string" ? payload.card : "";
+      const caption = card
+        ? `🔔 Купон по льготе «${card}» готов. Предъявите QR партнёру.`
+        : "🔔 Купон готов. Предъявите QR партнёру.";
+      ok = await sendTelegramQr(token, tgId, payload.number, caption);
     } else if (n.event === "TAXI_PROMO_CODE" && typeof payload?.promo === "string" && payload.promo) {
       // §11: промокод моноширинным блоком, чтобы удобно копировать.
       const promo = payload.promo;
