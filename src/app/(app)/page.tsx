@@ -166,13 +166,9 @@ export default async function OverviewPage() {
           })
       : [];
 
-  // Порядок при каждом заходе разный — первым не всегда один и тот же баннер (§6).
-  const shuffled = [...partnerBannerSlides];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  const bannerSlides = [...groupBannerSlides, ...shuffled];
+  // Групповые льготы — первыми; дальше баннеры. Стартовый слайд карусель
+  // выбирает случайно при каждом заходе (§6) — см. BannerCarousel.
+  const bannerSlides = [...groupBannerSlides, ...partnerBannerSlides];
 
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period

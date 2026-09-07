@@ -136,6 +136,19 @@ export async function setPeriodStatus(
       oldValue: { status: period.status },
       newValue: { status },
     });
+
+    // §6: при закрытии периода не набравшие порог групповые льготы переносим
+    // в следующий период. Сбой переноса не отменяет закрытие.
+    if (status === "CLOSED") {
+      try {
+        const { carryUnfilledGroupSelections } = await import("@/lib/group-rollover");
+        const res = await carryUnfilledGroupSelections(id, s.user.id);
+        console.log(`[period:close] перенос групповых льгот:`, res);
+      } catch (e) {
+        console.error("[period:close] ошибка переноса групповых льгот:", e);
+      }
+    }
+
     revalidatePath("/admin/periods");
     revalidatePath("/");
     revalidatePath("/applications");

@@ -49,6 +49,8 @@ export function FlexSelection({
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
 
+  // Портал в <body> доступен только после монтирования на клиенте.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.

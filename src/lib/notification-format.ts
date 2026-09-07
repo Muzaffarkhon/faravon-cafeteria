@@ -23,6 +23,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   TAXI_REQUEST_APPROVED: "Одобрена заявка на такси",
   TAXI_PROMO_CODE: "Промокод на поездку",
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",
+  GROUP_CARRIED_OVER: "Групповая льгота перенесена на следующий период",
 };
 
 /** Порядок событий в админке. */
@@ -38,6 +39,7 @@ export const NOTIFICATION_EVENTS = [
   "TAXI_REQUEST_APPROVED",
   "TAXI_PROMO_CODE",
   "DAILY_DIGEST",
+  "GROUP_CARRIED_OVER",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -90,6 +92,10 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.DAILY_DIGEST,
     body: "{text}",
   },
+  GROUP_CARRIED_OVER: {
+    label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
+    body: "Групповая льгота «{card}» не набрала нужное число участников. Ваш выбор перенесён на следующий период — отменить можно с 25-го числа до его начала.",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -117,6 +123,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000" },
   TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026" },
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1" },
+  GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -132,6 +139,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   TAXI_REQUEST_APPROVED: ["employee", "card", "phone"],
   TAXI_PROMO_CODE: ["card", "promo"],
   DAILY_DIGEST: ["text"],
+  GROUP_CARRIED_OVER: ["card"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

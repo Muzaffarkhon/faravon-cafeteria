@@ -13,6 +13,7 @@ import {
   setEmployeeActive,
   setServicePartner,
   setUserRoles,
+  setUserTelegramId,
   type AccountResult,
 } from "./actions";
 import { ALL_ROLES } from "./roles";
@@ -292,11 +293,13 @@ export function ServiceAccountRow({
     isActive: boolean;
     partnerId: string | null;
     partnerName: string | null;
+    telegramId: string | null;
   };
   partners: PartnerOption[];
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
+  const [tg, setTg] = useState(user.telegramId ?? "");
   const isContractor = user.roles.includes("CONTRACTOR");
 
   return (
@@ -347,6 +350,25 @@ export function ServiceAccountRow({
         </td>
         <td>
           <div className="flex items-center justify-end gap-2">
+            <input
+              value={tg}
+              onChange={(e) => setTg(e.target.value)}
+              placeholder="Telegram ID"
+              inputMode="numeric"
+              className="w-28 rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none"
+              title="Telegram ID для уведомлений (узнать: /id в боте)"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={pending || tg === (user.telegramId ?? "")}
+              onClick={() => {
+                setMsg(null);
+                start(async () => setMsg(await setUserTelegramId(user.id, tg)));
+              }}
+            >
+              TG
+            </Button>
             <Button
               variant="secondary"
               size="sm"
