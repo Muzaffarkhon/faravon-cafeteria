@@ -10,8 +10,15 @@ export default async function ProviderPage() {
   if (!can(session.roles, "coupons.confirm")) redirect("/");
 
   const partner = session.user.partnerId
-    ? await db.partner.findUnique({ where: { id: session.user.partnerId }, select: { name: true } })
+    ? await db.partner.findUnique({
+        where: { id: session.user.partnerId },
+        select: { name: true, deliveryMode: true },
+      })
     : null;
+  // Подрядчик такси (свой поток) — QR-касса не применяется, ведём на «Промокоды».
+  if (partner?.deliveryMode === "PHONE_PROMO" && can(session.roles, "promo.broadcast")) {
+    redirect("/provider/taxi");
+  }
 
   return (
     <div className="space-y-6">

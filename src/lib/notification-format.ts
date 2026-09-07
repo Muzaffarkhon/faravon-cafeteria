@@ -20,6 +20,9 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_CONFIRMED_BY_PROVIDER: "Купон активирован у партнёра",
   WINDOW_OPEN: "Открыто окно выбора льгот",
   WINDOW_CLOSING: "Окно выбора скоро закроется",
+  TAXI_REQUEST_APPROVED: "Одобрена заявка на такси",
+  TAXI_PROMO_CODE: "Промокод на поездку",
+  DAILY_DIGEST: "Ежедневный отчёт по заявкам",
 };
 
 /** Порядок событий в админке. */
@@ -32,6 +35,9 @@ export const NOTIFICATION_EVENTS = [
   "COUPON_CONFIRMED_BY_PROVIDER",
   "WINDOW_OPEN",
   "WINDOW_CLOSING",
+  "TAXI_REQUEST_APPROVED",
+  "TAXI_PROMO_CODE",
+  "DAILY_DIGEST",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -72,6 +78,18 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.WINDOW_CLOSING,
     body: "Окно выбора[[ на период «{period}»]] закроется {windowEnd}, а вы ещё не выбрали льготы. Успейте оформить выбор.",
   },
+  TAXI_REQUEST_APPROVED: {
+    label: NOTIFICATION_LABELS.TAXI_REQUEST_APPROVED,
+    body: "Одобрена заявка сотрудника {employee} на поездки[[ («{card}»)]]. Телефон: {phone}. Заведите промокод в своей системе и отправьте его сотрудникам через раздел «Промокоды».",
+  },
+  TAXI_PROMO_CODE: {
+    label: NOTIFICATION_LABELS.TAXI_PROMO_CODE,
+    body: "Ваш промокод на поездку[[ по льготе «{card}»]]:\n{promo}",
+  },
+  DAILY_DIGEST: {
+    label: NOTIFICATION_LABELS.DAILY_DIGEST,
+    body: "{text}",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -96,6 +114,9 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   COUPON_CONFIRMED_BY_PROVIDER: { card: "Ковры «Кайраккум»", number: "FRV-202609-A1B2C3" },
   WINDOW_OPEN: { period: "III квартал 2026", windowEnd: "30.09.2026" },
   WINDOW_CLOSING: { period: "III квартал 2026", windowEnd: "30.09.2026" },
+  TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000" },
+  TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026" },
+  DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -108,6 +129,9 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number"],
   WINDOW_OPEN: ["period", "windowEnd"],
   WINDOW_CLOSING: ["period", "windowEnd"],
+  TAXI_REQUEST_APPROVED: ["employee", "card", "phone"],
+  TAXI_PROMO_CODE: ["card", "promo"],
+  DAILY_DIGEST: ["text"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

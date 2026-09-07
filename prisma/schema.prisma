@@ -123,6 +123,7 @@ model User {
   mustChangePassword Boolean  @default(true)
   twoFactorEnabled  Boolean   @default(false)
   isActive          Boolean   @default(true)
+  telegramId        String?   @unique // §11/§12: Telegram-адресат для учёток без Employee (подрядчики, C&B)
   roles             Role[]    @default([EMPLOYEE])
   lastLoginAt       DateTime?
   failedLoginCount  Int       @default(0)

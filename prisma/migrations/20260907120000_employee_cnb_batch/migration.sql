@@ -18,6 +18,12 @@ CREATE TYPE "FeedbackStatus" AS ENUM ('NEW', 'READ', 'NOTED', 'CLOSED');
 ALTER TABLE "Partner" ADD COLUMN "deliveryMode" "DeliveryMode" NOT NULL DEFAULT 'QR';
 
 -- AlterTable
+ALTER TABLE "User" ADD COLUMN "telegramId" TEXT;
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_telegramId_key" ON "User"("telegramId");
+
+-- AlterTable
 ALTER TABLE "PartnerBanner" ADD COLUMN "kind" "BannerKind" NOT NULL DEFAULT 'PARTNER';
 
 -- AlterTable

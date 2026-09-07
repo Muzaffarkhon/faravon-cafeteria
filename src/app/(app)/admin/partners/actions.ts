@@ -18,6 +18,8 @@ function parse(formData: FormData) {
   if (!name) throw new Error("Укажите название партнёра.");
   const statusRaw = String(formData.get("status") ?? "ACTIVE");
   const status = (STATUSES.includes(statusRaw as PartnerStatus) ? statusRaw : "ACTIVE") as PartnerStatus;
+  const deliveryMode =
+    String(formData.get("deliveryMode") ?? "QR") === "PHONE_PROMO" ? "PHONE_PROMO" : "QR";
   const date = (k: string) => {
     const v = String(formData.get(k) ?? "").trim();
     return v ? new Date(v) : null;
@@ -29,6 +31,7 @@ function parse(formData: FormData) {
   return {
     name,
     status,
+    deliveryMode: deliveryMode as "QR" | "PHONE_PROMO",
     category: str("category"),
     contactPerson: str("contactPerson"),
     contacts: str("contacts"),

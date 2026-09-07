@@ -9,6 +9,7 @@ import type { PartnerFormState } from "./actions";
 export type PartnerValues = {
   name: string;
   status: string;
+  deliveryMode: string;
   category: string | null;
   contactPerson: string | null;
   contacts: string | null;
@@ -56,6 +57,17 @@ export function PartnerForm({
           <Input id="category" name="category" defaultValue={initial?.category ?? ""} />
         </Field>
       </div>
+
+      <Field
+        label="Способ выдачи"
+        htmlFor="deliveryMode"
+        hint="«По номеру телефона» — у партнёра своя система (напр. такси): наш QR не используется, промокоды рассылает подрядчик."
+      >
+        <Select id="deliveryMode" name="deliveryMode" defaultValue={initial?.deliveryMode ?? "QR"}>
+          <option value="QR">QR / номер купона (касса партнёра)</option>
+          <option value="PHONE_PROMO">По номеру телефона (подрядчик рассылает промокоды)</option>
+        </Select>
+      </Field>
 
       <Field label="Тип скидки / условие" htmlFor="discountType">
         <Input id="discountType" name="discountType" defaultValue={initial?.discountType ?? ""} />
