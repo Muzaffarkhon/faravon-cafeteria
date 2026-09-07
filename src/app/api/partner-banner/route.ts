@@ -13,6 +13,7 @@ export async function GET() {
 
 type BannerInput = {
   partnerId: string | null;
+  kind: "PARTNER" | "NEWS";
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
@@ -50,6 +51,7 @@ function parseBanner(body: Record<string, unknown>): BannerInput | { error: stri
   };
   return {
     partnerId: s(body.partnerId) || null,
+    kind: s(body.kind) === "NEWS" ? "NEWS" : "PARTNER",
     title,
     subtitle: s(body.subtitle) || null,
     imageUrl,

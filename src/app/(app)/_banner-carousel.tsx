@@ -5,12 +5,19 @@ import { cx } from "@/components/ui";
 
 export type BannerSlide = {
   id: string;
+  kind?: "partner" | "news" | "group";
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
   linkHref: string | null;
   external: boolean;
   cta: string;
+};
+
+const KIND_LABEL: Record<NonNullable<BannerSlide["kind"]>, string> = {
+  partner: "Партнёр",
+  news: "Новость",
+  group: "Групповая льгота",
 };
 
 const AUTOPLAY_MS = 6000;
@@ -22,7 +29,11 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   // Три копии подряд; позиция живёт вокруг средней копии — так при любом
   // направлении (и автопрокрутке, и перетаскивании) слева и справа всегда
   // есть реальные слайды, «отскока назад» в конце нет.
-  const [pos, setPos] = useState(count); // единицы = ширина слайда
+  // Стартовый слайд выбирается случайно (§6): при каждом заходе показывается
+  // разный баннер, а не всегда первый.
+  const [pos, setPos] = useState(() =>
+    count > 1 ? count + Math.floor(Math.random() * count) : count,
+  ); // единицы = ширина слайда
   const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -182,7 +193,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                   className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
                 />
                 <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
-                  Партнёр
+                  {KIND_LABEL[b.kind ?? "partner"]}
                 </div>
                 <div className="relative z-10 max-w-2xl p-5 sm:p-6">
                   <h2 className="text-lg font-semibold leading-tight text-balance text-white sm:text-xl">

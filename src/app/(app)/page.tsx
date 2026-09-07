@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { getCurrentPeriod, getApplicationWithItems, groupProgress } from "@/lib/selection";
+import { resolveSelectionContext, getApplicationWithItems, groupProgress } from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
@@ -84,7 +84,11 @@ export default async function OverviewPage() {
   }
 
   const emp = session.employee;
-  const period = await getCurrentPeriod();
+  const ctx = await resolveSelectionContext();
+  // Для показа периода/окна — период с открытым окном; для выбора — целевой
+  // (после старта периода выбор переносится на следующий, §2).
+  const period = ctx.windowPeriod;
+  const targetPeriod = ctx.targetPeriod;
 
   const [recognition, care, flex] = await Promise.all([
     db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
@@ -103,29 +107,35 @@ export default async function OverviewPage() {
   for (const c of flex) if (c.partnerId && c.isActive && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
   for (const c of flex) if (c.partnerId && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
 
-  const application = period
-    ? await getApplicationWithItems(emp.id, period.id)
+  const application = targetPeriod
+    ? await getApplicationWithItems(emp.id, targetPeriod.id)
     : null;
   const items = application?.items ?? [];
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
+  const maxSelections = targetPeriod?.maxSelections ?? period?.maxSelections ?? 4;
 
   // Статус позиции по карточке — чтобы показать «уже выбрано / отклонено / в обработке».
   const itemStatusByCard = new Map(items.map((i) => [i.cardId, i.status] as const));
   // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
-  const groupCount = period
-    ? await groupProgress(groupCards.map((c) => c.id), period.id)
+  const groupCount = targetPeriod
+    ? await groupProgress(groupCards.map((c) => c.id), targetPeriod.id)
     : new Map<string, number>();
 
-  const bannerSlides = banners.map((b) => {
+  const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
+
+  // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
+  // «Партнёр») + групповые льготы, не набравшие порог, — с переходом на выбор.
+  const partnerBannerSlides = banners.map((b) => {
     const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
     const safeHref = safeLinkHref(b.href);
     const linkHref = cardHref ?? safeHref;
     return {
       id: b.id,
+      kind: b.kind === "NEWS" ? ("news" as const) : ("partner" as const),
       title: b.title,
       subtitle: b.subtitle,
       imageUrl: safeImageSrc(b.imageUrl),
@@ -134,6 +144,35 @@ export default async function OverviewPage() {
       cta: cardHref ? "Перейти к льготе" : "Подробнее",
     };
   });
+
+  const groupBannerSlides =
+    windowOpen && targetPeriod
+      ? groupCards
+          .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+          .map((c) => {
+            const have = groupCount.get(c.id) ?? 0;
+            return {
+              id: `group-${c.id}`,
+              kind: "group" as const,
+              title: c.title,
+              subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${
+                c.minParticipants - have
+              } — выберите в один клик.`,
+              imageUrl: safeImageSrc(c.imageUrl),
+              linkHref: `#card-${c.id}`,
+              external: false,
+              cta: "Перейти к льготе",
+            };
+          })
+      : [];
+
+  // Порядок при каждом заходе разный — первым не всегда один и тот же баннер (§6).
+  const shuffled = [...partnerBannerSlides];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const bannerSlides = [...groupBannerSlides, ...shuffled];
 
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period
@@ -144,56 +183,84 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-8">
-      {/* ── Герой ── */}
-      <section className="rounded-[20px] bg-primary p-6 text-on-brand sm:rounded-[28px] sm:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-5">
-          <div className="min-w-0">
+      {/* ── Герой ── счётчики, прогресс-бар и кнопка компактно в одной шапке (§7,§9) */}
+      <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="min-w-0 flex-1">
             <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-on-brand/70">
               Витрина заботы
             </div>
-            <h1 className="mt-1.5 font-display text-2xl font-bold text-on-brand sm:text-[1.75rem]">
+            <h1 className="mt-1 font-display text-xl font-bold text-on-brand sm:text-2xl">
               Здравствуйте, {firstName}
             </h1>
             <p className="mt-1 text-sm text-on-brand/80">{periodLine}</p>
+            {ctx.rolledOver && targetPeriod && (
+              <p className="mt-1 text-sm font-semibold text-on-brand">
+                Текущий период уже идёт — ваш выбор пойдёт в «{targetPeriod.name}».
+              </p>
+            )}
+            {ctx.missingNextPeriod && (
+              <p className="mt-1 text-sm font-semibold text-on-brand">
+                Период уже начался. Выбор откроется, когда C&amp;B создаст следующий период.
+              </p>
+            )}
           </div>
-          <div className="flex w-full gap-3 sm:w-auto">
-            <div className="flex-1 rounded-2xl bg-primary-strong px-5 py-3.5 text-center sm:min-w-[7rem]">
-              <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-on-brand/70">
-                Выбрано
+
+          <div className="flex w-full shrink-0 flex-col gap-2.5 sm:w-auto sm:min-w-[17rem]">
+            <div className="flex items-center gap-2.5">
+              <div className="rounded-xl bg-primary-strong px-3 py-1.5 text-center">
+                <div className="text-[9px] font-bold uppercase tracking-[0.08em] text-on-brand/70">
+                  Выбрано
+                </div>
+                <div className="text-[16px] font-bold leading-tight text-on-brand" data-numeric>
+                  {activeItems.length}/{maxSelections}
+                </div>
               </div>
-              <div className="text-[22px] font-bold text-on-brand" data-numeric>
-                {activeItems.length}/{period?.maxSelections ?? 4}
+              <div className="rounded-xl bg-primary-strong px-3 py-1.5 text-center">
+                <div className="text-[9px] font-bold uppercase tracking-[0.08em] text-on-brand/70">
+                  Черновики
+                </div>
+                <div className="text-[16px] font-bold leading-tight text-on-brand" data-numeric>
+                  {draftCount}
+                </div>
               </div>
+              <Link
+                href="/applications"
+                className="ml-auto inline-flex items-center gap-1.5 rounded-[10px] bg-on-brand px-3 py-2 text-[12px] font-bold text-primary-strong transition-colors hover:bg-on-brand/90"
+              >
+                Заявки и купоны
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
             </div>
-            <div className="flex-1 rounded-2xl bg-primary-strong px-5 py-3.5 text-center sm:min-w-[7rem]">
-              <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-on-brand/70">
-                Черновики
-              </div>
-              <div className="text-[22px] font-bold text-on-brand" data-numeric>
-                {draftCount}
-              </div>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-primary-strong/70"
+              role="progressbar"
+              aria-valuenow={activeItems.length}
+              aria-valuemin={0}
+              aria-valuemax={maxSelections}
+              aria-label="Заполнено льгот"
+            >
+              <div
+                className="h-full rounded-full bg-on-brand transition-[width] duration-300 ease-out"
+                style={{ width: `${Math.min(100, (activeItems.length / maxSelections) * 100)}%` }}
+              />
             </div>
           </div>
         </div>
-        <Link
-          href="/applications"
-          className="mt-5 inline-flex items-center gap-1.5 rounded-[10px] bg-on-brand px-4 py-2.5 text-[13px] font-bold text-primary-strong transition-colors hover:bg-on-brand/90"
-        >
-          Мои заявки и купоны
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </Link>
       </section>
 
       {bannerSlides.length > 0 && <BannerCarousel slides={bannerSlides} />}
 
       {goal && (
-        <section className="rounded-[20px] bg-primary-soft px-6 py-6 sm:px-7">
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-primary-strong">
+        <section className="rounded-[20px] bg-primary-soft px-6 py-7 sm:px-8">
+          <div className="text-xs font-bold uppercase tracking-[0.1em] text-primary-strong">
             Цель программы
           </div>
-          <p className="mt-2 max-w-3xl text-[0.9375rem] leading-7 text-ink">{goal.content}</p>
+          <p className="mt-3 max-w-3xl whitespace-pre-line text-[1.0625rem] leading-8 text-ink sm:text-[1.125rem] sm:leading-9">
+            {goal.content}
+          </p>
         </section>
       )}
 
@@ -277,8 +344,7 @@ export default async function OverviewPage() {
       <section className="space-y-4">
         <h2 className="font-display text-[19px] font-bold text-ink">Гибкие льготы</h2>
         <p className="text-[13px] leading-6 text-ink-muted">
-          Выберите до {period?.maxSelections ?? 4} льгот. После подтверждения выбор поступит на
-          согласование.
+          Выберите до {maxSelections} льгот. После подтверждения выбор поступит на согласование.
         </p>
         <FlexSelection
           cards={flex.map((c) => ({
@@ -291,6 +357,7 @@ export default async function OverviewPage() {
             category: c.category,
             minParticipants: c.minParticipants,
             groupCount: groupCount.get(c.id) ?? 0,
+            phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             lockedStatus:
               itemStatusByCard.get(c.id) && itemStatusByCard.get(c.id) !== "DRAFT"
                 ? (itemStatusByCard.get(c.id) as string)
@@ -298,9 +365,10 @@ export default async function OverviewPage() {
           }))}
           selectedIds={selectedIds}
           draftCount={draftCount}
-          maxSelections={period?.maxSelections ?? 4}
-          windowOpen={!!period?.windowOpen}
+          maxSelections={maxSelections}
+          windowOpen={windowOpen}
           hasSubmittable={draftCount > 0}
+          defaultPhone={emp.phone ?? ""}
         />
       </section>
     </div>

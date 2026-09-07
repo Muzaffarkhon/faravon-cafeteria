@@ -65,6 +65,31 @@ enum EmploymentStatus {
   TERMINATED
 }
 
+/// Способ выдачи льготы партнёром.
+/// QR         — стандартный поток: купон с номером/QR, гашение на «Кассе партнёра».
+/// PHONE_PROMO — у подрядчика своя система (напр. сервис такси): наш QR не нужен,
+///               работа идёт по номеру телефона сотрудника + рассылка промокодов.
+enum DeliveryMode {
+  QR
+  PHONE_PROMO
+}
+
+/// Тип баннера на витрине сотрудника.
+/// PARTNER — реклама партнёра (как раньше).
+/// NEWS    — своя новость / анонс (новые льготы, новости компаний) без пометки «Партнёр».
+enum BannerKind {
+  PARTNER
+  NEWS
+}
+
+/// Статус обращения обратной связи (обрабатывает C&B).
+enum FeedbackStatus {
+  NEW    // новое
+  READ   // прочитано
+  NOTED  // принято к сведению
+  CLOSED // закрыто
+}
+
 model Employee {
   id           String           @id @default(cuid())
   fullName     String
@@ -83,6 +108,7 @@ model Employee {
   user         User?
   applications Application[]
   coupons      Coupon[]
+  feedback     Feedback[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -120,6 +146,7 @@ model User {
   decisions      ApplicationItem[]      @relation("DecidedBy")
   cardEdits      BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits  NotificationTemplate[] @relation("NotificationTemplateEditor")
+  feedbackHandled Feedback[]            @relation("FeedbackHandler")
 
   @@index([partnerId])
 }
@@ -175,6 +202,7 @@ model Partner {
   contractEnd   DateTime?
   responsible   String?
   status        PartnerStatus @default(ACTIVE)
+  deliveryMode  DeliveryMode  @default(QR) // PHONE_PROMO — подрядчик со своей системой (такси): без QR, по номеру телефона
   logoUrl       String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -283,12 +311,18 @@ model ApplicationItem {
   cardId        String
   status        ItemStatus  @default(DRAFT)
   decisionComment String?
+  contactPhone  String?     // §такси: номер, который сотрудник указал при выборе PHONE_PROMO-льготы (промокод уйдёт на него)
   decidedBy     User?       @relation("DecidedBy", fields: [decidedById], references: [id])
   decidedById   String?
   decidedAt     DateTime?
   submittedAt   DateTime?
   escalationLevel Int       @default(0) // последний сработавший уровень SLA-эскалации (§5.12)
   lastEscalatedAt DateTime?
+  // Групповая льгота не набрала порог к концу периода — позиция переносится в
+  // следующий период новой позицией; carriedFromId указывает на исходную.
+  carriedFrom   ApplicationItem?  @relation("ItemCarry", fields: [carriedFromId], references: [id], onDelete: SetNull)
+  carriedFromId String?           @unique
+  carriedTo     ApplicationItem?  @relation("ItemCarry")
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -340,19 +374,20 @@ model Coupon {
 }
 
 model PartnerBanner {
-  id        String    @id @default(cuid())
-  partner   Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  id        String     @id @default(cuid())
+  partner   Partner?   @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   partnerId String?
+  kind      BannerKind @default(PARTNER) // NEWS — своя новость/анонс без пометки «Партнёр»
   title     String
   subtitle  String?
   imageUrl  String?
   href      String?
-  isActive  Boolean   @default(true)
-  sortOrder Int       @default(0)
+  isActive  Boolean    @default(true)
+  sortOrder Int        @default(0)
   startsAt  DateTime?
   endsAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model AdvertisingRequest {
@@ -374,6 +409,27 @@ model AdvertisingRequest {
   updatedAt       DateTime  @updatedAt
 
   @@index([partnerId])
+}
+
+/// Обращение обратной связи от сотрудника. Обрабатывает C&B:
+/// NEW → READ (прочитано) → NOTED (принято к сведению) → CLOSED (закрыто).
+model Feedback {
+  id          String         @id @default(cuid())
+  employee    Employee       @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  topic       String?        // необязательная тема
+  message     String
+  status      FeedbackStatus @default(NEW)
+  adminNote   String?        // комментарий C&B при обработке
+  handledBy   User?          @relation("FeedbackHandler", fields: [handledById], references: [id])
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([employeeId])
+  @@index([createdAt])
 }
 
 model TextBlock {

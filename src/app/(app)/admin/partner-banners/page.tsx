@@ -8,6 +8,7 @@ const BANNER_ASPECT = 4.5; // совпадает с рамкой карусел�
 type Banner = {
   id: string;
   partnerId?: string | null;
+  kind?: "PARTNER" | "NEWS";
   title: string;
   subtitle?: string | null;
   imageUrl?: string | null;
@@ -87,6 +88,17 @@ export default function Page() {
         <form onSubmit={save} className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Заголовок" htmlFor="b-title" required>
             <Input id="b-title" value={form.title ?? ""} onChange={set("title")} required />
+          </Field>
+          <Field label="Тип баннера" htmlFor="b-kind">
+            <select
+              id="b-kind"
+              value={form.kind ?? "PARTNER"}
+              onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as Banner["kind"] }))}
+              className="w-full rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
+            >
+              <option value="PARTNER">Партнёр (реклама)</option>
+              <option value="NEWS">Своя новость / анонс</option>
+            </select>
           </Field>
           <Field label="ID партнёра" htmlFor="b-partner">
             <Input id="b-partner" value={form.partnerId ?? ""} onChange={set("partnerId")} autoComplete="off" />
