@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Table } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ImageUploadField } from "../../_components/image-upload-field";
 
 const BANNER_ASPECT = 4.5; // совпадает с рамкой карусели на широком экране
@@ -57,14 +58,23 @@ export default function Page() {
     }
   }
 
+  const [removeId, setRemoveId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const removeTarget = (banners ?? []).find((b) => b.id === removeId) ?? null;
+
   async function remove(id: string) {
-    if (!confirm("Удалить баннер?")) return;
-    await fetch("/api/partner-banner", {
-      method: "DELETE",
-      body: JSON.stringify({ id }),
-      headers: { "content-type": "application/json" },
-    });
-    setBanners((s) => (s ?? []).filter((b) => b.id !== id));
+    setRemoving(true);
+    try {
+      await fetch("/api/partner-banner", {
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+        headers: { "content-type": "application/json" },
+      });
+      setBanners((s) => (s ?? []).filter((b) => b.id !== id));
+      setRemoveId(null);
+    } finally {
+      setRemoving(false);
+    }
   }
 
   const set =
@@ -158,7 +168,7 @@ export default function Page() {
                       <Button variant="secondary" size="sm" onClick={() => setForm({ ...b })}>
                         Изменить
                       </Button>
-                      <Button variant="danger" size="sm" onClick={() => remove(b.id)}>
+                      <Button variant="danger" size="sm" onClick={() => setRemoveId(b.id)}>
                         Удалить
                       </Button>
                     </div>
@@ -169,6 +179,19 @@ export default function Page() {
           </Table>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={!!removeId}
+        title="Удалить баннер?"
+        message={
+          removeTarget ? <>«{removeTarget.title}» будет удалён безвозвратно.</> : undefined
+        }
+        confirmLabel="Удалить"
+        tone="danger"
+        busy={removing}
+        onConfirm={() => removeId && remove(removeId)}
+        onClose={() => setRemoveId(null)}
+      />
     </div>
   );
 }
