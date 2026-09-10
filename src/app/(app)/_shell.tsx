@@ -354,6 +354,118 @@ export function AppShell({
           </div>
         </div>
       )}
+
+      {/* ── Быстрая прокрутка наверх / вниз ── */}
+      <ScrollNav />
+    </div>
+  );
+}
+
+function ScrollNav() {
+  const [state, setState] = useState({
+    canScrollUp: false,
+    canScrollDown: false,
+    hasScroll: false,
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const el = document.documentElement;
+      const scrollTop = window.scrollY || el.scrollTop || 0;
+      const scrollHeight = el.scrollHeight || 0;
+      const clientHeight = window.innerHeight || el.clientHeight || 0;
+      const hasScroll = scrollHeight > clientHeight + 120;
+      const canScrollUp = scrollTop > 100;
+      const canScrollDown = scrollTop + clientHeight < scrollHeight - 100;
+      setState({ canScrollUp, canScrollDown, hasScroll });
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(update);
+      observer.observe(document.body);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
+
+  if (!state.hasScroll) return null;
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  };
+
+  return (
+    <div
+      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:right-6"
+      role="navigation"
+      aria-label="Быстрая навигация по странице"
+    >
+      <button
+        type="button"
+        onClick={scrollToTop}
+        disabled={!state.canScrollUp}
+        aria-label="Наверх страницы"
+        className={cx(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9",
+          state.canScrollUp
+            ? "text-ink hover:bg-surface-muted active:scale-95"
+            : "cursor-default text-ink-subtle/30 opacity-30",
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
+      <div className="mx-auto h-px w-4 bg-line" />
+      <button
+        type="button"
+        onClick={scrollToBottom}
+        disabled={!state.canScrollDown}
+        aria-label="Вниз страницы"
+        className={cx(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9",
+          state.canScrollDown
+            ? "text-ink hover:bg-surface-muted active:scale-95"
+            : "cursor-default text-ink-subtle/30 opacity-30",
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
     </div>
   );
 }
