@@ -38,6 +38,8 @@ export default async function OverviewPage() {
       links.push({ href: "/admin/periods", label: "Периоды выбора", desc: "окна подачи заявок, лимит, открытие и закрытие" });
     if (can(roles, "reports.view"))
       links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX" });
+    if (can(roles, "feedback.manage"))
+      links.push({ href: "/admin/feedback", label: "Обратная связь", desc: "обращения сотрудников по программе льгот" });
 
     return (
       <div className="space-y-6">

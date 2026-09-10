@@ -40,11 +40,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canDecide = can(roles, "applications.decide");
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
+  const canManageFeedback = can(roles, "feedback.manage");
 
-  const [pendingReview, pendingCoupons, pendingAdRequests] = await Promise.all([
+  const [pendingReview, pendingCoupons, pendingAdRequests, pendingFeedback] = await Promise.all([
     canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
     canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
     canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
+    canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
   ]);
 
   const groups: NavGroup[] = [];
@@ -60,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (session.employee) {
     add("cabinet", "Кабинет", { href: "/", label: "Обзор", icon: ICONS.overview });
     add("cabinet", "Кабинет", { href: "/applications", label: "Мои заявки и купоны", icon: ICONS.applications });
+    add("cabinet", "Кабинет", { href: "/feedback", label: "Обратная связь", icon: ICONS.inbox });
     add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
   if (canDecide)
@@ -89,6 +92,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (can(roles, "cards.manage"))
     add("catalog", "Каталог", { href: "/admin/notifications", label: "Уведомления", icon: ICONS.bell });
 
+  if (canManageFeedback)
+    add("admin", "Аналитика и доступ", {
+      href: "/admin/feedback",
+      label: "Обратная связь",
+      icon: ICONS.inbox,
+      badge: pendingFeedback || undefined,
+    });
   if (can(roles, "reports.view"))
     add("admin", "Аналитика и доступ", { href: "/admin/reports", label: "Отчёты", icon: ICONS.reports });
   if (can(roles, "cards.manage"))
