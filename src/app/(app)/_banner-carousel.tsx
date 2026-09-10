@@ -5,12 +5,20 @@ import { cx } from "@/components/ui";
 
 export type BannerSlide = {
   id: string;
+  kind?: "partner" | "news" | "group";
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
   linkHref: string | null;
   external: boolean;
   cta: string;
+  progress?: { current: number; min: number };
+};
+
+const KIND_LABEL: Record<NonNullable<BannerSlide["kind"]>, string> = {
+  partner: "Партнёр",
+  news: "Новость",
+  group: "Групповая льгота",
 };
 
 const AUTOPLAY_MS = 6000;
@@ -181,8 +189,17 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                   aria-hidden="true"
                   className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
                 />
-                <div className="absolute left-4 top-4 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
-                  Партнёр
+                <div
+                  className={cx(
+                    "absolute left-4 top-4 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] backdrop-blur",
+                    b.kind === "group"
+                      ? "bg-amber-500/90 text-white shadow-sm ring-1 ring-white/20"
+                      : b.kind === "news"
+                        ? "bg-sky-500/90 text-white shadow-sm ring-1 ring-white/20"
+                        : "bg-white/15 text-white",
+                  )}
+                >
+                  {KIND_LABEL[b.kind ?? "partner"]}
                 </div>
                 <div className="relative z-10 max-w-2xl p-5 sm:p-6">
                   <h2 className="text-lg font-semibold leading-tight text-balance text-white sm:text-xl">
@@ -190,6 +207,24 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                   </h2>
                   {b.subtitle && (
                     <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
+                  )}
+                  {b.progress && (
+                    <div className="mt-2.5 max-w-xs rounded-xl bg-black/35 p-2.5 backdrop-blur">
+                      <div className="flex items-center justify-between text-xs font-semibold text-white/95">
+                        <span>Набрано участников</span>
+                        <span className="tabular-nums" data-numeric>
+                          {b.progress.current} / {b.progress.min}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/25">
+                        <div
+                          className="h-full rounded-full bg-amber-400 transition-[width] duration-300"
+                          style={{
+                            width: `${Math.min(100, (b.progress.current / b.progress.min) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                   {b.linkHref && (
                     <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">

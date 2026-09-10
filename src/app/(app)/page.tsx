@@ -6,7 +6,7 @@ import { getCurrentPeriod, getApplicationWithItems, groupProgress } from "@/lib/
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
-import { BannerCarousel } from "./_banner-carousel";
+import { BannerCarousel, type BannerSlide } from "./_banner-carousel";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -121,13 +121,14 @@ export default async function OverviewPage() {
     ? await groupProgress(groupCards.map((c) => c.id), period.id)
     : new Map<string, number>();
 
-  const bannerSlides = banners.map((b) => {
+  const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
     const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
     const safeHref = safeLinkHref(b.href);
     const linkHref = cardHref ?? safeHref;
     return {
       id: b.id,
+      kind: "partner",
       title: b.title,
       subtitle: b.subtitle,
       imageUrl: safeImageSrc(b.imageUrl),
@@ -136,6 +137,29 @@ export default async function OverviewPage() {
       cta: cardHref ? "Перейти к льготе" : "Подробнее",
     };
   });
+
+  const groupBannerSlides: BannerSlide[] =
+    period?.windowOpen
+      ? groupCards
+          .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+          .map((c) => {
+            const have = groupCount.get(c.id) ?? 0;
+            const remaining = c.minParticipants - have;
+            return {
+              id: `group-${c.id}`,
+              kind: "group",
+              title: c.title,
+              subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${remaining} — выберите в один клик.`,
+              imageUrl: safeImageSrc(c.imageUrl),
+              linkHref: `#card-${c.id}`,
+              external: false,
+              cta: "Перейти к выбору",
+              progress: { current: have, min: c.minParticipants },
+            };
+          })
+      : [];
+
+  const bannerSlides = [...groupBannerSlides, ...partnerBannerSlides];
 
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period

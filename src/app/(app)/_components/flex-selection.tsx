@@ -168,11 +168,14 @@ export function FlexSelection({
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </span>
-                {!c.isActive && (
-                  <Badge tone="neutral" className="absolute left-3 top-3">
-                    скоро
-                  </Badge>
-                )}
+                <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+                  {!c.isActive && <Badge tone="neutral">скоро</Badge>}
+                  {c.minParticipants > 1 && (
+                    <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur">
+                      Групповая
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-1 flex-col p-4">
@@ -185,20 +188,20 @@ export function FlexSelection({
                 (() => {
                   const done = c.groupCount >= c.minParticipants;
                   return (
-                    <div className="mt-3 rounded-lg bg-surface-muted px-3 py-2">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className={done ? "text-success-strong" : "text-ink-muted"}>
-                          {done ? "Групповая скидка активна" : "Групповая скидка"}
+                    <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-50/50 p-2.5 dark:bg-amber-950/20">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className={done ? "text-success-strong" : "text-amber-800 dark:text-amber-300"}>
+                          {done ? "Групповая скидка активна" : "Групповая льгота"}
                         </span>
                         <span className="tabular-nums text-ink" data-numeric>
                           {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}
                         </span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-sunken">
                         <div
                           className={cx(
                             "h-full rounded-full transition-[width] duration-300 ease-out",
-                            done ? "bg-success" : "bg-primary",
+                            done ? "bg-success" : "bg-amber-500",
                           )}
                           style={{
                             width: `${Math.min(100, (c.groupCount / c.minParticipants) * 100)}%`,
