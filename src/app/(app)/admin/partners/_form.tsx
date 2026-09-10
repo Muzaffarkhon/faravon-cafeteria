@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { PARTNER_STATUSES, PARTNER_STATUS_LABELS } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { ImageUploadField } from "../../_components/image-upload-field";
 import type { PartnerFormState } from "./actions";
 
 export type PartnerValues = {
@@ -35,6 +36,7 @@ export function PartnerForm({
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -83,13 +85,20 @@ export function PartnerForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Ответственный (Фаровон)" htmlFor="responsible">
-          <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} autoComplete="off" />
-        </Field>
-        <Field label="Логотип (URL)" htmlFor="logoUrl">
-          <Input id="logoUrl" name="logoUrl" defaultValue={initial?.logoUrl ?? ""} inputMode="url" />
-        </Field>
+      <Field label="Ответственный (Фаровон)" htmlFor="responsible">
+        <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} autoComplete="off" />
+      </Field>
+
+      <div>
+        <input type="hidden" name="logoUrl" value={logoUrl} />
+        <ImageUploadField
+          value={logoUrl}
+          onChange={setLogoUrl}
+          purpose="card"
+          aspect={1}
+          label="Логотип партнёра"
+          hint="Загрузите логотип и настройте его положение (кадрирование 1:1), либо укажите ссылку."
+        />
       </div>
 
       {state.error && (

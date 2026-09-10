@@ -121,6 +121,49 @@ export function ImageUploadField({
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  async function openEditorFromUrl(url: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Не удалось загрузить изображение.");
+      const blob = await res.blob();
+      const file = new File([blob], "image.webp", { type: blob.type || "image/webp" });
+      openEditor(file);
+    } catch {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setErr("Не удалось инициализировать холст.");
+          setBusy(false);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          setBusy(false);
+          if (blob) {
+            const file = new File([blob], "image.webp", { type: "image/webp" });
+            openEditor(file);
+          } else {
+            setErr("Не удалось обработать изображение.");
+          }
+        }, "image/webp");
+      };
+      img.onerror = () => {
+        setBusy(false);
+        setErr("Не удалось загрузить изображение для редактирования. Загрузите файл с устройства.");
+      };
+      img.src = url;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) return;
     dragRef.current = { x: e.clientX, y: e.clientY };
@@ -297,13 +340,26 @@ export function ImageUploadField({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={value} alt="" className="h-full w-full object-cover" />
           </div>
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="mt-1 text-xs font-medium text-danger hover:underline"
-          >
-            Удалить
-          </button>
+          <div className="mt-1.5 flex items-center gap-3">
+            {aspect && (
+              <button
+                type="button"
+                onClick={() => openEditorFromUrl(value)}
+                disabled={busy}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Изменить положение
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              disabled={busy}
+              className="text-xs font-medium text-danger hover:underline"
+            >
+              Удалить
+            </button>
+          </div>
         </div>
       )}
 
@@ -350,9 +406,9 @@ export function ImageUploadField({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button type="button" size="sm" onClick={confirmCrop} loading={busy}>
-              Загрузить
+              Применить
             </Button>
             <Button
               type="button"
@@ -364,7 +420,43 @@ export function ImageUploadField({
                 setFocus({ x: 0.5, y: 0.5 });
               }}
             >
-              Уцентрить
+              По центру
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, y: 0 }))}
+            >
+              Сверху
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, y: 1 }))}
+            >
+              Снизу
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, x: 0 }))}
+            >
+              Слева
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, x: 1 }))}
+            >
+              Справа
             </Button>
             <Button
               type="button"
@@ -378,7 +470,7 @@ export function ImageUploadField({
           </div>
           {progressBar}
           <p className="text-xs text-ink-muted">
-            Перетащите фото и настройте масштаб, чтобы выбрать видимую часть.
+            Перетаскивайте фото курсором или пальцем и используйте масштаб, чтобы настроить ракурс.
           </p>
         </div>
       )}
