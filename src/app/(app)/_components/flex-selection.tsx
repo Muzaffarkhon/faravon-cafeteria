@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { toggleSelection, submitSelection } from "../actions";
+
+const emptySubscribe = () => () => {};
 
 type Card = {
   id: string;
@@ -34,6 +37,11 @@ export function FlexSelection({
   windowOpen: boolean;
   hasSubmittable: boolean;
 }) {
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -278,41 +286,44 @@ export function FlexSelection({
         );
       })()}
 
-      {/* Неподвижная панель подтверждения — как корзина, снизу справа. */}
-      {windowOpen && (
-        <div
-          className={cx(
-            "fixed inset-x-4 bottom-4 z-40 sm:inset-x-auto sm:right-6 sm:bottom-6",
-            "transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none",
-            barVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[160%] opacity-0",
-          )}
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        >
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface-strong p-2.5 pl-4 shadow-lg backdrop-blur">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
-              </svg>
-            </span>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-ink" data-numeric>
-                {draftCount} в черновике
+      {/* Неподвижная панель подтверждения — как корзина, снизу справа на десктопе, над нижним меню на мобильных. */}
+      {windowOpen &&
+        mounted &&
+        createPortal(
+          <div
+            className={cx(
+              "fixed inset-x-3 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 mx-auto max-w-md",
+              "sm:inset-x-auto sm:right-6 sm:bottom-6 sm:mx-0 sm:max-w-none",
+              "transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none",
+              barVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[160%] opacity-0",
+            )}
+          >
+            <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface-strong p-2 pl-3.5 shadow-lg backdrop-blur sm:gap-3 sm:p-2.5 sm:pl-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong sm:h-9 sm:w-9">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-ink" data-numeric>
+                  {draftCount} в черновике
+                </div>
+                <div className="text-xs text-ink-muted">Готово к согласованию</div>
               </div>
-              <div className="text-xs text-ink-muted">Готово к согласованию</div>
+              <Button
+                onClick={onSubmit}
+                disabled={draftCount === 0 || pending}
+                loading={submitting}
+                size="md"
+                className="ml-1 shrink-0 sm:h-12 sm:px-5 sm:text-[0.9375rem]"
+              >
+                Подтвердить выбор
+              </Button>
             </div>
-            <Button
-              onClick={onSubmit}
-              disabled={draftCount === 0 || pending}
-              loading={submitting}
-              size="lg"
-              className="ml-1 shrink-0"
-            >
-              Подтвердить выбор
-            </Button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
