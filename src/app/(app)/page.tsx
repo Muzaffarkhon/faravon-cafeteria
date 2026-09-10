@@ -174,10 +174,7 @@ export default async function OverviewPage() {
       <section className="rounded-[20px] bg-primary p-6 text-on-brand sm:rounded-[28px] sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div className="min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-on-brand/70">
-              Витрина заботы
-            </div>
-            <h1 className="mt-1.5 font-display text-2xl font-bold text-on-brand sm:text-[1.75rem]">
+            <h1 className="font-display text-2xl font-bold text-on-brand sm:text-[1.75rem]">
               Здравствуйте, {firstName}
             </h1>
             <p className="mt-1 text-sm text-on-brand/80">{periodLine}</p>
