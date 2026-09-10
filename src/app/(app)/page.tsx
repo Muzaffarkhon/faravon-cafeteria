@@ -142,26 +142,23 @@ export default async function OverviewPage() {
     };
   });
 
-  const groupBannerSlides: BannerSlide[] =
-    period?.windowOpen
-      ? groupCards
-          .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
-          .map((c) => {
-            const have = groupCount.get(c.id) ?? 0;
-            const remaining = c.minParticipants - have;
-            return {
-              id: `group-${c.id}`,
-              kind: "group",
-              title: c.title,
-              subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${remaining} — выберите в один клик.`,
-              imageUrl: safeImageSrc(c.imageUrl),
-              linkHref: `#card-${c.id}`,
-              external: false,
-              cta: "Перейти к выбору",
-              progress: { current: have, min: c.minParticipants },
-            };
-          })
-      : [];
+  const groupBannerSlides: BannerSlide[] = groupCards
+    .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+    .map((c) => {
+      const have = groupCount.get(c.id) ?? 0;
+      const remaining = c.minParticipants - have;
+      return {
+        id: `group-${c.id}`,
+        kind: "group",
+        title: c.title,
+        subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${remaining}${period?.windowOpen ? " — выберите в один клик." : "."}`,
+        imageUrl: safeImageSrc(c.imageUrl),
+        linkHref: `#card-${c.id}`,
+        external: false,
+        cta: period?.windowOpen ? "Перейти к выбору" : "Перейти к льготе",
+        progress: { current: have, min: c.minParticipants },
+      };
+    });
 
   const bannerSlides = [...groupBannerSlides, ...partnerBannerSlides];
 
