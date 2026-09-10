@@ -191,7 +191,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                 />
                 <div
                   className={cx(
-                    "absolute left-4 top-4 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] backdrop-blur",
+                    "absolute right-12 top-3 z-10 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur sm:left-4 sm:top-4 sm:right-auto sm:text-[11px] sm:py-1",
                     b.kind === "group"
                       ? "bg-amber-500/90 text-white shadow-sm ring-1 ring-white/20"
                       : b.kind === "news"
@@ -201,22 +201,22 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                 >
                   {KIND_LABEL[b.kind ?? "partner"]}
                 </div>
-                <div className="relative z-10 max-w-2xl p-5 sm:p-6">
-                  <h2 className="text-lg font-semibold leading-tight text-balance text-white sm:text-xl">
+                <div className="relative z-10 max-w-2xl p-4 sm:p-6">
+                  <h2 className="text-base font-semibold leading-snug text-balance text-white line-clamp-2 sm:text-xl">
                     {b.title}
                   </h2>
                   {b.subtitle && (
-                    <p className="mt-1.5 text-sm leading-6 text-white/85 line-clamp-2">{b.subtitle}</p>
+                    <p className="mt-1 text-xs leading-normal text-white/85 line-clamp-1 sm:mt-1.5 sm:text-sm sm:line-clamp-2">{b.subtitle}</p>
                   )}
                   {b.progress && (
-                    <div className="mt-2.5 max-w-xs rounded-xl bg-black/35 p-2.5 backdrop-blur">
-                      <div className="flex items-center justify-between text-xs font-semibold text-white/95">
+                    <div className="mt-2 max-w-xs rounded-xl bg-black/35 p-2 backdrop-blur sm:mt-2.5 sm:p-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-white/95 sm:text-xs">
                         <span>Набрано участников</span>
                         <span className="tabular-nums" data-numeric>
                           {b.progress.current} / {b.progress.min}
                         </span>
                       </div>
-                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/25">
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/25 sm:h-2">
                         <div
                           className="h-full rounded-full bg-amber-400 transition-[width] duration-300"
                           style={{
@@ -227,9 +227,9 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                     </div>
                   )}
                   {b.linkHref && (
-                    <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                    <span className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-white sm:mt-3 sm:text-sm">
                       {b.cta}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="sm:h-4 sm:w-4">
                         <path d="M5 12h14M13 6l6 6-6 6" />
                       </svg>
                     </span>
@@ -238,7 +238,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
               </>
             );
             const cls =
-              "relative flex h-52 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-64";
+              "relative flex h-60 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-64";
             return b.linkHref ? (
               <a
                 key={`${b.id}-${i}`}
