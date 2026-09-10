@@ -70,8 +70,10 @@ model Employee {
   fullName     String
   position     String
   department   String
-  phone        String?
+  phone           String?
   phoneNormalized String?        // последние 9 цифр номера — для быстрого поиска при входе через Telegram
+  phoneSecondary  String?
+  phoneSecondaryNormalized String?
   telegramId   String?          @unique
   status       EmploymentStatus @default(ACTIVE)
   terminatedAt DateTime?
@@ -88,6 +90,7 @@ model Employee {
   @@index([fullName])
   @@index([isActive])
   @@index([phoneNormalized])
+  @@index([phoneSecondaryNormalized])
 }
 
 model User {

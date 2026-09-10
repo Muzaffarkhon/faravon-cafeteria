@@ -15,6 +15,7 @@ export type EmployeeValues = {
   position: string;
   department: string;
   phone: string | null;
+  phoneSecondary?: string | null;
   telegramId: string | null;
 };
 
@@ -96,17 +97,31 @@ export function EmployeeForm({
         </Field>
       </div>
 
-      <Field label="Телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          placeholder="+992 900 000 000"
-          defaultValue={initial?.phone ?? ""}
-        />
-      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Основной телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+992 900 000 000"
+            defaultValue={initial?.phone ?? ""}
+          />
+        </Field>
+
+        <Field label="Дополнительный телефон" htmlFor="phoneSecondary" hint="Альтернативный номер для поиска.">
+          <Input
+            id="phoneSecondary"
+            name="phoneSecondary"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+992 900 000 000"
+            defaultValue={initial?.phoneSecondary ?? ""}
+          />
+        </Field>
+      </div>
 
       <Field
         label="Telegram ID"

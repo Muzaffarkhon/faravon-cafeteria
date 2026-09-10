@@ -72,6 +72,7 @@ export default async function EditUserPage({
               position: employee.position,
               department: employee.department,
               phone: employee.phone,
+              phoneSecondary: employee.phoneSecondary,
               telegramId: employee.telegramId,
             }}
             submitLabel="Сохранить"

@@ -13,3 +13,29 @@ export function normalizePhone(raw: string): string {
   if (d.length === 10 && d.startsWith("0")) d = d.slice(1);
   return d.length > 9 ? d.slice(-9) : d;
 }
+
+/**
+ * Форматирует номер к виду +992XXXXXXXXX, если он содержит 9 цифр национального номера.
+ */
+export function formatTajikPhone(raw: string): string | null {
+  const norm = normalizePhone(raw);
+  return norm.length === 9 ? `+992${norm}` : null;
+}
+
+/**
+ * Разбирает строку, которая может содержать один или несколько номеров
+ * (через запятую, слэш, точку с запятой), и возвращает очищенные уникальные номера.
+ */
+export function parsePhoneNumbers(raw: string): string[] {
+  if (!raw) return [];
+  const parts = String(raw).split(/[,;/|\n]+/);
+  const result: string[] = [];
+  for (const part of parts) {
+    const formatted = formatTajikPhone(part);
+    if (formatted && !result.includes(formatted)) {
+      result.push(formatted);
+    }
+  }
+  return result;
+}
+

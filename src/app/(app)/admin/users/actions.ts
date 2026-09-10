@@ -10,12 +10,16 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
-import { normalizePhone } from "@/lib/phone";
+import { normalizePhone, parsePhoneNumbers } from "@/lib/phone";
 import { ALL_ROLES } from "./roles";
 
-/** Данные сотрудника + производный `phoneNormalized` для indexed-поиска при входе через Telegram. */
-function withPhoneNormalized<T extends { phone: string | null }>(d: T) {
-  return { ...d, phoneNormalized: d.phone ? normalizePhone(d.phone) : null };
+/** Данные сотрудника + производные `phoneNormalized` и `phoneSecondaryNormalized` для indexed-поиска при входе через Telegram. */
+function withPhoneNormalized<T extends { phone: string | null; phoneSecondary?: string | null }>(d: T) {
+  return {
+    ...d,
+    phoneNormalized: d.phone ? normalizePhone(d.phone) : null,
+    phoneSecondaryNormalized: d.phoneSecondary ? normalizePhone(d.phoneSecondary) : null,
+  };
 }
 
 function parseRoles(formData: FormData): Role[] {
@@ -48,6 +52,7 @@ type EmployeeInput = {
   position: string;
   department: string;
   phone: string | null;
+  phoneSecondary: string | null;
   telegramId: string | null;
 };
 
@@ -67,6 +72,7 @@ function parseEmployee(formData: FormData): EmployeeInput {
     position,
     department,
     phone: str(formData, "phone"),
+    phoneSecondary: str(formData, "phoneSecondary"),
     telegramId: str(formData, "telegramId"),
   };
 }
@@ -161,6 +167,7 @@ export async function updateEmployee(
       position: before.position,
       department: before.department,
       phone: before.phone,
+      phoneSecondary: before.phoneSecondary,
       telegramId: before.telegramId,
     },
     newValue: data,
@@ -479,21 +486,45 @@ export type ImportState = {
   rowErrors?: string[];
 };
 
-/** Заголовки столбцов файла → ключ поля. Сопоставление без учёта регистра/пробелов. */
-const HEADER_ALIASES: Record<keyof ImportRow, string[]> = {
-  fullName: ["фио", "ф.и.о.", "имя", "сотрудник", "fullname", "name"],
-  position: ["должность", "position", "title"],
-  department: ["подразделение", "отдел", "department", "unit"],
-  phone: ["телефон", "тел", "phone", "mobile"],
-  telegramId: ["telegramid", "telegram", "телеграм", "телеграмid", "chatid"],
-};
 
 type ImportRow = {
   fullName: string;
   position: string;
   department: string;
   phone: string | null;
+  phoneSecondary: string | null;
   telegramId: string | null;
+};
+
+type ColKey = keyof ImportRow | "phoneWork" | "phoneCandidate" | "phoneHome";
+
+/** Заголовки столбцов файла → ключ поля. Сопоставление без учёта регистра/пробелов. */
+const HEADER_ALIASES: Record<ColKey, string[]> = {
+  fullName: ["фио", "ф.и.о.", "имя", "сотрудник", "fullname", "name", "фио(полное)", "фиополное"],
+  position: ["должность", "position", "title"],
+  department: ["подразделение", "отдел", "department", "unit"],
+  phone: ["телефон", "тел", "phone", "mobile", "телефоны"],
+  phoneWork: [
+    "сотрудник.физлицо.телефонфиз.лицаслужебный",
+    "телефонслужебный",
+    "служебныйтелефон",
+    "служебный",
+  ],
+  phoneCandidate: [
+    "сотрудник.физлицо.контактнтелефонкандидата",
+    "контактнтелефонкандидата",
+    "контактныйтелефонкандидата",
+    "телефонкандидата",
+    "кандидат",
+  ],
+  phoneHome: [
+    "сотрудник.физлицо.телефонфиз.лицадомашний",
+    "телефондомашний",
+    "домашнийтелефон",
+    "домашний",
+  ],
+  phoneSecondary: ["дополнительныйтелефон", "второйтелефон", "доптелефон", "secondaryphone"],
+  telegramId: ["telegramid", "telegram", "телеграм", "телеграмid", "chatid"],
 };
 
 const norm = (s: unknown) =>
@@ -547,10 +578,10 @@ export async function importEmployees(
   }
 
   // Карта: ключ поля → номер столбца
-  const colOf: Partial<Record<keyof ImportRow, number>> = {};
+  const colOf: Partial<Record<ColKey, number>> = {};
   ws.getRow(1).eachCell((cell, col) => {
     const h = norm(cellText(cell.value));
-    for (const [key, aliases] of Object.entries(HEADER_ALIASES) as [keyof ImportRow, string[]][]) {
+    for (const [key, aliases] of Object.entries(HEADER_ALIASES) as [ColKey, string[]][]) {
       if (aliases.includes(h) && !colOf[key]) colOf[key] = col;
     }
   });
@@ -572,6 +603,7 @@ export async function importEmployees(
       position: true,
       department: true,
       phone: true,
+      phoneSecondary: true,
       isActive: true,
       telegramId: true,
     },
@@ -591,7 +623,7 @@ export async function importEmployees(
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
-    const get = (key: keyof ImportRow) =>
+    const get = (key: ColKey) =>
       colOf[key] ? cellText(row.getCell(colOf[key]!).value) : "";
 
     const fullName = get("fullName");
@@ -618,11 +650,29 @@ export async function importEmployees(
       }
     }
 
+    const rawPhoneList: string[] = [];
+    if (colOf.phone) rawPhoneList.push(cellText(row.getCell(colOf.phone).value));
+    if (colOf.phoneWork) rawPhoneList.push(cellText(row.getCell(colOf.phoneWork).value));
+    if (colOf.phoneCandidate) rawPhoneList.push(cellText(row.getCell(colOf.phoneCandidate).value));
+    if (colOf.phoneHome) rawPhoneList.push(cellText(row.getCell(colOf.phoneHome).value));
+    if (colOf.phoneSecondary) rawPhoneList.push(cellText(row.getCell(colOf.phoneSecondary).value));
+
+    const validPhones: string[] = [];
+    for (const raw of rawPhoneList) {
+      for (const p of parsePhoneNumbers(raw)) {
+        if (!validPhones.includes(p)) validPhones.push(p);
+      }
+    }
+
+    const phone = validPhones[0] || null;
+    const phoneSecondary = validPhones[1] || null;
+
     const data: ImportRow = {
       fullName,
       position: get("position") || "—",
       department: get("department") || "—",
-      phone: get("phone") || null,
+      phone,
+      phoneSecondary,
       telegramId,
     };
 
@@ -633,6 +683,7 @@ export async function importEmployees(
       prev.position !== data.position ||
       prev.department !== data.department ||
       (prev.phone ?? null) !== data.phone ||
+      (prev.phoneSecondary ?? null) !== data.phoneSecondary ||
       (prev.telegramId ?? null) !== data.telegramId ||
       prev.fullName !== data.fullName
     ) {

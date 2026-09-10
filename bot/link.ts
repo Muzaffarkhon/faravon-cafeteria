@@ -115,7 +115,7 @@ async function issueForEmployee(
 
   if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
     throw new SafeLinkError(
-      "К этому сотруднику уже привязан другой Telegram. Для смены обратитесь в HR за кодом.",
+      "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены обратитесь в HR за кодом.",
     );
   }
 
@@ -140,15 +140,37 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     const norm = normalizePhone(phone);
     if (norm.length < 7) throw new SafeLinkError("Не удалось распознать номер телефона.");
 
-    let match = await db.employee.findFirst({ where: { phoneNormalized: norm }, select: EMP_SELECT });
+    let match = await db.employee.findFirst({
+      where: {
+        OR: [
+          { phoneNormalized: norm },
+          { phoneSecondaryNormalized: norm },
+        ],
+      },
+      select: EMP_SELECT,
+    });
     if (!match) {
       const legacy = await db.employee.findMany({
-        where: { phone: { not: null }, phoneNormalized: null },
-        select: { ...EMP_SELECT, phone: true },
+        where: {
+          OR: [
+            { phone: { not: null }, phoneNormalized: null },
+            { phoneSecondary: { not: null }, phoneSecondaryNormalized: null },
+          ],
+        },
+        select: { ...EMP_SELECT, phone: true, phoneSecondary: true },
       });
-      const hits = legacy.filter((e) => normalizePhone(e.phone!) === norm);
+      const hits = legacy.filter(
+        (e) => (e.phone && normalizePhone(e.phone) === norm) ||
+               (e.phoneSecondary && normalizePhone(e.phoneSecondary) === norm),
+      );
       if (hits.length === 1) {
-        await db.employee.update({ where: { id: hits[0].id }, data: { phoneNormalized: norm } });
+        const updateData: { phoneNormalized?: string; phoneSecondaryNormalized?: string } = {};
+        if (hits[0].phone && normalizePhone(hits[0].phone) === norm) {
+          updateData.phoneNormalized = norm;
+        } else if (hits[0].phoneSecondary && normalizePhone(hits[0].phoneSecondary) === norm) {
+          updateData.phoneSecondaryNormalized = norm;
+        }
+        await db.employee.update({ where: { id: hits[0].id }, data: updateData });
         match = hits[0];
       } else if (hits.length > 1) {
         throw new SafeLinkError(
@@ -168,7 +190,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     } catch (e) {
       if (
         e instanceof SafeLinkError &&
-        /обратитесь в HR за кодом|привязан другой Telegram/i.test(e.message)
+        /обратитесь в HR за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
       ) {
         throw e;
       }
