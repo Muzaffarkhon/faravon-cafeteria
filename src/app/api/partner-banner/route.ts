@@ -13,10 +13,13 @@ export async function GET() {
 
 type BannerInput = {
   partnerId: string | null;
+  kind: "PARTNER" | "NEWS";
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
   href: string | null;
+  androidUrl: string | null;
+  iosUrl: string | null;
   isActive: boolean;
   sortOrder: number;
   startsAt: Date | null;
@@ -38,6 +41,14 @@ function parseBanner(body: Record<string, unknown>): BannerInput | { error: stri
   if (href && !isSafeLinkHref(href)) {
     return { error: "Ссылка должна быть http(s)-адресом или внутренним путём (/…)." };
   }
+  const androidUrl = s(body.androidUrl) || null;
+  if (androidUrl && !isSafeLinkHref(androidUrl)) {
+    return { error: "Ссылка на приложение (Android) должна быть http(s)-адресом." };
+  }
+  const iosUrl = s(body.iosUrl) || null;
+  if (iosUrl && !isSafeLinkHref(iosUrl)) {
+    return { error: "Ссылка на приложение (iOS) должна быть http(s)-адресом." };
+  }
   const imageUrl = s(body.imageUrl) || null;
   if (imageUrl && !isSafeImageSrc(imageUrl)) {
     return { error: "Ссылка на изображение недопустима." };
@@ -50,10 +61,13 @@ function parseBanner(body: Record<string, unknown>): BannerInput | { error: stri
   };
   return {
     partnerId: s(body.partnerId) || null,
+    kind: s(body.kind) === "NEWS" ? "NEWS" : "PARTNER",
     title,
     subtitle: s(body.subtitle) || null,
     imageUrl,
     href,
+    androidUrl,
+    iosUrl,
     isActive: body.isActive === true || body.isActive === "true",
     sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.trunc(Number(body.sortOrder)) : 0,
     startsAt: date(body.startsAt),

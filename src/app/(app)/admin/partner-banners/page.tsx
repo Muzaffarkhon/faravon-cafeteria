@@ -9,10 +9,13 @@ const BANNER_ASPECT = 4.5; // совпадает с рамкой карусел�
 type Banner = {
   id: string;
   partnerId?: string | null;
+  kind?: "PARTNER" | "NEWS";
   title: string;
   subtitle?: string | null;
   imageUrl?: string | null;
   href?: string | null;
+  androidUrl?: string | null;
+  iosUrl?: string | null;
   isActive: boolean;
   startsAt?: string | null;
   endsAt?: string | null;
@@ -20,7 +23,7 @@ type Banner = {
 
 export default function Page() {
   const [banners, setBanners] = useState<Banner[] | null>(null);
-  const [form, setForm] = useState<Partial<Banner>>({ isActive: true });
+  const [form, setForm] = useState<Partial<Banner>>({ isActive: true, kind: "PARTNER" });
   const [saving, setSaving] = useState(false);
   const editing = !!form.id;
 
@@ -48,7 +51,7 @@ export default function Page() {
         headers: { "content-type": "application/json" },
       });
       const data = await res.json();
-      setForm({ isActive: true });
+      setForm({ isActive: true, kind: "PARTNER" });
       setBanners((s) => {
         const list = s ?? [];
         return method === "POST" ? [data, ...list] : list.map((b) => (b.id === data.id ? data : b));
@@ -78,15 +81,15 @@ export default function Page() {
   }
 
   const set =
-    (k: "title" | "partnerId" | "href" | "subtitle") =>
+    (k: "title" | "partnerId" | "href" | "subtitle" | "androidUrl" | "iosUrl") =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Баннеры партнёров"
-        description="Промо-блоки, которые видит сотрудник в обзоре личного кабинета."
+        title="Баннеры"
+        description="Промо-блоки и новости, которые видит сотрудник в обзоре личного кабинета."
       />
 
       <Card className="p-5">
@@ -97,8 +100,30 @@ export default function Page() {
           <Field label="Заголовок" htmlFor="b-title" required>
             <Input id="b-title" value={form.title ?? ""} onChange={set("title")} required />
           </Field>
-          <Field label="ID партнёра" htmlFor="b-partner">
-            <Input id="b-partner" value={form.partnerId ?? ""} onChange={set("partnerId")} autoComplete="off" />
+          <Field label="Тип баннера" htmlFor="b-kind">
+            <select
+              id="b-kind"
+              value={form.kind ?? "PARTNER"}
+              onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as Banner["kind"] }))}
+              className="w-full rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
+            >
+              <option value="PARTNER">Партнёр (реклама)</option>
+              <option value="NEWS">Своя новость / анонс</option>
+            </select>
+          </Field>
+          <Field
+            label="ID партнёра"
+            htmlFor="b-partner"
+            hint={form.kind === "NEWS" ? "Для новостей компании не требуется." : undefined}
+          >
+            <Input
+              id="b-partner"
+              value={form.partnerId ?? ""}
+              onChange={set("partnerId")}
+              autoComplete="off"
+              disabled={form.kind === "NEWS"}
+              placeholder={form.kind === "NEWS" ? "Не требуется" : ""}
+            />
           </Field>
           <Field label="Подзаголовок" htmlFor="b-subtitle" className="sm:col-span-2">
             <Input id="b-subtitle" value={form.subtitle ?? ""} onChange={set("subtitle")} />
@@ -113,8 +138,14 @@ export default function Page() {
               hint="Загрузите фото и скадрируйте под баннер, либо вставьте ссылку."
             />
           </div>
-          <Field label="Ссылка" htmlFor="b-href">
+          <Field label="Ссылка" htmlFor="b-href" hint="Куда ведёт клик по баннеру, если ссылки на приложение не заданы.">
             <Input id="b-href" inputMode="url" value={form.href ?? ""} onChange={set("href")} />
+          </Field>
+          <Field label="Приложение · Android" htmlFor="b-android" hint="Google Play или .apk. Клик по баннеру на Android ведёт сюда.">
+            <Input id="b-android" inputMode="url" value={form.androidUrl ?? ""} onChange={set("androidUrl")} placeholder="https://play.google.com/…" />
+          </Field>
+          <Field label="Приложение · iOS" htmlFor="b-ios" hint="App Store. Клик по баннеру на iPhone/iPad ведёт сюда.">
+            <Input id="b-ios" inputMode="url" value={form.iosUrl ?? ""} onChange={set("iosUrl")} placeholder="https://apps.apple.com/…" />
           </Field>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input
@@ -130,7 +161,7 @@ export default function Page() {
               {editing ? "Сохранить" : "Добавить"}
             </Button>
             {editing && (
-              <Button type="button" variant="ghost" onClick={() => setForm({ isActive: true })}>
+              <Button type="button" variant="ghost" onClick={() => setForm({ isActive: true, kind: "PARTNER" })}>
                 Отмена
               </Button>
             )}
@@ -148,6 +179,7 @@ export default function Page() {
             <thead>
               <tr>
                 <th>Заголовок</th>
+                <th>Тип</th>
                 <th>Партнёр</th>
                 <th>Статус</th>
                 <th />
@@ -157,7 +189,12 @@ export default function Page() {
               {banners.map((b) => (
                 <tr key={b.id}>
                   <td className="font-medium text-ink">{b.title}</td>
-                  <td className="text-ink-muted">{b.partnerId ?? "—"}</td>
+                  <td>
+                    <Badge tone={b.kind === "NEWS" ? "brand" : "neutral"}>
+                      {b.kind === "NEWS" ? "Новость" : "Партнёр"}
+                    </Badge>
+                  </td>
+                  <td className="text-ink-muted">{b.kind === "NEWS" ? "—" : (b.partnerId ?? "—")}</td>
                   <td>
                     <Badge tone={b.isActive ? "success" : "neutral"}>
                       {b.isActive ? "Активен" : "Выключен"}

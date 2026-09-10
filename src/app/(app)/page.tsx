@@ -122,19 +122,23 @@ export default async function OverviewPage() {
     : new Map<string, number>();
 
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
-    const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
+    const isNews = b.kind === "NEWS";
+    const cardId = !isNews && b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
     const safeHref = safeLinkHref(b.href);
-    const linkHref = cardHref ?? safeHref;
+    const androidUrl = safeLinkHref(b.androidUrl);
+    const iosUrl = safeLinkHref(b.iosUrl);
+    const appHref = androidUrl ?? iosUrl;
+    const linkHref = appHref ?? cardHref ?? safeHref;
     return {
       id: b.id,
-      kind: "partner",
+      kind: isNews ? ("news" as const) : ("partner" as const),
       title: b.title,
       subtitle: b.subtitle,
       imageUrl: safeImageSrc(b.imageUrl),
       linkHref,
-      external: !cardHref && !!safeHref && /^https?:\/\//i.test(safeHref),
-      cta: cardHref ? "Перейти к льготе" : "Подробнее",
+      external: !!appHref || (!cardHref && !!safeHref && /^https?:\/\//i.test(safeHref)),
+      cta: appHref ? "Установить приложение" : cardHref ? "Перейти к льготе" : "Подробнее",
     };
   });
 
