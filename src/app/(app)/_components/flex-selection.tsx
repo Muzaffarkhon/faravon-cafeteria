@@ -140,7 +140,7 @@ export function FlexSelection({
                 flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
-              <div className="relative h-36 shrink-0 overflow-hidden bg-surface-muted">
+              <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted">
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

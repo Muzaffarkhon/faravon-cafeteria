@@ -215,7 +215,7 @@ export default async function OverviewPage() {
                 key={c.id}
                 className="group flex flex-col overflow-hidden rounded-[20px] bg-surface shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="h-[120px] overflow-hidden bg-surface-sunken">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-sunken">
                   {safeImageSrc(c.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -251,7 +251,7 @@ export default async function OverviewPage() {
                 key={c.id}
                 className="group flex flex-col overflow-hidden rounded-[20px] bg-surface shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="h-[140px] overflow-hidden bg-primary-soft">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-primary-soft">
                   {safeImageSrc(c.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

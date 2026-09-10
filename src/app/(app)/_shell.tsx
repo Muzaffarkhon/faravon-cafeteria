@@ -139,71 +139,74 @@ export function AppShell({
                 </Link>
               );
             })}
-
-            {moreGroups.length > 0 && (
-              <div className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setMoreOpen((v) => !v)}
-                  aria-expanded={moreOpen}
-                  className={pill(moreActive || moreOpen)}
-                >
-                  <Icon path={I.more} />
-                  <span>Ещё</span>
-                  {moreBadge > 0 && !moreOpen && (
-                    <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
-                      {moreBadge > 99 ? "99+" : moreBadge}
-                    </span>
-                  )}
-                </button>
-                {moreOpen && (
-                  <>
-                    <button
-                      type="button"
-                      aria-hidden="true"
-                      tabIndex={-1}
-                      onClick={() => setMoreOpen(false)}
-                      className="fixed inset-0 z-40 cursor-default"
-                    />
-                    <div className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-lg">
-                      {moreGroups.map((g) => (
-                        <div key={g.id} className="mb-1 last:mb-0">
-                          <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-muted">
-                            {g.label}
-                          </div>
-                          {g.items.map((it) => {
-                            const active = isActive(it.href);
-                            return (
-                              <Link
-                                key={it.href}
-                                href={it.href}
-                                onClick={closeMenus}
-                                className={cx(
-                                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
-                                  active ? "bg-primary-soft text-primary-strong" : "text-ink hover:bg-surface-muted",
-                                )}
-                              >
-                                <Icon path={it.icon} className="shrink-0" />
-                                <span className="min-w-0 flex-1 truncate">{it.label}</span>
-                                {it.badge ? (
-                                  <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
-                                    {it.badge > 99 ? "99+" : it.badge}
-                                  </span>
-                                ) : null}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
+          {/* «Ещё» — вне скроллящейся ленты: overflow-x-auto у соседа неявно
+              выставляет и overflow-y:auto (правило CSS для перпендикулярной
+              оси), из-за чего выпадающий список внутри просто обрезался. */}
+          {moreGroups.length > 0 && (
+            <div className="relative shrink-0" onMouseLeave={() => setMoreOpen(false)}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-expanded={moreOpen}
+                className={pill(moreActive || moreOpen)}
+              >
+                <Icon path={I.more} />
+                <span>Ещё</span>
+                {moreBadge > 0 && !moreOpen && (
+                  <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
+                    {moreBadge > 99 ? "99+" : moreBadge}
+                  </span>
+                )}
+              </button>
+              {moreOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onClick={() => setMoreOpen(false)}
+                    className="fixed inset-0 z-40 cursor-default"
+                  />
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-lg">
+                    {moreGroups.map((g) => (
+                      <div key={g.id} className="mb-1 last:mb-0">
+                        <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-muted">
+                          {g.label}
+                        </div>
+                        {g.items.map((it) => {
+                          const active = isActive(it.href);
+                          return (
+                            <Link
+                              key={it.href}
+                              href={it.href}
+                              onClick={closeMenus}
+                              className={cx(
+                                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
+                                active ? "bg-primary-soft text-primary-strong" : "text-ink hover:bg-surface-muted",
+                              )}
+                            >
+                              <Icon path={it.icon} className="shrink-0" />
+                              <span className="min-w-0 flex-1 truncate">{it.label}</span>
+                              {it.badge ? (
+                                <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
+                                  {it.badge > 99 ? "99+" : it.badge}
+                                </span>
+                              ) : null}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Профиль */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0" onMouseLeave={() => setProfileOpen(false)}>
             <button
               type="button"
               onClick={() => setProfileOpen((v) => !v)}

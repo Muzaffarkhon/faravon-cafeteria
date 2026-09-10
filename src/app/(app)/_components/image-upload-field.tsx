@@ -329,18 +329,39 @@ export function ImageUploadField({
   return (
     <Field label={label} htmlFor="img-upload-file" error={err ?? undefined}>
       {value && !editFile && (
-        <div className="mb-2">
-          <div
-            className={cx(
-              "relative overflow-hidden rounded-lg border border-line bg-surface-sunken",
-              aspect ? "w-full max-w-[560px]" : "h-16 w-16",
-            )}
-            style={aspect ? { aspectRatio: String(aspect) } : undefined}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="" className="h-full w-full object-cover" />
-          </div>
-          <div className="mt-1.5 flex items-center gap-3">
+        <div className="mb-3 space-y-2">
+          {purpose === "card" && aspect ? (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-ink-muted">
+                Фактический вид в карточке:
+              </div>
+              <div className="w-full max-w-[320px] overflow-hidden rounded-[20px] border border-line bg-surface shadow-sm">
+                <div
+                  className="relative w-full overflow-hidden bg-surface-sunken"
+                  style={{ aspectRatio: String(aspect) }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={value} alt="" className="h-full w-full object-cover" />
+                </div>
+                <div className="p-3.5">
+                  <div className="h-3.5 w-3/4 rounded bg-line-subtle" />
+                  <div className="mt-2 h-2.5 w-1/2 rounded bg-line-subtle/60" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cx(
+                "relative overflow-hidden rounded-lg border border-line bg-surface-sunken",
+                aspect ? "w-full max-w-[560px]" : "h-16 w-16",
+              )}
+              style={aspect ? { aspectRatio: String(aspect) } : undefined}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt="" className="h-full w-full object-cover" />
+            </div>
+          )}
+          <div className="flex items-center gap-3">
             {aspect && (
               <button
                 type="button"
@@ -366,9 +387,12 @@ export function ImageUploadField({
       {/* --- редактор кадрирования --- */}
       {editFile && (
         <div className="mb-2 space-y-2">
+          <div className="text-xs font-semibold text-ink-muted">
+            Перетащите изображение для выбора нужного ракурса:
+          </div>
           <div
             ref={boxRef}
-            className="relative w-full max-w-[560px] cursor-grab touch-none overflow-hidden rounded-lg border border-line bg-surface-sunken active:cursor-grabbing"
+            className="relative w-full max-w-[560px] cursor-grab touch-none overflow-hidden rounded-[20px] border-2 border-primary/50 bg-surface-sunken shadow-inner active:cursor-grabbing"
             style={{ aspectRatio: String(aspect ?? 1) }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -391,6 +415,27 @@ export function ImageUploadField({
                 }}
               />
             )}
+
+            {/* Направляющие сетки третей */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3"
+            >
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-white/25" />
+              <div className="border-r border-white/25" />
+              <div className="border-r border-white/25" />
+              <div />
+            </div>
+
+            {/* Метка пропорции */}
+            <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+              {aspect === 1.6 ? "Рамка карточки (16:10)" : aspect === 1 ? "Логотип (1:1)" : `Кадрирование ${aspect}:1`}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
