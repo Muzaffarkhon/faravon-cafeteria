@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
-import { Badge, Button, Field, Input, RowId } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, Field, Input, RowId } from "@/components/ui";
 import { RolePicker } from "./_form";
 import {
   createAccountForEmployee,
@@ -13,6 +13,7 @@ import {
   setEmployeeActive,
   setServicePartner,
   setUserRoles,
+  setUserTelegramId,
   type AccountResult,
 } from "./actions";
 import { ALL_ROLES } from "./roles";
@@ -195,14 +196,14 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
             {grants.map((p) => (
               <li
                 key={p}
-                className="rounded bg-surface px-1.5 py-0.5 text-[11px] text-ink ring-1 ring-line"
+                className="rounded bg-surface px-1.5 py-0.5 text-xs text-ink ring-1 ring-line"
               >
                 {PERMISSION_LABELS[p]}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-[11px] text-ink-subtle">
+          <p className="mt-1 text-xs text-ink-subtle">
             Ролей не выбрано — доступа к разделам нет.
           </p>
         )}
@@ -247,6 +248,16 @@ export function EmployeeActiveToggle({
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  function toggle() {
+    setErr(null);
+    start(async () => {
+      const r = await setEmployeeActive(employeeId, !isActive);
+      if (r.error) setErr(r.error);
+      setConfirming(false);
+    });
+  }
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -254,21 +265,20 @@ export function EmployeeActiveToggle({
         variant={isActive ? "danger" : "success"}
         size="sm"
         disabled={pending}
-        onClick={() => {
-          if (
-            isActive &&
-            !confirm("Деактивировать сотрудника? Вход в его учётную запись будет закрыт.")
-          )
-            return;
-          setErr(null);
-          start(async () => {
-            const r = await setEmployeeActive(employeeId, !isActive);
-            if (r.error) setErr(r.error);
-          });
-        }}
+        onClick={() => (isActive ? setConfirming(true) : toggle())}
       >
         {isActive ? "Деактивировать сотрудника" : "Вернуть в активные"}
       </Button>
+      {confirming && (
+        <ConfirmDialog
+          title="Деактивировать сотрудника?"
+          message="Вход в его учётную запись будет закрыт немедленно."
+          confirmLabel="Деактивировать"
+          pending={pending}
+          onConfirm={toggle}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
       {err && (
         <span className="text-xs font-medium text-danger" role="alert">
           {err}
@@ -291,11 +301,13 @@ export function ServiceAccountRow({
     isActive: boolean;
     partnerId: string | null;
     partnerName: string | null;
+    telegramId: string | null;
   };
   partners: PartnerOption[];
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
+  const [tg, setTg] = useState(user.telegramId ?? "");
   const isContractor = user.roles.includes("CONTRACTOR");
 
   return (
@@ -346,6 +358,25 @@ export function ServiceAccountRow({
         </td>
         <td>
           <div className="flex items-center justify-end gap-2">
+            <input
+              value={tg}
+              onChange={(e) => setTg(e.target.value)}
+              placeholder="Telegram ID"
+              inputMode="numeric"
+              className="w-28 rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none"
+              title="Telegram ID для уведомлений (узнать: /id в боте)"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={pending || tg === (user.telegramId ?? "")}
+              onClick={() => {
+                setMsg(null);
+                start(async () => setMsg(await setUserTelegramId(user.id, tg)));
+              }}
+            >
+              TG
+            </Button>
             <Button
               variant="secondary"
               size="sm"

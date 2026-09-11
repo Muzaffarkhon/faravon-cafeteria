@@ -51,11 +51,17 @@ const PRIMARY_GROUPS = new Set(["cabinet", "work"]);
 export function AppShell({
   groups,
   roleLabel,
+  displayName,
+  selectionStat,
   backdrop,
   children,
 }: {
   groups: NavGroup[];
   roleLabel: string;
+  /** «Фамилия И.» (или логин) — рядом с кнопкой профиля. */
+  displayName?: string;
+  /** Счётчики выбора льгот в закреплённой шапке (только у сотрудника). */
+  selectionStat?: { used: number; drafts: number; max: number } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
   children: React.ReactNode;
@@ -96,7 +102,7 @@ export function AppShell({
 
   const pill = (active: boolean) =>
     cx(
-      "flex shrink-0 items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold transition-colors",
+      "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold transition-colors",
       active
         ? "bg-primary text-on-brand"
         : "text-ink hover:bg-surface-muted",
@@ -132,7 +138,12 @@ export function AppShell({
                   <Icon path={it.icon} />
                   <span className="whitespace-nowrap">{it.label}</span>
                   {it.badge ? (
-                    <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-on-brand/25 px-1 text-[11px] font-bold leading-none tabular-nums">
+                    <span
+                      className={cx(
+                        "ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
+                        active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
+                      )}
+                    >
                       {it.badge > 99 ? "99+" : it.badge}
                     </span>
                   ) : null}
@@ -140,6 +151,24 @@ export function AppShell({
               );
             })}
           </div>
+
+          {/* Счётчики выбора льгот — в один ряд с вкладками, справа. */}
+          {selectionStat && (
+            <div className="flex shrink-0 items-center gap-1.5" aria-label="Выбор льгот">
+              <span className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong">
+                <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong/70 md:inline">
+                  Выбрано
+                </span>
+                {selectionStat.used}/{selectionStat.max}
+              </span>
+              <span className="rounded-[10px] bg-surface-muted px-2 py-1.5 text-[13px] font-bold tabular-nums text-ink">
+                <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted md:inline">
+                  Черновики
+                </span>
+                {selectionStat.drafts}
+              </span>
+            </div>
+          )}
 
           {/* «Ещё» — вне скроллящейся ленты: overflow-x-auto у соседа неявно
               выставляет и overflow-y:auto (правило CSS для перпендикулярной
@@ -155,7 +184,7 @@ export function AppShell({
                 <Icon path={I.more} />
                 <span>Ещё</span>
                 {moreBadge > 0 && !moreOpen && (
-                  <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
+                  <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
                     {moreBadge > 99 ? "99+" : moreBadge}
                   </span>
                 )}
@@ -172,7 +201,7 @@ export function AppShell({
                   <div className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-lg">
                     {moreGroups.map((g) => (
                       <div key={g.id} className="mb-1 last:mb-0">
-                        <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-muted">
+                        <div className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
                           {g.label}
                         </div>
                         {g.items.map((it) => {
@@ -190,7 +219,7 @@ export function AppShell({
                               <Icon path={it.icon} className="shrink-0" />
                               <span className="min-w-0 flex-1 truncate">{it.label}</span>
                               {it.badge ? (
-                                <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
+                                <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
                                   {it.badge > 99 ? "99+" : it.badge}
                                 </span>
                               ) : null}
@@ -206,14 +235,19 @@ export function AppShell({
           )}
 
           {/* Профиль */}
-          <div className="relative shrink-0" onMouseLeave={() => setProfileOpen(false)}>
+          <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
+            {displayName && (
+              <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
+                {displayName}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setProfileOpen((v) => !v)}
               aria-label="Меню профиля"
               aria-expanded={profileOpen}
               className={cx(
-                "flex h-9 w-9 items-center justify-center rounded-full border border-line transition-colors",
+                "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
                 isActive("/profile") || profileOpen
                   ? "bg-primary text-on-brand"
                   : "bg-surface text-ink hover:bg-surface-muted",
@@ -231,7 +265,7 @@ export function AppShell({
                   className="fixed inset-0 z-40 cursor-default"
                 />
                 <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
-                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-muted">
+                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">
                     <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
                     {roleLabel}
                   </div>
@@ -257,6 +291,16 @@ export function AppShell({
             )}
           </div>
         </div>
+
+        {/* Полоса заполнения выбора льгот — по нижней кромке шапки. */}
+        {selectionStat && selectionStat.max > 0 && (
+          <div className="h-[3px] w-full bg-primary-soft" aria-hidden="true">
+            <div
+              className="h-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.min(100, (selectionStat.used / selectionStat.max) * 100)}%` }}
+            />
+          </div>
+        )}
       </header>
 
       {/* ── Контент ── */}
@@ -279,7 +323,7 @@ export function AppShell({
               href={it.href}
               onClick={closeMenus}
               className={cx(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-colors",
+                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition-colors",
                 active ? "text-primary" : "text-ink-muted",
               )}
             >
@@ -296,7 +340,7 @@ export function AppShell({
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
             className={cx(
-              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-colors",
+              "relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition-colors",
               moreActive || moreOpen ? "text-primary" : "text-ink-muted",
             )}
           >
@@ -320,7 +364,7 @@ export function AppShell({
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" />
             {moreGroups.map((g) => (
               <div key={g.id} className="mb-3 last:mb-0">
-                <div className="px-1 pb-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-muted">
+                <div className="px-1 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
                   {g.label}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -341,7 +385,7 @@ export function AppShell({
                         <Icon path={it.icon} className="shrink-0" />
                         <span className="min-w-0 flex-1 truncate">{it.label}</span>
                         {it.badge ? (
-                          <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums">
+                          <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
                             {it.badge > 99 ? "99+" : it.badge}
                           </span>
                         ) : null}

@@ -288,6 +288,46 @@ export async function createServiceAccount(
   return { ok: true, otp };
 }
 
+/**
+ * Задать/очистить Telegram ID для служебной учётной записи (подрядчик, C&B)
+ * без карточки сотрудника — чтобы приходили уведомления и ежедневный отчёт
+ * (§11/§12). Пользователь узнаёт свой ID командой /id в боте.
+ */
+export async function setUserTelegramId(
+  userId: string,
+  telegramIdRaw: string,
+): Promise<AccountResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const before = await db.user.findUnique({ where: { id: userId }, select: { employeeId: true } });
+  if (!before) return { error: "Учётная запись не найдена." };
+  if (before.employeeId) {
+    return { error: "У этой учётки есть карточка сотрудника — Telegram привязывается через раздел «Доступ»." };
+  }
+
+  const telegramId = telegramIdRaw.trim();
+  if (telegramId && !/^\d{4,20}$/.test(telegramId)) {
+    return { error: "Telegram ID — это число (узнать: команда /id в боте)." };
+  }
+
+  const clash = telegramId
+    ? await db.user.findFirst({ where: { telegramId, id: { not: userId } }, select: { login: true } })
+    : null;
+  if (clash) return { error: `Этот Telegram ID уже привязан к «${clash.login}».` };
+
+  await db.user.update({ where: { id: userId }, data: { telegramId: telegramId || null } });
+  await audit({
+    actorId: s.user.id,
+    action: "USER_TELEGRAM_SET",
+    entityType: "User",
+    entityId: userId,
+    newValue: { telegramId: telegramId || null },
+  });
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
 /** Привязать/отвязать служебную учётную запись подрядчика от партнёра. */
 export async function setServicePartner(
   userId: string,

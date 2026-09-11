@@ -88,6 +88,16 @@ async function handle(msg: TgMessage) {
       await send(chatId, WELCOME, CONTACT_KEYBOARD);
       return;
     }
+    if (text === "/id") {
+      // Для учёток подрядчиков/C&B без Employee: этот ID вставляет администратор
+      // в поле «Telegram ID» учётной записи, чтобы приходили уведомления (§11/§12).
+      await send(
+        chatId,
+        `Ваш Telegram ID: <code>${telegramId}</code>\n` +
+          "Передайте его администратору для привязки уведомлений к учётной записи.",
+      );
+      return;
+    }
     if (text.startsWith("/code")) {
       const code = text.replace(/^\/code@?\S*/, "").trim();
       if (!code) {

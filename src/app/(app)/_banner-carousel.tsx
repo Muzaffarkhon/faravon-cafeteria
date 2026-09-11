@@ -10,6 +10,8 @@ export type BannerSlide = {
   subtitle: string | null;
   imageUrl: string | null;
   linkHref: string | null;
+  androidUrl?: string | null;
+  iosUrl?: string | null;
   external: boolean;
   cta: string;
   progress?: { current: number; min: number };
@@ -21,6 +23,16 @@ const KIND_LABEL: Record<NonNullable<BannerSlide["kind"]>, string> = {
   group: "Групповая льгота",
 };
 
+/** Ссылка на приложение под платформу устройства (§реклама): Android → Google Play,
+ *  iOS → App Store; иначе — любая заданная. */
+function resolveAppHref(b: BannerSlide): string | null {
+  if (!b.androidUrl && !b.iosUrl) return null;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+  if (/iP(hone|ad|od)/.test(ua) && b.iosUrl) return b.iosUrl;
+  if (/Android/i.test(ua) && b.androidUrl) return b.androidUrl;
+  return b.androidUrl ?? b.iosUrl ?? null;
+}
+
 const AUTOPLAY_MS = 6000;
 
 export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
@@ -30,7 +42,11 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
   // Три копии подряд; позиция живёт вокруг средней копии — так при любом
   // направлении (и автопрокрутке, и перетаскивании) слева и справа всегда
   // есть реальные слайды, «отскока назад» в конце нет.
-  const [pos, setPos] = useState(count); // единицы = ширина слайда
+  // Стартовый слайд выбирается случайно (§6): при каждом заходе показывается
+  // разный баннер, а не всегда первый.
+  const [pos, setPos] = useState(() =>
+    count > 1 ? count + Math.floor(Math.random() * count) : count,
+  ); // единицы = ширина слайда
   const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -245,7 +261,16 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                 href={b.linkHref}
                 {...(b.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 onClick={(e) => {
-                  if (moved.current) e.preventDefault();
+                  if (moved.current) {
+                    e.preventDefault();
+                    return;
+                  }
+                  // Ссылка на приложение: открываем стор под платформу устройства.
+                  const appHref = resolveAppHref(b);
+                  if (appHref && appHref !== b.linkHref) {
+                    e.preventDefault();
+                    window.open(appHref, "_blank", "noopener,noreferrer");
+                  }
                 }}
                 className={cls}
               >

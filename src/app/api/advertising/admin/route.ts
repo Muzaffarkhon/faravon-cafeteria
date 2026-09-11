@@ -24,6 +24,20 @@ export async function POST(req: Request) {
   const before = await db.advertisingRequest.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: "not found" }, { status: 404 });
 
+  if (status !== "APPROVED" && status !== "REJECTED") {
+    return NextResponse.json({ error: "invalid status" }, { status: 400 });
+  }
+  // §10: одобренную заявку отклонить уже нельзя — решение окончательное.
+  if (before.status === "APPROVED" && status !== "APPROVED") {
+    return NextResponse.json(
+      { error: "Заявка уже одобрена — изменить решение нельзя." },
+      { status: 409 },
+    );
+  }
+  if (before.status === status) {
+    return NextResponse.json({ ...before, bannerId: null });
+  }
+
   const upd = await db.advertisingRequest.update({
     where: { id },
     data: { status, notes, reviewedAt: new Date() },
@@ -58,6 +72,11 @@ export async function POST(req: Request) {
         partnerId: before.partnerId,
         title: before.productName,
         subtitle: before.productDescription.slice(0, 300),
+        // Ссылки на приложение из заявки переносим в баннер; href — на первую
+        // из них, чтобы клик по баннеру вёл в стор (C&B может уточнить).
+        androidUrl: before.androidUrl,
+        iosUrl: before.iosUrl,
+        href: before.androidUrl ?? before.iosUrl ?? null,
         isActive: false,
         sortOrder: 0,
       },

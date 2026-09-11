@@ -23,14 +23,15 @@
   // Не показываем внутри Telegram WebApp или если уже установлено (standalone)
   var isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator && window.navigator.standalone);
   var isTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
-  if (isStandalone || isTelegram) return;
-
-  // Проверяем, не закрывал ли пользователь в текущей сессии
-  var isDismissed = false;
+  // display-mode:standalone определяет запуск ИЗ установленного приложения, а не сам
+  // факт установки — если открыть сайт потом снова в обычной вкладке, matchMedia этого
+  // не увидит. Поэтому отдельно запоминаем установку по событию appinstalled (в т.ч.
+  // если поставили через нативную кнопку браузера, а не через наш баннер).
+  var alreadyInstalled = false;
   try {
-    isDismissed = sessionStorage.getItem('faravon_pwa_closed') === '1';
+    alreadyInstalled = localStorage.getItem('faravon_pwa_installed') === '1';
   } catch (e) {}
-  if (isDismissed) return;
+  if (isStandalone || isTelegram || alreadyInstalled) return;
 
   var deferredPrompt = window.__pwaPrompt || null;
 
@@ -41,6 +42,23 @@
     var b = document.getElementById('pwaInstallBanner');
     if(b) b.remove();
   }
+
+  // Ловим установку в любом случае (даже если баннер закрыт/не показан в этой
+  // сессии) — иначе на следующих заходах баннер продолжит предлагать установку,
+  // хотя пользователь уже поставил приложение (в т.ч. через кнопку браузера).
+  window.addEventListener('appinstalled', function(){
+    try { localStorage.setItem('faravon_pwa_installed', '1'); } catch (e) {}
+    deferredPrompt = null;
+    window.__pwaPrompt = null;
+    dismiss();
+  });
+
+  // Проверяем, не закрывал ли пользователь в текущей сессии
+  var isDismissed = false;
+  try {
+    isDismissed = sessionStorage.getItem('faravon_pwa_closed') === '1';
+  } catch (e) {}
+  if (isDismissed) return;
 
   function showBanner(type){
     if(document.getElementById('pwaInstallBanner')) return;

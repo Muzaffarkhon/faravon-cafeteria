@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
+import { normalizePhone } from "@/lib/phone";
 import type { CouponStatus } from "@prisma/client";
 
 export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
@@ -59,6 +60,43 @@ export function lookupCouponByNumber(number: string) {
       period: true,
     },
   });
+}
+
+/**
+ * Поиск действующего купона сотрудника по номеру телефона — касса партнёра
+ * (§8, без входа в систему). Работает, даже если сотрудник не знает про
+ * купон: кассир вводит только телефон.
+ *
+ * Возвращает купон в статусе ISSUED (самый свежий), ограниченный партнёром
+ * гасящего подрядчика, если он задан. `employee: null` — телефон не найден
+ * в справочнике; `employee` есть, но `coupon: null` — у сотрудника нет
+ * действующей льготы у этого партнёра.
+ */
+export async function lookupCouponByEmployeePhone(phone: string, actorPartnerId?: string | null) {
+  const norm = normalizePhone(phone);
+  if (norm.length < 9) return { employee: null, coupon: null };
+
+  const employee = await db.employee.findFirst({
+    where: { phoneNormalized: norm, archivedAt: null },
+    select: { id: true, fullName: true, department: true },
+  });
+  if (!employee) return { employee, coupon: null };
+
+  const coupon = await db.coupon.findFirst({
+    where: {
+      employeeId: employee.id,
+      status: "ISSUED",
+      ...(actorPartnerId ? { partnerId: actorPartnerId } : {}),
+    },
+    include: {
+      item: { include: { card: { include: { partner: true } } } },
+      employee: true,
+      partner: true,
+      period: true,
+    },
+    orderBy: { issuedAt: "desc" },
+  });
+  return { employee, coupon };
 }
 
 /**
@@ -139,7 +177,7 @@ export async function redeemCouponByNumber(
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_CONFIRMED_BY_PROVIDER",
-    payload: { number: coupon.number, card: coupon.item.card.title },
+    payload: { number: coupon.number, card: coupon.item.card.title, period: coupon.period.name },
   });
   return coupon;
 }

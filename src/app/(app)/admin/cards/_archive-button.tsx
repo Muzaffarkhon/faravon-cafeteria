@@ -25,7 +25,7 @@ export function CardArchiveButton({ id, archived }: { id: string; archived: bool
         {archived ? "Вернуть из архива" : "В архив"}
       </Button>
       {err && (
-        <span className="mt-1 text-[11px] font-medium text-danger" role="alert">
+        <span className="mt-1 text-xs font-medium text-danger" role="alert">
           {err}
         </span>
       )}

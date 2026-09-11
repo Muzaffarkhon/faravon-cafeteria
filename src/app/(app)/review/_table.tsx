@@ -29,6 +29,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [rejectText, setRejectText] = useState("");
   const [approveId, setApproveId] = useState<string | null>(null);
   const approveRow = rows.find((r) => r.id === approveId) ?? null;
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
 
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const allChecked = sel.size > 0 && allIds.every((id) => sel.has(id));
@@ -89,7 +90,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
               variant="success"
               size="sm"
               disabled={pending}
-              onClick={() => runBulk("approve")}
+              onClick={() => setConfirmBulkApprove(true)}
             >
               Одобрить выбранные
             </Button>
@@ -129,7 +130,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
         <Table stickyHeader>
           <thead>
             <tr>
@@ -269,6 +270,20 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
           setApproveId(null);
         }}
         onClose={() => setApproveId(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkApprove}
+        title="Одобрить заявки?"
+        message={`Одобрить выбранные позиции (${sel.size})? Сотрудникам будут выданы купоны.`}
+        confirmLabel="Одобрить"
+        tone="success"
+        busy={pending}
+        onConfirm={() => {
+          runBulk("approve");
+          setConfirmBulkApprove(false);
+        }}
+        onClose={() => setConfirmBulkApprove(false)}
       />
     </div>
   );

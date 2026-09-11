@@ -221,6 +221,7 @@ export default async function UsersPage({
                   isActive: u.isActive,
                   partnerId: u.partnerId,
                   partnerName: u.partner?.name ?? null,
+                  telegramId: u.telegramId,
                 }}
                 partners={partners}
               />

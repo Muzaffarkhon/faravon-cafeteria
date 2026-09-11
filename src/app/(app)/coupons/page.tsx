@@ -7,7 +7,6 @@ import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/c
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import {
   Badge,
-  Card,
   EmptyState,
   RowId,
   SectionTitle,
@@ -50,10 +49,20 @@ export default async function CouponsPage({
   const PAGE_SIZE = 50;
   const AWAITING_CAP = 200;
 
+  const now = new Date();
+  // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
+  // работающий по номеру телефона (промокод рассылает подрядчик).
+  const awaitingWhere = {
+    status: "APPROVED" as const,
+    coupon: null,
+    application: { is: { period: { is: { status: { not: "CLOSED" as const }, endDate: { gte: now } } } } },
+    NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
+  };
+
   const filters = { periodId, status, partnerId, employeeQuery: emp || undefined };
   const [awaiting, awaitingTotal, coupons, couponsTotal, periods, partners] = await Promise.all([
     db.applicationItem.findMany({
-      where: { status: "APPROVED", coupon: null },
+      where: awaitingWhere,
       include: {
         card: { include: { partner: true } },
         application: { include: { employee: true, period: true } },
@@ -61,7 +70,7 @@ export default async function CouponsPage({
       orderBy: { decidedAt: "asc" },
       take: AWAITING_CAP,
     }),
-    db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }),
+    db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
@@ -105,22 +114,23 @@ export default async function CouponsPage({
         {awaiting.length === 0 ? (
           <EmptyState>Нет одобренных позиций без купона.</EmptyState>
         ) : (
-          <Card>
-            <ul className="divide-y divide-line-subtle">
-              {awaiting.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="text-[0.9375rem] font-semibold text-ink">{item.card.title}</div>
-                    <div className="mt-0.5 text-sm text-ink-subtle">
-                      {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
-                      {item.application.period.name}
-                    </div>
+          <ul className="space-y-3">
+            {awaiting.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-surface p-5 shadow-sm"
+              >
+                <div className="min-w-0">
+                  <div className="text-[0.9375rem] font-bold text-ink">{item.card.title}</div>
+                  <div className="mt-0.5 text-sm text-ink-subtle">
+                    {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
+                    {item.application.period.name}
                   </div>
-                  <CreateCouponButton itemId={item.id} />
-                </li>
-              ))}
-            </ul>
-          </Card>
+                </div>
+                <CreateCouponButton itemId={item.id} />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
@@ -169,7 +179,7 @@ export default async function CouponsPage({
         {coupons.length === 0 ? (
           <EmptyState>Купонов по заданным условиям нет.</EmptyState>
         ) : (
-          <Card className="overflow-hidden">
+          <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
             <Table stickyHeader>
               <thead>
                 <tr>
@@ -186,6 +196,8 @@ export default async function CouponsPage({
                 {coupons.map((c) => {
                   const overdue = isCouponOverdue(c);
                   const displayStatus = overdue ? "EXPIRED" : c.status;
+                  const periodEnded = c.period.status === "CLOSED" || c.period.endDate < now;
+                  const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
                   return (
                     <tr key={c.id}>
                       <td data-numeric>
@@ -197,7 +209,12 @@ export default async function CouponsPage({
                         {c.item.card.title}
                         <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                       </td>
-                      <td>{c.period.name}</td>
+                      <td>
+                        {c.period.name}
+                        {periodEnded && (
+                          <span className="ml-1.5 text-xs font-semibold text-warning-strong">завершён</span>
+                        )}
+                      </td>
                       <td data-numeric>
                         {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
                       </td>
@@ -208,7 +225,14 @@ export default async function CouponsPage({
                       </td>
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {c.status === "CREATED" && !overdue && <IssueCouponButton couponId={c.id} />}
+                          {c.status === "CREATED" &&
+                            (phonePromo ? (
+                              <span className="text-xs text-ink-subtle">по номеру телефона</span>
+                            ) : overdue ? (
+                              <span className="text-xs text-ink-subtle">период завершён</span>
+                            ) : (
+                              <IssueCouponButton couponId={c.id} />
+                            ))}
                           <DeleteCouponButton couponId={c.id} couponNumber={c.number} />
                         </div>
                       </td>
@@ -217,7 +241,7 @@ export default async function CouponsPage({
                 })}
               </tbody>
             </Table>
-          </Card>
+          </div>
         )}
 
         {pages > 1 && (

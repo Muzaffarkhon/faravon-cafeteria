@@ -43,8 +43,15 @@ function parse(formData: FormData) {
 
   if (startDate > endDate) throw new Error("Начало периода позже его конца.");
   if (windowStart > windowEnd) throw new Error("Начало окна выбора позже его конца.");
-  if (windowStart < startDate || windowEnd > endDate) {
-    throw new Error("Окно выбора должно находиться внутри периода.");
+  // §2: окно выбора открывается ДО начала периода (обычно в предыдущем месяце).
+  // Требуем лишь, чтобы окно не выходило за конец периода и не открывалось
+  // абсурдно рано (более чем за 60 дней до старта).
+  if (windowEnd > endDate) {
+    throw new Error("Окно выбора не должно заканчиваться позже конца периода.");
+  }
+  const DAY = 24 * 60 * 60 * 1000;
+  if (startDate.getTime() - windowStart.getTime() > 60 * DAY) {
+    throw new Error("Окно выбора открывается более чем за 60 дней до начала периода.");
   }
 
   const maxSelections = Number.parseInt(String(formData.get("maxSelections") ?? "4"), 10);
@@ -129,6 +136,19 @@ export async function setPeriodStatus(
       oldValue: { status: period.status },
       newValue: { status },
     });
+
+    // §6: при закрытии периода не набравшие порог групповые льготы переносим
+    // в следующий период. Сбой переноса не отменяет закрытие.
+    if (status === "CLOSED") {
+      try {
+        const { carryUnfilledGroupSelections } = await import("@/lib/group-rollover");
+        const res = await carryUnfilledGroupSelections(id, s.user.id);
+        console.log(`[period:close] перенос групповых льгот:`, res);
+      } catch (e) {
+        console.error("[period:close] ошибка переноса групповых льгот:", e);
+      }
+    }
+
     revalidatePath("/admin/periods");
     revalidatePath("/");
     revalidatePath("/applications");

@@ -5,9 +5,18 @@
  * Принимает Prisma-клиент параметром, чтобы каждая сторона передавала свой.
  */
 import type { PrismaClient } from "@prisma/client";
+import QRCode from "qrcode";
 import { formatNotificationText } from "./notification-format";
 
 const TG_API = "https://api.telegram.org";
+
+const escHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+async function tgOk(r: Response): Promise<boolean> {
+  const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
+  return !!data?.ok;
+}
 
 async function sendTelegram(token: string, chatId: string, text: string): Promise<boolean> {
   try {
@@ -22,8 +31,50 @@ async function sendTelegram(token: string, chatId: string, text: string): Promis
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),
     });
-    const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
-    return !!data?.ok;
+    return await tgOk(r);
+  } catch {
+    return false;
+  }
+}
+
+/** Сообщение с моноширинным блоком (§11: промокод, который удобно копировать). */
+async function sendTelegramHtml(token: string, chatId: string, html: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML" }),
+    });
+    return await tgOk(r);
+  } catch {
+    return false;
+  }
+}
+
+/** QR-картинка купона вместо текстового кода (§11). */
+async function sendTelegramQr(
+  token: string,
+  chatId: string,
+  qrText: string,
+  caption: string,
+): Promise<boolean> {
+  try {
+    const png = await QRCode.toBuffer(qrText, {
+      type: "png",
+      errorCorrectionLevel: "M",
+      width: 512,
+      margin: 2,
+    });
+    const form = new FormData();
+    form.append("chat_id", chatId);
+    form.append("caption", caption);
+    form.append(
+      "photo",
+      new Blob([new Uint8Array(png)], { type: "image/png" }),
+      "coupon-qr.png",
+    );
+    const r = await fetch(`${TG_API}/bot${token}/sendPhoto`, { method: "POST", body: form });
+    return await tgOk(r);
   } catch {
     return false;
   }
@@ -60,13 +111,22 @@ export async function deliverTelegramNotifications(opts: {
       deliveredAt: null,
       channel: "TELEGRAM",
       sentAt: { gt: new Date(Date.now() - STALE_MS) },
-      user: { is: { employee: { is: { telegramId: { not: null } } } } },
+      // Адресат в Telegram: сотрудник с привязкой ЛИБО учётка без Employee
+      // (подрядчик, C&B) с собственным User.telegramId (§11/§12).
+      user: {
+        is: {
+          OR: [
+            { employee: { is: { telegramId: { not: null } } } },
+            { telegramId: { not: null } },
+          ],
+        },
+      },
     },
     select: {
       id: true,
       event: true,
       payload: true,
-      user: { select: { employee: { select: { telegramId: true } } } },
+      user: { select: { telegramId: true, employee: { select: { telegramId: true } } } },
     },
     orderBy: { sentAt: "asc" },
     take: limit,
@@ -77,7 +137,7 @@ export async function deliverTelegramNotifications(opts: {
   let skipped = 0;
 
   for (const n of pending) {
-    const tgId = n.user.employee?.telegramId;
+    const tgId = n.user.telegramId ?? n.user.employee?.telegramId;
     if (!tgId) {
       skipped++;
       continue;
@@ -94,9 +154,28 @@ export async function deliverTelegramNotifications(opts: {
       skipped++;
       continue;
     }
-    const text =
-      "🔔 " + formatNotificationText(n.event, n.payload as Record<string, unknown> | null, templates);
-    const ok = await sendTelegram(token, tgId, text);
+    const payload = n.payload as Record<string, unknown> | null;
+    const body = formatNotificationText(n.event, payload, templates);
+
+    let ok: boolean;
+    if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
+      // §11: вместо текстового кода — QR-картинка купона. В подписи — только
+      // название льготы (код сотруднику больше не нужен, партнёр сканирует QR).
+      const card = typeof payload.card === "string" ? payload.card : "";
+      const caption = card
+        ? `🔔 Купон по льготе «${card}» готов. Предъявите QR партнёру.`
+        : "🔔 Купон готов. Предъявите QR партнёру.";
+      ok = await sendTelegramQr(token, tgId, payload.number, caption);
+    } else if (n.event === "TAXI_PROMO_CODE" && typeof payload?.promo === "string" && payload.promo) {
+      // §11: промокод моноширинным блоком, чтобы удобно копировать.
+      const promo = payload.promo;
+      let html = "🔔 " + escHtml(body);
+      html = html.split(escHtml(promo)).join(`<code>${escHtml(promo)}</code>`);
+      ok = await sendTelegramHtml(token, tgId, html);
+    } else {
+      ok = await sendTelegram(token, tgId, "🔔 " + body);
+    }
+
     if (ok) {
       delivered++;
     } else {

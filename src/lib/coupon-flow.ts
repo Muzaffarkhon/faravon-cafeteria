@@ -13,10 +13,21 @@ import { assertTransition } from "@/lib/application-workflow";
 export async function formCouponForItem(itemId: string, actorId: string) {
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
-    include: { coupon: true, card: true, application: { include: { period: true } } },
+    include: {
+      coupon: true,
+      card: { include: { partner: { select: { deliveryMode: true } } } },
+      application: { include: { period: true } },
+    },
   });
   if (!item) throw new Error("Позиция не найдена.");
   if (item.coupon) return item.coupon;
+  // Партнёр работает по номеру телефона (напр. такси) — купон/QR не нужен,
+  // промокод рассылает подрядчик через раздел «Промокоды».
+  if (item.card.partner?.deliveryMode === "PHONE_PROMO") {
+    throw new Error(
+      "Льгота этого партнёра выдаётся по номеру телефона — купон и QR не формируются. Промокод отправляет подрядчик.",
+    );
+  }
   assertTransition(item.status, "COUPON_CREATED", "C_AND_B");
 
   const number = await generateCouponNumber(item.application.period.startDate);
@@ -60,9 +71,14 @@ export async function formCouponForItem(itemId: string, actorId: string) {
 export async function issueCouponIfReady(couponId: string, actorId: string): Promise<boolean> {
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
-    include: { item: { include: { card: true } } },
+    include: {
+      item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
+      period: { select: { name: true } },
+    },
   });
   if (!coupon || coupon.status !== "CREATED") return false;
+  // Партнёр «по номеру телефона» — QR не выдаём (защита для ранее заведённых купонов).
+  if (coupon.item.card.partner?.deliveryMode === "PHONE_PROMO") return false;
 
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
@@ -96,7 +112,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { card: coupon.item.card.title, number: coupon.number },
+    payload: { card: coupon.item.card.title, number: coupon.number, period: coupon.period.name },
     deferFlush: true,
   });
   return true;

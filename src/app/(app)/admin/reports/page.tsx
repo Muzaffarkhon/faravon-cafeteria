@@ -60,7 +60,7 @@ function BarList({
 }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
-    <Card className="p-4">
+    <div className="rounded-[20px] bg-surface p-6 shadow-sm sm:p-7">
       <div className="flex items-baseline justify-between">
         <h3 className="text-sm font-bold text-ink">{title}</h3>
         <span className="text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
@@ -68,22 +68,24 @@ function BarList({
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-ink-subtle">Нет данных.</p>
       ) : (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="mt-4 space-y-3.5">
           {rows.map((r) => (
-            <li key={r.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
-              <span className="truncate text-sm text-ink">{r.label}</span>
-              <span className="text-sm font-semibold tabular-nums text-ink">{r.n}</span>
-              <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
-                <span
-                  className="block h-full rounded-full bg-primary/80"
+            <li key={r.label}>
+              <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
+                <span className="truncate font-semibold text-ink">{r.label}</span>
+                <span className="shrink-0 tabular-nums text-ink-muted">{r.n}</span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-surface-sunken">
+                <div
+                  className="h-full rounded-full bg-primary"
                   style={{ width: `${(r.n / max) * 100}%` }}
                 />
-              </span>
+              </div>
             </li>
           ))}
         </ul>
       )}
-    </Card>
+    </div>
   );
 }
 

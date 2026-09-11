@@ -60,7 +60,7 @@ export default async function AdvertisingPage() {
                 <tr>
                   <th>ID</th>
                   <th>Продукт</th>
-                  <th>Бюджет</th>
+                  <th>Приложение</th>
                   <th>Статус</th>
                   <th>Подана</th>
                 </tr>
@@ -75,8 +75,8 @@ export default async function AdvertisingPage() {
                       <div className="font-medium">{r.productName}</div>
                       <div className="text-xs text-ink-subtle line-clamp-1">{r.productDescription}</div>
                     </td>
-                    <td className="text-ink-muted" data-numeric>
-                      {r.budget ?? "—"}
+                    <td className="text-ink-muted text-xs">
+                      {[r.androidUrl && "Android", r.iosUrl && "iOS"].filter(Boolean).join(" · ") || "—"}
                     </td>
                     <td>
                       <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>

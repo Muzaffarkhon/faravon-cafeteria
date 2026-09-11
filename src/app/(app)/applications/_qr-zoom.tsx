@@ -30,7 +30,7 @@ export function QrZoom({ svg, number }: { svg: string; number: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Увеличить QR-код"
-        className="shrink-0 rounded-lg bg-white p-2 shadow-xs transition-transform hover:scale-[1.03] [&>svg]:block [&>svg]:h-[108px] [&>svg]:w-[108px]"
+        className="shrink-0 cursor-pointer rounded-lg bg-white p-2 shadow-xs transition-transform hover:scale-[1.03] [&>svg]:block [&>svg]:h-[108px] [&>svg]:w-[108px]"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
       {open && (
@@ -56,7 +56,7 @@ export function QrZoom({ svg, number }: { svg: string; number: string }) {
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Закрыть"
-            className="absolute right-5 top-5 rounded-lg bg-white/90 p-2 text-ink shadow hover:bg-white"
+            className="absolute right-5 top-5 cursor-pointer rounded-lg bg-white/90 p-2 text-ink shadow hover:bg-white"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>

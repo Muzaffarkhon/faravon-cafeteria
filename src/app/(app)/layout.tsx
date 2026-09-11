@@ -5,6 +5,7 @@ import { ROLE_LABELS, can } from "@/lib/rbac";
 import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
+import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
 import { AppShell, type NavGroup, type NavItem } from "./_shell";
 
 const ICONS = {
@@ -40,14 +41,60 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canDecide = can(roles, "applications.decide");
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
+  const canConfirmCoupons = can(roles, "coupons.confirm");
   const canManageFeedback = can(roles, "feedback.manage");
+  const canBroadcastPromo = can(roles, "promo.broadcast");
+  const partnerId = session.user.partnerId;
+  const partner = partnerId
+    ? await db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
+    : null;
+  const isTaxiContractor = canBroadcastPromo && !!partnerId && partner?.deliveryMode === "PHONE_PROMO";
 
-  const [pendingReview, pendingCoupons, pendingAdRequests, pendingFeedback] = await Promise.all([
+  const [
+    pendingReview,
+    pendingCoupons,
+    pendingAdRequests,
+    myCouponsReady,
+    partnerCouponsReady,
+    pendingFeedback,
+  ] = await Promise.all([
     canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
     canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
     canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
+    session.employee
+      ? db.coupon.count({ where: { employeeId: session.employee.id, status: "ISSUED" } })
+      : 0,
+    canConfirmCoupons && partnerId
+      ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
+      : 0,
     canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
   ]);
+
+  // Имя рядом с кнопкой профиля: «Фамилия И.» у сотрудника, иначе — логин.
+  const displayName = (() => {
+    if (session.employee?.fullName) {
+      const parts = session.employee.fullName.trim().split(/\s+/);
+      const surname = parts[0] ?? "";
+      const initial = parts[1]?.[0];
+      return initial ? `${surname} ${initial}.` : surname;
+    }
+    return session.user.login;
+  })();
+
+  // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
+  let selectionStat: { used: number; drafts: number; max: number } | null = null;
+  if (session.employee) {
+    const sctx = await resolveSelectionContext();
+    if (sctx.targetPeriod) {
+      const appw = await getApplicationWithItems(session.employee.id, sctx.targetPeriod.id);
+      const its = appw?.items ?? [];
+      selectionStat = {
+        used: its.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status)).length,
+        drafts: its.filter((i) => i.status === "DRAFT").length,
+        max: sctx.targetPeriod.maxSelections,
+      };
+    }
+  }
 
   const groups: NavGroup[] = [];
   const add = (gid: string, glabel: string, item: NavItem) => {
@@ -61,7 +108,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (session.employee) {
     add("cabinet", "Кабинет", { href: "/", label: "Обзор", icon: ICONS.overview });
-    add("cabinet", "Кабинет", { href: "/applications", label: "Мои заявки и купоны", icon: ICONS.applications });
+    add("cabinet", "Кабинет", {
+      href: "/applications",
+      label: "Мои заявки и купоны",
+      icon: ICONS.applications,
+      badge: myCouponsReady || undefined,
+    });
     add("cabinet", "Кабинет", { href: "/feedback", label: "Обратная связь", icon: ICONS.inbox });
     add("cabinet", "Кабинет", { href: "/gamification", label: "Геймификация", icon: ICONS.gamification, soon: true });
   }
@@ -69,9 +121,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     add("work", "Работа", { href: "/review", label: "Согласование", icon: ICONS.review, badge: pendingReview || undefined });
   if (canManageCoupons)
     add("work", "Работа", { href: "/coupons", label: "Купоны", icon: ICONS.coupons, badge: pendingCoupons || undefined });
-  if (can(roles, "coupons.confirm"))
-    add("work", "Работа", { href: "/provider", label: "Активация купонов", icon: ICONS.scan });
-  if (can(roles, "coupons.confirm") && session.user.partnerId)
+  if (isTaxiContractor)
+    add("work", "Работа", {
+      href: "/provider/taxi",
+      label: "Промокоды",
+      icon: ICONS.coupons,
+    });
+  else if (canConfirmCoupons)
+    add("work", "Работа", {
+      href: "/provider",
+      label: "Касса партнёра",
+      icon: ICONS.scan,
+      badge: partnerCouponsReady || undefined,
+    });
+  if (canConfirmCoupons && partnerId)
     add("work", "Работа", { href: "/advertising", label: "Реклама", icon: ICONS.ad });
 
   if (can(roles, "cards.manage"))
@@ -116,6 +179,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppShell
       groups={groups}
       roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
+      displayName={displayName}
+      selectionStat={selectionStat}
       backdrop={
         <>
           <PetalDrift fixed />

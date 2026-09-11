@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { Period } from "@prisma/client";
 import { ACTIVE_FOR_LIMIT } from "@/lib/application-workflow";
 
 /** Текущий период с открытым окном выбора (ТЗ v2 §5.7). */
@@ -13,6 +14,89 @@ export async function getCurrentPeriod() {
     const windowOpen = p.windowStart <= now && p.windowEnd >= now;
     return { ...p, windowOpen };
   });
+}
+
+// Таджикистан: UTC+5, без переходов на летнее время (как в admin/periods/actions.ts).
+const TZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+/** Инстант для местной даты Душанбе (m — 0-based). */
+function dushanbeInstant(y: number, m: number, day: number, h = 0, min = 0): Date {
+  return new Date(Date.UTC(y, m, day, h, min) - TZ_OFFSET_MS);
+}
+
+/** Календарные Y/M по времени Душанбе. */
+function dushanbeYM(d: Date): { y: number; m: number } {
+  const local = new Date(d.getTime() + TZ_OFFSET_MS);
+  return { y: local.getUTCFullYear(), m: local.getUTCMonth() };
+}
+
+/**
+ * Окно отмены выбора (§6): сотрудник может отменить уже отправленную позицию
+ * только с 25-го числа месяца, предшествующего началу периода, и до старта периода.
+ */
+export function cancelWindow(period: Pick<Period, "startDate">): { start: Date; end: Date } {
+  const { y, m } = dushanbeYM(period.startDate);
+  return { start: dushanbeInstant(y, m - 1, 25), end: period.startDate };
+}
+
+export function isWithinCancelWindow(
+  period: Pick<Period, "startDate">,
+  now: Date = new Date(),
+): boolean {
+  const w = cancelWindow(period);
+  return now >= w.start && now < w.end;
+}
+
+export type SelectionContext = {
+  /** Период, чьё окно выбора открыто сейчас (status OPEN). */
+  windowPeriod: (Period & { windowOpen: boolean }) | null;
+  /** Период, в который фактически попадёт новый выбор. */
+  targetPeriod: Period | null;
+  windowOpen: boolean;
+  /** true — окно открыто, но период уже начался: выбор уходит в следующий месяц. */
+  rolledOver: boolean;
+  /** true — rolledOver, но следующий период ещё не заведён в системе. */
+  missingNextPeriod: boolean;
+};
+
+/**
+ * Куда попадёт выбор сотрудника (§2): пока период ещё не начался — в него самого;
+ * если окно всё ещё открыто, а период уже стартовал — в следующий период.
+ */
+export async function resolveSelectionContext(now: Date = new Date()): Promise<SelectionContext> {
+  const windowPeriod = await getCurrentPeriod();
+  if (!windowPeriod) {
+    return {
+      windowPeriod: null,
+      targetPeriod: null,
+      windowOpen: false,
+      rolledOver: false,
+      missingNextPeriod: false,
+    };
+  }
+
+  if (now < windowPeriod.startDate) {
+    return {
+      windowPeriod,
+      targetPeriod: windowPeriod,
+      windowOpen: windowPeriod.windowOpen,
+      rolledOver: false,
+      missingNextPeriod: false,
+    };
+  }
+
+  // Период уже начался — новый выбор переносим на следующий.
+  const next = await db.period.findFirst({
+    where: { startDate: { gt: windowPeriod.startDate }, status: { not: "CLOSED" } },
+    orderBy: { startDate: "asc" },
+  });
+  return {
+    windowPeriod,
+    targetPeriod: next,
+    windowOpen: windowPeriod.windowOpen,
+    rolledOver: true,
+    missingNextPeriod: !next,
+  };
 }
 
 export async function getOrCreateApplication(employeeId: string, periodId: string) {

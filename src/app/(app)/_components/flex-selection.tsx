@@ -18,6 +18,8 @@ type Card = {
   category: string | null;
   minParticipants: number;
   groupCount: number;
+  /** льгота партнёра со своей системой (такси): промокод уходит на номер телефона */
+  phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
   lockedStatus: string | null;
 };
@@ -29,6 +31,7 @@ export function FlexSelection({
   maxSelections,
   windowOpen,
   hasSubmittable,
+  defaultPhone,
 }: {
   cards: Card[];
   selectedIds: string[];
@@ -36,6 +39,7 @@ export function FlexSelection({
   maxSelections: number;
   windowOpen: boolean;
   hasSubmittable: boolean;
+  defaultPhone: string;
 }) {
   const mounted = useSyncExternalStore(
     emptySubscribe,
@@ -46,7 +50,15 @@ export function FlexSelection({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  // Ввод номера телефона для PHONE_PROMO-льготы (id карточки, для которой открыт ввод).
+  const [phoneFor, setPhoneFor] = useState<string | null>(null);
+  const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
+
+  // Портал в <body> доступен только после монтирования на клиенте.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
   useEffect(() => {
@@ -67,19 +79,31 @@ export function FlexSelection({
   const submitting = busyId === "submit";
   const barVisible = windowOpen && hasSubmittable && draftCount > 0;
 
-  function onToggle(id: string) {
+  function onToggle(id: string, phone?: string) {
     setError(null);
     setBusyId(id);
     start(async () => {
       try {
-        const r = await toggleSelection(id);
+        const r = await toggleSelection(id, phone);
         if (r?.error) setError(r.error);
+        else setPhoneFor(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ошибка");
       } finally {
         setBusyId(null);
       }
     });
+  }
+
+  // Нажатие «Выбрать» на карточке: для PHONE_PROMO сначала спросить номер телефона.
+  function onSelectClick(c: Card, isSel: boolean) {
+    if (isSel) return onToggle(c.id);
+    if (c.phonePromo) {
+      setPhoneValue(defaultPhone);
+      setPhoneFor((v) => (v === c.id ? null : c.id));
+      return;
+    }
+    onToggle(c.id);
   }
 
   function onSubmit() {
@@ -99,22 +123,6 @@ export function FlexSelection({
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <p className="text-base text-ink-muted" data-numeric>
-          Выбрано{" "}
-          <span className="font-semibold text-ink">
-            {usedCount}
-          </span>{" "}
-          из {maxSelections}
-        </p>
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-sunken">
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.min(100, (usedCount / maxSelections) * 100)}%` }}
-          />
-        </div>
-      </div>
-
       {error && (
         <p className="mb-3 rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
           {error}
@@ -182,7 +190,9 @@ export function FlexSelection({
                 <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
                 {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
 
-                {c.condition && <p className="mt-2 text-sm leading-6 text-ink-muted">{c.condition}</p>}
+                {c.condition && (
+                  <p className="mt-2 text-sm font-medium leading-6 text-ink">{c.condition}</p>
+                )}
 
               {c.minParticipants > 1 &&
                 (() => {
@@ -209,7 +219,7 @@ export function FlexSelection({
                         />
                       </div>
                       {!done && (
-                        <p className="mt-1 text-[11px] text-ink-subtle">
+                        <p className="mt-1 text-xs text-ink-subtle">
                           Скидка заработает, когда льготу выберут {c.minParticipants} сотрудников.
                         </p>
                       )}
@@ -227,30 +237,70 @@ export function FlexSelection({
                           : `Уже выбрано в этом периоде · ${ITEM_STATUS_LABELS[c.lockedStatus as keyof typeof ITEM_STATUS_LABELS] ?? c.lockedStatus}`}
                     </p>
                   ) : windowOpen && c.isActive ? (
-                    <Button
-                      variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
-                      onClick={() => onToggle(c.id)}
-                      disabled={pending || atLimit}
-                      loading={busyId === c.id}
-                      fullWidth
-                      className="mt-4"
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        {isSel ? (
-                          <>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                            В выборе — убрать
-                          </>
-                        ) : atLimit ? (
-                          "Лимит исчерпан"
-                        ) : (
-                          <>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                            Выбрать
-                          </>
-                        )}
-                      </span>
-                    </Button>
+                    <>
+                      <Button
+                        variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
+                        onClick={() => onSelectClick(c, isSel)}
+                        disabled={pending || atLimit}
+                        loading={busyId === c.id}
+                        fullWidth
+                        className="mt-4"
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          {isSel ? (
+                            <>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                              В выборе — убрать
+                            </>
+                          ) : atLimit ? (
+                            "Лимит исчерпан"
+                          ) : c.phonePromo ? (
+                            <>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                              Выбрать · указать номер
+                            </>
+                          ) : (
+                            <>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                              Выбрать
+                            </>
+                          )}
+                        </span>
+                      </Button>
+
+                      {phoneFor === c.id && !isSel && (
+                        <div className="mt-3 rounded-lg bg-surface-muted p-3">
+                          <label
+                            htmlFor={`phone-${c.id}`}
+                            className="text-sm font-medium text-ink-muted"
+                          >
+                            Номер для промокода на поездку
+                          </label>
+                          <input
+                            id={`phone-${c.id}`}
+                            type="tel"
+                            inputMode="tel"
+                            value={phoneValue}
+                            onChange={(e) => setPhoneValue(e.target.value)}
+                            placeholder="+992 XX XXX XX XX"
+                            className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
+                          />
+                          <p className="mt-1 text-xs text-ink-subtle">
+                            По умолчанию — номер из профиля. Промокод придёт на указанный номер.
+                          </p>
+                          <Button
+                            onClick={() => onToggle(c.id, phoneValue.trim())}
+                            disabled={pending || phoneValue.trim().length < 5}
+                            loading={busyId === c.id}
+                            size="sm"
+                            fullWidth
+                            className="mt-2"
+                          >
+                            Подтвердить номер и выбрать
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -289,7 +339,9 @@ export function FlexSelection({
         );
       })()}
 
-      {/* Неподвижная панель подтверждения — как корзина, снизу справа на десктопе, над нижним меню на мобильных. */}
+      {/* Неподвижная панель подтверждения — как корзина, снизу справа на десктопе, над нижним меню
+          на мобильных. Рендерится порталом в <body>: внутри контента родитель с transform
+          (.animate-page) создаёт containing block и fixed «падал» вниз страницы (§1). */}
       {windowOpen &&
         mounted &&
         createPortal(

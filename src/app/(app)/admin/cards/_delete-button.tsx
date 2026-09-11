@@ -16,7 +16,7 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
         Удалить
       </Button>
       {error && (
-        <span className="mt-1 max-w-[220px] text-right text-[11px] font-medium text-danger" role="alert">
+        <span className="mt-1 max-w-[220px] text-right text-xs font-medium text-danger" role="alert">
           {error}
         </span>
       )}

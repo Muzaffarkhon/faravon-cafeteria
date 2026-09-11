@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui";
+import { Button, ConfirmDialog } from "@/components/ui";
 import { issueCode, unlinkTelegram } from "./actions";
 
 export function AccessRowActions({
@@ -14,6 +14,21 @@ export function AccessRowActions({
   const [pending, start] = useTransition();
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  function doUnlink() {
+    setError(null);
+    start(async () => {
+      try {
+        const r = await unlinkTelegram(employeeId);
+        if (r?.error) setError(r.error);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ошибка");
+      } finally {
+        setConfirming(false);
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -40,31 +55,25 @@ export function AccessRowActions({
           </Button>
         )}
         {linked && (
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={pending}
-            onClick={() => {
-              if (!confirm("Сбросить привязку Telegram у сотрудника?")) return;
-              setError(null);
-              start(async () => {
-                try {
-                  const r = await unlinkTelegram(employeeId);
-                  if (r?.error) setError(r.error);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Ошибка");
-                }
-              });
-            }}
-          >
+          <Button variant="danger" size="sm" disabled={pending} onClick={() => setConfirming(true)}>
             Сбросить Telegram
           </Button>
         )}
       </div>
       {error && (
-        <span className="text-[11px] font-medium text-danger" role="alert">
+        <span className="text-xs font-medium text-danger" role="alert">
           {error}
         </span>
+      )}
+      {confirming && (
+        <ConfirmDialog
+          title="Сбросить Telegram?"
+          message="Привязка Telegram у сотрудника будет сброшена — потребуется код для повторной идентификации."
+          confirmLabel="Сбросить"
+          pending={pending}
+          onConfirm={doUnlink}
+          onCancel={() => setConfirming(false)}
+        />
       )}
     </div>
   );

@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ROLE_LABELS } from "@/lib/rbac";
-import { Card, SectionTitle } from "@/components/ui";
+import { SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
-import { ContactEditor, TelegramLink } from "./_contacts";
+import { ContactEditor, TelegramLink, ServiceTelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
 import { ThemeToggle } from "./_theme-toggle";
 
@@ -46,14 +46,11 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          Учётная запись
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">Профиль</h1>
+      <header>
+        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">Профиль</h1>
       </header>
 
-      <Card className="p-6">
+      <div className="rounded-[18px] bg-surface p-6 shadow-sm">
         <dl className="grid gap-x-8 gap-y-3.5 text-[0.9375rem] sm:grid-cols-[170px_1fr]">
           {rows.map((r) => (
             <div key={r.k} className="contents">
@@ -62,38 +59,42 @@ export default async function ProfilePage() {
             </div>
           ))}
         </dl>
-      </Card>
+      </div>
 
-      <Card className="p-6">
+      <div className="rounded-[18px] bg-surface p-6 shadow-sm">
         <SectionTitle className="text-lg">Оформление</SectionTitle>
         <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
           Тема интерфейса. «Системная» следует настройке устройства.
         </p>
         <ThemeToggle />
-      </Card>
+      </div>
 
-      {employee && (
-        <Card className="p-6">
-          <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
-          <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-            Телефон и привязка к Telegram-боту нужны для входа и уведомлений.
-          </p>
-          <ContactEditor phone={employee.phone} />
-          <div className="mt-5 border-t border-line-subtle pt-4">
-            <TelegramLink linked={!!employee.telegramId} />
-          </div>
-        </Card>
-      )}
+      <div className="rounded-[18px] bg-surface p-6 shadow-sm">
+        <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
+        <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
+          Привязка к Telegram-боту нужна для входа и уведомлений.
+        </p>
+        {employee ? (
+          <>
+            <ContactEditor phone={employee.phone} />
+            <div className="mt-5 border-t border-line-subtle pt-4">
+              <TelegramLink linked={!!employee.telegramId} />
+            </div>
+          </>
+        ) : (
+          <ServiceTelegramLink linked={!!user.telegramId} />
+        )}
+      </div>
 
-      <Card className="p-6">
+      <div className="rounded-[18px] bg-surface p-6 shadow-sm">
         <SectionTitle className="text-lg">Смена пароля</SectionTitle>
         <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
           Укажите текущий пароль. После смены вход на других устройствах завершается.
         </p>
         <ChangePasswordForm />
-      </Card>
+      </div>
 
-      <Card className="space-y-3 p-5">
+      <div className="space-y-3 rounded-[18px] bg-surface p-5 shadow-sm">
         <SectionTitle>Сессии и недавние входы</SectionTitle>
         {recentLogins.length > 0 ? (
           <ul className="divide-y divide-line-subtle text-sm">
@@ -110,7 +111,7 @@ export default async function ProfilePage() {
           <p className="text-xs text-ink-muted">Записей о входах пока нет.</p>
         )}
         <RevokeSessionsButton />
-      </Card>
+      </div>
     </div>
   );
 }

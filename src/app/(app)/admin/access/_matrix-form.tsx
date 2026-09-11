@@ -47,7 +47,7 @@ export function MatrixForm({ allowed }: { allowed: Record<Permission, Role[]> })
               <tr key={p}>
                 <td className="px-4 py-2 text-ink">
                   {PERMISSION_LABELS[p]}
-                  <span className="ml-1.5 font-mono text-[11px] text-ink-subtle">{p}</span>
+                  <span className="ml-1.5 font-mono text-xs text-ink-subtle">{p}</span>
                 </td>
                 {ALL_ROLES.map((r) => (
                   <td key={r} className="px-4 py-2 text-center">

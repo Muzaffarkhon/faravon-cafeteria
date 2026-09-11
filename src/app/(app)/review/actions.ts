@@ -8,21 +8,40 @@ import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { formCouponForItem, issueCouponIfReady, issueGroupBacklog } from "@/lib/coupon-flow";
+import { notifyTaxiContractorOnApprove } from "@/lib/taxi";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
+type ApprovedItem = {
+  id: string;
+  cardId: string;
+  contactPhone: string | null;
+  application: {
+    periodId: string;
+    employee: { fullName: string; phone: string | null };
+    period: { name: string };
+  };
+  card: { title: string; partnerId: string | null; minParticipants: number; partner: { deliveryMode: string } | null };
+};
+
 /**
- * После одобрения позиции сразу формируем купон и выдаём его, если готово:
- * обычная льгота — сразу; групповая — только когда набрана группа (плюс добор
- * ранее сформированных купонов этой карточки).
+ * После одобрения позиции: для льгот партнёра с deliveryMode = PHONE_PROMO
+ * (такси) купон не формируется — подрядчику уходит уведомление с номером
+ * телефона (§4). Для остальных — обычный поток: формируем и выдаём купон
+ * (групповую — когда набрана группа + добор ранее сформированных).
  */
-async function issueAfterApprove(
-  item: { id: string; cardId: string; application: { periodId: string } },
-  minParticipants: number,
-  actorId: string,
-) {
+async function issueAfterApprove(item: ApprovedItem, actorId: string) {
+  if (item.card.partner?.deliveryMode === "PHONE_PROMO") {
+    await notifyTaxiContractorOnApprove({
+      id: item.id,
+      contactPhone: item.contactPhone,
+      card: { title: item.card.title, partnerId: item.card.partnerId },
+      application: { employee: item.application.employee, period: item.application.period },
+    });
+    return;
+  }
   const coupon = await formCouponForItem(item.id, actorId);
   await issueCouponIfReady(coupon.id, actorId);
-  if (minParticipants > 1) {
+  if (item.card.minParticipants > 1) {
     await issueGroupBacklog(item.cardId, item.application.periodId, actorId);
   }
 }
@@ -32,7 +51,15 @@ async function decideContext(itemId: string) {
   assertCan(s.roles, "applications.decide");
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
-    include: { application: true, card: true },
+    include: {
+      application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
+      card: { include: { partner: { select: { deliveryMode: true } } } },
+    },
   });
   if (!item) throw new Error("Позиция не найдена.");
   // Разделение полномочий: согласующий не решает по своей собственной заявке.
@@ -75,8 +102,10 @@ async function approveItemImpl(itemId: string) {
     });
     await notifyEmployee({
       employeeId: item.application.employeeId,
-      event: "ITEM_APPROVED",
-      payload: { card: item.card.title },
+      // Партнёр «по номеру телефона» — сотруднику не про купон/QR, а про промокод от партнёра.
+      event:
+        item.card.partner?.deliveryMode === "PHONE_PROMO" ? "TAXI_APPROVED_EMPLOYEE" : "ITEM_APPROVED",
+      payload: { card: item.card.title, period: item.application.period.name },
       deferFlush: true,
     });
   }
@@ -90,7 +119,7 @@ async function approveItemImpl(itemId: string) {
   // Сбой выпуска купона не отменяет одобрение: позиция остаётся APPROVED,
   // а сообщение подсказывает повторить.
   try {
-    await issueAfterApprove(item, item.card.minParticipants, session.user.id);
+    await issueAfterApprove(item, session.user.id);
   } catch (e) {
     flushTelegram();
     revalidate();
@@ -134,7 +163,7 @@ async function rejectItemImpl(itemId: string, comment: string) {
   await notifyEmployee({
     employeeId: item.application.employeeId,
     event: "ITEM_REJECTED",
-    payload: { card: item.card.title, comment: trimmed },
+    payload: { card: item.card.title, comment: trimmed, period: item.application.period.name },
   });
 
   revalidatePath("/review");
@@ -156,7 +185,15 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
     try {
       const item = await db.applicationItem.findUnique({
         where: { id },
-        include: { application: true, card: true },
+        include: {
+          application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
+          card: { include: { partner: { select: { deliveryMode: true } } } },
+        },
       });
       if (!item) throw new Error("позиция не найдена");
       if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
@@ -184,8 +221,11 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         });
         await notifyEmployee({
           employeeId: item.application.employeeId,
-          event: "ITEM_APPROVED",
-          payload: { card: item.card.title },
+          event:
+            item.card.partner?.deliveryMode === "PHONE_PROMO"
+              ? "TAXI_APPROVED_EMPLOYEE"
+              : "ITEM_APPROVED",
+          payload: { card: item.card.title, period: item.application.period.name },
           deferFlush: true,
         });
       }
@@ -194,7 +234,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
       // по этим id до-выпустит купон идемпотентно).
       ok++;
       try {
-        await issueAfterApprove(item, item.card.minParticipants, s.user.id);
+        await issueAfterApprove(item, s.user.id);
       } catch (e) {
         errors.push(
           `${id.slice(-6)}: одобрено, но купон не сформирован — ${
@@ -229,7 +269,15 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
     try {
       const item = await db.applicationItem.findUnique({
         where: { id },
-        include: { application: true, card: true },
+        include: {
+          application: {
+            include: {
+              employee: { select: { fullName: true, phone: true } },
+              period: { select: { name: true } },
+            },
+          },
+          card: { include: { partner: { select: { deliveryMode: true } } } },
+        },
       });
       if (!item) throw new Error("позиция не найдена");
       if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
@@ -256,7 +304,7 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
       await notifyEmployee({
         employeeId: item.application.employeeId,
         event: "ITEM_REJECTED",
-        payload: { card: item.card.title, comment: trimmed },
+        payload: { card: item.card.title, comment: trimmed, period: item.application.period.name },
         deferFlush: true,
       });
       ok++;

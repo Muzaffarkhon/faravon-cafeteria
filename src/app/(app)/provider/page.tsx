@@ -10,22 +10,26 @@ export default async function ProviderPage() {
   if (!can(session.roles, "coupons.confirm")) redirect("/");
 
   const partner = session.user.partnerId
-    ? await db.partner.findUnique({ where: { id: session.user.partnerId }, select: { name: true } })
+    ? await db.partner.findUnique({
+        where: { id: session.user.partnerId },
+        select: { name: true, deliveryMode: true },
+      })
     : null;
+  // Подрядчик такси (свой поток) — QR-касса не применяется, ведём на «Промокоды».
+  if (partner?.deliveryMode === "PHONE_PROMO" && can(session.roles, "promo.broadcast")) {
+    redirect("/provider/taxi");
+  }
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          Партнёр
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
-          Активация купонов
+      <header className="space-y-1.5 text-center">
+        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
+          Проверка льготы у партнёра
         </h1>
-        <p className="text-sm text-ink-muted">
+        <p className="mx-auto max-w-sm text-sm text-ink-muted">
           {partner
-            ? `Вы активируете купоны партнёра «${partner.name}». Купоны других партнёров недоступны.`
-            : "Введите номер купона сотрудника, проверьте данные и активируйте."}
+            ? `Без входа в систему — только номер телефона. Вы активируете купоны партнёра «${partner.name}».`
+            : "Без входа в систему — только номер телефона клиента."}
         </p>
       </header>
 

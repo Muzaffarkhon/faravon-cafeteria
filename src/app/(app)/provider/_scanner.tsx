@@ -6,6 +6,10 @@ import { Button } from "@/components/ui";
 
 type Props = {
   onScan: (text: string) => void;
+  /** Сразу включить камеру, как только компонент понял, что скан возможен. */
+  autoStart?: boolean;
+  /** Скан недоступен (десктоп) или камера не запустилась — родитель показывает ручной ввод. */
+  onFallback?: () => void;
 };
 
 interface TgScan {
@@ -16,13 +20,15 @@ interface TgScan {
   closeScanQrPopup?: () => void;
 }
 
-export function CouponScanner({ onScan }: Props) {
+export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Кнопку показываем, если есть либо нативный сканер Telegram, либо getUserMedia
   // (веб-камера ноутбука для QR тоже годится). Проверку делаем после гидратации —
   // SSR про устройство не знает.
   const [canScan, setCanScan] = useState(false);
+  const [resolved, setResolved] = useState(false);
+  const autoStartedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -44,7 +50,18 @@ export function CouponScanner({ onScan }: Props) {
     const hasCamera = !!navigator.mediaDevices?.getUserMedia;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCanScan(hasTgScan || hasCamera);
+    setResolved(true);
   }, []);
+
+  // Камера-первый сценарий (§касса): как только известно, что скан возможен —
+  // сразу включаем камеру; если нет — просим родителя показать ручной ввод.
+  useEffect(() => {
+    if (!resolved || !autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    if (canScan) void start();
+    else onFallback?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved, autoStart, canScan]);
 
   async function start() {
     setError(null);
@@ -74,6 +91,7 @@ export function CouponScanner({ onScan }: Props) {
           ? "Камера недоступна в этом браузере. Введите номер вручную."
           : "Камера работает только по https. Откройте сайт по https или введите номер вручную.",
       );
+      onFallback?.();
       return;
     }
     try {
@@ -108,6 +126,7 @@ export function CouponScanner({ onScan }: Props) {
               : "Не удалось включить камеру. Введите номер вручную.",
       );
       stop();
+      onFallback?.();
     }
   }
 

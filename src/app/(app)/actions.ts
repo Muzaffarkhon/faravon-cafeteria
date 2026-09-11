@@ -10,32 +10,62 @@ import { runAction, type ActionResult } from "@/lib/action-result";
 import { notifyApprovers } from "@/lib/notify";
 import { assertTransition } from "@/lib/application-workflow";
 import {
-  getCurrentPeriod,
   getOrCreateApplication,
   getApplicationWithItems,
   countAgainstLimit,
+  resolveSelectionContext,
+  isWithinCancelWindow,
 } from "@/lib/selection";
 
 async function employeeContext() {
   const s = await requireSession();
   assertCan(s.roles, "application.select");
   if (!s.employee) throw new Error("Доступно только сотрудникам.");
-  const period = await getCurrentPeriod();
-  if (!period) throw new Error("Нет активного периода выбора.");
-  if (!period.windowOpen) throw new Error("Окно выбора закрыто.");
-  return { session: s, employee: s.employee, period };
+  const ctx = await resolveSelectionContext();
+  if (!ctx.windowPeriod) throw new Error("Нет активного периода выбора.");
+  if (!ctx.windowOpen) throw new Error("Окно выбора закрыто.");
+  if (ctx.missingNextPeriod) {
+    throw new Error(
+      "Период уже начался, а следующий ещё не заведён. Обратитесь в C&B, чтобы создать период на следующий месяц.",
+    );
+  }
+  if (!ctx.targetPeriod) throw new Error("Нет активного периода выбора.");
+  return { session: s, employee: s.employee, period: ctx.targetPeriod, rolledOver: ctx.rolledOver };
 }
 
-export async function toggleSelection(cardId: string): Promise<ActionResult> {
-  return runAction(() => toggleSelectionImpl(cardId));
+export async function toggleSelection(
+  cardId: string,
+  contactPhone?: string,
+): Promise<ActionResult> {
+  return runAction(() => toggleSelectionImpl(cardId, contactPhone));
 }
 
-async function toggleSelectionImpl(cardId: string) {
+async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
   const { session, employee, period } = await employeeContext();
 
-  const card = await db.benefitCard.findUnique({ where: { id: cardId } });
+  const card = await db.benefitCard.findUnique({
+    where: { id: cardId },
+    include: { partner: true },
+  });
   if (!card || card.block !== "FLEX") throw new Error("Некорректная карточка.");
   if (!card.isActive) throw new Error("Эта льгота пока недоступна («скоро»).");
+
+  // §такси: для льгот партнёра с режимом PHONE_PROMO промокод уходит на номер
+  // телефона. По умолчанию — номер из профиля; сотрудник может указать другой.
+  const isPhonePromo = card.partner?.deliveryMode === "PHONE_PROMO";
+  let phone: string | null = null;
+  if (isPhonePromo) {
+    const raw = (contactPhone ?? "").trim() || employee.phone || "";
+    if (!raw) {
+      throw new Error(
+        "Для этой льготы нужен номер телефона: укажите его при выборе или добавьте в профиль.",
+      );
+    }
+    if (!/^[+()\d][\d\s()-]{4,}$/.test(raw)) {
+      throw new Error("Телефон: цифры, пробелы и знаки + ( ) -, минимум 5 символов.");
+    }
+    phone = raw;
+  }
 
   const app = await getOrCreateApplication(employee.id, period.id);
   const withItems = await getApplicationWithItems(employee.id, period.id);
@@ -70,14 +100,14 @@ async function toggleSelectionImpl(cardId: string) {
           throw new Error(`Можно выбрать не более ${period.maxSelections} льгот.`);
         }
         return tx.applicationItem.create({
-          data: { applicationId: app.id, cardId, status: "DRAFT" },
+          data: { applicationId: app.id, cardId, status: "DRAFT", contactPhone: phone },
         });
       },
       { isolationLevel: "Serializable" },
     );
     await audit({ actorId: session.user.id, action: "SELECTION_ADDED", entityType: "ApplicationItem", entityId: item.id });
   }
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function submitSelection(): Promise<ActionResult> {
@@ -116,7 +146,7 @@ async function submitSelectionImpl() {
     },
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/applications");
   revalidatePath("/review");
 }
@@ -134,10 +164,17 @@ async function cancelItemImpl(itemId: string) {
   if (!item || item.application.employeeId !== employee.id || item.application.periodId !== period.id) {
     throw new Error("Позиция не найдена.");
   }
+  // §6: уже отправленную позицию можно отменить только в окне отмены —
+  // с 25-го числа до начала периода. Черновик убирается кнопкой «убрать» в любой момент.
+  if (item.status === "PENDING" && !isWithinCancelWindow(period)) {
+    throw new Error(
+      "Отменить отправленный выбор можно только с 25-го числа и до начала периода.",
+    );
+  }
   assertTransition(item.status, "CANCELLED", "EMPLOYEE");
   await db.applicationItem.update({ where: { id: itemId }, data: { status: "CANCELLED" } });
   await audit({ actorId: session.user.id, action: "ITEM_CANCELLED", entityType: "ApplicationItem", entityId: itemId });
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/applications");
 }
 

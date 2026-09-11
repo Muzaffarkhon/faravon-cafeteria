@@ -108,6 +108,15 @@ async function handle(msg: TgMessage) {
       return;
     }
 
+    if (text === "/id") {
+      await send(
+        chatId,
+        `Ваш Telegram ID: <code>${telegramId}</code>\n` +
+          "Передайте его администратору для привязки уведомлений к учётной записи.",
+      );
+      return;
+    }
+
     if (text.startsWith("/code")) {
       const code = text.replace(/^\/code@?\S*/, "").trim();
       if (!code) {

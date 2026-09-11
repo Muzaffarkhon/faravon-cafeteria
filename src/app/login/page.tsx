@@ -11,7 +11,7 @@ import { loginAction, type LoginState } from "./actions";
 const initial: LoginState = {};
 
 const microLabel = (text: string) => (
-  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+  <span className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
     {text}
   </span>
 );
@@ -88,7 +88,7 @@ export default function LoginPage() {
 
           <div className="my-5 flex items-center gap-2.5">
             <span className="h-px flex-1 bg-line" />
-            <span className="text-[11px] text-ink-subtle">как получить доступ</span>
+            <span className="text-xs text-ink-subtle">как получить доступ</span>
             <span className="h-px flex-1 bg-line" />
           </div>
 

@@ -69,7 +69,7 @@ export function PeriodActions({
       </div>
 
       {error && (
-        <span className="max-w-[240px] text-right text-[11px] font-medium text-danger" role="alert">
+        <span className="max-w-[240px] text-right text-xs font-medium text-danger" role="alert">
           {error}
         </span>
       )}

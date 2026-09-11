@@ -51,9 +51,18 @@ export function AdvertisingForm({ partnerName }: { partnerName: string }) {
         />
       </Field>
 
-      <Field label="Бюджет" htmlFor="budget" hint="Необязательно.">
-        <Input id="budget" name="budget" placeholder="напр. до 5 000 сомони / мес" />
-      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="Ссылка на приложение · Android"
+          htmlFor="androidUrl"
+          hint="Google Play или прямая ссылка на .apk. Необязательно."
+        >
+          <Input id="androidUrl" name="androidUrl" type="url" inputMode="url" placeholder="https://play.google.com/store/apps/details?id=…" />
+        </Field>
+        <Field label="Ссылка на приложение · iOS" htmlFor="iosUrl" hint="App Store. Необязательно.">
+          <Input id="iosUrl" name="iosUrl" type="url" inputMode="url" placeholder="https://apps.apple.com/app/id…" />
+        </Field>
+      </div>
 
       {state.error && (
         <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
