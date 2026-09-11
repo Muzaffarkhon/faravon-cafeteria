@@ -15,5 +15,15 @@ export const FEEDBACK_STATUS_TONE: Record<FeedbackStatus, string> = {
   CLOSED: "neutral",
 };
 
-/** Порядок статусов для кнопок в админке. */
-export const FEEDBACK_STATUS_ORDER: FeedbackStatus[] = ["NEW", "READ", "NOTED", "CLOSED"];
+/**
+ * Обращение движется только вперёд: Новое → Прочитано → Принято к сведению →
+ * Закрыто. Возврат назад запрещён, у закрытого переходов нет — иначе статус
+ * перестаёт что-либо значить. Список используют и кнопки в админке, и
+ * серверный экшен: проверка на клиенте сама по себе ничего не гарантирует.
+ */
+export const FEEDBACK_NEXT_STATUSES: Record<FeedbackStatus, FeedbackStatus[]> = {
+  NEW: ["READ", "NOTED", "CLOSED"],
+  READ: ["NOTED", "CLOSED"],
+  NOTED: ["CLOSED"],
+  CLOSED: [],
+};

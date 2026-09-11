@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
+import { FEEDBACK_NEXT_STATUSES, FEEDBACK_STATUS_LABEL } from "@/lib/feedback";
 
 const VALID: FeedbackStatus[] = ["NEW", "READ", "NOTED", "CLOSED"];
 
@@ -23,6 +24,14 @@ export async function setFeedbackStatus(
 
     const before = await db.feedback.findUnique({ where: { id } });
     if (!before) throw new Error("Обращение не найдено.");
+    // Тот же список переходов, что рисует кнопки: клиент можно обойти.
+    if (!FEEDBACK_NEXT_STATUSES[before.status].includes(status)) {
+      throw new Error(
+        before.status === "CLOSED"
+          ? "Обращение закрыто — статус больше не меняется."
+          : `Нельзя перевести из «${FEEDBACK_STATUS_LABEL[before.status]}» в «${FEEDBACK_STATUS_LABEL[status]}».`,
+      );
+    }
 
     const trimmedNote = (note ?? "").trim();
     await db.feedback.update({
