@@ -261,13 +261,16 @@ export function Table({
  * Идентификатор записи в таблице — компактный чип с последними символами id.
  * Полное значение в `title`; сам чип выделяется одним кликом.
  */
-/** Детерминированный 6-значный числовой код из id (для компактного отображения в таблицах). */
+/**
+ * Числовой код из id для компактного отображения: берём тот же хвост id, что
+ * и раньше (последние 6 символов cuid, алфавит 0-9a-z = base36), и переводим
+ * его в десятичное число — код остаётся привязан к настоящему id (не хеш «в
+ * никуда»), можно найти запись обратно (parseInt(code,10).toString(36)).
+ */
 function numericId(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return String(hash % 1_000_000).padStart(6, "0");
+  const tail = id.length > 6 ? id.slice(-6) : id;
+  const n = Number.parseInt(tail, 36);
+  return Number.isFinite(n) ? String(n) : tail;
 }
 
 export function RowId({ id, className }: { id: string; className?: string }) {
