@@ -237,7 +237,7 @@ export function FlexSelection({
                         variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
                         onClick={() => onSelectClick(c, isSel)}
                         disabled={pending || atLimit}
-                        loading={busyId === c.id}
+                        loading={busyId === c.id && phoneFor !== c.id}
                         fullWidth
                         className="mt-4"
                       >
