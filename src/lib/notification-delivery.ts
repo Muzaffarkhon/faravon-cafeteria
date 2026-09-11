@@ -10,6 +10,13 @@ import { formatNotificationText } from "./notification-format";
 
 const TG_API = "https://api.telegram.org";
 
+// Пропускная способность рассылки: 25 сообщений параллельно, не чаще раза в
+// секунду — под лимитом Telegram (~30/с разным чатам).
+const BATCH_SIZE = 25;
+const BATCH_INTERVAL_MS = 1000;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 async function tgOk(r: Response): Promise<boolean> {
   const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
   return !!data?.ok;
@@ -76,7 +83,10 @@ export async function deliverTelegramNotifications(opts: {
   limit?: number;
   log?: (msg: string) => void;
 }): Promise<DeliveryResult> {
-  const { db, token, limit = 25, log } = opts;
+  // 300 за запуск — это ~12 с отправки при BATCH_SIZE/BATCH_INTERVAL_MS,
+  // с запасом укладывается в maxDuration cron-функции; бот-воркер просто
+  // повторяет цикл, пока очередь не разойдётся.
+  const { db, token, limit = 300, log } = opts;
   if (!token) {
     log?.("TELEGRAM_BOT_TOKEN не задан — доставка пропущена.");
     return { delivered: 0, failed: 0, skipped: 0 };
@@ -120,11 +130,11 @@ export async function deliverTelegramNotifications(opts: {
   let failed = 0;
   let skipped = 0;
 
-  for (const n of pending) {
+  const sendOne = async (n: (typeof pending)[number]) => {
     const tgId = n.user.telegramId ?? n.user.employee?.telegramId;
     if (!tgId) {
       skipped++;
-      continue;
+      return;
     }
     // Атомарно «забираем» уведомление: помечаем deliveredAt ещё до отправки.
     // Параллельные воркеры (несколько after()-флашей, cron, бот) на это же уведомление
@@ -136,7 +146,7 @@ export async function deliverTelegramNotifications(opts: {
     });
     if (claim.count === 0) {
       skipped++;
-      continue;
+      return;
     }
     const payload = n.payload as Record<string, unknown> | null;
     const body = formatNotificationText(n.event, payload, templates);
@@ -161,6 +171,15 @@ export async function deliverTelegramNotifications(opts: {
       failed++;
       log?.(`не удалось отправить уведомление ${n.id}`);
     }
+  };
+
+  // Пачками по BATCH_SIZE параллельно, не быстрее одной пачки в секунду: это
+  // и есть лимит бота (~30 сообщений в секунду разным чатам). Последовательная
+  // отправка на рассылке в 3000 человек растянулась бы на часы.
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    const batch = pending.slice(i, i + BATCH_SIZE);
+    const paced = i + BATCH_SIZE < pending.length ? [sleep(BATCH_INTERVAL_MS)] : [];
+    await Promise.all([...batch.map(sendOne), ...paced]);
   }
 
   if (delivered || failed) log?.(`доставлено ${delivered}, ошибок ${failed}`);

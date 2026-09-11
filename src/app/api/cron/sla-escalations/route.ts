@@ -5,6 +5,9 @@ import { deliverTelegramNotifications } from "@/lib/notification-delivery";
 import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
+// Рассылка идёт пачками с паузой (см. notification-delivery) — на 300
+// уведомлений нужно ~12 с, дефолтных 10 с функции не хватит.
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 /**
