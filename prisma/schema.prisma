@@ -5,7 +5,12 @@ generator client {
 
 datasource db {
   provider          = "postgresql"
+  // Приложение ходит через пул Neon (хост с суффиксом `-pooler`, обязательно
+  // с `?pgbouncer=true`) — иначе под нагрузкой Prisma падает с
+  // `prepared statement "s0" already exists`.
   url               = env("DATABASE_URL")
+  // Миграции и introspection — только по прямому подключению (хост без `-pooler`).
+  directUrl         = env("DIRECT_URL")
   // Shadow DB is created from template0 to avoid the postgis image's template1 collation quirk
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }

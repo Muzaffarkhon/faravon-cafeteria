@@ -6,7 +6,16 @@ GitHub / проду) или **продуктового решения**. Пор�
 
 ## A. Обязательно перед запуском (только вы)
 
-1. **Прод-БД: контрольная сумма миграции `20260902050000_seed_sla_rules`.**
+1. **`DATABASE_URL` и `DIRECT_URL` в Vercel (Production).** Это блокер: без
+   этого под нагрузкой запуска Prisma начнёт падать с
+   `prepared statement "s0" already exists`, а сборка — на отсутствующем
+   `DIRECT_URL` (он объявлен в `prisma/schema.prisma`).
+   - `DATABASE_URL` — **пулер** Neon (хост с `-pooler`) и обязательно
+     `?sslmode=require&pgbouncer=true`.
+   - `DIRECT_URL` — тот же адрес **без** `-pooler` (прямое подключение), нужен
+     только `prisma migrate` / `introspect`.
+
+2. **Прод-БД: контрольная сумма миграции `20260902050000_seed_sla_rules`.**
    Файл миграции изменён (см. `docs/MIGRATION-FIX-seed_sla_rules.md`). На проде
    один раз:
    ```bash
@@ -15,7 +24,7 @@ GitHub / проду) или **продуктового решения**. Пор�
    npx prisma migrate deploy
    ```
 
-2. **Telegram webhook.** В хендофферах записано, что webhook был удалён для
+3. **Telegram webhook.** В хендофферах записано, что webhook был удалён для
    локального теста. Проверить и вернуть:
    ```bash
    npx tsx scripts/set-webhook.ts info      # что сейчас
@@ -24,26 +33,26 @@ GitHub / проду) или **продуктового решения**. Пор�
    Затем реальный `/start` в боте должен ответить. Без этого сотрудники не
    получат логины.
 
-3. **`CRON_SECRET`** в переменных окружения Vercel (Production) + планировщик.
+4. **`CRON_SECRET`** в переменных окружения Vercel (Production) + планировщик.
    См. `docs/CRON-SETUP.md`. На Hobby-тарифе Vercel Cron даёт максимум суточную
    гранулярность — для нормальной работы уведомлений и SLA нужен Vercel Pro
    **или** внешний планировщик (cron-job.org и т.п.), бьющий по
    `/api/cron/deliver-notifications`, `/api/cron/sla-escalations` каждые 10–15 мин
    и по `/api/health` каждые 5 мин.
 
-4. **Демо-доступы на проде.** Сменить пароль `superadmin` (в хендоффе указан
+5. **Демо-доступы на проде.** Сменить пароль `superadmin` (в хендоффе указан
    `Password1`). Удалить/выключить демо-аккаунты `ivanov`, `petrova`, `sidorov`,
    `rahmonzoda`, если они есть на боевой БД.
 
-5. **`AUTH_SECRET`** — убедиться, что задан в Production (после правки `proxy.ts`
+6. **`AUTH_SECRET`** — убедиться, что задан в Production (после правки `proxy.ts`
    без него приложение теперь fail-closed: все страницы редиректят на `/login`).
 
-6. **Бэкапы Neon.** Free-tier не хранит бэкапы. Включить PITR (платный тариф)
+7. **Бэкапы Neon.** Free-tier не хранит бэкапы. Включить PITR (платный тариф)
    или настроить регулярный `pg_dump` в отдельное хранилище. Цель по хендоффу —
    RPO ≤ 24 ч, RTO ≤ 4 ч. Проверить восстановление на пустой БД
    (`prisma migrate deploy` теперь проигрывается с нуля — проверено в CI).
 
-7. **CI-шаг `next build`.** Пуш из этой сессии не может менять
+8. **CI-шаг `next build`.** Пуш из этой сессии не может менять
    `.github/workflows/` (нет scope `workflow`), поэтому изменение вынесено в
    `docs/ci-add-build-step.patch`. Применить вручную:
    ```bash
@@ -51,7 +60,7 @@ GitHub / проду) или **продуктового решения**. Пор�
    git commit -m "ci: собирать приложение (next build)"
    ```
 
-8. **Ветка `main` и защита.** После мержа `fix/launch-blockers` + патча выше
+9. **Ветка `main` и защита.** После мержа `fix/launch-blockers` + патча выше
    CI станет зелёным. Включить branch protection на `main` (обязательный статус
    `verify`) — сейчас red-PR'ы мержились. Нужен GitHub Pro для приватного репо,
    либо ручной регламент «не мержить красное».
