@@ -1,24 +1,35 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
+import type { EmploymentStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
+import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { Badge, Card, Input, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
 import { RowContextMenu } from "./_row-menu";
+import { ALL_ROLES } from "./roles";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
+const EMPLOYMENT_STATUSES = Object.keys(EMPLOYMENT_STATUS_LABELS) as EmploymentStatus[];
 
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; q?: string; page?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    q?: string;
+    page?: string;
+    role?: string;
+    acc?: string;
+    emp?: string;
+    tg?: string;
+  }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -28,6 +39,20 @@ export default async function UsersPage({
   const archiveView = sp.view === "archive";
   const q = (sp.q ?? "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+
+  // Чипы быстрых фильтров. Значения из адреса, проверенные по списку допустимых.
+  const role = ALL_ROLES.find((r) => r === sp.role);
+  const acc = (["active", "off", "none"] as const).find((v) => v === sp.acc);
+  const empStatus = EMPLOYMENT_STATUSES.find((s) => s === sp.emp);
+  const tg = (["yes", "no"] as const).find((v) => v === sp.tg);
+
+  const empFilters: Prisma.EmployeeWhereInput[] = [];
+  if (role) empFilters.push({ user: { is: { roles: { has: role } } } });
+  if (acc === "active") empFilters.push({ user: { is: { isActive: true } } });
+  if (acc === "off") empFilters.push({ user: { is: { isActive: false } } });
+  if (acc === "none") empFilters.push({ user: null });
+  if (empStatus) empFilters.push({ status: empStatus });
+  if (tg) empFilters.push({ telegramId: tg === "yes" ? { not: null } : null });
 
   const empWhere: Prisma.EmployeeWhereInput = {
     archivedAt: archiveView ? { not: null } : null,
@@ -40,7 +65,12 @@ export default async function UsersPage({
           ],
         }
       : {}),
+    ...(empFilters.length ? { AND: empFilters } : {}),
   };
+
+  // Служебные учётки — не сотрудники: у них нет статуса работы, а «без учётки»
+  // для них невозможно. По таким фильтрам их просто не показываем.
+  const serviceHidden = archiveView || page > 1 || !!empStatus || acc === "none";
 
   const [empTotal, employees, serviceUsers, partners, archivedCount, missingAccountsCount] = await Promise.all([
     db.employee.count({ where: empWhere }),
@@ -52,12 +82,16 @@ export default async function UsersPage({
       take: PAGE_SIZE,
     }),
     // Служебные — их немного; показываем на первой странице основного списка.
-    archiveView || page > 1
+    serviceHidden
       ? Promise.resolve([])
       : db.user.findMany({
           where: {
             employeeId: null,
             ...(q ? { login: { contains: q, mode: "insensitive" } } : {}),
+            ...(role ? { roles: { has: role } } : {}),
+            ...(acc === "active" ? { isActive: true } : {}),
+            ...(acc === "off" ? { isActive: false } : {}),
+            ...(tg ? { telegramId: tg === "yes" ? { not: null } : null } : {}),
           },
           orderBy: { login: "asc" },
           include: { partner: { select: { name: true } } },
@@ -72,8 +106,8 @@ export default async function UsersPage({
 
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
-    if (archiveView) p.set("view", "archive");
-    if (q) p.set("q", q);
+    // Переход по страницам сохраняет и поиск, и выбранные чипы.
+    for (const [k, v] of Object.entries(sp)) if (v && k !== "page") p.set(k, v);
     if (n > 1) p.set("page", String(n));
     const str = p.toString();
     return str ? `/admin/users?${str}` : "/admin/users";
@@ -122,8 +156,46 @@ export default async function UsersPage({
 
       {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} />}
 
+      <FilterChips
+        basePath="/admin/users"
+        params={sp}
+        groups={[
+          {
+            param: "role",
+            label: "Роль",
+            options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
+          },
+          {
+            param: "acc",
+            label: "Учётка",
+            options: [
+              { value: "active", label: "активна" },
+              { value: "off", label: "отключена" },
+              { value: "none", label: "нет входа" },
+            ],
+          },
+          {
+            param: "emp",
+            label: "Работа",
+            options: EMPLOYMENT_STATUSES.map((s) => ({
+              value: s,
+              label: EMPLOYMENT_STATUS_LABELS[s],
+            })),
+          },
+          {
+            param: "tg",
+            label: "Telegram",
+            options: [
+              { value: "yes", label: "привязан" },
+              { value: "no", label: "нет" },
+            ],
+          },
+        ]}
+      />
+
       <form method="get" className="flex flex-wrap items-center gap-2">
         {archiveView && <input type="hidden" name="view" value="archive" />}
+        {hiddenChipInputs(sp, ["role", "acc", "emp", "tg"])}
         <Input
           name="q"
           defaultValue={q}

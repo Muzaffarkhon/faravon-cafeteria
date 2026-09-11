@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
 import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
+import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { ReviewTable, type ReviewRow } from "./_table";
 
 const PAGE_SIZE = 25;
@@ -125,6 +126,27 @@ export default async function ReviewPage({
         }`}
       />
 
+      <FilterChips
+        basePath="/review"
+        params={sp}
+        groups={[
+          {
+            param: "overdue",
+            label: "SLA",
+            options: [{ value: "1", label: "только просроченные" }],
+          },
+          {
+            param: "sort",
+            label: "Порядок",
+            options: [
+              { value: "oldest", label: "сначала старые" },
+              { value: "newest", label: "сначала новые" },
+              { value: "employee", label: "по сотруднику" },
+            ],
+          },
+        ]}
+      />
+
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Сотрудник
@@ -163,24 +185,7 @@ export default async function ReviewPage({
             ))}
           </Select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Сортировка
-          <Select name="sort" defaultValue={sort} className="w-auto py-1.5 text-sm">
-            <option value="oldest">Сначала старые</option>
-            <option value="newest">Сначала новые</option>
-            <option value="employee">По сотруднику</option>
-          </Select>
-        </label>
-        <label className="flex items-center gap-1.5 pb-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            name="overdue"
-            value="1"
-            defaultChecked={overdue}
-            className="h-4 w-4 accent-[var(--primary)]"
-          />
-          только просроченные
-        </label>
+        {hiddenChipInputs(sp, ["sort", "overdue"])}
         <button className={buttonClass({ variant: "secondary", size: "sm" }) + " mb-0.5"}>
           Применить
         </button>

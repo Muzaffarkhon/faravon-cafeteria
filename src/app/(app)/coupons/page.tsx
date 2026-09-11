@@ -5,6 +5,7 @@ import { can } from "@/lib/rbac";
 import { COUPON_STATUS_LABELS, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
+import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import {
   Badge,
   EmptyState,
@@ -147,14 +148,7 @@ export default async function CouponsPage({
                 </option>
               ))}
             </Select>
-            <Select name="status" defaultValue={status ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">Все статусы</option>
-              {Object.entries(COUPON_STATUS_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </Select>
+            {hiddenChipInputs(sp, ["status"])}
             <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
               <option value="">Все партнёры</option>
               {partners.map((p) => (
@@ -175,6 +169,21 @@ export default async function CouponsPage({
             </a>
           </form>
         </div>
+
+        <FilterChips
+          basePath="/coupons"
+          params={sp}
+          groups={[
+            {
+              param: "status",
+              label: "Статус",
+              options: Object.entries(COUPON_STATUS_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            },
+          ]}
+        />
 
         {coupons.length === 0 ? (
           <EmptyState>Купонов по заданным условиям нет.</EmptyState>

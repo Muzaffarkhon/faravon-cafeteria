@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { PartnerStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PARTNER_STATUS_LABELS } from "@/lib/labels";
+import { FilterChips } from "@/components/filter-chips";
 import { Badge, PageHeader, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { DeletePartnerButton } from "./_delete-button";
+
+const PARTNER_STATUSES = Object.keys(PARTNER_STATUS_LABELS) as PartnerStatus[];
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   ACTIVE: "success",
@@ -13,12 +17,24 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   ARCHIVED: "neutral",
 };
 
-export default async function PartnersPage() {
+export default async function PartnersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; mode?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "partners.manage")) redirect("/");
 
+  const sp = await searchParams;
+  const status = PARTNER_STATUSES.find((s) => s === sp.status);
+  const mode = (["QR", "PHONE_PROMO"] as const).find((m) => m === sp.mode);
+
   const partners = await db.partner.findMany({
+    where: {
+      ...(status ? { status } : {}),
+      ...(mode ? { deliveryMode: mode } : {}),
+    },
     include: {
       _count: { select: { cards: true } },
       serviceUsers: {
@@ -38,6 +54,26 @@ export default async function PartnersPage() {
             Добавить партнёра
           </Link>
         }
+      />
+
+      <FilterChips
+        basePath="/admin/partners"
+        params={sp}
+        groups={[
+          {
+            param: "status",
+            label: "Статус",
+            options: PARTNER_STATUSES.map((s) => ({ value: s, label: PARTNER_STATUS_LABELS[s] })),
+          },
+          {
+            param: "mode",
+            label: "Выдача",
+            options: [
+              { value: "QR", label: "по QR-купону" },
+              { value: "PHONE_PROMO", label: "по номеру телефона" },
+            ],
+          },
+        ]}
       />
 
       <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
