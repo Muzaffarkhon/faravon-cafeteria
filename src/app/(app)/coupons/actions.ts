@@ -122,7 +122,12 @@ async function issueCouponImpl(couponId: string) {
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { card: coupon.item.card.title, number: coupon.number, period: coupon.period.name },
+    payload: {
+      card: coupon.item.card.title,
+      number: coupon.number,
+      period: coupon.period.name,
+      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU") : null,
+    },
   });
 
   revalidateAll();
