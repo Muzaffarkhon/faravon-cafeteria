@@ -80,7 +80,7 @@ export default async function UsersPage({
   };
 
   return (
-    <div className="space-y-4">
+    <div data-wide className="space-y-4">
       <PageHeader
         title="Пользователи и роли"
         description="Единый список: карточки сотрудников и служебные учётные записи для входа на платформу."

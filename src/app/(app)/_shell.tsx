@@ -304,7 +304,10 @@ export function AppShell({
       </header>
 
       {/* ── Контент ── */}
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 sm:pb-16">
+      {/* Широкие реестры (много колонок) помечают свой корень `data-wide` и
+          получают больше ширины на больших экранах — остальные страницы
+          остаются читаемой колонкой в max-w-6xl. */}
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 has-[[data-wide]]:max-w-[100rem] sm:pb-16">
         <div key={pathname} className="animate-page">
           {children}
         </div>
