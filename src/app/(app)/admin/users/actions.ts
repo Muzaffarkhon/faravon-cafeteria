@@ -918,3 +918,109 @@ export async function generateMissingEmployeeAccounts(): Promise<{
   revalidatePath("/admin/users/import");
   return { ok: true, count: usersToCreate.length };
 }
+
+/* ------------------------------------------------------------- удаление --- */
+
+/** Prisma бросает P2003, когда на запись ещё ссылаются строки, которые мы не перечислили. */
+function isForeignKeyError(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: string }).code === "P2003";
+}
+
+/**
+ * Необратимое удаление сотрудника вместе с его учётной записью — в отличие от
+ * архива, который только прячет карточку. Разрешаем, пока за человеком нет
+ * истории (заявки, купоны, обращения): её положено хранить, а не стирать.
+ * Записи аудита остаются — там actorId обнуляется внешним ключом.
+ */
+export async function deleteEmployee(employeeId: string): Promise<AccountResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const emp = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, fullName: true, user: { select: { id: true, login: true } } },
+  });
+  if (!emp) return { error: "Сотрудник не найден." };
+  if (emp.user?.id === s.user.id) return { error: "Нельзя удалить собственную запись." };
+
+  const [applications, coupons, feedback] = await Promise.all([
+    db.application.count({ where: { employeeId } }),
+    db.coupon.count({ where: { employeeId } }),
+    db.feedback.count({ where: { employeeId } }),
+  ]);
+  if (applications || coupons || feedback) {
+    const parts = [
+      applications > 0 && `заявк(и): ${applications}`,
+      coupons > 0 && `купон(ы): ${coupons}`,
+      feedback > 0 && `обращени(я): ${feedback}`,
+    ].filter(Boolean);
+    return {
+      error: `Нельзя удалить — за сотрудником числятся ${parts.join(", ")}. Переведите в архив.`,
+    };
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      if (emp.user) {
+        await tx.notification.deleteMany({ where: { userId: emp.user.id } });
+        await tx.user.delete({ where: { id: emp.user.id } });
+      }
+      await tx.employee.delete({ where: { id: employeeId } });
+    });
+  } catch (e) {
+    if (isForeignKeyError(e)) {
+      return { error: "Нельзя удалить — с записью связаны другие данные. Переведите в архив." };
+    }
+    throw e;
+  }
+
+  await audit({
+    actorId: s.user.id,
+    action: "EMPLOYEE_DELETED",
+    entityType: "Employee",
+    entityId: employeeId,
+    oldValue: { fullName: emp.fullName, login: emp.user?.login ?? null },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/access");
+  return { ok: true };
+}
+
+/** То же для служебной учётки (подрядчик, C&B) — у неё нет карточки сотрудника. */
+export async function deleteServiceAccount(userId: string): Promise<AccountResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+  if (userId === s.user.id) return { error: "Нельзя удалить собственную запись." };
+
+  const u = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, login: true, employeeId: true },
+  });
+  if (!u) return { error: "Учётная запись не найдена." };
+  if (u.employeeId) return { error: "Это учётка сотрудника — удаляйте её вместе с карточкой." };
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+  } catch (e) {
+    if (isForeignKeyError(e)) {
+      return { error: "Нельзя удалить — с учёткой связаны другие данные. Отключите ей вход." };
+    }
+    throw e;
+  }
+
+  await audit({
+    actorId: s.user.id,
+    action: "USER_DELETED",
+    entityType: "User",
+    entityId: userId,
+    oldValue: { login: u.login },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/access");
+  return { ok: true };
+}

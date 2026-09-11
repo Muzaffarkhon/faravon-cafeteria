@@ -9,6 +9,7 @@ import { Badge, Card, Input, PageHeader, Table, RowId, buttonClass, cx } from "@
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
+import { RowContextMenu } from "./_row-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -206,6 +207,12 @@ export default async function UsersPage({
                       Открыть
                     </Link>
                     <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} />
+                    <RowContextMenu
+                      kind="employee"
+                      id={e.id}
+                      name={e.fullName}
+                      archived={!!e.archivedAt}
+                    />
                   </div>
                 </td>
               </tr>

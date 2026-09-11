@@ -6,6 +6,7 @@ import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac"
 import { Badge, Button, Field, Input, RowId } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { RolePicker } from "./_form";
+import { RowContextMenu } from "./_row-menu";
 import {
   createAccountForEmployee,
   createServiceAccount,
@@ -401,6 +402,7 @@ export function ServiceAccountRow({
             >
               {user.isActive ? "Отключить" : "Включить"}
             </Button>
+            <RowContextMenu kind="service" id={user.id} name={user.login} />
           </div>
         </td>
       </tr>
