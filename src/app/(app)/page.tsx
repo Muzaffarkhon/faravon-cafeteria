@@ -189,10 +189,7 @@ export default async function OverviewPage() {
     <div className="space-y-8">
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
-        <div className="text-xs font-bold uppercase tracking-[0.14em] text-on-brand/70">
-          Витрина заботы
-        </div>
-        <h1 className="mt-1 font-display text-xl font-bold text-on-brand sm:text-2xl">
+        <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
           Здравствуйте, {firstName}
         </h1>
         <p className="mt-1 text-sm text-on-brand/80">{periodLine}</p>
