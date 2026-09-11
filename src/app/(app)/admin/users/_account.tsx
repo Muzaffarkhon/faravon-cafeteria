@@ -3,7 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
-import { Badge, Button, ConfirmDialog, Field, Input, RowId } from "@/components/ui";
+import { Badge, Button, Field, Input, RowId } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { RolePicker } from "./_form";
 import {
   createAccountForEmployee,
@@ -269,16 +270,16 @@ export function EmployeeActiveToggle({
       >
         {isActive ? "Деактивировать сотрудника" : "Вернуть в активные"}
       </Button>
-      {confirming && (
-        <ConfirmDialog
-          title="Деактивировать сотрудника?"
-          message="Вход в его учётную запись будет закрыт немедленно."
-          confirmLabel="Деактивировать"
-          pending={pending}
-          onConfirm={toggle}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Деактивировать сотрудника?"
+        message="Вход в его учётную запись будет закрыт немедленно."
+        confirmLabel="Деактивировать"
+        tone="danger"
+        busy={pending}
+        onConfirm={toggle}
+        onClose={() => setConfirming(false)}
+      />
       {err && (
         <span className="text-xs font-medium text-danger" role="alert">
           {err}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, ConfirmDialog } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { issueCode, unlinkTelegram } from "./actions";
 
 export function AccessRowActions({
@@ -65,16 +66,16 @@ export function AccessRowActions({
           {error}
         </span>
       )}
-      {confirming && (
-        <ConfirmDialog
-          title="Сбросить Telegram?"
-          message="Привязка Telegram у сотрудника будет сброшена — потребуется код для повторной идентификации."
-          confirmLabel="Сбросить"
-          pending={pending}
-          onConfirm={doUnlink}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Сбросить Telegram?"
+        message="Привязка Telegram у сотрудника будет сброшена — потребуется код для повторной идентификации."
+        confirmLabel="Сбросить"
+        tone="danger"
+        busy={pending}
+        onConfirm={doUnlink}
+        onClose={() => setConfirming(false)}
+      />
     </div>
   );
 }

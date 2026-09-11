@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, ConfirmDialog } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { setEmployeeArchived } from "./actions";
 
 export function EmployeeArchiveButton({
@@ -36,16 +37,16 @@ export function EmployeeArchiveButton({
       >
         {archived ? "Вернуть из архива" : "В архив"}
       </Button>
-      {confirming && (
-        <ConfirmDialog
-          title="В архив?"
-          message="Сотрудник исчезнет из основного списка, вход будет закрыт."
-          confirmLabel="В архив"
-          pending={pending}
-          onConfirm={toggle}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="В архив?"
+        message="Сотрудник исчезнет из основного списка, вход будет закрыт."
+        confirmLabel="В архив"
+        tone="danger"
+        busy={pending}
+        onConfirm={toggle}
+        onClose={() => setConfirming(false)}
+      />
       {err && (
         <span className="mt-1 text-xs font-medium text-danger" role="alert">
           {err}

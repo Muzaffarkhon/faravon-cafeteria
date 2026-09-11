@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, ConfirmDialog } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { revokeOtherSessions } from "./actions";
 
 export function RevokeSessionsButton() {
@@ -24,22 +25,21 @@ export function RevokeSessionsButton() {
           Другие сессии завершены.
         </span>
       )}
-      {confirming && (
-        <ConfirmDialog
-          title="Завершить другие сессии?"
-          message="Вход на всех других устройствах будет завершён немедленно."
-          confirmLabel="Завершить"
-          pending={pending}
-          onConfirm={() => {
-            start(async () => {
-              await revokeOtherSessions();
-              setDone(true);
-              setConfirming(false);
-            });
-          }}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Завершить другие сессии?"
+        message="Вход на всех других устройствах будет завершён немедленно."
+        confirmLabel="Завершить"
+        busy={pending}
+        onConfirm={() => {
+          start(async () => {
+            await revokeOtherSessions();
+            setDone(true);
+            setConfirming(false);
+          });
+        }}
+        onClose={() => setConfirming(false)}
+      />
     </div>
   );
 }
