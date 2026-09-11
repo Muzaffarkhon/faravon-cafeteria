@@ -56,6 +56,7 @@ export function PartnerForm({
           <OtpModal
             otp={state.otp}
             login={state.login}
+            permanent
             onClose={() => setOtpSeen(true)}
           />
         )}

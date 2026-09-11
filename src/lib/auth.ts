@@ -8,6 +8,13 @@ import type { Role } from "@prisma/client";
 
 const COOKIE = "faravon_session";
 const MAX_AGE = 60 * 60 * 12; // 12h, ТЗ v2 §5.1
+// Подрядчик (CONTRACTOR) — общий PIN на кассу партнёра, залогинен на одном
+// устройстве постоянно (не личный аккаунт сотрудника, короткая сессия тут
+// только создавала бы лишний повод для кассира вводить PIN заново каждый
+// день). Реальный «выход» для скомпрометированного терминала — деактивировать
+// учётку или перевыпустить PIN (issueOtpForUser поднимает sessionEpoch,
+// который здесь и дальше проверяется в getSession()).
+const MAX_AGE_CONTRACTOR = 60 * 60 * 24 * 365 * 10; // 10 лет — по факту «навсегда»
 
 function secret() {
   const s = process.env.AUTH_SECRET;
@@ -34,10 +41,11 @@ export async function createSession(payload: SessionPayload) {
       })
     )?.sessionEpoch ??
     0;
+  const maxAge = payload.roles.includes("CONTRACTOR") ? MAX_AGE_CONTRACTOR : MAX_AGE;
   const token = await new SignJWT({ ...payload, epoch })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE}s`)
+    .setExpirationTime(`${maxAge}s`)
     .sign(secret());
 
   const jar = await cookies();
@@ -46,7 +54,7 @@ export async function createSession(payload: SessionPayload) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: MAX_AGE,
+    maxAge,
   });
 }
 

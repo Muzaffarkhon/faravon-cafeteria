@@ -7,10 +7,13 @@ import { Button } from "@/components/ui";
 export function OtpModal({
   otp,
   login,
+  /** Учётка подрядчика: PIN не одноразовый и не требует смены (общий код на кассу точки). */
+  permanent,
   onClose,
 }: {
   otp: string;
   login?: string;
+  permanent?: boolean;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -46,13 +49,15 @@ export function OtpModal({
           </p>
         )}
         <p className="mt-3 text-xs uppercase tracking-[0.12em] text-ink-subtle">
-          Одноразовый пароль (24 ч, показывается один раз)
+          {permanent ? "PIN точки (постоянный, показывается один раз)" : "Одноразовый пароль (24 ч, показывается один раз)"}
         </p>
         <p className="mt-1.5 select-all font-mono text-2xl font-bold tracking-wider text-primary-strong">
           {otp}
         </p>
         <p className="mt-3 text-xs leading-5 text-ink-muted">
-          Передайте сотруднику логин и пароль. При первом входе он сменит пароль.
+          {permanent
+            ? "Отдайте логин и PIN на кассу партнёра — устройство останется залогинено, вводить заново не нужно. Меняется только при перевыпуске здесь."
+            : "Передайте сотруднику логин и пароль. При первом входе он сменит пароль."}
         </p>
         <div className="mt-5 flex gap-2">
           <Button variant="secondary" fullWidth onClick={copy}>

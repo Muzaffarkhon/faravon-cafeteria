@@ -36,6 +36,7 @@ export function PartnerContractorAccounts({
         <OtpModal
           otp={activeOtp.otp}
           login={activeOtp.login}
+          permanent
           onClose={() => setActiveOtp(null)}
         />
       )}
@@ -145,7 +146,7 @@ function AccountRow({
             });
           }}
         >
-          Выдать новый пароль
+          Выдать новый PIN
         </Button>
 
         <Button
@@ -223,7 +224,7 @@ function NewAccountCard({
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" loading={pending}>
-          Создать учётку и получить пароль
+          Создать точку и получить PIN
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
