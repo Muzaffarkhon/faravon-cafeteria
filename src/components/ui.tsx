@@ -261,18 +261,26 @@ export function Table({
  * Идентификатор записи в таблице — компактный чип с последними символами id.
  * Полное значение в `title`; сам чип выделяется одним кликом.
  */
+/** Детерминированный 6-значный числовой код из id (для компактного отображения в таблицах). */
+function numericId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return String(hash % 1_000_000).padStart(6, "0");
+}
+
 export function RowId({ id, className }: { id: string; className?: string }) {
-  const short = id.length > 6 ? id.slice(-6) : id;
   return (
     <span
       title={id}
       className={cx(
         "inline-flex select-all items-center rounded-md bg-surface-muted px-1.5 py-0.5 " +
-          "font-mono text-[11px] leading-none tracking-tight text-ink-subtle",
+          "font-mono text-[11px] leading-none tracking-tight text-ink-subtle tabular-nums",
         className,
       )}
     >
-      #{short}
+      #{numericId(id)}
     </span>
   );
 }
