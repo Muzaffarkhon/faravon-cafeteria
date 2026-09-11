@@ -138,8 +138,17 @@ async function issueForEmployee(
   }
   if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
 
+  // Этот telegramId уже принадлежит другому сотруднику.
+  // Если это активный сотрудник — блокируем.
+  // Если привязка осталась на старой архивной записи — освобождаем её.
   const clash = await db.employee.findFirst({ where: { telegramId, NOT: { id: employee.id } } });
-  if (clash) throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Обратитесь в HR.");
+  if (clash) {
+    if (clash.archivedAt) {
+      await db.employee.update({ where: { id: clash.id }, data: { telegramId: null } });
+    } else {
+      throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Обратитесь в HR.");
+    }
+  }
 
   if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
     throw new SafeLinkError(
@@ -168,8 +177,10 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     const norm = normalizePhone(phone);
     if (norm.length < 7) throw new SafeLinkError("Не удалось распознать номер телефона.");
 
+    // Ищем только среди действующих (не находящихся в архиве) сотрудников
     let match = await db.employee.findFirst({
       where: {
+        archivedAt: null,
         OR: [
           { phoneNormalized: norm },
           { phoneSecondaryNormalized: norm },
@@ -180,6 +191,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     if (!match) {
       const legacy = await db.employee.findMany({
         where: {
+          archivedAt: null,
           OR: [
             { phone: { not: null }, phoneNormalized: null },
             { phoneSecondary: { not: null }, phoneSecondaryNormalized: null },
@@ -259,7 +271,31 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
   await assertNotRateLimited(telegramId, "reissue");
   let ok = false;
   try {
-    const employee = await db.employee.findUnique({ where: { telegramId }, select: EMP_SELECT });
+    let employee = await db.employee.findFirst({
+      where: { telegramId, archivedAt: null },
+      select: EMP_SELECT,
+    });
+    if (!employee) {
+      const archived = await db.employee.findFirst({
+        where: { telegramId, archivedAt: { not: null } },
+      });
+      if (archived?.phoneNormalized) {
+        const active = await db.employee.findFirst({
+          where: {
+            archivedAt: null,
+            OR: [
+              { phoneNormalized: archived.phoneNormalized },
+              { phoneSecondaryNormalized: archived.phoneNormalized },
+            ],
+          },
+          select: EMP_SELECT,
+        });
+        if (active) {
+          await db.employee.update({ where: { id: archived.id }, data: { telegramId: null } });
+          employee = active;
+        }
+      }
+    }
     if (!employee) {
       throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
     }
