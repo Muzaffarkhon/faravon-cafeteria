@@ -921,6 +921,14 @@ export async function generateMissingEmployeeAccounts(): Promise<{
 
 /* ------------------------------------------------------------- удаление --- */
 
+/**
+ * Итог удаления. `blocked` — что именно помешало: по нему интерфейс предлагает
+ * перейти к незакрытым обращениям или сразу отправить карточку в архив.
+ */
+export type DeleteResult = AccountResult & {
+  blocked?: { applications: number; coupons: number; feedback: number };
+};
+
 /** Prisma бросает P2003, когда на запись ещё ссылаются строки, которые мы не перечислили. */
 function isForeignKeyError(e: unknown): boolean {
   return typeof e === "object" && e !== null && (e as { code?: string }).code === "P2003";
@@ -932,7 +940,7 @@ function isForeignKeyError(e: unknown): boolean {
  * истории (заявки, купоны, обращения): её положено хранить, а не стирать.
  * Записи аудита остаются — там actorId обнуляется внешним ключом.
  */
-export async function deleteEmployee(employeeId: string): Promise<AccountResult> {
+export async function deleteEmployee(employeeId: string): Promise<DeleteResult> {
   const s = await requireSession();
   assertCan(s.roles, "users.manage");
 
@@ -943,19 +951,23 @@ export async function deleteEmployee(employeeId: string): Promise<AccountResult>
   if (!emp) return { error: "Сотрудник не найден." };
   if (emp.user?.id === s.user.id) return { error: "Нельзя удалить собственную запись." };
 
+  // Закрытые обращения удалению не мешают: разговор окончен, хранить его
+  // отдельно от карточки сотрудника незачем. Незакрытые — мешают: это
+  // незавершённая работа C&B.
   const [applications, coupons, feedback] = await Promise.all([
     db.application.count({ where: { employeeId } }),
     db.coupon.count({ where: { employeeId } }),
-    db.feedback.count({ where: { employeeId } }),
+    db.feedback.count({ where: { employeeId, status: { not: "CLOSED" } } }),
   ]);
   if (applications || coupons || feedback) {
     const parts = [
       applications > 0 && `заявк(и): ${applications}`,
       coupons > 0 && `купон(ы): ${coupons}`,
-      feedback > 0 && `обращени(я): ${feedback}`,
+      feedback > 0 && `незакрыт(ые) обращения: ${feedback}`,
     ].filter(Boolean);
     return {
-      error: `Нельзя удалить — за сотрудником числятся ${parts.join(", ")}. Переведите в архив.`,
+      error: `Нельзя удалить — за сотрудником числятся ${parts.join(", ")}.`,
+      blocked: { applications, coupons, feedback },
     };
   }
 
@@ -968,6 +980,7 @@ export async function deleteEmployee(employeeId: string): Promise<AccountResult>
       // Коды идентификации от HR ссылаются на сотрудника обычным полем, без
       // внешнего ключа — база их не подчистит, убираем сами.
       await tx.identificationCode.deleteMany({ where: { employeeId } });
+      await tx.feedback.deleteMany({ where: { employeeId } }); // здесь остались только закрытые
       await tx.employee.delete({ where: { id: employeeId } });
     });
   } catch (e) {

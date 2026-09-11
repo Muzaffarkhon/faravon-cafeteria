@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -7,12 +8,23 @@ import { FeedbackTable } from "./_table";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminFeedbackPage() {
+export default async function AdminFeedbackPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ emp?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "feedback.manage")) redirect("/");
 
+  // ?emp=<id> — переход из реестра пользователей («перейти к обращениям»).
+  const emp = (await searchParams).emp;
+  const employee = emp
+    ? await db.employee.findUnique({ where: { id: emp }, select: { fullName: true } })
+    : null;
+
   const rows = await db.feedback.findMany({
+    where: emp ? { employeeId: emp } : {},
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: { employee: { select: { fullName: true, department: true } } },
     take: 200,
@@ -24,8 +36,16 @@ export default async function AdminFeedbackPage() {
         title="Обратная связь"
         description="Обращения сотрудников: прочитано → принято к сведению → закрыто."
       />
+      {emp && (
+        <p className="text-sm text-ink-muted">
+          Показаны обращения одного сотрудника{employee ? `: ${employee.fullName}` : ""}.{" "}
+          <Link href="/admin/feedback" className="text-primary hover:underline">
+            показать все
+          </Link>
+        </p>
+      )}
       {rows.length === 0 ? (
-        <EmptyState>Обращений пока нет.</EmptyState>
+        <EmptyState>{emp ? "У сотрудника нет обращений." : "Обращений пока нет."}</EmptyState>
       ) : (
         <FeedbackTable
           rows={rows.map((f) => ({

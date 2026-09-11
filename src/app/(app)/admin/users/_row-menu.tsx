@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cx } from "@/components/ui";
-import { deleteEmployee, deleteServiceAccount, setEmployeeArchived } from "./actions";
+import {
+  deleteEmployee,
+  deleteServiceAccount,
+  setEmployeeArchived,
+  type DeleteResult,
+} from "./actions";
 
 type Kind = "employee" | "service";
 
@@ -33,6 +38,7 @@ export function RowContextMenu({
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<DeleteResult["blocked"] | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -87,7 +93,28 @@ export function RowContextMenu({
   function remove() {
     setErr(null);
     start(async () => {
-      const r = kind === "employee" ? await deleteEmployee(id) : await deleteServiceAccount(id);
+      if (kind === "employee") {
+        const r = await deleteEmployee(id);
+        if (r.error) {
+          setErr(r.error);
+          setBlocked(r.blocked ?? null);
+          return;
+        }
+      } else {
+        const r = await deleteServiceAccount(id);
+        if (r.error) {
+          setErr(r.error);
+          return;
+        }
+      }
+      setConfirming(false);
+    });
+  }
+
+  /** Отказали в удалении — предложить архив прямо из диалога. */
+  function archiveFromDialog() {
+    start(async () => {
+      const r = await setEmployeeArchived(id, true);
       if (r?.error) setErr(r.error);
       else setConfirming(false);
     });
@@ -120,6 +147,7 @@ export function RowContextMenu({
             onClick={() => {
               close();
               setErr(null);
+              setBlocked(null);
               setConfirming(true);
             }}
           >
@@ -136,9 +164,29 @@ export function RowContextMenu({
             <b className="text-ink">{name}</b> и учётная запись будут стёрты без возможности
             восстановления. Если нужно просто убрать из списка — используйте архив.
             {err && (
-              <span className="mt-2 block font-medium text-danger" role="alert">
-                {err}
-              </span>
+              <>
+                <span className="mt-2 block font-medium text-danger" role="alert">
+                  {err}
+                </span>
+                {(blocked?.feedback ?? 0) > 0 && (
+                  <Link
+                    href={`/admin/feedback?emp=${id}`}
+                    className="mt-1.5 block font-semibold text-primary hover:underline"
+                  >
+                    Перейти к обращениям сотрудника →
+                  </Link>
+                )}
+                {kind === "employee" && !archived && blocked && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={archiveFromDialog}
+                    className="mt-2 w-full rounded-[10px] border-2 border-line bg-surface px-3 py-2 text-[13px] font-bold text-ink transition hover:bg-surface-muted disabled:opacity-60"
+                  >
+                    Перевести в архив
+                  </button>
+                )}
+              </>
             )}
           </>
         }
@@ -146,7 +194,10 @@ export function RowContextMenu({
         tone="danger"
         busy={pending}
         onConfirm={remove}
-        onClose={() => setConfirming(false)}
+        onClose={() => {
+          setConfirming(false);
+          setBlocked(null);
+        }}
       />
 
       {err && !confirming && (
