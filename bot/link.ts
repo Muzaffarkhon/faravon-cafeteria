@@ -6,9 +6,10 @@
  * ВНИМАНИЕ: держать синхронным с src/lib/telegram-link.ts (webhook-версия) —
  * правки безопасности вносить в оба файла.
  */
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { loginFromFullName, generateUniqueLogin } from "../src/lib/translit";
 
 const db = new PrismaClient();
 
@@ -106,8 +107,35 @@ async function issueForEmployee(
   if (!employee.isActive || employee.status === "TERMINATED") {
     throw new SafeLinkError("Учётная запись сотрудника неактивна. Обратитесь в HR.");
   }
-  const user = await db.user.findUnique({ where: { employeeId: employee.id } });
-  if (!user) throw new SafeLinkError("Для сотрудника не заведена учётная запись. Обратитесь в HR.");
+  let user = await db.user.findUnique({ where: { employeeId: employee.id } });
+  if (!user) {
+    const existingUsers = await db.user.findMany({ select: { login: true } });
+    const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
+    const baseLogin = loginFromFullName(employee.fullName);
+    const login = generateUniqueLogin(baseLogin, takenLogins);
+    const passwordHash = await bcrypt.hash(randomUUID(), 12);
+
+    user = await db.user.create({
+      data: {
+        login,
+        passwordHash,
+        mustChangePassword: true,
+        roles: ["EMPLOYEE"],
+        employeeId: employee.id,
+        isActive: true,
+      },
+    });
+
+    await db.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "USER_CREATED",
+        entityType: "User",
+        entityId: user.id,
+        newValue: { login: user.login, roles: user.roles, employeeId: employee.id, via: "telegram_auto" },
+      },
+    });
+  }
   if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
 
   const clash = await db.employee.findFirst({ where: { telegramId, NOT: { id: employee.id } } });

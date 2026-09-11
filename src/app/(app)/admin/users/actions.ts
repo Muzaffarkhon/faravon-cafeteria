@@ -11,6 +11,7 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, parsePhoneNumbers } from "@/lib/phone";
+import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 import { ALL_ROLES } from "./roles";
 
 /** Данные сотрудника + производные `phoneNormalized` и `phoneSecondaryNormalized` для indexed-поиска при входе через Telegram. */
@@ -501,6 +502,7 @@ export type ImportState = {
   dryRun?: boolean;
   created?: number;
   updated?: number;
+  usersCreated?: number;
   deactivated?: number;
   deactivateList?: string[];
   rowErrors?: string[];
@@ -712,6 +714,7 @@ export async function importEmployees(
   }
 
   // 3) Массовые записи: createMany + update-транзакции батчами.
+  let usersCreated = 0;
   if (!dryRun) {
     try {
       if (toCreate.length) {
@@ -723,6 +726,38 @@ export async function importEmployees(
             db.employee.update({ where: { id: u.id }, data: withPhoneNormalized(u.data) }),
           ),
         );
+      }
+
+      // 3.1) Создание учётных записей для сотрудников без логина (по умолчанию включено)
+      const wantAccounts = formData.get("createAccounts") !== "off";
+      if (wantAccounts) {
+        const missing = await db.employee.findMany({
+          where: { user: null, archivedAt: null },
+          select: { id: true, fullName: true, isActive: true },
+        });
+        if (missing.length > 0) {
+          const existingUsers = await db.user.findMany({ select: { login: true } });
+          const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
+          const defaultPasswordHash = await hashPassword(randomUUID());
+
+          const usersToCreate = missing.map((emp) => {
+            const baseLogin = loginFromFullName(emp.fullName);
+            const login = generateUniqueLogin(baseLogin, takenLogins);
+            return {
+              login,
+              passwordHash: defaultPasswordHash,
+              mustChangePassword: true,
+              roles: ["EMPLOYEE" as const],
+              employeeId: emp.id,
+              isActive: emp.isActive,
+            };
+          });
+
+          for (const batch of chunk(usersToCreate, 100)) {
+            await db.user.createMany({ data: batch });
+          }
+          usersCreated = usersToCreate.length;
+        }
       }
     } catch {
       return { error: "Не удалось записать данные. Проверьте файл и повторите." };
@@ -765,17 +800,81 @@ export async function importEmployees(
   const updated = toUpdate.length;
 
   if (dryRun) {
-    return { ok: true, dryRun: true, created, updated, deactivated, deactivateList, rowErrors };
+    return {
+      ok: true,
+      dryRun: true,
+      created,
+      updated,
+      usersCreated: created,
+      deactivated,
+      deactivateList,
+      rowErrors,
+    };
   }
 
   await audit({
     actorId: s.user.id,
     action: "EMPLOYEES_IMPORTED",
     entityType: "Employee",
-    newValue: { created, updated, deactivated, rows: seenNames.size, file: file.name },
+    newValue: { created, updated, usersCreated, deactivated, rows: seenNames.size, file: file.name },
   });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/access");
-  return { ok: true, created, updated, deactivated, deactivateList, rowErrors };
+  return { ok: true, created, updated, usersCreated, deactivated, deactivateList, rowErrors };
+}
+
+/**
+ * Сгенерировать учётные записи (логины) для всех сотрудников, у которых ещё нет аккаунта.
+ */
+export async function generateMissingEmployeeAccounts(): Promise<{
+  ok?: boolean;
+  error?: string;
+  count?: number;
+}> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const missing = await db.employee.findMany({
+    where: { user: null, archivedAt: null },
+    select: { id: true, fullName: true, isActive: true },
+  });
+
+  if (missing.length === 0) {
+    return { ok: true, count: 0 };
+  }
+
+  const existingUsers = await db.user.findMany({ select: { login: true } });
+  const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
+
+  const defaultPasswordHash = await hashPassword(randomUUID());
+
+  const usersToCreate = missing.map((emp) => {
+    const baseLogin = loginFromFullName(emp.fullName);
+    const login = generateUniqueLogin(baseLogin, takenLogins);
+    return {
+      login,
+      passwordHash: defaultPasswordHash,
+      mustChangePassword: true,
+      roles: ["EMPLOYEE" as const],
+      employeeId: emp.id,
+      isActive: emp.isActive,
+    };
+  });
+
+  for (const batch of chunk(usersToCreate, 100)) {
+    await db.user.createMany({ data: batch });
+  }
+
+  await audit({
+    actorId: s.user.id,
+    action: "USER_CREATED",
+    entityType: "User",
+    entityId: "mass_batch",
+    newValue: { count: usersToCreate.length, reason: "generate_missing_accounts" },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/users/import");
+  return { ok: true, count: usersToCreate.length };
 }

@@ -8,6 +8,7 @@ import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { Badge, Card, Input, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
+import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function UsersPage({
       : {}),
   };
 
-  const [empTotal, employees, serviceUsers, partners, archivedCount] = await Promise.all([
+  const [empTotal, employees, serviceUsers, partners, archivedCount, missingAccountsCount] = await Promise.all([
     db.employee.count({ where: empWhere }),
     db.employee.findMany({
       where: empWhere,
@@ -62,6 +63,7 @@ export default async function UsersPage({
         }),
     db.partner.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.employee.count({ where: { archivedAt: { not: null } } }),
+    archiveView ? Promise.resolve(0) : db.employee.count({ where: { user: null, archivedAt: null } }),
   ]);
 
   const pages = Math.max(1, Math.ceil(empTotal / PAGE_SIZE));
@@ -91,6 +93,14 @@ export default async function UsersPage({
             </Link>
             {!archiveView && (
               <>
+                <a
+                  href="/admin/users/export"
+                  download
+                  className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
+                  title="Скачать реестр сотрудников с логинами в формате Excel"
+                >
+                  Экспорт в Excel
+                </a>
                 <Link
                   href="/admin/users/import"
                   className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
@@ -108,6 +118,8 @@ export default async function UsersPage({
           </div>
         }
       />
+
+      {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} />}
 
       <form method="get" className="flex flex-wrap items-center gap-2">
         {archiveView && <input type="hidden" name="view" value="archive" />}

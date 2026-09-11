@@ -43,3 +43,26 @@ export function loginFromPartnerName(name: string): string {
   const slug = translit(clean).replace(/[^a-z0-9]+/g, "_").slice(0, 24).replace(/^_+|_+$/g, "");
   return slug ? `partner_${slug}` : "partner";
 }
+
+/**
+ * Гарантирует уникальный логин: если «ivanov.i» уже занят, пробует «ivanov.i2», «ivanov.i3» и т.д.
+ * Автоматически добавляет выданный логин в takenLogins для защиты от коллизий в рамках одного батча.
+ */
+export function generateUniqueLogin(
+  baseLogin: string,
+  takenLogins: Set<string>,
+): string {
+  let candidate = baseLogin.toLowerCase().replace(/[^a-z0-9._-]/g, "") || "user";
+  if (candidate.length < 3) candidate = candidate.padEnd(3, "0");
+  if (!takenLogins.has(candidate)) {
+    takenLogins.add(candidate);
+    return candidate;
+  }
+  let counter = 2;
+  while (takenLogins.has(`${candidate}${counter}`)) {
+    counter++;
+  }
+  const result = `${candidate}${counter}`;
+  takenLogins.add(result);
+  return result;
+}

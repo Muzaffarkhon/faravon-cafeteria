@@ -1,8 +1,11 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone } from "@/lib/phone";
+import { hashPassword } from "@/lib/password";
+import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 
 /**
  * Идентификация сотрудника и выдача OTP — для webhook-роута Telegram-бота (§5.1).
@@ -63,8 +66,34 @@ async function issueForEmployee(
   if (!employee.isActive || employee.status === "TERMINATED") {
     throw new SafeLinkError("Учётная запись сотрудника неактивна. Обратитесь в HR.");
   }
-  const user = await db.user.findUnique({ where: { employeeId: employee.id } });
-  if (!user) throw new SafeLinkError("Для сотрудника не заведена учётная запись. Обратитесь в HR.");
+  let user = await db.user.findUnique({ where: { employeeId: employee.id } });
+  if (!user) {
+    // Автоматически заводим учётную запись для сотрудника, если HR ещё не создавал логин вручную
+    const existingUsers = await db.user.findMany({ select: { login: true } });
+    const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
+    const baseLogin = loginFromFullName(employee.fullName);
+    const login = generateUniqueLogin(baseLogin, takenLogins);
+    const passwordHash = await hashPassword(randomUUID());
+
+    user = await db.user.create({
+      data: {
+        login,
+        passwordHash,
+        mustChangePassword: true,
+        roles: ["EMPLOYEE"],
+        employeeId: employee.id,
+        isActive: true,
+      },
+    });
+
+    await audit({
+      actorId: user.id,
+      action: "USER_CREATED",
+      entityType: "User",
+      entityId: user.id,
+      newValue: { login: user.login, roles: user.roles, employeeId: employee.id, via: "telegram_auto" },
+    });
+  }
   if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
 
   // Этот telegramId уже принадлежит другому сотруднику — блокируем всегда.

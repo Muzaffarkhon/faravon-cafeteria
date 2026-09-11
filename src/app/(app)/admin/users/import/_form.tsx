@@ -26,6 +26,21 @@ export function ImportForm() {
       </Field>
 
       <label className="flex items-start gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          name="createAccounts"
+          defaultChecked
+          className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+        />
+        <span>
+          Автоматически создавать учётные записи (логины) для сотрудников
+          <span className="block text-xs text-ink-muted">
+            Генерирует уникальный логин из ФИО (например, ivanov.i) и открывает сотруднику вход на платформу.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-2 text-sm text-ink">
         <input type="checkbox" name="deactivateAbsent" className="mt-0.5 h-4 w-4 accent-[var(--primary)]" />
         <span>
           Деактивировать сотрудников, которых нет в файле
@@ -63,7 +78,8 @@ export function ImportForm() {
             {state.dryRun ? "Проверка (без изменений)" : "Импорт завершён."}
           </p>
           <ul className="text-ink-muted">
-            <li>{state.dryRun ? "Будет добавлено" : "Добавлено"}: {state.created ?? 0}</li>
+            <li>{state.dryRun ? "Будет добавлено сотрудников" : "Добавлено сотрудников"}: {state.created ?? 0}</li>
+            <li>{state.dryRun ? "Будет создано логинов (учёток)" : "Создано логинов (учёток)"}: {state.usersCreated ?? state.created ?? 0}</li>
             <li>{state.dryRun ? "Будет обновлено" : "Обновлено"}: {state.updated ?? 0}</li>
             {(state.deactivated ?? 0) > 0 && (
               <li className="text-warning-strong">
