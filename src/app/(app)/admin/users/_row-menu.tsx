@@ -29,6 +29,7 @@ export function RowContextMenu({
   archived?: boolean;
 }) {
   const anchor = useRef<HTMLSpanElement>(null);
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function RowContextMenu({
   useEffect(() => {
     const row = anchor.current?.closest("tr");
     if (!row) return;
+    rowRef.current = row;
     const onMenu = (e: MouseEvent) => {
       e.preventDefault();
       // Меню не должно уезжать за нижний/правый край окна.
@@ -56,11 +58,19 @@ export function RowContextMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
+    // Правый клик по другой строке открывает её меню — это должно закрывать
+    // наше, иначе открытые меню копятся стопкой. Клик по своей же строке
+    // пропускаем: там меню просто переезжает на новое место.
+    const onCtx = (e: MouseEvent) => {
+      if (!rowRef.current?.contains(e.target as Node)) close();
+    };
     window.addEventListener("click", close);
+    window.addEventListener("contextmenu", onCtx);
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", close, true);
     return () => {
       window.removeEventListener("click", close);
+      window.removeEventListener("contextmenu", onCtx);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", close, true);
     };
