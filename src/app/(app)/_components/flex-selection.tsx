@@ -233,35 +233,37 @@ export function FlexSelection({
                     </p>
                   ) : windowOpen && c.isActive ? (
                     <>
-                      <Button
-                        variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
-                        onClick={() => onSelectClick(c, isSel)}
-                        disabled={pending || atLimit}
-                        loading={busyId === c.id && phoneFor !== c.id}
-                        fullWidth
-                        className="mt-4"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          {isSel ? (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                              В выборе — убрать
-                            </>
-                          ) : atLimit ? (
-                            "Лимит исчерпан"
-                          ) : c.phonePromo ? (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                              Выбрать · указать номер
-                            </>
-                          ) : (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                              Выбрать
-                            </>
-                          )}
-                        </span>
-                      </Button>
+                      {!(busyId === c.id && phoneFor === c.id) && (
+                        <Button
+                          variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
+                          onClick={() => onSelectClick(c, isSel)}
+                          disabled={pending || atLimit}
+                          loading={busyId === c.id}
+                          fullWidth
+                          className="mt-4"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            {isSel ? (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                                В выборе — убрать
+                              </>
+                            ) : atLimit ? (
+                              "Лимит исчерпан"
+                            ) : c.phonePromo ? (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                Выбрать · указать номер
+                              </>
+                            ) : (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                Выбрать
+                              </>
+                            )}
+                          </span>
+                        </Button>
+                      )}
 
                       {phoneFor === c.id && !isSel && (
                         <div className="mt-3 rounded-lg bg-surface-muted p-3">
