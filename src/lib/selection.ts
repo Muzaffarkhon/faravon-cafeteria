@@ -20,12 +20,12 @@ export async function getCurrentPeriod() {
 const TZ_OFFSET_MS = 5 * 60 * 60 * 1000;
 
 /** Инстант для местной даты Душанбе (m — 0-based). */
-function dushanbeInstant(y: number, m: number, day: number, h = 0, min = 0): Date {
+export function dushanbeInstant(y: number, m: number, day: number, h = 0, min = 0): Date {
   return new Date(Date.UTC(y, m, day, h, min) - TZ_OFFSET_MS);
 }
 
 /** Календарные Y/M по времени Душанбе. */
-function dushanbeYM(d: Date): { y: number; m: number } {
+export function dushanbeYM(d: Date): { y: number; m: number } {
   const local = new Date(d.getTime() + TZ_OFFSET_MS);
   return { y: local.getUTCFullYear(), m: local.getUTCMonth() };
 }

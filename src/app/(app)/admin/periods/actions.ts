@@ -149,6 +149,18 @@ export async function setPeriodStatus(
       }
     }
 
+    // При открытии периода заранее готовим черновик следующего месяца — чтобы
+    // C&B не создавал период руками каждый месяц, только поправил при нужде.
+    if (status === "OPEN") {
+      try {
+        const { ensureNextPeriodDraft } = await import("@/lib/period-lifecycle");
+        const drafted = await ensureNextPeriodDraft(period, s.user.id);
+        if (drafted) console.log(`[period:open] черновик следующего периода создан: «${drafted.name}»`);
+      } catch (e) {
+        console.error("[period:open] ошибка создания черновика следующего периода:", e);
+      }
+    }
+
     revalidatePath("/admin/periods");
     revalidatePath("/");
     revalidatePath("/applications");
