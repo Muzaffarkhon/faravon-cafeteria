@@ -117,21 +117,21 @@ function AccountRow({
   const [err, setErr] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-surface">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="font-mono font-bold text-ink">{account.login}</span>
+    <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface">
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-all font-mono font-bold text-ink">{account.login}</span>
           <Badge tone={account.isActive ? "success" : "warning"}>
             {account.isActive ? "Активен" : "Заблокирован"}
           </Badge>
-          <Badge tone="neutral">Роль: Подрядчик</Badge>
+          <Badge tone="neutral">Подрядчик</Badge>
         </div>
         <p className="text-xs text-ink-subtle">
           Создан: {new Date(account.createdAt).toLocaleDateString("ru-RU")}
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           variant="secondary"
@@ -167,7 +167,7 @@ function AccountRow({
         </Button>
       </div>
 
-      {err && <p className="text-xs font-medium text-danger">{err}</p>}
+      {err && <p className="w-full text-xs font-medium text-danger">{err}</p>}
     </div>
   );
 }
