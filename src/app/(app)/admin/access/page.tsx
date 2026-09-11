@@ -129,7 +129,7 @@ export default async function AccessPage({
               return (
                 <tr key={e.id}>
                   <td>
-                    <RowId id={e.id} />
+                    <RowId id={e.id} seq={e.seq} />
                   </td>
                   <td className="font-medium text-ink">{e.fullName}</td>
                   <td>{e.department}</td>

@@ -258,22 +258,12 @@ export function Table({
 }
 
 /**
- * Идентификатор записи в таблице — компактный чип с последними символами id.
- * Полное значение в `title`; сам чип выделяется одним кликом.
+ * Идентификатор записи в таблице — компактный чип с порядковым номером
+ * создания (`seq`, обычный Postgres autoincrement: назначается один раз,
+ * никогда не пересчитывается и не переиспользуется после удаления записи).
+ * Полный id — в `title`; сам чип выделяется одним кликом.
  */
-/**
- * Числовой код из id для компактного отображения: берём тот же хвост id, что
- * и раньше (последние 6 символов cuid, алфавит 0-9a-z = base36), и переводим
- * его в десятичное число — код остаётся привязан к настоящему id (не хеш «в
- * никуда»), можно найти запись обратно (parseInt(code,10).toString(36)).
- */
-function numericId(id: string): string {
-  const tail = id.length > 6 ? id.slice(-6) : id;
-  const n = Number.parseInt(tail, 36);
-  return Number.isFinite(n) ? String(n) : tail;
-}
-
-export function RowId({ id, className }: { id: string; className?: string }) {
+export function RowId({ id, seq, className }: { id: string; seq: number; className?: string }) {
   return (
     <span
       title={id}
@@ -283,7 +273,7 @@ export function RowId({ id, className }: { id: string; className?: string }) {
         className,
       )}
     >
-      #{numericId(id)}
+      #{seq}
     </span>
   );
 }

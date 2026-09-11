@@ -58,7 +58,7 @@ export default async function PartnersPage() {
             {partners.map((p) => (
               <tr key={p.id}>
                 <td>
-                  <RowId id={p.id} />
+                  <RowId id={p.id} seq={p.seq} />
                 </td>
                 <td className="font-medium text-ink">{p.name}</td>
                 <td>

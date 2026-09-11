@@ -297,6 +297,7 @@ export function ServiceAccountRow({
 }: {
   user: {
     id: string;
+    seq: number;
     login: string;
     roles: Role[];
     isActive: boolean;
@@ -315,7 +316,7 @@ export function ServiceAccountRow({
     <>
       <tr>
         <td>
-          <RowId id={user.id} />
+          <RowId id={user.id} seq={user.seq} />
         </td>
         <td>
           <Badge tone="neutral">Служебная</Badge>

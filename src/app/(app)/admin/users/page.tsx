@@ -162,7 +162,7 @@ export default async function UsersPage({
             {employees.map((e) => (
               <tr key={e.id}>
                 <td>
-                  <RowId id={e.id} />
+                  <RowId id={e.id} seq={e.seq} />
                 </td>
                 <td>
                   <Badge tone="brand">Сотрудник</Badge>
@@ -216,6 +216,7 @@ export default async function UsersPage({
                 key={u.id}
                 user={{
                   id: u.id,
+                  seq: u.seq,
                   login: u.login,
                   roles: u.roles,
                   isActive: u.isActive,

@@ -202,7 +202,7 @@ export default async function CouponsPage({
                     <tr key={c.id}>
                       <td data-numeric>
                         <div className="font-mono text-sm text-ink">{c.number}</div>
-                        <RowId id={c.id} className="mt-0.5" />
+                        <RowId id={c.id} seq={c.seq} className="mt-0.5" />
                       </td>
                       <td className="text-ink">{c.employee.fullName}</td>
                       <td className="text-ink">

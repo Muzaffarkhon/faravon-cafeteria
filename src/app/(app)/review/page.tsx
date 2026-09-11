@@ -92,6 +92,7 @@ export default async function ReviewPage({
 
   const rows: ReviewRow[] = items.map((it) => ({
     id: it.id,
+    seq: it.seq,
     employee: it.application.employee.fullName,
     department: it.application.employee.department,
     card: it.card.title,

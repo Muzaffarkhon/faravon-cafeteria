@@ -92,6 +92,7 @@ enum FeedbackStatus {
 
 model Employee {
   id           String           @id @default(cuid())
+  seq          Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   fullName     String
   position     String
   department   String
@@ -121,6 +122,7 @@ model Employee {
 
 model User {
   id                String    @id @default(cuid())
+  seq               Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   login             String    @unique
   passwordHash      String
   mustChangePassword Boolean  @default(true)
@@ -196,6 +198,7 @@ model IdentificationCode {
 
 model Partner {
   id            String        @id @default(cuid())
+  seq           Int           @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   name          String
   category      String?
   contactPerson String?
@@ -309,6 +312,7 @@ model Application {
 
 model ApplicationItem {
   id            String     @id @default(cuid())
+  seq           Int        @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   applicationId String
   card          BenefitCard @relation(fields: [cardId], references: [id])
@@ -353,6 +357,7 @@ model SlaEscalationRule {
 
 model Coupon {
   id              String       @id @default(cuid())
+  seq             Int          @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   number          String       @unique
   item            ApplicationItem @relation(fields: [itemId], references: [id])
   itemId          String       @unique
@@ -398,6 +403,7 @@ model PartnerBanner {
 
 model AdvertisingRequest {
   id              String    @id @default(cuid())
+  seq             Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   // Заявку подаёт партнёр (учётка подрядчика, привязанная к партнёру).
   partner         Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   partnerId       String?

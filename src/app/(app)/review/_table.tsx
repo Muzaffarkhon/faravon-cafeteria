@@ -7,6 +7,7 @@ import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } fro
 
 export type ReviewRow = {
   id: string;
+  seq: number;
   employee: string;
   department: string;
   card: string;
@@ -164,7 +165,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                   />
                 </td>
                 <td>
-                  <RowId id={r.id} />
+                  <RowId id={r.id} seq={r.seq} />
                 </td>
                 <td>
                   <div className="font-medium text-ink">{r.employee}</div>
