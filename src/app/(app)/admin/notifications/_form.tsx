@@ -78,7 +78,9 @@ export function TemplateForm({
                 </span>
               ))}
               . Блок <code className="rounded bg-surface-muted px-1">[[ … ]]</code> исчезает, если
-              плейсхолдер внутри пустой.
+              плейсхолдер внутри пустой. Поддерживаются теги Telegram:{" "}
+              <code className="rounded bg-surface-muted px-1">{"<b>жирный</b>"}</code>,{" "}
+              <code className="rounded bg-surface-muted px-1">{"<code>моноширинный</code>"}</code>.
             </>
           }
         >
@@ -93,8 +95,14 @@ export function TemplateForm({
         </Field>
 
         <div className="rounded-lg bg-surface-muted px-3 py-2 text-sm">
-          <div className="mb-0.5 text-xs font-medium text-ink-subtle">Пример</div>
-          <div className="text-ink">🔔 {preview || <span className="text-ink-subtle">—</span>}</div>
+          <div className="mb-0.5 text-xs font-medium text-ink-subtle">
+            Пример (как в Telegram)
+          </div>
+          {preview ? (
+            <div className="whitespace-pre-line text-ink" dangerouslySetInnerHTML={{ __html: preview }} />
+          ) : (
+            <span className="text-ink-subtle">—</span>
+          )}
         </div>
       </div>
 

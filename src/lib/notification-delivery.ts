@@ -10,35 +10,18 @@ import { formatNotificationText } from "./notification-format";
 
 const TG_API = "https://api.telegram.org";
 
-const escHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
 async function tgOk(r: Response): Promise<boolean> {
   const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
   return !!data?.ok;
 }
 
-async function sendTelegram(token: string, chatId: string, text: string): Promise<boolean> {
-  try {
-    // Без parse_mode: тексты уведомлений — обычный текст из шаблонов
-    // (NotificationTemplate) с подстановкой названий карточек и комментариев.
-    // При parse_mode:"HTML" любой «<», «&» или «>» в этих данных (напр. карточка
-    // «Спорт & фитнес» или причина отказа «бюджет < 5000») приводил к ответу
-    // Telegram { ok:false } → уведомление зависало в бесконечном ретрае и
-    // сотрудник его не получал никогда.
-    const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    });
-    return await tgOk(r);
-  } catch {
-    return false;
-  }
-}
-
-/** Сообщение с моноширинным блоком (§11: промокод, который удобно копировать). */
-async function sendTelegramHtml(token: string, chatId: string, html: string): Promise<boolean> {
+/**
+ * Текст уведомления — всегда HTML (жирный заголовок, `<code>` для номеров и
+ * промокодов, см. DEFAULT_TEMPLATES). Значения, подставленные в шаблон
+ * (formatNotificationText → renderTemplate), уже экранированы — сама разметка
+ * шаблона (b/code) экранированию не подлежит, поэтому шлём как есть.
+ */
+async function sendTelegram(token: string, chatId: string, html: string): Promise<boolean> {
   try {
     const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
       method: "POST",
@@ -51,7 +34,7 @@ async function sendTelegramHtml(token: string, chatId: string, html: string): Pr
   }
 }
 
-/** QR-картинка купона вместо текстового кода (§11). */
+/** QR-картинка купона вместо текстового кода (§11), подпись — тот же HTML. */
 async function sendTelegramQr(
   token: string,
   chatId: string,
@@ -68,6 +51,7 @@ async function sendTelegramQr(
     const form = new FormData();
     form.append("chat_id", chatId);
     form.append("caption", caption);
+    form.append("parse_mode", "HTML");
     form.append(
       "photo",
       new Blob([new Uint8Array(png)], { type: "image/png" }),
@@ -159,23 +143,14 @@ export async function deliverTelegramNotifications(opts: {
 
     let ok: boolean;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
-      // §11: вместо текстового кода — QR-картинка купона. В подписи — только
-      // название льготы (код сотруднику больше не нужен, партнёр сканирует QR)
-      // и срок действия, чтобы было видно, когда купон сгорит.
-      const card = typeof payload.card === "string" ? payload.card : "";
-      const validUntil = typeof payload.validUntil === "string" ? payload.validUntil : "";
-      const caption =
-        (card ? `🔔 Купон по льготе «${card}» готов. Предъявите QR партнёру.` : "🔔 Купон готов. Предъявите QR партнёру.") +
-        (validUntil ? ` Действует до ${validUntil}.` : "");
+      // §11: вместо текстового кода — QR-картинка купона. В подписи номер не
+      // нужен (партнёр сканирует QR) — рендерим тот же шаблон без {number},
+      // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
+      // остальных опциональных блоков, а не разбор готового HTML регуляркой).
+      const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates);
       ok = await sendTelegramQr(token, tgId, payload.number, caption);
-    } else if (n.event === "TAXI_PROMO_CODE" && typeof payload?.promo === "string" && payload.promo) {
-      // §11: промокод моноширинным блоком, чтобы удобно копировать.
-      const promo = payload.promo;
-      let html = "🔔 " + escHtml(body);
-      html = html.split(escHtml(promo)).join(`<code>${escHtml(promo)}</code>`);
-      ok = await sendTelegramHtml(token, tgId, html);
     } else {
-      ok = await sendTelegram(token, tgId, "🔔 " + body);
+      ok = await sendTelegram(token, tgId, body);
     }
 
     if (ok) {
