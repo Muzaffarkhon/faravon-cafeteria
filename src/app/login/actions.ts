@@ -7,10 +7,12 @@ import { createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { hashPassword, needsRehash, verifyPassword } from "@/lib/password";
 
-const MAX_FAILED = 5; // §5.1
+const MAX_FAILED = 5; // §5.1 — блокировка конкретного аккаунта при 5 ошибках
 const LOCK_MINUTES = 15;
 const IP_WINDOW_MS = 15 * 60_000;
-const IP_MAX_FAILED = 5;
+// Лимит по IP поднят до 300, чтобы 500 сотрудников из одного офиса (NAT/Wi-Fi) не блокировали друг друга.
+// Персональная защита от перебора работает строго по аккаунту (MAX_FAILED = 5).
+const IP_MAX_FAILED = 300;
 
 // Фиктивный хэш (cost 12): сверяемся с ним, когда логина нет, чтобы время
 // ответа не выдавало существование учётной записи (timing-атака / перебор логинов).

@@ -157,22 +157,30 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
     sel.length !== roles.length || sel.some((r) => !roles.includes(r));
   const grants = permissionsForRoles(sel);
 
+  const toggleRole = (r: Role) => {
+    setSaved(false);
+    setErr(null);
+    setSel((cur) => {
+      if (cur.includes(r)) {
+        return cur.filter((x) => x !== r);
+      }
+      if (r === "CONTRACTOR") {
+        return ["CONTRACTOR"];
+      }
+      return [...cur.filter((x) => x !== "CONTRACTOR"), r];
+    });
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-ink">Роли</p>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {ALL_ROLES.map((r) => (
-          <label key={r} className="flex items-center gap-2 text-sm text-ink">
+          <label key={r} className="flex items-center gap-2 text-sm text-ink cursor-pointer">
             <input
               type="checkbox"
               checked={sel.includes(r)}
-              onChange={(e) => {
-                setSaved(false);
-                setErr(null);
-                setSel((cur) =>
-                  e.target.checked ? [...cur, r] : cur.filter((x) => x !== r),
-                );
-              }}
+              onChange={() => toggleRole(r)}
               className="h-4 w-4 accent-[var(--primary)]"
             />
             {ROLE_LABELS[r]}

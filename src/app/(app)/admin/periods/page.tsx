@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import { Badge, PageHeader, buttonClass, type BadgeTone } from "@/components/ui";
-import { PeriodActions } from "./_status-buttons";
+import { PeriodActions, ResetFlowButton } from "./_status-buttons";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   DRAFT: "neutral",
@@ -30,9 +30,12 @@ export default async function PeriodsPage() {
       <PageHeader
         title={`Периоды выбора (${periods.length})`}
         action={
-          <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
-            Добавить период
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <ResetFlowButton />
+            <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
+              Добавить период
+            </Link>
+          </div>
         }
       />
 

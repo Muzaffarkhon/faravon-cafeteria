@@ -40,6 +40,8 @@ export default async function OverviewPage() {
       links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX" });
     if (can(roles, "feedback.manage"))
       links.push({ href: "/admin/feedback", label: "Обратная связь", desc: "обращения сотрудников по программе льгот" });
+    if (can(roles, "audit.view"))
+      links.push({ href: "/admin/audit", label: "Журнал аудита", desc: "история действий: кто, что и когда изменял, согласования, входы" });
 
     return (
       <div className="space-y-6">

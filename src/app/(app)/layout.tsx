@@ -110,7 +110,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (can(roles, "users.manage"))
     add("admin", "Аналитика и доступ", { href: "/admin/users", label: "Пользователи", icon: ICONS.users });
   if (can(roles, "audit.view"))
-    add("admin", "Аналитика и доступ", { href: "/admin/audit", label: "История", icon: ICONS.history });
+    add("admin", "Аналитика и доступ", { href: "/admin/audit", label: "Аудит", icon: ICONS.history });
 
   return (
     <AppShell

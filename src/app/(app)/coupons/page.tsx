@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { COUPON_STATUS_LABELS } from "@/lib/coupon";
+import { COUPON_STATUS_LABELS, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import {
@@ -16,7 +16,7 @@ import {
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
-import { CreateCouponButton, IssueCouponButton } from "./_buttons";
+import { CreateCouponButton, IssueCouponButton, DeleteCouponButton } from "./_buttons";
 
 const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   CREATED: "accent",
@@ -183,31 +183,38 @@ export default async function CouponsPage({
                 </tr>
               </thead>
               <tbody>
-                {coupons.map((c) => (
-                  <tr key={c.id}>
-                    <td data-numeric>
-                      <div className="font-mono text-sm text-ink">{c.number}</div>
-                      <RowId id={c.id} className="mt-0.5" />
-                    </td>
-                    <td className="text-ink">{c.employee.fullName}</td>
-                    <td className="text-ink">
-                      {c.item.card.title}
-                      <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
-                    </td>
-                    <td>{c.period.name}</td>
-                    <td data-numeric>
-                      {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
-                    </td>
-                    <td>
-                      <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
-                        {COUPON_STATUS_LABELS[c.status]}
-                      </Badge>
-                    </td>
-                    <td className="text-right">
-                      {c.status === "CREATED" && <IssueCouponButton couponId={c.id} />}
-                    </td>
-                  </tr>
-                ))}
+                {coupons.map((c) => {
+                  const overdue = isCouponOverdue(c);
+                  const displayStatus = overdue ? "EXPIRED" : c.status;
+                  return (
+                    <tr key={c.id}>
+                      <td data-numeric>
+                        <div className="font-mono text-sm text-ink">{c.number}</div>
+                        <RowId id={c.id} className="mt-0.5" />
+                      </td>
+                      <td className="text-ink">{c.employee.fullName}</td>
+                      <td className="text-ink">
+                        {c.item.card.title}
+                        <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
+                      </td>
+                      <td>{c.period.name}</td>
+                      <td data-numeric>
+                        {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
+                      </td>
+                      <td>
+                        <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
+                          {COUPON_STATUS_LABELS[displayStatus]}
+                        </Badge>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {c.status === "CREATED" && !overdue && <IssueCouponButton couponId={c.id} />}
+                          <DeleteCouponButton couponId={c.id} couponNumber={c.number} />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </Card>

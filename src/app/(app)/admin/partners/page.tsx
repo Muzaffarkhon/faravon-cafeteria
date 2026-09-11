@@ -19,7 +19,13 @@ export default async function PartnersPage() {
   if (!can(session.roles, "partners.manage")) redirect("/");
 
   const partners = await db.partner.findMany({
-    include: { _count: { select: { cards: true } } },
+    include: {
+      _count: { select: { cards: true } },
+      serviceUsers: {
+        where: { roles: { has: "CONTRACTOR" } },
+        select: { id: true, login: true, isActive: true },
+      },
+    },
     orderBy: [{ status: "asc" }, { name: "asc" }],
   });
 
@@ -40,6 +46,7 @@ export default async function PartnersPage() {
             <tr>
               <th>ID</th>
               <th>Название</th>
+              <th>Учётка подрядчика</th>
               <th>Категория</th>
               <th>Скидка</th>
               <th>Карточек</th>
@@ -54,6 +61,24 @@ export default async function PartnersPage() {
                   <RowId id={p.id} />
                 </td>
                 <td className="font-medium text-ink">{p.name}</td>
+                <td>
+                  {p.serviceUsers.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {p.serviceUsers.map((u) => (
+                        <Badge key={u.id} tone={u.isActive ? "success" : "warning"}>
+                          {u.login} {!u.isActive && "(откл.)"}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/admin/partners/${p.id}`}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      + Создать
+                    </Link>
+                  )}
+                </td>
                 <td>{p.category ?? "—"}</td>
                 <td>{p.discountType ?? "—"}</td>
                 <td>{p._count.cards}</td>

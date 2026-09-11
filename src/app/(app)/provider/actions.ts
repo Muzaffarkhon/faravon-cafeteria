@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import {
   COUPON_STATUS_LABELS,
-  isCouponExpired,
+  isCouponOverdue,
   lookupCouponByNumber,
   redeemCouponByNumber,
 } from "@/lib/coupon";
@@ -37,7 +37,7 @@ export async function lookupCoupon(number: string): Promise<LookupResult> {
   const c = await lookupCouponByNumber(n);
   if (!c) return { error: "Купон с таким номером не найден." };
 
-  const expired = isCouponExpired(c.validUntil);
+  const expired = isCouponOverdue(c);
   const wrongPartner = !!s.user.partnerId && c.partnerId !== s.user.partnerId;
 
   return {

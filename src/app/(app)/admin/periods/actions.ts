@@ -139,10 +139,70 @@ export async function deletePeriod(id: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "periods.manage");
-    const apps = await db.application.count({ where: { periodId: id } });
-    if (apps > 0) throw new Error(`Нельзя удалить: в периоде ${apps} заявок.`);
-    await db.period.delete({ where: { id } });
-    await audit({ actorId: s.user.id, action: "PERIOD_DELETED", entityType: "Period", entityId: id });
+    const period = await db.period.findUnique({ where: { id } });
+    if (!period) throw new Error("Период не найден.");
+
+    await db.$transaction(async (tx) => {
+      // Удаляем связанные купоны, позиции и заявки периода
+      await tx.coupon.deleteMany({ where: { periodId: id } });
+      await tx.applicationItem.deleteMany({ where: { application: { periodId: id } } });
+      await tx.application.deleteMany({ where: { periodId: id } });
+      await tx.period.delete({ where: { id } });
+    });
+
+    await audit({
+      actorId: s.user.id,
+      action: "PERIOD_DELETED",
+      entityType: "Period",
+      entityId: id,
+      oldValue: { name: period.name, status: period.status },
+    });
     revalidatePath("/admin/periods");
+    revalidatePath("/");
+    revalidatePath("/applications");
+    revalidatePath("/coupons");
   });
 }
+
+/** Сброс тестовых данных флоу (заявки, позиции, купоны) — сохраняет льготы, баннеры, пользователей и партнёров. */
+export async function resetFlowData(): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "periods.manage");
+
+    const [c1, c2, c3, c4] = await db.$transaction([
+      db.coupon.deleteMany({}),
+      db.applicationItem.deleteMany({}),
+      db.application.deleteMany({}),
+      db.notification.deleteMany({
+        where: {
+          event: {
+            in: ["APPLICATION_SUBMITTED", "ITEM_APPROVED", "ITEM_REJECTED", "COUPON_CREATED", "COUPON_ISSUED"],
+          },
+        },
+      }),
+    ]);
+
+    await audit({
+      actorId: s.user.id,
+      action: "FLOW_RESET_BY_ADMIN",
+      entityType: "System",
+      entityId: "flow",
+      newValue: {
+        deletedCoupons: c1.count,
+        deletedItems: c2.count,
+        deletedApps: c3.count,
+        deletedNotifications: c4.count,
+      },
+    });
+
+    revalidatePath("/admin/periods");
+    revalidatePath("/coupons");
+    revalidatePath("/applications");
+    revalidatePath("/");
+    return {
+      notice: `Очистка выполнена: удалено купонов ${c1.count}, позиций ${c2.count}, заявок ${c3.count}, уведомлений ${c4.count}. Все настройки карточек, баннеров и партнёров сохранены.`,
+    };
+  });
+}
+

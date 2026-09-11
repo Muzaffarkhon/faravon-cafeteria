@@ -179,7 +179,7 @@ export function EmployeeForm({
                   )}
                 </div>
               </Field>
-              <RolePicker defaultRoles={["EMPLOYEE"]} />
+              <RolePicker defaultRoles={["EMPLOYEE"]} allowedRoles={["EMPLOYEE", "C_AND_B"]} />
               <p className="text-xs text-ink-muted">
                 Одноразовый пароль покажется в окне сразу после сохранения.
               </p>
@@ -211,22 +211,41 @@ export function EmployeeForm({
 
 export function RolePicker({
   defaultRoles,
+  allowedRoles = ALL_ROLES,
   name = "roles",
 }: {
   defaultRoles: Role[];
+  allowedRoles?: Role[];
   name?: string;
 }) {
+  const [selected, setSelected] = useState<Role[]>(() =>
+    defaultRoles.filter((r) => allowedRoles.includes(r)),
+  );
+
+  const toggle = (r: Role) => {
+    setSelected((cur) => {
+      if (cur.includes(r)) {
+        return cur.filter((x) => x !== r);
+      }
+      if (r === "CONTRACTOR") {
+        return ["CONTRACTOR"];
+      }
+      return [...cur.filter((x) => x !== "CONTRACTOR"), r];
+    });
+  };
+
   return (
     <fieldset className="space-y-1.5">
       <legend className="text-sm font-medium text-ink">Роли</legend>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        {ALL_ROLES.map((r) => (
-          <label key={r} className="flex items-center gap-2 text-sm text-ink">
+        {allowedRoles.map((r) => (
+          <label key={r} className="flex items-center gap-2 text-sm text-ink cursor-pointer">
             <input
               type="checkbox"
               name={name}
               value={r}
-              defaultChecked={defaultRoles.includes(r)}
+              checked={selected.includes(r)}
+              onChange={() => toggle(r)}
               className="h-4 w-4 accent-[var(--primary)]"
             />
             {ROLE_LABELS[r]}

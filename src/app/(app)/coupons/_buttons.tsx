@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
-import { createCoupon, issueCoupon } from "./actions";
+import { createCoupon, issueCoupon, deleteCoupon } from "./actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 function ActionButton({
   label,
@@ -74,5 +75,73 @@ export function IssueCouponButton({ couponId }: { couponId: string }) {
       variant="success"
       onRun={() => issueCoupon(couponId)}
     />
+  );
+}
+
+export function DeleteCouponButton({
+  couponId,
+  couponNumber,
+}: {
+  couponId: string;
+  couponNumber: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = () => {
+    setError(null);
+    start(async () => {
+      try {
+        const r = await deleteCoupon(couponId);
+        if (r?.error) {
+          setError(r.error);
+        } else {
+          setOpen(false);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ошибка удаления купона");
+      }
+    });
+  };
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={pending}
+        onClick={() => setOpen(true)}
+        className="text-danger hover:bg-danger/10 hover:text-danger"
+      >
+        Удалить
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        title="Удалить купон?"
+        tone="danger"
+        confirmLabel="Удалить"
+        busy={pending}
+        message={
+          <div className="space-y-2">
+            <p>
+              Вы уверены, что хотите безвозвратно удалить купон{" "}
+              <strong className="font-mono text-ink">№ {couponNumber}</strong>?
+            </p>
+            <p className="text-xs text-ink-subtle">
+              Связанная позиция заявки сотрудника вернётся в статус «Одобрено» и появится в списке ожидающих формирования купона.
+            </p>
+            {error && (
+              <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={handleDelete}
+        onClose={() => !pending && setOpen(false)}
+      />
+    </>
   );
 }

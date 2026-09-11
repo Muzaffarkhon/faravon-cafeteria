@@ -203,6 +203,9 @@ export async function createAccountForEmployee(
     return { error: `Логин «${login}» уже занят.` };
   }
   const roles = parseRoles(formData);
+  if (roles.includes("CONTRACTOR")) {
+    return { error: "Сотрудник компании не может иметь сервисную роль «Подрядчик»." };
+  }
 
   const user = await db.user.create({
     data: {
@@ -243,6 +246,11 @@ export async function createServiceAccount(
     return { error: `Логин «${login}» уже занят.` };
   }
   const roles = parseRoles(formData);
+  if (roles.includes("CONTRACTOR") && roles.length > 1) {
+    return {
+      error: "Роль «Подрядчик» является сервисной и не может совмещаться с другими ролями.",
+    };
+  }
 
   // Привязка к партнёру — только для подрядчика; гасит купоны только своего партнёра.
   const partnerIdRaw = String(formData.get("partnerId") ?? "").trim();
@@ -319,6 +327,18 @@ export async function setUserRoles(userId: string, roles: Role[]): Promise<Accou
 
   const next = ALL_ROLES.filter((r) => roles.includes(r));
   if (!next.length) return { error: "Оставьте хотя бы одну роль." };
+
+  if (next.includes("CONTRACTOR") && next.length > 1) {
+    return {
+      error: "Роль «Подрядчик» является сервисной и не может совмещаться с другими ролями.",
+    };
+  }
+
+  if (before.employeeId && next.includes("CONTRACTOR")) {
+    return {
+      error: "Учётная запись сотрудника не может иметь роль «Подрядчик».",
+    };
+  }
 
   if (before.roles.includes("C_AND_B") && !next.includes("C_AND_B")) {
     if (userId === s.user.id) {

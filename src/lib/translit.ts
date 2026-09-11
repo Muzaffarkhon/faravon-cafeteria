@@ -34,3 +34,12 @@ export function loginFromFullName(fullName: string): string {
   const initial = translit(parts[1]).replace(/-/g, "").slice(0, 1);
   return initial ? `${surname}.${initial}` : surname;
 }
+
+/**
+ * Логин из названия партнёра: «Столовая Фаровон» → «partner_stolovaya_farovon».
+ */
+export function loginFromPartnerName(name: string): string {
+  const clean = name.replace(/^(ооо|зао|оао|ип|чп|тоо|llc|cjsc|ojsc)\s+/i, "");
+  const slug = translit(clean).replace(/[^a-z0-9]+/g, "_").slice(0, 24).replace(/^_+|_+$/g, "");
+  return slug ? `partner_${slug}` : "partner";
+}
