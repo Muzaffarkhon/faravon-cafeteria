@@ -7,6 +7,7 @@ import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
 import { BannerCarousel, type BannerSlide } from "./_banner-carousel";
+import { buildNavGroups } from "./_nav";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -17,31 +18,22 @@ export default async function OverviewPage() {
 
   if (!session?.employee) {
     const roles = session?.roles ?? [];
-    const links: { href: string; label: string; desc: string }[] = [];
-    if (can(roles, "applications.decide"))
-      links.push({ href: "/review", label: "Согласование заявок", desc: "одобрение и отклонение позиций" });
-    if (can(roles, "coupons.manage"))
-      links.push({ href: "/coupons", label: "Купоны", desc: "формирование и выдача купонов" });
-    if (can(roles, "coupons.confirm"))
-      links.push({ href: "/provider", label: "Касса партнёра", desc: "проверка и активация купонов сотрудников у партнёра" });
-    if (can(roles, "users.manage"))
-      links.push({ href: "/admin/users", label: "Пользователи и роли", desc: "справочник сотрудников, учётные записи, роли, деактивация" });
-    if (can(roles, "access.manage"))
-      links.push({ href: "/admin/access", label: "Доступ сотрудников", desc: "коды идентификации для Telegram-бота, привязка Telegram" });
-    if (can(roles, "cards.manage"))
-      links.push({ href: "/admin/cards", label: "Карточки", desc: "программы признания, витрина заботы, реестр гибких льгот" });
-    if (can(roles, "partners.manage"))
-      links.push({ href: "/admin/partners", label: "Справочник партнёров", desc: "организации-провайдеры льгот" });
-    if (can(roles, "cards.manage"))
-      links.push({ href: "/admin/texts", label: "Текстовые блоки", desc: "«Цель программы» и уведомление о новизне" });
-    if (can(roles, "periods.manage"))
-      links.push({ href: "/admin/periods", label: "Периоды выбора", desc: "окна подачи заявок, лимит, открытие и закрытие" });
-    if (can(roles, "reports.view"))
-      links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX" });
-    if (can(roles, "feedback.manage"))
-      links.push({ href: "/admin/feedback", label: "Обратная связь", desc: "обращения сотрудников по программе льгот" });
-    if (can(roles, "audit.view"))
-      links.push({ href: "/admin/audit", label: "Журнал аудита", desc: "история действий: кто, что и когда изменял, согласования, входы" });
+    // Плитки строятся из того же списка разделов, что и меню «Ещё» в шапке
+    // (src/app/(app)/_nav.ts) — чтобы раздел нельзя было добавить в одно
+    // место и забыть про другое. Счётчики здесь не нужны, поэтому и лишних
+    // запросов к базе нет.
+    const partnerId = session?.user.partnerId ?? null;
+    const partner = partnerId
+      ? await db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
+      : null;
+    const groups = buildNavGroups({
+      roles,
+      hasEmployee: false,
+      partnerId,
+      isTaxiContractor:
+        can(roles, "promo.broadcast") && !!partnerId && partner?.deliveryMode === "PHONE_PROMO",
+    });
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
 
     return (
       <div className="space-y-6">
@@ -52,36 +44,45 @@ export default async function OverviewPage() {
           </p>
         </div>
 
-        {links.length === 0 ? (
+        {total === 0 ? (
           <Card className="p-6">
             <p className="text-sm text-ink-muted">
               Разделы для вашей роли (справочники, отчёты) появятся здесь по мере готовности.
             </p>
           </Card>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {links.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[0.9375rem] font-bold text-ink">{l.label}</div>
-                    <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
-                  </div>
-                  <span
-                    aria-hidden="true"
-                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          groups.map((g) => (
+            <section key={g.id} className="space-y-3">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-subtle">
+                {g.label}
+              </h2>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {g.items.map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[0.9375rem] font-bold text-ink">{l.label}</div>
+                        {l.desc && (
+                          <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
+                        )}
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
         )}
       </div>
     );

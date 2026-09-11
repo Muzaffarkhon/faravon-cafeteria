@@ -11,6 +11,8 @@ import { LiveRefresh } from "./_live-refresh";
 export type NavItem = {
   href: string;
   label: string;
+  /** Подпись для плиток «Кабинета»; в меню шапки не показывается. */
+  desc?: string;
   icon: string; // path(s) для 24×24 stroke-иконки, сегменты через "||"
   badge?: number;
   soon?: boolean;
