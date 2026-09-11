@@ -52,8 +52,19 @@ export async function loginAction(
   const { ip, userAgent } = await clientMeta();
   const genericError = { error: "Неверный логин или пароль." };
 
-  // Лимит перебора по IP (§5.1)
-  const since = new Date(Date.now() - IP_WINDOW_MS);
+  // Лимит перебора по IP (§5.1). Окно отсчитываем от последнего УСПЕШНОГО входа
+  // с этого адреса: за общим офисным NAT входят сотни сотрудников, и их опечатки
+  // копились в один счётчик — в день запуска это заблокировало бы весь офис.
+  // Перебор и «распыление» паролей успехом не заканчиваются, поэтому для
+  // атакующего окно остаётся полным; счётчик по самому аккаунту (MAX_FAILED)
+  // работает независимо от IP.
+  const windowStart = new Date(Date.now() - IP_WINDOW_MS);
+  const lastOk = await db.loginAttempt.findFirst({
+    where: { ip, success: true, createdAt: { gt: windowStart } },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const since = lastOk?.createdAt ?? windowStart;
   const ipFails = await db.loginAttempt.count({
     where: { ip, success: false, createdAt: { gt: since } },
   });
