@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import { computeReport, listReportPeriods, type Report } from "@/lib/reports";
-import { Card, EmptyState, PageHeader, Select, buttonClass, cx } from "@/components/ui";
+import { Card, EmptyState, Select, buttonClass, cx } from "@/components/ui";
 
 const fmtPct = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
 const fmtNum = (v: number | null, d = 2) => (v == null ? "—" : v.toFixed(d));
@@ -111,26 +111,21 @@ export default async function ReportsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Отчёты и метрики"
-        action={
-          <div className="flex items-center gap-2">
-            <form method="get" className="flex items-center gap-2">
-              <Select name="period" defaultValue={periodId} className="w-auto py-1.5 text-sm">
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {PERIOD_STATUS_LABELS[p.status]}
-                  </option>
-                ))}
-              </Select>
-              <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
-            </form>
-            <a href={exportBase} className={buttonClass({ size: "sm" })}>
-              Экспорт в XLSX
-            </a>
-          </div>
-        }
-      />
+      <div className="flex items-center justify-end gap-2">
+        <form method="get" className="flex items-center gap-2">
+          <Select name="period" defaultValue={periodId} className="w-auto py-1.5 text-sm">
+            {periods.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {PERIOD_STATUS_LABELS[p.status]}
+              </option>
+            ))}
+          </Select>
+          <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
+        </form>
+        <a href={exportBase} className={buttonClass({ size: "sm" })}>
+          Экспорт в XLSX
+        </a>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric

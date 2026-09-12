@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, EmptyState, PageHeader, Table, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Table, type BadgeTone } from "@/components/ui";
 
 type Req = {
   id: string;
@@ -64,11 +64,6 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Заявки на рекламу"
-        description="Обращения компаний, желающих разместить рекламу партнёра."
-      />
-
       {items === null ? (
         <Card className="p-6 text-sm text-ink-muted">Загрузка…</Card>
       ) : items.length === 0 ? (

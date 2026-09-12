@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { Card, EmptyState, Input, PageHeader, Select, Table, buttonClass } from "@/components/ui";
+import { Card, EmptyState, Input, Select, Table, buttonClass } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -86,11 +86,6 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="История изменений"
-        description="Журнал действий: кто, что и когда. Показаны последние 200 записей."
-      />
-
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
           <span className="mb-1 block text-xs text-ink-muted">Действие</span>

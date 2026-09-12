@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { Badge, Card, EmptyState, PageHeader, RowId, Table, buttonClass } from "@/components/ui";
+import { Badge, Card, EmptyState, RowId, Table, buttonClass } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -28,20 +28,14 @@ export default async function SupportPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Чат поддержки"
-        description="Люди, которых бот не смог опознать при входе, и переписка с ними."
-        action={
-          <div className="flex gap-2">
-            <Link href="/admin/support/faq" className={buttonClass({ variant: "secondary", size: "sm" })}>
-              Частые вопросы
-            </Link>
-            <Link href="/admin/support/quick-replies" className={buttonClass({ variant: "secondary", size: "sm" })}>
-              Быстрые ответы
-            </Link>
-          </div>
-        }
-      />
+      <div className="flex justify-end gap-2">
+        <Link href="/admin/support/faq" className={buttonClass({ variant: "secondary", size: "sm" })}>
+          Частые вопросы
+        </Link>
+        <Link href="/admin/support/quick-replies" className={buttonClass({ variant: "secondary", size: "sm" })}>
+          Быстрые ответы
+        </Link>
+      </div>
 
       {threads.length === 0 ? (
         <EmptyState>Пока никто не писал.</EmptyState>

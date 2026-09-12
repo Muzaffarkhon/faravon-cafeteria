@@ -4,7 +4,7 @@ import type { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
-import { Badge, Card, Input, PageHeader, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
+import { Badge, Card, Input, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
 
@@ -73,11 +73,6 @@ export default async function AccessPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Доступ сотрудников (Telegram / OTP)"
-        description="Сотрудник идентифицируется в Telegram-боте по номеру телефона или по коду, выданному здесь. Бот выдаёт одноразовый пароль на 24 часа; при первом входе требуется смена пароля."
-      />
-
       <section className="space-y-3">
         <SectionTitle className="text-lg">Матрица ролей и прав</SectionTitle>
         <p className="text-sm text-ink-muted">

@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
-import { Badge, Card, Input, PageHeader, Table, RowId, buttonClass, cx } from "@/components/ui";
+import { Badge, Card, Input, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
@@ -115,44 +115,38 @@ export default async function UsersPage({
 
   return (
     <div data-wide className="space-y-4">
-      <PageHeader
-        title="Пользователи и роли"
-        description="Единый список: карточки сотрудников и служебные учётные записи для входа на платформу."
-        action={
-          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+      <div className="flex flex-nowrap items-center justify-end gap-2 overflow-x-auto">
+        <Link
+          href={archiveView ? "/admin/users" : "/admin/users?view=archive"}
+          className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
+        >
+          {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+        </Link>
+        {!archiveView && (
+          <>
+            <a
+              href="/admin/users/export"
+              download
+              className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
+              title="Скачать реестр сотрудников с логинами в формате Excel"
+            >
+              Экспорт в Excel
+            </a>
             <Link
-              href={archiveView ? "/admin/users" : "/admin/users?view=archive"}
+              href="/admin/users/import"
               className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
             >
-              {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+              Импорт из Excel
             </Link>
-            {!archiveView && (
-              <>
-                <a
-                  href="/admin/users/export"
-                  download
-                  className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-                  title="Скачать реестр сотрудников с логинами в формате Excel"
-                >
-                  Экспорт в Excel
-                </a>
-                <Link
-                  href="/admin/users/import"
-                  className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-                >
-                  Импорт из Excel
-                </Link>
-                <Link
-                  href="/admin/users/new"
-                  className={cx(buttonClass({ size: "sm" }), "shrink-0")}
-                >
-                  Добавить
-                </Link>
-              </>
-            )}
-          </div>
-        }
-      />
+            <Link
+              href="/admin/users/new"
+              className={cx(buttonClass({ size: "sm" }), "shrink-0")}
+            >
+              Добавить
+            </Link>
+          </>
+        )}
+      </div>
 
       {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} />}
 

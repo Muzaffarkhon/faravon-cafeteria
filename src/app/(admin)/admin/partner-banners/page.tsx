@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Table } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, Table } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 
@@ -87,11 +87,6 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Баннеры"
-        description="Промо-блоки и новости, которые видит сотрудник в обзоре личного кабинета."
-      />
-
       <Card className="p-5">
         <div className="text-sm font-semibold text-ink">
           {editing ? "Редактирование баннера" : "Новый баннер"}

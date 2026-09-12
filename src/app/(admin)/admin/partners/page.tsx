@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PARTNER_STATUS_LABELS } from "@/lib/labels";
 import { FilterChips } from "@/components/filter-chips";
-import { Badge, PageHeader, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
+import { Badge, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { DeletePartnerButton } from "./_delete-button";
 
 const PARTNER_STATUSES = Object.keys(PARTNER_STATUS_LABELS) as PartnerStatus[];
@@ -47,14 +47,12 @@ export default async function PartnersPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title={`Справочник партнёров (${partners.length})`}
-        action={
-          <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
-            Добавить партнёра
-          </Link>
-        }
-      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-ink-muted">Всего: {partners.length}</span>
+        <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
+          Добавить партнёра
+        </Link>
+      </div>
 
       <FilterChips
         basePath="/admin/partners"

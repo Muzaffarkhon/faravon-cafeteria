@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState } from "@/components/ui";
 import { FeedbackTable } from "./_table";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +32,6 @@ export default async function AdminFeedbackPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Обратная связь"
-        description="Обращения сотрудников: прочитано → принято к сведению → закрыто."
-      />
       {emp && (
         <p className="text-sm text-ink-muted">
           Показаны обращения одного сотрудника{employee ? `: ${employee.fullName}` : ""}.{" "}

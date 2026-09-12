@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { BLOCKS, BLOCK_LABELS, CARD_STATUS_LABELS } from "@/lib/labels";
-import { Badge, PageHeader, buttonClass } from "@/components/ui";
+import { Badge, buttonClass } from "@/components/ui";
 import { DeleteCardButton } from "./_delete-button";
 import { CardArchiveButton } from "./_archive-button";
 
@@ -32,24 +32,24 @@ export default async function CardsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={archiveView ? `Архив карточек (${cards.length})` : `Карточки (${cards.length})`}
-        action={
-          <div className="flex items-center gap-2">
-            <Link
-              href={archiveView ? "/admin/cards" : "/admin/cards?view=archive"}
-              className={buttonClass({ variant: "secondary", size: "sm" })}
-            >
-              {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-ink-muted">
+          {archiveView ? `В архиве: ${cards.length}` : `Всего: ${cards.length}`}
+        </span>
+        <div className="flex items-center gap-2">
+          <Link
+            href={archiveView ? "/admin/cards" : "/admin/cards?view=archive"}
+            className={buttonClass({ variant: "secondary", size: "sm" })}
+          >
+            {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+          </Link>
+          {!archiveView && (
+            <Link href="/admin/cards/new" className={buttonClass({ size: "sm" })}>
+              Добавить карточку
             </Link>
-            {!archiveView && (
-              <Link href="/admin/cards/new" className={buttonClass({ size: "sm" })}>
-                Добавить карточку
-              </Link>
-            )}
-          </div>
-        }
-      />
+          )}
+        </div>
+      </div>
 
       {BLOCKS.map((b) => (
         <section key={b} className="space-y-3">

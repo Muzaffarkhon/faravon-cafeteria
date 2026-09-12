@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
-import { Badge, PageHeader, buttonClass, type BadgeTone } from "@/components/ui";
+import { Badge, buttonClass, type BadgeTone } from "@/components/ui";
 import { PeriodActions, ResetFlowButton } from "./_status-buttons";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -27,17 +27,15 @@ export default async function PeriodsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title={`Периоды выбора (${periods.length})`}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ResetFlowButton />
-            <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
-              Добавить период
-            </Link>
-          </div>
-        }
-      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-ink-muted">Всего: {periods.length}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <ResetFlowButton />
+          <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
+            Добавить период
+          </Link>
+        </div>
+      </div>
 
       <ul className="space-y-3">
         {periods.map((p) => (
