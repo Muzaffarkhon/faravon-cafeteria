@@ -8,7 +8,7 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { sendTelegram } from "@/lib/notification-delivery";
-import { escHtml } from "@/lib/notification-format";
+import { escHtml, grantMessage } from "@/lib/notification-format";
 import { hashPassword } from "@/lib/password";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
@@ -220,8 +220,12 @@ export async function linkEmployeeToThread(
 
   const otp = await issueOtpForUser(user.id, `admin:support_chat:${s.user.login}`, s.user.id);
 
-  const plain = `Номер добавлен и ваш логин и временный пароль: ${user.login} / ${otp}. При входе система попросит его сменить.`;
-  const html = `Номер добавлен и ваш логин и временный пароль: <code>${escHtml(user.login)}</code> / <code>${escHtml(otp)}</code>. При входе система попросит его сменить.`;
+  // Тот же вид сообщения, что и при обычной идентификации через бота
+  // (linkByPhone/linkByCode) — иначе гость получает от одного и того же
+  // бота два визуально разных сообщения с логином/паролем. В историю чата
+  // (админ видит как обычный текст, без HTML) — та же формулировка без тегов.
+  const html = grantMessage(user.login, otp, employee.fullName);
+  const plain = html.replace(/<\/?code>/g, "");
 
   const sent = await sendTelegram(token, thread.telegramId, html, { reply_markup: await getFaqKeyboard() });
   if (!sent) return { error: "Не удалось отправить сообщение в Telegram." };

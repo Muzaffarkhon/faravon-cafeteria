@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, linkByCode, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
 import { formatTajikPhone } from "@/lib/phone";
+import { grantMessage } from "@/lib/notification-format";
 import { safeEqual } from "@/lib/timing-safe";
 import { db } from "@/lib/db";
 
@@ -10,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
-const PLATFORM_URL = process.env.PLATFORM_URL || "";
 
 async function tg(method: string, body: Record<string, unknown>) {
   if (!TOKEN) return;
@@ -51,16 +51,6 @@ const CONTACT_KEYBOARD = {
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-function grantMessage(login: string, otp: string, fullName: string) {
-  return (
-    `Здравствуйте, ${esc(fullName)}!\n\n` +
-    `🔑 Логин: <code>${esc(login)}</code>\n` +
-    `🔒 Одноразовый пароль: <code>${esc(otp)}</code>\n\n` +
-    `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
-    (PLATFORM_URL ? `Вход: ${PLATFORM_URL}/login` : "")
-  );
-}
 
 interface TgMessage {
   chat: { id: number };

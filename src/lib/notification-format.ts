@@ -21,6 +21,23 @@
 export const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/**
+ * Единое сообщение с логином/паролем — при первичной выдаче через бота
+ * (linkByPhone/linkByCode/reissueOtp) и при ручной привязке из чата
+ * поддержки (linkEmployeeToThread) должно выглядеть одинаково, а не как
+ * два разных бота.
+ */
+export function grantMessage(login: string, otp: string, fullName: string): string {
+  const platformUrl = process.env.PLATFORM_URL || "";
+  return (
+    `Здравствуйте, ${escHtml(fullName)}!\n\n` +
+    `🔑 Логин: <code>${escHtml(login)}</code>\n` +
+    `🔒 Одноразовый пароль: <code>${escHtml(otp)}</code>\n\n` +
+    `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
+    (platformUrl ? `Вход: ${platformUrl}/login` : "")
+  );
+}
+
 export const NOTIFICATION_LABELS: Record<string, string> = {
   APPLICATION_SUBMITTED: "Новая заявка на согласование",
   ITEM_APPROVED: "Позиция заявки одобрена",
