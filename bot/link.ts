@@ -41,7 +41,7 @@ async function assertNotRateLimited(telegramId: string, kind: "phone" | "code" |
   const since = new Date(Date.now() - RL_WINDOW_MS);
   const total = await db.telegramAuthAttempt.count({ where: { telegramId, createdAt: { gt: since } } });
   if (total >= RL_MAX_ATTEMPTS) {
-    throw new SafeLinkError("Слишком много попыток. Подождите 15 минут или обратитесь в HR.");
+    throw new SafeLinkError("Слишком много попыток. Подождите 15 минут или напишите администратору.");
   }
   if (kind === "reissue") {
     const reissueSince = new Date(Date.now() - RL_REISSUE_WINDOW_MS);
@@ -105,7 +105,7 @@ async function issueForEmployee(
   opts: { allowRelink: boolean },
 ): Promise<LinkResult> {
   if (!employee.isActive || employee.status === "TERMINATED") {
-    throw new SafeLinkError("Учётная запись сотрудника неактивна. Обратитесь в HR.");
+    throw new SafeLinkError("Учётная запись сотрудника неактивна. Напишите администратору.");
   }
   let user = await db.user.findUnique({ where: { employeeId: employee.id } });
   if (!user) {
@@ -136,7 +136,7 @@ async function issueForEmployee(
       },
     });
   }
-  if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
+  if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Напишите администратору.");
 
   // Этот telegramId уже принадлежит другому сотруднику.
   // Если это активный сотрудник — блокируем.
@@ -146,13 +146,13 @@ async function issueForEmployee(
     if (clash.archivedAt) {
       await db.employee.update({ where: { id: clash.id }, data: { telegramId: null } });
     } else {
-      throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Обратитесь в HR.");
+      throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Напишите администратору.");
     }
   }
 
   if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
     throw new SafeLinkError(
-      "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены обратитесь в HR за кодом.",
+      "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены напишите администратору за кодом.",
     );
   }
 
@@ -214,13 +214,13 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
         match = hits[0];
       } else if (hits.length > 1) {
         throw new SafeLinkError(
-          "По этому номеру несколько сотрудников. Обратитесь в HR за кодом идентификации.",
+          "По этому номеру несколько сотрудников. Напишите администратору за кодом идентификации.",
         );
       }
     }
     if (!match) {
       throw new SafeLinkError(
-        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
       );
     }
     try {
@@ -230,13 +230,13 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     } catch (e) {
       if (
         e instanceof SafeLinkError &&
-        /обратитесь в HR за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
+        /напишите администратору за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
       ) {
         throw e;
       }
       if (e instanceof SafeLinkError) {
         throw new SafeLinkError(
-          "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+          "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
         );
       }
       throw e;
@@ -253,7 +253,7 @@ export async function linkByCode(rawCode: string, telegramId: string): Promise<L
     const code = rawCode.trim().toUpperCase();
     const rec = await db.identificationCode.findUnique({ where: { code } });
     if (!rec || rec.usedAt) throw new SafeLinkError("Код недействителен или уже использован.");
-    if (rec.expiresAt < new Date()) throw new SafeLinkError("Срок действия кода истёк. Запросите новый у HR.");
+    if (rec.expiresAt < new Date()) throw new SafeLinkError("Срок действия кода истёк. Напишите администратору за новым кодом.");
 
     const employee = await db.employee.findUnique({ where: { id: rec.employeeId }, select: EMP_SELECT });
     if (!employee) throw new SafeLinkError("Сотрудник не найден.");
@@ -326,7 +326,7 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
       return { login: serviceUser.login, otp, fullName: serviceUser.partner?.name ?? serviceUser.login };
     }
 
-    throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
+    throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или напишите администратору за кодом.");
   } finally {
     await recordAttempt(telegramId, "reissue", ok);
   }

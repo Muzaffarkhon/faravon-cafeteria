@@ -977,7 +977,7 @@ export async function deleteEmployee(employeeId: string): Promise<DeleteResult> 
         await tx.notification.deleteMany({ where: { userId: emp.user.id } });
         await tx.user.delete({ where: { id: emp.user.id } });
       }
-      // Коды идентификации от HR ссылаются на сотрудника обычным полем, без
+      // Коды идентификации от администратора ссылаются на сотрудника обычным полем, без
       // внешнего ключа — база их не подчистит, убираем сами.
       await tx.identificationCode.deleteMany({ where: { employeeId } });
       await tx.feedback.deleteMany({ where: { employeeId } }); // здесь остались только закрытые

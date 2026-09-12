@@ -12,7 +12,7 @@ export function generateOtp(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-/** Код идентификации от HR — 8 символов без похожих глифов. */
+/** Код идентификации от администратора — 8 символов без похожих глифов. */
 export function generateIdCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const buf = randomBytes(8);
@@ -65,7 +65,7 @@ export async function issueOtpForUser(
   return otp;
 }
 
-/** Создать код идентификации для сотрудника (для передачи через HR). */
+/** Создать код идентификации для сотрудника (для передачи через администратора). */
 export async function issueIdentificationCode(employeeId: string, issuedById: string): Promise<string> {
   // погасить прежние неиспользованные коды
   await db.identificationCode.updateMany({

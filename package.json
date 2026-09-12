@@ -14,6 +14,7 @@
     "db:reset": "prisma migrate reset --force",
     "bot": "tsx bot/bot.ts",
     "webhook": "tsx scripts/set-webhook.ts",
+    "bot:commands": "tsx scripts/set-commands.ts",
     "flow:status": "tsx scripts/flow-status.ts",
     "flow:reset": "tsx scripts/flow-reset.ts",
     "flow:e2e": "tsx scripts/flow-e2e.ts",

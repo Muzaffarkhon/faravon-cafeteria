@@ -36,7 +36,7 @@ async function assertNotRateLimited(telegramId: string, kind: "phone" | "code" |
     where: { telegramId, createdAt: { gt: since } },
   });
   if (total >= RL_MAX_ATTEMPTS) {
-    throw new SafeLinkError("Слишком много попыток. Подождите 15 минут или обратитесь в HR.");
+    throw new SafeLinkError("Слишком много попыток. Подождите 15 минут или напишите администратору.");
   }
   if (kind === "reissue") {
     const reissueSince = new Date(Date.now() - RL_REISSUE_WINDOW_MS);
@@ -64,11 +64,11 @@ async function issueForEmployee(
   opts: { allowRelink: boolean },
 ): Promise<LinkResult> {
   if (!employee.isActive || employee.status === "TERMINATED") {
-    throw new SafeLinkError("Учётная запись сотрудника неактивна. Обратитесь в HR.");
+    throw new SafeLinkError("Учётная запись сотрудника неактивна. Напишите администратору.");
   }
   let user = await db.user.findUnique({ where: { employeeId: employee.id } });
   if (!user) {
-    // Автоматически заводим учётную запись для сотрудника, если HR ещё не создавал логин вручную
+    // Автоматически заводим учётную запись для сотрудника, если админ ещё не создавал логин вручную
     const existingUsers = await db.user.findMany({ select: { login: true } });
     const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
     const baseLogin = loginFromFullName(employee.fullName);
@@ -94,7 +94,7 @@ async function issueForEmployee(
       newValue: { login: user.login, roles: user.roles, employeeId: employee.id, via: "telegram_auto" },
     });
   }
-  if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
+  if (!user.isActive) throw new SafeLinkError("Учётная запись отключена. Напишите администратору.");
 
   // Этот telegramId уже принадлежит другому сотруднику.
   // Если это активный сотрудник — блокируем.
@@ -104,16 +104,16 @@ async function issueForEmployee(
     if (clash.archivedAt) {
       await db.employee.update({ where: { id: clash.id }, data: { telegramId: null } });
     } else {
-      throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Обратитесь в HR.");
+      throw new SafeLinkError("Этот Telegram уже привязан к другому сотруднику. Напишите администратору.");
     }
   }
 
   // У сотрудника уже есть привязка к ДРУГОМУ Telegram. Самостоятельная
   // перепривязка по номеру запрещена (иначе — захват аккаунта по номеру из
-  // справочника). Перепривязку разрешает только код от HR (allowRelink).
+  // справочника). Перепривязку разрешает только код от администратора (allowRelink).
   if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
     throw new SafeLinkError(
-      "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены обратитесь в HR за кодом.",
+      "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены напишите администратору за кодом.",
     );
   }
 
@@ -185,7 +185,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
       } else if (hits.length > 1) {
         // неоднозначно — не рискуем привязать не того
         throw new SafeLinkError(
-          "По этому номеру несколько сотрудников. Обратитесь в HR за кодом идентификации.",
+          "По этому номеру несколько сотрудников. Напишите администратору за кодом идентификации.",
         );
       }
     }
@@ -193,7 +193,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     // оракулом «этот номер есть в справочнике».
     if (!match) {
       throw new SafeLinkError(
-        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
       );
     }
     try {
@@ -205,13 +205,13 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
       // другой Telegram» оставляем — это подсказка легитимному пользователю.
       if (
         e instanceof SafeLinkError &&
-        /обратитесь в HR за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
+        /напишите администратору за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
       ) {
         throw e;
       }
       if (e instanceof SafeLinkError) {
         throw new SafeLinkError(
-          "Не удалось выдать доступ по этому номеру. Если вы сотрудник — обратитесь в HR за кодом.",
+          "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
         );
       }
       throw e;
@@ -228,12 +228,12 @@ export async function linkByCode(rawCode: string, telegramId: string): Promise<L
     const code = rawCode.trim().toUpperCase();
     const rec = await db.identificationCode.findUnique({ where: { code } });
     if (!rec || rec.usedAt) throw new SafeLinkError("Код недействителен или уже использован.");
-    if (rec.expiresAt < new Date()) throw new SafeLinkError("Срок действия кода истёк. Запросите новый у HR.");
+    if (rec.expiresAt < new Date()) throw new SafeLinkError("Срок действия кода истёк. Напишите администратору за новым кодом.");
 
     const employee = await db.employee.findUnique({ where: { id: rec.employeeId }, select: EMP_SELECT });
     if (!employee) throw new SafeLinkError("Сотрудник не найден.");
 
-    // Код от HR = явная авторизация перепривязки.
+    // Код от администратора = явная авторизация перепривязки.
     const result = await issueForEmployee(employee, telegramId, "telegram:code", { allowRelink: true });
     await db.identificationCode.update({ where: { id: rec.id }, data: { usedAt: new Date() } });
     ok = true;
@@ -289,7 +289,7 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
       select: { id: true, login: true, isActive: true, partner: { select: { name: true } } },
     });
     if (serviceUser) {
-      if (!serviceUser.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
+      if (!serviceUser.isActive) throw new SafeLinkError("Учётная запись отключена. Напишите администратору.");
       const otp = await issueOtpForUser(serviceUser.id, "telegram:reissue");
       await audit({
         actorId: serviceUser.id,
@@ -302,7 +302,7 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
       return { login: serviceUser.login, otp, fullName: serviceUser.partner?.name ?? serviceUser.login };
     }
 
-    throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
+    throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или напишите администратору за кодом.");
   } finally {
     await recordAttempt(telegramId, "reissue", ok);
   }
