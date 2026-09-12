@@ -7,6 +7,7 @@ import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
 import { AppShell } from "./_shell";
+import { SupportAlert } from "./_support-alert";
 import { buildNavGroups } from "./_nav";
 
 
@@ -99,19 +100,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
 
   return (
-    <AppShell
-      groups={groups}
-      roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
-      displayName={displayName}
-      selectionStat={selectionStat}
-      backdrop={
-        <>
-          <PetalDrift fixed />
-          <PetalDrag />
-        </>
-      }
-    >
-      {children}
-    </AppShell>
+    <>
+      {canManageSupport && <SupportAlert />}
+      <AppShell
+        groups={groups}
+        roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
+        displayName={displayName}
+        selectionStat={selectionStat}
+        backdrop={
+          <>
+            <PetalDrift fixed />
+            <PetalDrag />
+          </>
+        }
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

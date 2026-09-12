@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage } from "@/lib/support-chat";
-import { notifyApprovers } from "@/lib/notify";
 import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
@@ -138,17 +137,12 @@ async function handle(msg: TgMessage) {
     // (или раньше был) тред поддержки, это реплика в чат, а не непонятый
     // ввод. Команды (/code, /login и т.п.) до этой точки не доходят —
     // они обработаны выше и возвращаются раньше.
+    // C&B узнаёт о новом сообщении не через Telegram-пуш (это заваливало бы
+    // их же бота на каждую реплику гостя), а через звук и мигание заголовка
+    // прямо в интерфейсе — см. _support-alert.tsx.
     if (text && !text.startsWith("/")) {
-      const routed = await appendGuestMessage(telegramId, text);
-      if (routed) {
-        if (routed.shouldNotify) {
-          await notifyApprovers({
-            event: "SUPPORT_MESSAGE",
-            payload: { phone: routed.phone ?? "" },
-          });
-        }
-        return;
-      }
+      const appended = await appendGuestMessage(telegramId, text);
+      if (appended) return;
     }
 
     await send(chatId, WELCOME, CONTACT_KEYBOARD);

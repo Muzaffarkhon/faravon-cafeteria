@@ -16,27 +16,18 @@ export async function openOrReopenThread(telegramId: string): Promise<void> {
 
 /**
  * Сохраняет сообщение гостя в его тред, если тред существует (открыт или
- * ранее был закрыт — тогда переоткрывает). Возвращает `null`, если треда
+ * ранее был закрыт — тогда переоткрывает). Возвращает `false`, если треда
  * нет вовсе — тогда вызывающий код должен обработать сообщение как обычно
  * (например, показать WELCOME), а не как реплику в чате.
  *
- * `shouldNotify` — true, если это первое сообщение гостя подряд (не
- * дублируем уведомление C&B на каждую строчку, если гость пишет
- * абзацами): считается по тому, было ли предыдущее сообщение в треде от
- * C&B (OUT) или треда вообще не было сообщений.
+ * C&B узнаёт о новом сообщении не через Telegram (это заваливало бы их же
+ * бота на каждую реплику гостя), а через звук и мигание заголовка вкладки
+ * прямо в интерфейсе — см. `_support-alert.tsx`, опрашивает счётчик
+ * непрочитанных отдельно от этой функции.
  */
-export async function appendGuestMessage(
-  telegramId: string,
-  body: string,
-): Promise<{ shouldNotify: boolean; phone: string | null } | null> {
+export async function appendGuestMessage(telegramId: string, body: string): Promise<boolean> {
   const thread = await db.supportThread.findUnique({ where: { telegramId } });
-  if (!thread) return null;
-
-  const last = await db.supportMessage.findFirst({
-    where: { threadId: thread.id },
-    orderBy: { createdAt: "desc" },
-  });
-  const shouldNotify = !last || last.direction === "OUT";
+  if (!thread) return false;
 
   await db.$transaction([
     db.supportMessage.create({ data: { threadId: thread.id, direction: "IN", body } }),
@@ -46,5 +37,5 @@ export async function appendGuestMessage(
     }),
   ]);
 
-  return { shouldNotify, phone: thread.phone };
+  return true;
 }
