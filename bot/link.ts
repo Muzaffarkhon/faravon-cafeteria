@@ -296,12 +296,37 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
         }
       }
     }
-    if (!employee) {
-      throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
+    if (employee) {
+      const res = await issueForEmployee(employee, telegramId, "telegram:reissue", { allowRelink: true });
+      ok = true;
+      return res;
     }
-    const res = await issueForEmployee(employee, telegramId, "telegram:reissue", { allowRelink: true });
-    ok = true;
-    return res;
+
+    // Служебная учётка (C&B, подрядчик) без карточки сотрудника — Telegram у нёй
+    // привязан прямо к User.telegramId, а не к Employee, поэтому не находится
+    // выше. Без этой ветки /login для таких аккаунтов всегда отвечал «не
+    // привязан», хотя ровно этот Telegram и стоит в их профиле.
+    const serviceUser = await db.user.findFirst({
+      where: { telegramId, employeeId: null },
+      select: { id: true, login: true, isActive: true, partner: { select: { name: true } } },
+    });
+    if (serviceUser) {
+      if (!serviceUser.isActive) throw new SafeLinkError("Учётная запись отключена. Обратитесь в HR.");
+      const otp = await issueOtp(serviceUser.id, "telegram:reissue");
+      await db.auditLog.create({
+        data: {
+          actorId: serviceUser.id,
+          action: "TELEGRAM_LINKED",
+          entityType: "User",
+          entityId: serviceUser.id,
+          newValue: { via: "telegram:reissue", relinked: false },
+        },
+      });
+      ok = true;
+      return { login: serviceUser.login, otp, fullName: serviceUser.partner?.name ?? serviceUser.login };
+    }
+
+    throw new SafeLinkError("Этот Telegram не привязан. Поделитесь контактом или введите код от HR.");
   } finally {
     await recordAttempt(telegramId, "reissue", ok);
   }
