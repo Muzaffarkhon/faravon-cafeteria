@@ -9,6 +9,8 @@ export type CardDetails = {
   description: string | null;
   condition: string | null;
   partnerName: string | null;
+  address: string | null;
+  workingHours: string | null;
   discountType: string | null;
   terms: string | null;
   contactPerson: string | null;
@@ -39,7 +41,14 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
   }, [open]);
 
   const hasDetails =
-    card.description || card.condition || card.discountType || card.terms || card.contactPerson || card.contacts;
+    card.description ||
+    card.condition ||
+    card.address ||
+    card.workingHours ||
+    card.discountType ||
+    card.terms ||
+    card.contactPerson ||
+    card.contacts;
   if (!hasDetails) return null;
 
   return (
@@ -96,14 +105,42 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
                   <p className="text-sm leading-6 text-ink">{card.description}</p>
                 )}
 
+                {(card.address || card.workingHours) && (
+                  <div className="rounded-xl bg-surface-muted p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
+                      Куда идти
+                    </p>
+                    <div className="mt-1.5 space-y-1.5 text-sm leading-6 text-ink">
+                      {card.address && (
+                        <p className="flex items-start gap-1.5">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                          <span>{card.address}</span>
+                        </p>
+                      )}
+                      {card.workingHours && (
+                        <p className="flex items-start gap-1.5">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true">
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 7v5l3 3" />
+                          </svg>
+                          <span>{card.workingHours}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {(card.condition || card.discountType || card.terms) && (
                   <div className="rounded-xl bg-surface-muted p-3">
                     <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-                      Как получить и условия
+                      Условия скидки
                     </p>
                     <div className="mt-1.5 space-y-1.5 text-sm leading-6 text-ink">
+                      {card.discountType && <p className="font-semibold">{card.discountType}</p>}
                       {card.condition && <p>{card.condition}</p>}
-                      {card.discountType && <p>{card.discountType}</p>}
                       {card.terms && <p>{card.terms}</p>}
                     </div>
                   </div>

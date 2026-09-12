@@ -14,6 +14,8 @@ export type PartnerValues = {
   status: string;
   deliveryMode: string;
   category: string | null;
+  address: string | null;
+  workingHours: string | null;
   contactPerson: string | null;
   contacts: string | null;
   discountType: string | null;
@@ -162,8 +164,20 @@ export function PartnerForm({
         <Textarea id="terms" name="terms" defaultValue={initial?.terms ?? ""} rows={2} />
       </Field>
 
+      <p className="pt-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">
+        Куда идти сотруднику — показывается в карточке льготы («Подробнее»)
+      </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Контактное лицо" htmlFor="contactPerson">
+        <Field label="Адрес" htmlFor="address" hint="Куда приходить/ехать, чтобы воспользоваться льготой.">
+          <Input id="address" name="address" defaultValue={initial?.address ?? ""} autoComplete="off" />
+        </Field>
+        <Field label="Часы работы" htmlFor="workingHours">
+          <Input id="workingHours" name="workingHours" defaultValue={initial?.workingHours ?? ""} autoComplete="off" placeholder="Пн–Вс, 8:00–22:00" />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Контактное лицо" htmlFor="contactPerson" hint="К кому обращаться на месте.">
           <Input id="contactPerson" name="contactPerson" defaultValue={initial?.contactPerson ?? ""} autoComplete="off" />
         </Field>
         <Field label="Контакты" htmlFor="contacts">

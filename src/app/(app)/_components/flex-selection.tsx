@@ -16,6 +16,8 @@ type Card = {
   condition: string | null;
   isActive: boolean;
   partner: string | null;
+  address: string | null;
+  workingHours: string | null;
   discountType: string | null;
   terms: string | null;
   contactPerson: string | null;
@@ -201,6 +203,8 @@ export function FlexSelection({
                     description: c.description,
                     condition: c.condition,
                     partnerName: c.partner,
+                    address: c.address,
+                    workingHours: c.workingHours,
                     discountType: c.discountType,
                     terms: c.terms,
                     contactPerson: c.contactPerson,

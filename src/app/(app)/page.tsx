@@ -332,6 +332,8 @@ export default async function OverviewPage() {
             condition: c.condition,
             isActive: c.isActive,
             partner: c.partner?.name ?? null,
+            address: c.partner?.address ?? null,
+            workingHours: c.partner?.workingHours ?? null,
             discountType: c.partner?.discountType ?? null,
             terms: c.partner?.terms ?? null,
             contactPerson: c.partner?.contactPerson ?? null,

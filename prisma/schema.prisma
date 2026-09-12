@@ -217,6 +217,8 @@ model Partner {
   seq           Int           @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   name          String
   category      String?
+  address       String? // где получить льготу — показывается сотруднику в карточке («Подробнее»)
+  workingHours  String?
   contactPerson String?
   contacts      String?
   discountType  String?

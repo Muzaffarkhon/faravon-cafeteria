@@ -47,6 +47,8 @@ function parse(formData: FormData) {
     status,
     deliveryMode: deliveryMode as "QR" | "PHONE_PROMO",
     category: str("category"),
+    address: str("address"),
+    workingHours: str("workingHours"),
     contactPerson: str("contactPerson"),
     contacts: str("contacts"),
     discountType: str("discountType"),
