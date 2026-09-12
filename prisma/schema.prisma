@@ -498,6 +498,16 @@ model SupportMessage {
   @@index([threadId, createdAt])
 }
 
+/// Заготовленные быстрые ответы C&B в чате поддержки — админ сам ведёт список,
+/// клик подставляет текст в поле ответа вместо набора с нуля.
+model SupportQuickReply {
+  id        String   @id @default(cuid())
+  seq       Int      @unique @default(autoincrement())
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model TextBlock {
   key       String   @id // GOAL | NOVELTY_NOTICE
   title     String

@@ -99,16 +99,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs leading-relaxed text-ink-subtle">
-            Логин и одноразовый пароль сотрудник получает в Telegram-боте{" "}
-            <a
-              href={BOT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-primary hover:underline"
-            >
-              Farovon Cafeteria
-            </a>{" "}
-            — код привяжется автоматически.
+            Логин и одноразовый пароль сотрудник получает в Telegram-боте.
             {process.env.NODE_ENV !== "production" && (
               <>
                 <br />
@@ -118,10 +109,19 @@ export default function LoginPage() {
           </p>
 
           <a
+            href={BOT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cx(buttonClass({ variant: "primary", size: "sm" }), "mt-3 w-full")}
+          >
+            Открыть бота Farovon Cafeteria
+          </a>
+
+          <a
             href={`${BOT_URL}?start=support`}
             target="_blank"
             rel="noopener noreferrer"
-            className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-3 w-full")}
+            className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-2 w-full")}
           >
             Не получается войти? Написать администратору
           </a>

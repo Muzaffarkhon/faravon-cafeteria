@@ -31,6 +31,11 @@ export default async function SupportPage() {
       <PageHeader
         title="Чат поддержки"
         description="Люди, которых бот не смог опознать при входе, и переписка с ними."
+        action={
+          <Link href="/admin/support/quick-replies" className={buttonClass({ variant: "secondary", size: "sm" })}>
+            Быстрые ответы
+          </Link>
+        }
       />
 
       {threads.length === 0 ? (

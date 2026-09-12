@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PageHeader } from "@/components/ui";
 import { ThreadView } from "./_thread-view";
+import { findEmployeeForLink } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,18 @@ export default async function SupportThreadPage({
   });
   if (!thread) notFound();
 
+  // Гость уже опознан как сотрудник (обычная привязка через бота) — карточку
+  // искать/привязывать заново не нужно.
+  const linkedEmployee = await db.employee.findFirst({
+    where: { telegramId: thread.telegramId },
+    select: { id: true },
+  });
+
+  const initialMatches =
+    !linkedEmployee && thread.phone ? (await findEmployeeForLink(thread.phone)).matches ?? [] : [];
+
+  const quickReplies = await db.supportQuickReply.findMany({ orderBy: { createdAt: "asc" } });
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -44,6 +57,10 @@ export default async function SupportThreadPage({
           createdAt: m.createdAt.toISOString(),
           author: m.author?.employee?.fullName ?? m.author?.login ?? null,
         }))}
+        guestPhone={thread.phone}
+        alreadyLinked={!!linkedEmployee}
+        initialMatches={initialMatches}
+        quickReplies={quickReplies.map((r) => ({ id: r.id, text: r.text }))}
       />
     </div>
   );
