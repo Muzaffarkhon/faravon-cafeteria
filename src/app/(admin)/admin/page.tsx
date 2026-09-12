@@ -12,9 +12,9 @@ export default async function AdminIndexPage() {
   const groups = buildNavGroups({
     roles: session.roles,
     hasEmployee: false,
-    partnerId: null,
+    partnerId: session.user.partnerId,
     isTaxiContractor: false,
-  }).filter((g) => g.id === "catalog" || g.id === "admin");
+  }).filter((g) => g.id === "work" || g.id === "catalog" || g.id === "admin");
 
   const first = groups[0]?.items[0];
   redirect(first?.href ?? "/");
