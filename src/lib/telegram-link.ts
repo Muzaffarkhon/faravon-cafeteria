@@ -24,6 +24,16 @@ export { normalizePhone };
  */
 export class SafeLinkError extends Error {}
 
+/**
+ * Подкласс SafeLinkError для случая «номер не привязался к сотруднику»
+ * (не найден / несколько совпадений / битый формат — не различаем по тем же
+ * причинам, что и общий текст ниже). Роут бота ловит именно этот тип, чтобы
+ * при попытке через «Поделиться контактом» вместо тупика открыть чат
+ * поддержки с уже известным (проверенным Telegram) номером — гостю останется
+ * только написать ФИО, а не переотправлять номер текстом.
+ */
+export class PhoneNotRecognizedError extends SafeLinkError {}
+
 // --- rate-limit (§5.1: защита от перебора номеров/кодов и генерации OTP) ---
 const RL_WINDOW_MS = 15 * 60_000;
 const RL_MAX_ATTEMPTS = 8; // всего попыток идентификации за окно на один telegramId
@@ -144,7 +154,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
   let ok = false;
   try {
     const norm = normalizePhone(phone);
-    if (norm.length < 7) throw new SafeLinkError("Не удалось распознать номер телефона.");
+    if (norm.length < 7) throw new PhoneNotRecognizedError("Не удалось распознать номер телефона.");
 
     // Ищем только среди действующих (не находящихся в архиве) сотрудников
     let match = await db.employee.findFirst({
@@ -184,7 +194,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
         match = hits[0];
       } else if (hits.length > 1) {
         // неоднозначно — не рискуем привязать не того
-        throw new SafeLinkError(
+        throw new PhoneNotRecognizedError(
           "По этому номеру несколько сотрудников. Напишите администратору за кодом идентификации.",
         );
       }
@@ -192,7 +202,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
     // Единый ответ и для «не найдено», и для «неактивен» — чтобы бот не был
     // оракулом «этот номер есть в справочнике».
     if (!match) {
-      throw new SafeLinkError(
+      throw new PhoneNotRecognizedError(
         "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
       );
     }
@@ -210,7 +220,7 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
         throw e;
       }
       if (e instanceof SafeLinkError) {
-        throw new SafeLinkError(
+        throw new PhoneNotRecognizedError(
           "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
         );
       }

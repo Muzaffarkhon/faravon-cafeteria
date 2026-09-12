@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
+import { linkByPhone, linkByCode, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
+import { formatTajikPhone } from "@/lib/phone";
 import { safeEqual } from "@/lib/timing-safe";
 import { db } from "@/lib/db";
 
@@ -75,6 +76,13 @@ interface TgCallbackQuery {
   data?: string;
 }
 
+async function openContactSupportThread(telegramId: string, rawPhone: string) {
+  const phone = formatTajikPhone(rawPhone);
+  await openOrReopenThread(telegramId);
+  if (phone) await db.supportThread.update({ where: { telegramId }, data: { phone } });
+  await appendGuestMessage(telegramId, `[Поделился контактом] ${phone ?? rawPhone}`);
+}
+
 async function handle(msg: TgMessage) {
   const chatId = msg.chat.id;
   const fromId = msg.from?.id;
@@ -95,8 +103,24 @@ async function handle(msg: TgMessage) {
         );
         return;
       }
-      const g = await linkByPhone(msg.contact.phone_number, telegramId);
-      await send(chatId, grantMessage(g.login, g.otp, g.fullName), { reply_markup: { remove_keyboard: true } });
+      try {
+        const g = await linkByPhone(msg.contact.phone_number, telegramId);
+        await send(chatId, grantMessage(g.login, g.otp, g.fullName), { reply_markup: { remove_keyboard: true } });
+      } catch (e) {
+        if (!(e instanceof PhoneNotRecognizedError)) throw e;
+        // Номер подтверждён Telegram-контактом, но сотрудника с ним нет —
+        // не бросаем человека с текстовой ошибкой: сразу открываем чат
+        // поддержки и сохраняем ЭТОТ (проверенный) номер за тредом, чтобы
+        // C&B искал по нему, а не по тому, что гость мог случайно
+        // опечатать текстом. Остаётся попросить ФИО, чтобы найти карточку.
+        await openContactSupportThread(telegramId, msg.contact.phone_number);
+        await send(
+          chatId,
+          "Не нашли вас по этому номеру в базе сотрудников.\n\n" +
+            "Напишите, пожалуйста, здесь своё ФИО и должность — администратор проверит и подключит вас.",
+          { reply_markup: await getFaqKeyboard() },
+        );
+      }
       return;
     }
 
