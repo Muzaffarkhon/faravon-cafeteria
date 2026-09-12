@@ -5,15 +5,21 @@ import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { toggleSelection, submitSelection } from "../actions";
+import { CardDetailsButton } from "./card-details";
 
 const emptySubscribe = () => () => {};
 
 type Card = {
   id: string;
   title: string;
+  description: string | null;
   condition: string | null;
   isActive: boolean;
   partner: string | null;
+  discountType: string | null;
+  terms: string | null;
+  contactPerson: string | null;
+  contacts: string | null;
   imageUrl: string | null;
   category: string | null;
   minParticipants: number;
@@ -188,6 +194,19 @@ export function FlexSelection({
                 {c.condition && (
                   <p className="mt-2 text-sm font-medium leading-6 text-ink">{c.condition}</p>
                 )}
+
+                <CardDetailsButton
+                  card={{
+                    title: c.title,
+                    description: c.description,
+                    condition: c.condition,
+                    partnerName: c.partner,
+                    discountType: c.discountType,
+                    terms: c.terms,
+                    contactPerson: c.contactPerson,
+                    contacts: c.contacts,
+                  }}
+                />
 
               {c.minParticipants > 1 &&
                 (() => {
