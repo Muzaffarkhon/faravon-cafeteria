@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ImageUploadField } from "../../_components/image-upload-field";
+import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 
 /**
  * Поле изображения карточки льготы с редактором кадрирования и позиционирования (16:10).

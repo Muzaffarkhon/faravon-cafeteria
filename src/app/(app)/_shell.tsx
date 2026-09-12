@@ -45,6 +45,7 @@ const I = {
   profile: "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z||M4 21v-1a8 8 0 0 1 16 0v1",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4||M16 17l5-5-5-5||M21 12H9",
   more: "M4 6h16M4 12h16M4 18h16",
+  admin: "M4 21V8l8-5 8 5v13||M9 21v-6h6v6",
 };
 
 /** «Рабочие» группы идут прямыми вкладками, остальное — в меню «Ещё». */
@@ -56,6 +57,7 @@ export function AppShell({
   displayName,
   selectionStat,
   backdrop,
+  adminHref,
   children,
 }: {
   groups: NavGroup[];
@@ -66,6 +68,8 @@ export function AppShell({
   selectionStat?: { used: number; drafts: number; max: number } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
+  /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
+  adminHref?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -279,6 +283,16 @@ export function AppShell({
                     <Icon path={I.profile} />
                     Профиль
                   </Link>
+                  {adminHref && (
+                    <Link
+                      href={adminHref}
+                      onClick={closeMenus}
+                      className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+                    >
+                      <Icon path={I.admin} />
+                      Админ-панель
+                    </Link>
+                  )}
                   <form action={logout}>
                     <button
                       type="submit"

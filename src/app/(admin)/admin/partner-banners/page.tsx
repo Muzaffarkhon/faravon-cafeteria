@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Table } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ImageUploadField } from "../../_components/image-upload-field";
+import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 
 const BANNER_ASPECT = 4.5; // совпадает с рамкой карусели на широком экране
 

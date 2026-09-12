@@ -61,13 +61,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
-  const groups = buildNavGroups({
+  const allGroups = buildNavGroups({
     roles,
     hasEmployee: !!session.employee,
     partnerId,
     isTaxiContractor,
     badges,
   });
+  // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
+  // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».
+  const groups = allGroups.filter((g) => g.id === "cabinet" || g.id === "work");
+  const hasAdminAccess = allGroups.some(
+    (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,
+  );
 
   return (
     <>
@@ -77,6 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         roleLabel={roles.map((r) => ROLE_LABELS[r]).join(", ")}
         displayName={displayName}
         selectionStat={selectionStat}
+        adminHref={hasAdminAccess ? "/admin" : undefined}
         backdrop={
           <>
             <PetalDrift fixed />

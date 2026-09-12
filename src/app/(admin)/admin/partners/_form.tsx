@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { PARTNER_STATUSES, PARTNER_STATUS_LABELS } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
-import { ImageUploadField } from "../../_components/image-upload-field";
+import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 import { loginFromPartnerName } from "@/lib/translit";
 import { OtpModal } from "../users/_otp-modal";
 import type { PartnerFormState } from "./actions";
