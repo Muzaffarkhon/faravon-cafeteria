@@ -30,7 +30,7 @@ export default async function OverviewPage() {
         : Promise.resolve(null),
       computeNavBadges({ roles, employeeId: null, partnerId }),
     ]);
-    const groups = buildNavGroups({
+    const allGroups = buildNavGroups({
       roles,
       hasEmployee: false,
       partnerId,
@@ -38,6 +38,12 @@ export default async function OverviewPage() {
         can(roles, "promo.broadcast") && !!partnerId && partner?.deliveryMode === "PHONE_PROMO",
       badges,
     });
+    // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
+    // (/admin, левое меню) — здесь они дублировали бы её же ссылки.
+    const groups = allGroups.filter((g) => g.id !== "catalog" && g.id !== "admin");
+    const hasAdminAccess = allGroups.some(
+      (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,
+    );
     const total = groups.reduce((n, g) => n + g.items.length, 0);
 
     return (
@@ -48,6 +54,28 @@ export default async function OverviewPage() {
             Вы вошли как {roles.map((r) => ROLE_LABELS[r]).join(", ")}
           </p>
         </div>
+
+        {hasAdminAccess && (
+          <Link
+            href="/admin"
+            className="group flex items-center gap-4 rounded-[20px] bg-primary p-5 text-on-brand shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
+          >
+            <div className="min-w-0 flex-1">
+              <span className="text-[0.9375rem] font-bold">Админ-панель</span>
+              <p className="mt-1 text-sm leading-6 text-on-brand/80">
+                Каталог льгот, партнёры, отчёты, пользователи, доступ и аудит
+              </p>
+            </div>
+            <span
+              aria-hidden="true"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-on-brand/15 transition-transform group-hover:translate-x-0.5"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
+          </Link>
+        )}
 
         {total === 0 ? (
           <Card className="p-6">

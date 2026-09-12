@@ -52,7 +52,7 @@ function EmployeeLinkPanel({
   }
 
   return (
-    <div className="sticky top-16 z-10 space-y-2 rounded-xl border border-line bg-surface p-3 shadow-sm">
+    <div className="space-y-2 rounded-xl border border-line bg-surface p-3 shadow-sm">
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-sm font-semibold text-ink">Найти сотрудника:</span>
         <Input
@@ -132,6 +132,8 @@ function EmployeeLinkPanel({
 export function ThreadView({
   threadId,
   status,
+  identityTitle,
+  identitySubtitle,
   messages,
   guestPhone,
   alreadyLinked,
@@ -140,6 +142,8 @@ export function ThreadView({
 }: {
   threadId: string;
   status: "OPEN" | "CLOSED";
+  identityTitle: string;
+  identitySubtitle: string;
   messages: Msg[];
   guestPhone: string | null;
   alreadyLinked: boolean;
@@ -172,9 +176,15 @@ export function ThreadView({
 
   return (
     <div className="space-y-4">
-      {!alreadyLinked && (
-        <EmployeeLinkPanel threadId={threadId} guestPhone={guestPhone} initialMatches={initialMatches} />
-      )}
+      <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-line bg-canvas/95 px-4 pb-3 pt-4 backdrop-blur sm:-mx-6 sm:px-6">
+        <div>
+          <h1 className="text-lg font-bold text-ink">{identityTitle}</h1>
+          <p className="text-sm text-ink-muted">{identitySubtitle}</p>
+        </div>
+        {!alreadyLinked && (
+          <EmployeeLinkPanel threadId={threadId} guestPhone={guestPhone} initialMatches={initialMatches} />
+        )}
+      </div>
 
       <div className="space-y-2 rounded-[18px] bg-surface p-4 shadow-sm">
         {messages.length === 0 ? (

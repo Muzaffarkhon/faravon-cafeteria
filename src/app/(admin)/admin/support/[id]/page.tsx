@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { extractPhoneFromText } from "@/lib/phone";
-import { PageHeader } from "@/components/ui";
 import { ThreadView } from "./_thread-view";
 import { findEmployeeForLink } from "../actions";
 
@@ -50,7 +49,7 @@ export default async function SupportThreadPage({
   // искать/привязывать заново не нужно.
   const linkedEmployee = await db.employee.findFirst({
     where: { telegramId: thread.telegramId },
-    select: { id: true },
+    select: { id: true, fullName: true, position: true, department: true },
   });
 
   const guestPhone = thread.phone ?? detectGuestPhone(thread.messages);
@@ -59,27 +58,30 @@ export default async function SupportThreadPage({
 
   const quickReplies = await db.supportQuickReply.findMany({ orderBy: { createdAt: "asc" } });
 
+  const identityTitle = linkedEmployee ? linkedEmployee.fullName : `Гость №${thread.seq}`;
+  const identitySubtitle = linkedEmployee
+    ? `${linkedEmployee.position} · ${linkedEmployee.department} · Гость №${thread.seq}`
+    : guestPhone
+      ? `Присылал номер: ${guestPhone}`
+      : "Номер телефона неизвестен.";
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title={`Гость №${thread.seq}`}
-        description={guestPhone ? `Присылал номер: ${guestPhone}` : "Номер телефона неизвестен."}
-      />
-      <ThreadView
-        threadId={thread.id}
-        status={thread.status}
-        messages={thread.messages.map((m) => ({
-          id: m.id,
-          direction: m.direction,
-          body: m.body,
-          createdAt: m.createdAt.toISOString(),
-          author: m.author?.employee?.fullName ?? m.author?.login ?? null,
-        }))}
-        guestPhone={guestPhone}
-        alreadyLinked={!!linkedEmployee}
-        initialMatches={initialMatches}
-        quickReplies={quickReplies.map((r) => ({ id: r.id, text: r.text }))}
-      />
-    </div>
+    <ThreadView
+      threadId={thread.id}
+      status={thread.status}
+      identityTitle={identityTitle}
+      identitySubtitle={identitySubtitle}
+      messages={thread.messages.map((m) => ({
+        id: m.id,
+        direction: m.direction,
+        body: m.body,
+        createdAt: m.createdAt.toISOString(),
+        author: m.author?.employee?.fullName ?? m.author?.login ?? null,
+      }))}
+      guestPhone={guestPhone}
+      alreadyLinked={!!linkedEmployee}
+      initialMatches={initialMatches}
+      quickReplies={quickReplies.map((r) => ({ id: r.id, text: r.text }))}
+    />
   );
 }
