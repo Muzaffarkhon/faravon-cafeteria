@@ -71,7 +71,7 @@ interface TgMessage {
 interface TgCallbackQuery {
   id: string;
   from: { id: number };
-  message?: { chat: { id: number } };
+  message?: { chat: { id: number }; message_id: number };
   data?: string;
 }
 
@@ -193,7 +193,16 @@ async function handleFaqTap(faqId: string, cb: TgCallbackQuery) {
       db.supportThread.update({ where: { id: thread.id }, data: { lastMessageAt: new Date() } }),
     ]);
   }
-  await send(cb.message.chat.id, esc(faq.answer), { reply_markup: await getFaqKeyboard() });
+  // Редактируем то же сообщение бота (с которого была нажата кнопка) вместо
+  // отправки нового — иначе список вопросов дублируется под каждым ответом
+  // и чат быстро зарастает одинаковыми клавиатурами.
+  await tg("editMessageText", {
+    chat_id: cb.message.chat.id,
+    message_id: cb.message.message_id,
+    text: esc(faq.answer),
+    parse_mode: "HTML",
+    reply_markup: await getFaqKeyboard(),
+  });
 }
 
 async function handleCallback(cb: TgCallbackQuery) {
