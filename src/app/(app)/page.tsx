@@ -8,6 +8,7 @@ import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
 import { BannerCarousel, type BannerSlide } from "./_banner-carousel";
 import { buildNavGroups } from "./_nav";
+import { computeNavBadges } from "./_badges";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -20,18 +21,22 @@ export default async function OverviewPage() {
     const roles = session?.roles ?? [];
     // Плитки строятся из того же списка разделов, что и меню «Ещё» в шапке
     // (src/app/(app)/_nav.ts) — чтобы раздел нельзя было добавить в одно
-    // место и забыть про другое. Счётчики здесь не нужны, поэтому и лишних
-    // запросов к базе нет.
+    // место и забыть про другое. Счётчики — из того же computeNavBadges,
+    // что и меню, иначе плитки снова разошлись бы с тем, что видно наверху.
     const partnerId = session?.user.partnerId ?? null;
-    const partner = partnerId
-      ? await db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
-      : null;
+    const [partner, badges] = await Promise.all([
+      partnerId
+        ? db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
+        : Promise.resolve(null),
+      computeNavBadges({ roles, employeeId: null, partnerId }),
+    ]);
     const groups = buildNavGroups({
       roles,
       hasEmployee: false,
       partnerId,
       isTaxiContractor:
         can(roles, "promo.broadcast") && !!partnerId && partner?.deliveryMode === "PHONE_PROMO",
+      badges,
     });
     const total = groups.reduce((n, g) => n + g.items.length, 0);
 
@@ -64,7 +69,14 @@ export default async function OverviewPage() {
                       className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="text-[0.9375rem] font-bold text-ink">{l.label}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[0.9375rem] font-bold text-ink">{l.label}</span>
+                          {!!l.badge && (
+                            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-bold leading-none text-on-brand tabular-nums">
+                              {l.badge > 99 ? "99+" : l.badge}
+                            </span>
+                          )}
+                        </div>
                         {l.desc && (
                           <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
                         )}

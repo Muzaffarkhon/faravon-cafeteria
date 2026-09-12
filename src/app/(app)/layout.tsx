@@ -9,6 +9,7 @@ import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selectio
 import { AppShell } from "./_shell";
 import { SupportAlert } from "./_support-alert";
 import { buildNavGroups } from "./_nav";
+import { computeNavBadges } from "./_badges";
 
 
 
@@ -20,11 +21,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await ensureRbac(); // подтянуть матрицу прав из БД перед проверками can()
 
   const { roles } = session;
-  const canDecide = can(roles, "applications.decide");
-  const canManageCoupons = can(roles, "coupons.manage");
-  const canManageCards = can(roles, "cards.manage");
-  const canConfirmCoupons = can(roles, "coupons.confirm");
-  const canManageFeedback = can(roles, "feedback.manage");
   const canManageSupport = can(roles, "support.manage");
   const canBroadcastPromo = can(roles, "promo.broadcast");
   const partnerId = session.user.partnerId;
@@ -33,29 +29,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : null;
   const isTaxiContractor = canBroadcastPromo && !!partnerId && partner?.deliveryMode === "PHONE_PROMO";
 
-  const [
-    pendingReview,
-    pendingCoupons,
-    pendingAdRequests,
-    myCouponsReady,
-    partnerCouponsReady,
-    pendingFeedback,
-    pendingSupport,
-  ] = await Promise.all([
-    canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
-    canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
-    canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
-    session.employee
-      ? db.coupon.count({ where: { employeeId: session.employee.id, status: "ISSUED" } })
-      : 0,
-    canConfirmCoupons && partnerId
-      ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
-      : 0,
-    canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
-    canManageSupport
-      ? db.supportThread.count({ where: { messages: { some: { direction: "IN", readAt: null } } } })
-      : 0,
-  ]);
+  const badges = await computeNavBadges({
+    roles,
+    employeeId: session.employee?.id,
+    partnerId,
+  });
 
   // Имя рядом с кнопкой профиля: «Фамилия И.» у сотрудника, иначе — логин.
   const displayName = (() => {
@@ -88,15 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasEmployee: !!session.employee,
     partnerId,
     isTaxiContractor,
-    badges: {
-      review: pendingReview,
-      coupons: pendingCoupons,
-      adRequests: pendingAdRequests,
-      myCoupons: myCouponsReady,
-      partnerCoupons: partnerCouponsReady,
-      feedback: pendingFeedback,
-      support: pendingSupport,
-    },
+    badges,
   });
 
   return (
