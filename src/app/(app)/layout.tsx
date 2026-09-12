@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManageCards = can(roles, "cards.manage");
   const canConfirmCoupons = can(roles, "coupons.confirm");
   const canManageFeedback = can(roles, "feedback.manage");
+  const canManageSupport = can(roles, "support.manage");
   const canBroadcastPromo = can(roles, "promo.broadcast");
   const partnerId = session.user.partnerId;
   const partner = partnerId
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     myCouponsReady,
     partnerCouponsReady,
     pendingFeedback,
+    pendingSupport,
   ] = await Promise.all([
     canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
     canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
@@ -49,6 +51,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
       : 0,
     canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
+    canManageSupport
+      ? db.supportThread.count({ where: { messages: { some: { direction: "IN", readAt: null } } } })
+      : 0,
   ]);
 
   // Имя рядом с кнопкой профиля: «Фамилия И.» у сотрудника, иначе — логин.
@@ -89,6 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       myCoupons: myCouponsReady,
       partnerCoupons: partnerCouponsReady,
       feedback: pendingFeedback,
+      support: pendingSupport,
     },
   });
 

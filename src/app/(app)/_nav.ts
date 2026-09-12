@@ -31,6 +31,7 @@ export const ICONS = {
   access: "M14 7a4 4 0 1 0-3.5 3.97L4 17v3h3l1-1h2v-2h2l1.5-1.5A4 4 0 0 0 14 7z",
   users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
   history: "M3 12a9 9 0 1 0 3-6.7L3 8||M3 3v5h5||M12 8v5l3 2",
+  chat: "M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z||M8 9h8||M8 12h5",
 };
 
 /** Счётчики непрочитанного/несделанного. Плиткам «Кабинета» они не нужны. */
@@ -41,6 +42,7 @@ export type NavBadges = {
   myCoupons?: number;
   partnerCoupons?: number;
   feedback?: number;
+  support?: number;
 };
 
 export type NavContext = {
@@ -191,6 +193,14 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "обращения сотрудников по программе льгот",
       icon: ICONS.inbox,
       badge: b.feedback || undefined,
+    });
+  if (can(roles, "support.manage"))
+    add("admin", "Аналитика и доступ", {
+      href: "/admin/support",
+      label: "Чат поддержки",
+      desc: "когда бот не смог опознать человека при входе",
+      icon: ICONS.chat,
+      badge: b.support || undefined,
     });
   if (can(roles, "reports.view"))
     add("admin", "Аналитика и доступ", {
