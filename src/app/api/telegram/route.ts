@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
+import { openOrReopenThread, appendGuestMessage } from "@/lib/support-chat";
+import { notifyApprovers } from "@/lib/notify";
 import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
@@ -55,6 +57,13 @@ interface TgMessage {
   from?: { id: number };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
+}
+
+interface TgCallbackQuery {
+  id: string;
+  from: { id: number };
+  message?: { chat: { id: number } };
+  data?: string;
 }
 
 async function handle(msg: TgMessage) {
@@ -114,12 +123,40 @@ async function handle(msg: TgMessage) {
       return;
     }
 
+    // Обычное сообщение (не команда) — если для этого чата уже открыт
+    // (или раньше был) тред поддержки, это реплика в чат, а не непонятый
+    // ввод. Команды (/code, /login и т.п.) до этой точки не доходят —
+    // они обработаны выше и возвращаются раньше.
+    if (text && !text.startsWith("/")) {
+      const routed = await appendGuestMessage(telegramId, text);
+      if (routed) {
+        if (routed.shouldNotify) {
+          await notifyApprovers({
+            event: "SUPPORT_MESSAGE",
+            payload: { phone: routed.phone ?? "" },
+          });
+        }
+        return;
+      }
+    }
+
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
     // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
     // логируем, пользователю — общая фраза (не оракул для перебора).
     if (e instanceof SafeLinkError) {
-      await send(chatId, `⚠️ ${e.message}`);
+      // Любое сообщение об ошибке, которое отправляет человека «в HR» —
+      // это и есть тупик, который решает чат поддержки. Правило по
+      // подстроке, а не по списку сообщений: новая ошибка с той же фразой
+      // получит кнопку сама, без правки этого места.
+      const extra = /обратитесь в HR/i.test(e.message)
+        ? {
+            reply_markup: {
+              inline_keyboard: [[{ text: "Написать администратору", callback_data: "support:start" }]],
+            },
+          }
+        : {};
+      await send(chatId, `⚠️ ${e.message}`, extra);
     } else {
       console.error("[telegram] ошибка обработки update:", e);
       await send(chatId, "⚠️ Не удалось обработать запрос. Попробуйте позже или обратитесь в HR.");
@@ -127,12 +164,24 @@ async function handle(msg: TgMessage) {
   }
 }
 
+async function handleCallback(cb: TgCallbackQuery) {
+  await tg("answerCallbackQuery", { callback_query_id: cb.id });
+  if (cb.data !== "support:start" || !cb.message) return;
+
+  const telegramId = String(cb.from.id);
+  await openOrReopenThread(telegramId);
+  await send(
+    cb.message.chat.id,
+    "Опишите ваш вопрос — администратор увидит его и ответит здесь же, в этом чате.",
+  );
+}
+
 export async function POST(req: NextRequest) {
   if (!SECRET || !safeEqual(req.headers.get("x-telegram-bot-api-secret-token"), SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let update: { message?: TgMessage };
+  let update: { message?: TgMessage; callback_query?: TgCallbackQuery };
   try {
     update = await req.json();
   } catch {
@@ -140,5 +189,6 @@ export async function POST(req: NextRequest) {
   }
 
   if (update.message) await handle(update.message);
+  else if (update.callback_query) await handleCallback(update.callback_query);
   return NextResponse.json({ ok: true });
 }
