@@ -83,6 +83,21 @@ async function openContactSupportThread(telegramId: string, rawPhone: string) {
   await appendGuestMessage(telegramId, `[Поделился контактом] ${phone ?? rawPhone}`);
 }
 
+/**
+ * true, если этот Telegram уже привязан к действующему сотруднику или
+ * служебной учётке. Такому человеку нельзя отвечать «мы вас не нашли,
+ * напишите ФИО» — он уже опознан, просто прислал контактом номер, которого
+ * нет в его карточке (не совпадает с записью, лишний номер и т.п.). Иначе
+ * непризнанный номер уходит прямо в его уже опознанный тред и выглядит так,
+ * будто систему сбросило до «неизвестный гость» (см. кейс Зокировой).
+ */
+async function isKnownTelegramId(telegramId: string): Promise<boolean> {
+  const employee = await db.employee.findFirst({ where: { telegramId, archivedAt: null }, select: { id: true } });
+  if (employee) return true;
+  const serviceUser = await db.user.findFirst({ where: { telegramId, employeeId: null }, select: { id: true } });
+  return !!serviceUser;
+}
+
 async function handle(msg: TgMessage) {
   const chatId = msg.chat.id;
   const fromId = msg.from?.id;
@@ -107,7 +122,7 @@ async function handle(msg: TgMessage) {
         const g = await linkByPhone(msg.contact.phone_number, telegramId);
         await send(chatId, grantMessage(g.login, g.otp, g.fullName), { reply_markup: { remove_keyboard: true } });
       } catch (e) {
-        if (!(e instanceof PhoneNotRecognizedError)) throw e;
+        if (!(e instanceof PhoneNotRecognizedError) || (await isKnownTelegramId(telegramId))) throw e;
         // Номер подтверждён Telegram-контактом, но сотрудника с ним нет —
         // не бросаем человека с текстовой ошибкой: сразу открываем чат
         // поддержки и сохраняем ЭТОТ (проверенный) номер за тредом, чтобы
