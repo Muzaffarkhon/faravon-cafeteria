@@ -35,6 +35,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   TAXI_PROMO_CODE: "Промокод на поездку",
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",
   GROUP_CARRIED_OVER: "Групповая льгота перенесена на следующий период",
+  SUPPORT_MESSAGE: "Новое сообщение в чате поддержки",
 };
 
 /** Порядок событий в админке. */
@@ -52,6 +53,7 @@ export const NOTIFICATION_EVENTS = [
   "TAXI_PROMO_CODE",
   "DAILY_DIGEST",
   "GROUP_CARRIED_OVER",
+  "SUPPORT_MESSAGE",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -112,6 +114,10 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
     body: "🔁 <b>Групповая льгота перенесена</b>\n«{card}» не набрала нужное число участников[[\nПериод: {period}]]\nВаш выбор перенесён на следующий период — отменить можно с 25-го числа до его начала.",
   },
+  SUPPORT_MESSAGE: {
+    label: NOTIFICATION_LABELS.SUPPORT_MESSAGE,
+    body: "💬 <b>Новое сообщение в чате поддержки</b>[[\nНомер: {phone}]]\n\nОткройте раздел «Чат поддержки».",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -141,6 +147,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026" },
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
+  SUPPORT_MESSAGE: { phone: "+992 90 000 00 00" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -158,6 +165,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   TAXI_PROMO_CODE: ["card", "promo", "period"],
   DAILY_DIGEST: ["text"],
   GROUP_CARRIED_OVER: ["card", "period"],
+  SUPPORT_MESSAGE: ["phone"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));
