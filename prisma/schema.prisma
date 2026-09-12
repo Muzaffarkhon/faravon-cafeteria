@@ -95,6 +95,16 @@ enum FeedbackStatus {
   CLOSED // закрыто
 }
 
+enum SupportThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum SupportMessageDirection {
+  IN  // от гостя
+  OUT // от C&B
+}
+
 model Employee {
   id           String           @id @default(cuid())
   seq          Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
@@ -158,6 +168,7 @@ model User {
   cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
   feedbackHandled Feedback[]             @relation("FeedbackHandler")
+  supportReplies  SupportMessage[]
 
   @@index([partnerId])
 }
@@ -448,6 +459,43 @@ model Feedback {
   @@index([status])
   @@index([employeeId])
   @@index([createdAt])
+}
+
+/// Один Telegram-чат — один тред, переоткрывается при новом сообщении
+/// гостя, а не плодится заново. Заводится, когда бот не смог опознать
+/// человека и тот нажал «Написать администратору».
+model SupportThread {
+  id            String              @id @default(cuid())
+  seq           Int                 @unique @default(autoincrement()) // сквозной номер — для короткого отображения (RowId), тот же приём, что и у остальных сущностей
+  telegramId    String              @unique
+  /// Номер, который человек присылал (если делился контактом) — подсказка
+  /// C&B, кто это, даже если официально не опознан.
+  phone         String?
+  status        SupportThreadStatus @default(OPEN)
+  /// НЕ @updatedAt — обновляем явно при каждом сообщении (в обе стороны),
+  /// а не при любом изменении строки (например, при правке phone).
+  lastMessageAt DateTime            @default(now())
+  createdAt     DateTime            @default(now())
+
+  messages SupportMessage[]
+
+  @@index([status, lastMessageAt])
+}
+
+model SupportMessage {
+  id        String                  @id @default(cuid())
+  thread    SupportThread           @relation(fields: [threadId], references: [id])
+  threadId  String
+  direction SupportMessageDirection
+  body      String
+  /// Кто из C&B ответил — только для OUT.
+  author    User?                   @relation(fields: [authorId], references: [id])
+  authorId  String?
+  /// Прочитано C&B — только для IN, для счётчика непрочитанных.
+  readAt    DateTime?
+  createdAt DateTime                @default(now())
+
+  @@index([threadId, createdAt])
 }
 
 model TextBlock {
