@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 
-const POLL_MS = 20_000;
+// Опрашиваем так же часто, как SSE опрашивает БД для персонала (см.
+// STAFF_POLL_MS в api/stream/route.ts) — это тот же по духу «рабочий»
+// поток, только опрос вместо push, потому что нужен и на скрытой вкладке.
+const POLL_MS = 8_000;
 const BLINK_MS = 1200;
 const BLINK_TITLE = "🔴 Новое сообщение — Farovon";
 
@@ -11,7 +14,10 @@ const BLINK_TITLE = "🔴 Новое сообщение — Farovon";
  * Раньше это был Telegram-пуш на каждую реплику гостя — C&B заваливало
  * собственного бота уведомлениями о его же обращениях. Здесь тот же сигнал,
  * но только в интерфейсе: звук — всегда при росте счётчика, мигание — если
- * в этот момент вкладка не активна (свёрнута или открыта другая).
+ * в этот момент страница не в фокусе (свёрнута, открыта другая вкладка ИЛИ
+ * пользователь ушёл в другое приложение — `document.hasFocus()` ловит и
+ * то, и другое, а одной `visibilitychange` для переключения приложений не
+ * всегда достаточно).
  *
  * Не переиспользует общий SSE (`LiveRefresh`) — тот намеренно закрывает
  * соединение на скрытой вкладке. Здесь ровно обратная задача, поэтому
@@ -21,9 +27,29 @@ export function SupportAlert() {
   const lastCount = useRef<number | null>(null);
   const blinkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const originalTitle = useRef("");
+  const audioCtx = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     originalTitle.current = document.title;
+
+    // Браузеры не дают проигрывать звук без предшествующего жеста
+    // пользователя — AudioContext, созданный внутри setInterval, молча
+    // остаётся «подвешенным» и звука не даёт. Поэтому создаём и
+    // разблокируем его один раз по первому клику/нажатию где угодно на
+    // странице, а дальше переиспользуем для звука из поллинга.
+    function unlockAudio() {
+      if (audioCtx.current) return;
+      try {
+        const Ctx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioCtx.current = new Ctx();
+      } catch {
+        /* звук недоступен в этом браузере — не критично */
+      }
+    }
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
 
     function stopBlink() {
       if (blinkTimer.current) {
@@ -43,11 +69,10 @@ export function SupportAlert() {
     }
 
     function beep() {
+      const ctx = audioCtx.current;
+      if (!ctx) return; // жеста ещё не было — тихо пропускаем, не ошибка
       try {
-        const Ctx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new Ctx();
+        if (ctx.state === "suspended") void ctx.resume();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.frequency.value = 880;
@@ -55,9 +80,8 @@ export function SupportAlert() {
         osc.connect(gain).connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.18);
-        osc.onended = () => void ctx.close();
       } catch {
-        /* звук не критичен — молча пропускаем (заблокирован браузером и т.п.) */
+        /* звук не критичен */
       }
     }
 
@@ -70,7 +94,7 @@ export function SupportAlert() {
         // непрочитанных, которые уже были на момент открытия страницы.
         if (lastCount.current !== null && count > lastCount.current) {
           beep();
-          if (document.visibilityState === "hidden") startBlink();
+          if (!document.hasFocus() || document.visibilityState === "hidden") startBlink();
         }
         lastCount.current = count;
       } catch {
@@ -78,18 +102,22 @@ export function SupportAlert() {
       }
     }
 
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") stopBlink();
+    const onFocus = () => {
+      if (document.hasFocus()) stopBlink();
     };
 
     void poll();
     const interval = setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
 
     return () => {
       clearInterval(interval);
       stopBlink();
-      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
