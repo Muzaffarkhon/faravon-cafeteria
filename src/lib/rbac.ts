@@ -21,6 +21,7 @@ export const DEFAULT_PERMISSIONS = {
   "users.manage": ["C_AND_B"],
   "access.manage": ["C_AND_B"],
   "audit.view": ["C_AND_B"],
+  "support.manage": ["C_AND_B"],
 } as const satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof DEFAULT_PERMISSIONS;
@@ -95,6 +96,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "users.manage": "Пользователи и роли",
   "access.manage": "Доступ: матрица прав, Telegram / OTP",
   "audit.view": "Журнал аудита",
+  "support.manage": "Чат поддержки (когда бот не опознал человека)",
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
