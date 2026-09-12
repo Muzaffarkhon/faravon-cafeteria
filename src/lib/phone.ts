@@ -23,6 +23,23 @@ export function formatTajikPhone(raw: string): string | null {
 }
 
 /**
+ * Ищет в свободном тексте похожее на номер телефона (гость мог написать его
+ * просто текстом в чат, а не поделиться контактом — тогда `SupportThread.phone`
+ * остаётся пустым). Сначала пробует всю строку целиком, затем — самую длинную
+ * цифровую подстроку в ней.
+ */
+export function extractPhoneFromText(text: string): string | null {
+  const whole = formatTajikPhone(text);
+  if (whole) return whole;
+  const digitRuns = text.match(/\d[\d\s().-]{7,}\d/g) ?? [];
+  for (const run of digitRuns) {
+    const formatted = formatTajikPhone(run);
+    if (formatted) return formatted;
+  }
+  return null;
+}
+
+/**
  * Разбирает строку, которая может содержать один или несколько номеров
  * (через запятую, слэш, точку с запятой), и возвращает очищенные уникальные номера.
  */

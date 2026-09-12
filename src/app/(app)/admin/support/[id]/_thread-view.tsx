@@ -43,7 +43,9 @@ function EmployeeLinkPanel({
   function save(employeeId: string) {
     setErr(null);
     start(async () => {
-      const r = await linkEmployeeToThread(threadId, employeeId, query || guestPhone);
+      // Номер сохраняем всегда тот, что реально пришёл от гостя — не то, что
+      // сейчас в строке поиска (там может быть ФИО, если искали по имени).
+      const r = await linkEmployeeToThread(threadId, employeeId, guestPhone);
       if (r.error) setErr(r.error);
       else if (r.login && r.otp) setSaved((s) => ({ ...s, [employeeId]: { login: r.login!, otp: r.otp! } }));
     });
@@ -70,6 +72,10 @@ function EmployeeLinkPanel({
           Искать
         </Button>
       </div>
+      <p className="text-xs text-ink-subtle">
+        Номер гостя: {guestPhone ?? "не определён"}
+        {guestPhone ? " — именно он сохранится по кнопке «Сохранить номер»." : " — привяжется только Telegram."}
+      </p>
       {err && (
         <p className="text-sm font-medium text-danger" role="alert">
           {err}
