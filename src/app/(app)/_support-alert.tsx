@@ -9,15 +9,50 @@ const POLL_MS = 8_000;
 const BLINK_MS = 1200;
 const BLINK_TITLE = "🔴 Новое сообщение — Farovon";
 
+/** Рисует поверх обычной иконки красный кружок с белой обводкой — версия
+ * favicon для мигания, тем же приёмом, что и бейдж-счётчик в интерфейсе. */
+function buildAlertFavicon(baseHref: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const size = img.naturalWidth || 192;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, size, size);
+        const r = size * 0.24;
+        const cx = size - r * 0.95;
+        const cy = r * 0.95;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = "#DC2626";
+        ctx.fill();
+        ctx.lineWidth = size * 0.05;
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.stroke();
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        resolve(null); // canvas недоступен (приватный режим и т.п.) — просто без мигающей иконки
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = baseHref;
+  });
+}
+
 /**
- * Звук + мигание заголовка вкладки при новом сообщении в чате поддержки.
- * Раньше это был Telegram-пуш на каждую реплику гостя — C&B заваливало
- * собственного бота уведомлениями о его же обращениях. Здесь тот же сигнал,
- * но только в интерфейсе: звук — всегда при росте счётчика, мигание — если
- * в этот момент страница не в фокусе (свёрнута, открыта другая вкладка ИЛИ
- * пользователь ушёл в другое приложение — `document.hasFocus()` ловит и
- * то, и другое, а одной `visibilitychange` для переключения приложений не
- * всегда достаточно).
+ * Звук + мигание вкладки (заголовок и иконка) при новом сообщении в чате
+ * поддержки. Раньше это был Telegram-пуш на каждую реплику гостя — C&B
+ * заваливало собственного бота уведомлениями о его же обращениях. Здесь тот
+ * же сигнал, но только в интерфейсе: звук — всегда при росте счётчика,
+ * мигание — если в этот момент страница не в фокусе (свёрнута, открыта
+ * другая вкладка ИЛИ пользователь ушёл в другое приложение —
+ * `document.hasFocus()` ловит и то, и другое, а одной `visibilitychange`
+ * для переключения приложений не всегда достаточно).
  *
  * Не переиспользует общий SSE (`LiveRefresh`) — тот намеренно закрывает
  * соединение на скрытой вкладке. Здесь ровно обратная задача, поэтому
@@ -28,9 +63,20 @@ export function SupportAlert() {
   const blinkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const originalTitle = useRef("");
   const audioCtx = useRef<AudioContext | null>(null);
+  const faviconEl = useRef<HTMLLinkElement | null>(null);
+  const originalFaviconHref = useRef("");
+  const alertFaviconHref = useRef<string | null>(null);
 
   useEffect(() => {
     originalTitle.current = document.title;
+
+    faviconEl.current = document.querySelector('link[rel="icon"]');
+    if (faviconEl.current) {
+      originalFaviconHref.current = faviconEl.current.href;
+      void buildAlertFavicon(faviconEl.current.href).then((url) => {
+        alertFaviconHref.current = url;
+      });
+    }
 
     // Браузеры не дают проигрывать звук без предшествующего жеста
     // пользователя — AudioContext, созданный внутри setInterval, молча
@@ -57,6 +103,7 @@ export function SupportAlert() {
         blinkTimer.current = null;
       }
       document.title = originalTitle.current;
+      if (faviconEl.current) faviconEl.current.href = originalFaviconHref.current;
     }
 
     function startBlink() {
@@ -64,6 +111,11 @@ export function SupportAlert() {
       let on = false;
       blinkTimer.current = setInterval(() => {
         document.title = on ? originalTitle.current : BLINK_TITLE;
+        if (faviconEl.current) {
+          faviconEl.current.href = on
+            ? originalFaviconHref.current
+            : (alertFaviconHref.current ?? originalFaviconHref.current);
+        }
         on = !on;
       }, BLINK_MS);
     }
