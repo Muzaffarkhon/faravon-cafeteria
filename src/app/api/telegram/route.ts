@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "@/lib/telegram-link";
-import { openOrReopenThread, appendGuestMessage } from "@/lib/support-chat";
+import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
 import { safeEqual } from "@/lib/timing-safe";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,7 +101,7 @@ async function handle(msg: TgMessage) {
     // заставляя человека ещё и нажимать кнопку внутри переписки.
     if (text === "/start support") {
       await openOrReopenThread(telegramId);
-      await send(chatId, SUPPORT_OPENED);
+      await send(chatId, SUPPORT_OPENED, { reply_markup: await getFaqKeyboard() });
       return;
     }
     if (text === "/start" || text === "/help") {
@@ -169,13 +170,40 @@ async function handle(msg: TgMessage) {
   }
 }
 
+async function handleFaqTap(faqId: string, cb: TgCallbackQuery) {
+  if (!cb.message) return;
+  const faq = await db.supportFaq.findUnique({ where: { id: faqId } });
+  if (!faq) return;
+
+  const telegramId = String(cb.from.id);
+  // Тап по вопросу — как и обычное сообщение, открывает/переоткрывает диалог
+  // и остаётся в истории для C&B, а не только у гостя.
+  await openOrReopenThread(telegramId);
+  await appendGuestMessage(telegramId, `[Вопрос] ${faq.question}`);
+
+  const thread = await db.supportThread.findUnique({ where: { telegramId } });
+  if (thread) {
+    await db.$transaction([
+      db.supportMessage.create({ data: { threadId: thread.id, direction: "OUT", body: faq.answer } }),
+      db.supportThread.update({ where: { id: thread.id }, data: { lastMessageAt: new Date() } }),
+    ]);
+  }
+  await send(cb.message.chat.id, esc(faq.answer), { reply_markup: await getFaqKeyboard() });
+}
+
 async function handleCallback(cb: TgCallbackQuery) {
   await tg("answerCallbackQuery", { callback_query_id: cb.id });
-  if (cb.data !== "support:start" || !cb.message) return;
+  if (!cb.data || !cb.message) return;
+
+  if (cb.data.startsWith("support:faq:")) {
+    await handleFaqTap(cb.data.slice("support:faq:".length), cb);
+    return;
+  }
+  if (cb.data !== "support:start") return;
 
   const telegramId = String(cb.from.id);
   await openOrReopenThread(telegramId);
-  await send(cb.message.chat.id, SUPPORT_OPENED);
+  await send(cb.message.chat.id, SUPPORT_OPENED, { reply_markup: await getFaqKeyboard() });
 }
 
 export async function POST(req: NextRequest) {

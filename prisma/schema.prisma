@@ -508,6 +508,19 @@ model SupportQuickReply {
   updatedAt DateTime @updatedAt
 }
 
+/// Частые вопросы для гостя в Telegram-чате поддержки: `question` — подпись
+/// инлайн-кнопки (лимит Telegram ~64 символа), `answer` — шаблонный текст,
+/// который бот отправляет автоматически по нажатию. Кнопки прикрепляются к
+/// каждому сообщению бота в этом чате (см. getFaqKeyboard в support-chat.ts).
+model SupportFaq {
+  id        String   @id @default(cuid())
+  seq       Int      @unique @default(autoincrement())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model TextBlock {
   key       String   @id // GOAL | NOVELTY_NOTICE
   title     String

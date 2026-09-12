@@ -28,12 +28,17 @@ async function tgOk(r: Response): Promise<boolean> {
  * (formatNotificationText → renderTemplate), уже экранированы — сама разметка
  * шаблона (b/code) экранированию не подлежит, поэтому шлём как есть.
  */
-export async function sendTelegram(token: string, chatId: string, html: string): Promise<boolean> {
+export async function sendTelegram(
+  token: string,
+  chatId: string,
+  html: string,
+  extra: Record<string, unknown> = {},
+): Promise<boolean> {
   try {
     const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML" }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML", ...extra }),
     });
     return await tgOk(r);
   } catch {

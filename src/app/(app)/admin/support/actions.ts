@@ -13,6 +13,7 @@ import { hashPassword } from "@/lib/password";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
+import { getFaqKeyboard } from "@/lib/support-chat";
 
 function revalidateAll(threadId: string) {
   revalidatePath("/admin/support");
@@ -36,7 +37,9 @@ export async function replyToThread(threadId: string, body: string): Promise<Act
 
     // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
     // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
-    const ok = await sendTelegram(token, thread.telegramId, escHtml(text));
+    const ok = await sendTelegram(token, thread.telegramId, escHtml(text), {
+      reply_markup: await getFaqKeyboard(),
+    });
     if (!ok) throw new Error("Не удалось отправить сообщение в Telegram.");
 
     await db.$transaction([
@@ -220,7 +223,7 @@ export async function linkEmployeeToThread(
   const plain = `Номер добавлен и ваш логин и временный пароль: ${user.login} / ${otp}. При входе система попросит его сменить.`;
   const html = `Номер добавлен и ваш логин и временный пароль: <code>${escHtml(user.login)}</code> / <code>${escHtml(otp)}</code>. При входе система попросит его сменить.`;
 
-  const sent = await sendTelegram(token, thread.telegramId, html);
+  const sent = await sendTelegram(token, thread.telegramId, html, { reply_markup: await getFaqKeyboard() });
   if (!sent) return { error: "Не удалось отправить сообщение в Telegram." };
 
   await db.$transaction([

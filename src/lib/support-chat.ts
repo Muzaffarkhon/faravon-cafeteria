@@ -39,3 +39,30 @@ export async function appendGuestMessage(telegramId: string, body: string): Prom
 
   return true;
 }
+
+/** Лимит Telegram на длину подписи инлайн-кнопки. */
+const FAQ_BUTTON_MAX_LEN = 64;
+
+/**
+ * Инлайн-клавиатура с частыми вопросами — прикрепляется к каждому сообщению
+ * бота в чате поддержки (открытие диалога, ответ админа, автоответ на сам
+ * FAQ), чтобы гость мог тапнуть вопрос в любой момент. `undefined`, если
+ * список пуст — тогда сообщение уходит вовсе без клавиатуры.
+ */
+export async function getFaqKeyboard(): Promise<
+  { inline_keyboard: { text: string; callback_data: string }[][] } | undefined
+> {
+  const faqs = await db.supportFaq.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, question: true },
+  });
+  if (faqs.length === 0) return undefined;
+  return {
+    inline_keyboard: faqs.map((f) => [
+      {
+        text: f.question.length > FAQ_BUTTON_MAX_LEN ? `${f.question.slice(0, FAQ_BUTTON_MAX_LEN - 1)}…` : f.question,
+        callback_data: `support:faq:${f.id}`,
+      },
+    ]),
+  };
+}

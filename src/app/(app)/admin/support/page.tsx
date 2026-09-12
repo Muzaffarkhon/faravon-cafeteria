@@ -32,9 +32,14 @@ export default async function SupportPage() {
         title="Чат поддержки"
         description="Люди, которых бот не смог опознать при входе, и переписка с ними."
         action={
-          <Link href="/admin/support/quick-replies" className={buttonClass({ variant: "secondary", size: "sm" })}>
-            Быстрые ответы
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/admin/support/faq" className={buttonClass({ variant: "secondary", size: "sm" })}>
+              Частые вопросы
+            </Link>
+            <Link href="/admin/support/quick-replies" className={buttonClass({ variant: "secondary", size: "sm" })}>
+              Быстрые ответы
+            </Link>
+          </div>
         }
       />
 
