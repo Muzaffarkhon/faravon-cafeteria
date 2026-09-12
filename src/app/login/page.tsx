@@ -5,10 +5,16 @@ import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input, buttonClass, cx } from "@/components/ui";
 import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
+
+// Логин бота (@BotFather) — та же ссылка, что открывается по кнопке
+// «Поделиться контактом» внутри самого Telegram. `?start=support` заводит
+// диалог напрямую в чат поддержки (см. src/app/api/telegram/route.ts) —
+// не нужно самому искать бота и нажимать кнопку внутри переписки.
+const BOT_URL = "https://t.me/cafeteria_farovon_bot";
 
 const microLabel = (text: string) => (
   <span className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
@@ -93,8 +99,16 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs leading-relaxed text-ink-subtle">
-            Логин и одноразовый пароль сотрудник получает в Telegram-боте
-            «Фаровон» — код привяжется автоматически.
+            Логин и одноразовый пароль сотрудник получает в Telegram-боте{" "}
+            <a
+              href={BOT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-primary hover:underline"
+            >
+              Farovon Cafeteria
+            </a>{" "}
+            — код привяжется автоматически.
             {process.env.NODE_ENV !== "production" && (
               <>
                 <br />
@@ -102,6 +116,15 @@ export default function LoginPage() {
               </>
             )}
           </p>
+
+          <a
+            href={`${BOT_URL}?start=support`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-3 w-full")}
+          >
+            Не получается войти? Написать администратору
+          </a>
         </div>
       </div>
     </main>

@@ -31,6 +31,9 @@ const WELCOME =
   "• отправьте код от HR командой <code>/code ВАШКОД</code>\n\n" +
   "Уже привязаны? Команда <code>/login</code> выдаст новый одноразовый пароль.";
 
+const SUPPORT_OPENED =
+  "Опишите ваш вопрос — администратор увидит его и ответит здесь же, в этом чате.";
+
 const CONTACT_KEYBOARD = {
   reply_markup: {
     keyboard: [[{ text: "📱 Поделиться контактом", request_contact: true }]],
@@ -93,6 +96,14 @@ async function handle(msg: TgMessage) {
 
     const text = (msg.text || "").trim();
 
+    // Deep-link со страницы входа (?start=support) — Telegram присылает его
+    // как текст "/start support". Сразу открываем чат поддержки, не
+    // заставляя человека ещё и нажимать кнопку внутри переписки.
+    if (text === "/start support") {
+      await openOrReopenThread(telegramId);
+      await send(chatId, SUPPORT_OPENED);
+      return;
+    }
     if (text === "/start" || text === "/help") {
       await send(chatId, WELCOME, CONTACT_KEYBOARD);
       return;
@@ -170,10 +181,7 @@ async function handleCallback(cb: TgCallbackQuery) {
 
   const telegramId = String(cb.from.id);
   await openOrReopenThread(telegramId);
-  await send(
-    cb.message.chat.id,
-    "Опишите ваш вопрос — администратор увидит его и ответит здесь же, в этом чате.",
-  );
+  await send(cb.message.chat.id, SUPPORT_OPENED);
 }
 
 export async function POST(req: NextRequest) {
