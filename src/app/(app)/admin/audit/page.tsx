@@ -37,6 +37,8 @@ const ACTION_LABELS: Record<string, string> = {
   AD_REQUEST_REVIEWED: "Заявка на рекламу рассмотрена",
   PARTNER_BANNER_CREATED: "Баннер создан",
   RBAC_MATRIX_CHANGED: "Изменена матрица прав",
+  SUPPORT_REPLY_SENT: "Ответ в чате поддержки",
+  SUPPORT_THREAD_CLOSED: "Диалог поддержки закрыт",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -51,6 +53,7 @@ const ENTITY_LABELS: Record<string, string> = {
   NotificationTemplate: "Шаблон уведомления",
   RolePermission: "Матрица прав",
   BenefitCard: "Карточка льготы",
+  SupportThread: "Диалог поддержки",
 };
 
 const short = (v: unknown) => {
