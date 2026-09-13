@@ -27,10 +27,16 @@ export const escHtml = (s: string) =>
  * поддержки (linkEmployeeToThread) должно выглядеть одинаково, а не как
  * два разных бота.
  */
-export function grantMessage(login: string, otp: string, fullName: string): string {
+export function grantMessage(
+  login: string,
+  otp: string,
+  fullName: string,
+  /** false — диалог уже идёт (чат поддержки), приветствие лишнее. */
+  greet = true,
+): string {
   const platformUrl = process.env.PLATFORM_URL || "";
   return (
-    `Здравствуйте, ${escHtml(fullName)}!\n\n` +
+    (greet ? `Здравствуйте, ${escHtml(fullName)}!\n\n` : "") +
     `🔑 Логин: <code>${escHtml(login)}</code>\n` +
     `🔒 Одноразовый пароль: <code>${escHtml(otp)}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +

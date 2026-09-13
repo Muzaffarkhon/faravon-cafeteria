@@ -27,7 +27,7 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
     db.applicationItem.count({ where: { status: "PENDING" } }),
     db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }),
     db.advertisingRequest.count({ where: { status: "PENDING" } }),
-    db.feedback.count({ where: { status: "NEW" } }),
+    db.supportThread.count({ where: { messages: { some: { direction: "IN", readAt: null } } } }),
   ]);
 
   const cnbText =

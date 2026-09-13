@@ -89,7 +89,8 @@ export async function loginAction(
 
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     await db.loginAttempt.create({ data: { login, ip, userAgent, success: false } });
-    return { error: "Учётная запись временно заблокирована. Повторите позже." };
+    const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+    return { error: `Слишком много неверных попыток. Вход заблокирован ещё на ${minutesLeft} мин.` };
   }
 
   if (user.mustChangePassword && user.otpExpiresAt && user.otpExpiresAt < new Date()) {
@@ -99,16 +100,23 @@ export async function loginAction(
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
     const failed = user.failedLoginCount + 1;
+    const lockedNow = failed >= MAX_FAILED;
     await db.user.update({
       where: { id: user.id },
       data: {
         failedLoginCount: failed,
-        lockedUntil:
-          failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
+        lockedUntil: lockedNow ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
       },
     });
+    await db.loginAttempt.create({ data: { login, ip, userAgent, success: false } });
     await audit({ actorId: user.id, action: "LOGIN_FAILED", entityType: "User", entityId: user.id });
-    return fail("bad-password");
+    // Именно на попытке, которая ставит блокировку, нужно предупредить сразу —
+    // иначе сотрудник продолжает вводить верный пароль и видит generic-ошибку,
+    // не понимая, что аккаунт уже заблокирован.
+    if (lockedNow) {
+      return { error: `Слишком много неверных попыток. Вход заблокирован ещё на ${LOCK_MINUTES} мин.` };
+    }
+    return genericError;
   }
 
   // Успех: сбрасываем счётчики, при слабом хеше — пере-хешируем (§5.1, cost ≥ 12)

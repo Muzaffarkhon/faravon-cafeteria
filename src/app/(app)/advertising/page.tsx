@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { AdvertisingForm } from "./_form";
 
 export const dynamic = "force-dynamic";
@@ -12,17 +13,19 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   APPROVED: "success",
   REJECTED: "brand",
 };
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: "На рассмотрении",
-  APPROVED: "Одобрена",
-  REJECTED: "Отклонена",
-};
 
 export default async function AdvertisingPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "coupons.confirm")) redirect("/");
   if (!session.user.partnerId) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
+  const STATUS_LABEL: Record<string, string> = {
+    PENDING: t("advertising.statusPending"),
+    APPROVED: t("advertising.statusApproved"),
+    REJECTED: t("advertising.statusRejected"),
+  };
 
   const [partner, requests] = await Promise.all([
     db.partner.findUnique({ where: { id: session.user.partnerId }, select: { name: true } }),
@@ -36,33 +39,33 @@ export default async function AdvertisingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Реклама"
-        description={`Заявка на размещение рекламы «${partner.name}» в кафетерии льгот. Рассматривает C&B.`}
+        title={t("advertising.title")}
+        description={`${t("advertising.descriptionPrefix")} «${partner.name}» ${t("advertising.descriptionSuffix")}`}
       />
 
       <Card className="p-6">
-        <SectionTitle className="text-lg">Новая заявка</SectionTitle>
+        <SectionTitle className="text-lg">{t("advertising.newRequest")}</SectionTitle>
         <div className="mt-4">
-          <AdvertisingForm partnerName={partner.name} />
+          <AdvertisingForm partnerName={partner.name} locale={locale} />
         </div>
       </Card>
 
       <section className="space-y-3">
         <SectionTitle className="text-lg" count={requests.length}>
-          Мои заявки
+          {t("advertising.myRequests")}
         </SectionTitle>
         {requests.length === 0 ? (
-          <EmptyState>Заявок пока нет.</EmptyState>
+          <EmptyState>{t("advertising.empty")}</EmptyState>
         ) : (
           <Card className="overflow-hidden">
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Продукт</th>
-                  <th>Приложение</th>
-                  <th>Статус</th>
-                  <th>Подана</th>
+                  <th>{t("advertising.colId")}</th>
+                  <th>{t("advertising.colProduct")}</th>
+                  <th>{t("advertising.colApp")}</th>
+                  <th>{t("advertising.colStatus")}</th>
+                  <th>{t("advertising.colSubmitted")}</th>
                 </tr>
               </thead>
               <tbody>

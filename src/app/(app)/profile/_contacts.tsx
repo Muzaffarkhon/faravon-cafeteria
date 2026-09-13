@@ -3,6 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 import { Badge, Button, Field, Input } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import {
   linkOwnTelegram,
   setOwnTelegramId,
@@ -12,7 +14,8 @@ import {
   type ProfileContactState,
 } from "./actions";
 
-export function ContactEditor({ phone }: { phone: string | null }) {
+export function ContactEditor({ phone, locale }: { phone: string | null; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<ProfileContactState, FormData>(
     updateOwnPhone,
     {},
@@ -21,9 +24,9 @@ export function ContactEditor({ phone }: { phone: string | null }) {
   return (
     <form action={formAction} className="mt-4 max-w-sm space-y-3">
       <Field
-        label="Телефон"
+        label={t("profile.phone")}
         htmlFor="phone"
-        hint="Используется для идентификации в Telegram-боте."
+        hint={t("profile.phoneHint")}
         error={state.error}
       >
         <Input
@@ -38,11 +41,11 @@ export function ContactEditor({ phone }: { phone: string | null }) {
       </Field>
       {state.ok && (
         <p className="text-sm font-medium text-success-strong" role="status">
-          Телефон сохранён.
+          {t("profile.phoneSaved")}
         </p>
       )}
       <Button type="submit" size="sm" loading={pending}>
-        Сохранить телефон
+        {t("profile.savePhone")}
       </Button>
     </form>
   );
@@ -52,7 +55,8 @@ export function ContactEditor({ phone }: { phone: string | null }) {
  * Привязка Telegram для служебных учёток (подрядчик, C&B) — без карточки
  * сотрудника: пользователь узнаёт свой ID командой /id в боте и вставляет сюда.
  */
-export function ServiceTelegramLink({ linked }: { linked: boolean }) {
+export function ServiceTelegramLink({ linked, locale }: { linked: boolean; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<ProfileContactState, FormData>(
     setOwnTelegramId,
     {},
@@ -66,11 +70,11 @@ export function ServiceTelegramLink({ linked }: { linked: boolean }) {
   return (
     <div className="mt-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-ink-muted">Статус:</span>
+        <span className="text-sm text-ink-muted">{t("profile.status")}</span>
         {linkedNow ? (
-          <Badge tone="success">привязан</Badge>
+          <Badge tone="success">{t("profile.linked")}</Badge>
         ) : (
-          <Badge tone="neutral">не привязан</Badge>
+          <Badge tone="neutral">{t("profile.notLinked")}</Badge>
         )}
       </div>
 
@@ -82,7 +86,7 @@ export function ServiceTelegramLink({ linked }: { linked: boolean }) {
             disabled={unpending}
             onClick={() => setConfirming(true)}
           >
-            Отвязать Telegram
+            {t("profile.unlinkTelegram")}
           </Button>
           {unlinkErr && (
             <p className="text-sm font-medium text-danger" role="alert">
@@ -93,34 +97,34 @@ export function ServiceTelegramLink({ linked }: { linked: boolean }) {
       ) : (
         <form action={formAction} className="max-w-sm space-y-2">
           <p className="text-sm leading-6 text-ink-muted">
-            Откройте бота, отправьте команду <span className="font-mono text-ink">/id</span> и
-            вставьте полученное число сюда.
+            {t("profile.telegramIdHint1")} <span className="font-mono text-ink">/id</span>{" "}
+            {t("profile.telegramIdHint2")}
           </p>
-          <Field label="Telegram ID" htmlFor="tg-id" error={state.error}>
+          <Field label={t("profile.telegramId")} htmlFor="tg-id" error={state.error}>
             <Input
               id="tg-id"
               name="telegramId"
               inputMode="numeric"
               autoComplete="off"
-              placeholder="напр. 123456789"
+              placeholder={t("profile.telegramIdPlaceholder")}
             />
           </Field>
           {state.ok && (
             <p className="text-sm font-medium text-success-strong" role="status">
-              Telegram привязан.
+              {t("profile.telegramLinked")}
             </p>
           )}
           <Button type="submit" size="sm" loading={pending}>
-            Привязать Telegram
+            {t("profile.linkTelegram")}
           </Button>
         </form>
       )}
 
       <ConfirmDialog
         open={confirming}
-        title="Отвязать Telegram?"
-        message="Уведомления перестанут приходить, пока вы не привяжете аккаунт заново."
-        confirmLabel="Отвязать"
+        title={t("profile.unlinkConfirmTitle")}
+        message={t("profile.unlinkConfirmMessage1")}
+        confirmLabel={t("profile.unlink")}
         tone="danger"
         busy={unpending}
         onConfirm={() => {
@@ -138,7 +142,8 @@ export function ServiceTelegramLink({ linked }: { linked: boolean }) {
   );
 }
 
-export function TelegramLink({ linked }: { linked: boolean }) {
+export function TelegramLink({ linked, locale }: { linked: boolean; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [code, setCode] = useState<string | null>(null);
   const [isLinked, setIsLinked] = useState(linked);
@@ -158,25 +163,25 @@ export function TelegramLink({ linked }: { linked: boolean }) {
   return (
     <div className="mt-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-ink-muted">Статус:</span>
+        <span className="text-sm text-ink-muted">{t("profile.status")}</span>
         {isLinked ? (
-          <Badge tone="success">привязан</Badge>
+          <Badge tone="success">{t("profile.linked")}</Badge>
         ) : (
-          <Badge tone="neutral">не привязан</Badge>
+          <Badge tone="neutral">{t("profile.notLinked")}</Badge>
         )}
       </div>
 
       {code ? (
         <div className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
           <p className="text-ink-muted">
-            Отправьте этот код Telegram-боту командой{" "}
-            <span className="font-mono text-ink">/start</span> → «Ввести код» (действует 72&nbsp;ч):
+            {t("profile.telegramCodeHint1")}{" "}
+            <span className="font-mono text-ink">/start</span> → {t("profile.telegramCodeHint2")}
           </p>
           <p className="mt-1 font-mono text-lg font-semibold text-primary-strong">{code}</p>
         </div>
       ) : isLinked ? (
         <Button variant="danger" size="sm" disabled={pending} onClick={() => setConfirming(true)}>
-          Отвязать Telegram
+          {t("profile.unlinkTelegram")}
         </Button>
       ) : (
         <Button
@@ -192,7 +197,7 @@ export function TelegramLink({ linked }: { linked: boolean }) {
             });
           }}
         >
-          Привязать Telegram
+          {t("profile.linkTelegram")}
         </Button>
       )}
 
@@ -204,9 +209,9 @@ export function TelegramLink({ linked }: { linked: boolean }) {
 
       <ConfirmDialog
         open={confirming}
-        title="Отвязать Telegram?"
-        message="Уведомления и вход через бота перестанут работать, пока вы не привяжете аккаунт заново."
-        confirmLabel="Отвязать"
+        title={t("profile.unlinkConfirmTitle")}
+        message={t("profile.unlinkConfirmMessage2")}
+        confirmLabel={t("profile.unlink")}
         tone="danger"
         busy={pending}
         onConfirm={doUnlink}

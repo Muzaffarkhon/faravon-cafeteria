@@ -5,6 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import type { Locale } from "@/lib/i18n/shared";
+import { translate } from "@/lib/i18n/dict";
 import { logout } from "@/app/(app)/actions";
 import type { NavGroup, NavItem } from "@/app/(app)/_shell";
 
@@ -40,23 +44,49 @@ const I = {
 };
 
 const SIDEBAR_COLLAPSED_KEY = "faravon.admin.sidebarCollapsed";
+const NAV_ORDER_KEY = "faravon.admin.navOrder"; // { [groupId]: href[] } — порядок, который перетащил себе пользователь
+
+function loadNavOrder(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(NAV_ORDER_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Применяет сохранённый пользователем порядок; новые/неизвестные пункты остаются в исходном месте. */
+function applyOrder(items: NavItem[], saved: string[] | undefined): NavItem[] {
+  if (!saved?.length) return items;
+  const byHref = new Map(items.map((it) => [it.href, it]));
+  const ordered = saved.map((h) => byHref.get(h)).filter((it): it is NavItem => !!it);
+  const rest = items.filter((it) => !saved.includes(it.href));
+  return [...ordered, ...rest];
+}
+
+const DRAG_HANDLE_ICON = "M8 6h.01||M8 12h.01||M8 18h.01||M16 6h.01||M16 12h.01||M16 18h.01";
 
 export function AdminShell({
   groups,
   roleLabel,
   displayName,
+  locale,
   children,
 }: {
   groups: NavGroup[];
   roleLabel: string;
   displayName?: string;
+  locale?: Locale;
   children: React.ReactNode;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale ?? "ru", key);
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [navOrder, setNavOrder] = useState<Record<string, string[]>>({});
+  const [dragHref, setDragHref] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -65,8 +95,25 @@ export function AdminShell({
     } catch {
       /* localStorage недоступен — остаёмся развёрнутыми */
     }
+    setNavOrder(loadNavOrder());
     setHydrated(true);
   }, []);
+
+  function reorder(groupId: string, items: NavItem[], fromHref: string, toHref: string) {
+    if (fromHref === toHref) return;
+    const hrefs = items.map((it) => it.href);
+    const from = hrefs.indexOf(fromHref);
+    const to = hrefs.indexOf(toHref);
+    if (from === -1 || to === -1) return;
+    hrefs.splice(to, 0, hrefs.splice(from, 1)[0]);
+    const next = { ...navOrder, [groupId]: hrefs };
+    setNavOrder(next);
+    try {
+      localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(next));
+    } catch {
+      /* не критично — порядок просто не переживёт перезагрузку */
+    }
+  }
 
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -101,7 +148,7 @@ export function AdminShell({
         >
           <Icon path={I.menu} />
         </button>
-        <span className="truncate text-sm font-bold text-ink">{activeItem?.label ?? "Админ-панель"}</span>
+        <span className="truncate text-sm font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
       </div>
 
       {/* Затемнение под мобильным drawer'ом */}
@@ -142,47 +189,76 @@ export function AdminShell({
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-          {groups.map((g) => (
-            <div key={g.id}>
-              {!collapsed && (
-                <div className="px-2.5 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
-                  {g.label}
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {g.items.map((it) => {
-                  const active = isActive(it.href);
-                  return (
-                    <Link
-                      key={it.href}
-                      href={it.href}
-                      title={collapsed ? it.label : undefined}
-                      className={cx(
-                        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
-                        collapsed && "justify-center",
-                        active ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
-                      )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <Icon path={it.icon} className="shrink-0" />
-                      {!collapsed && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
-                      {it.badge ? (
-                        <span
+          {groups.map((g) => {
+            const items = applyOrder(g.items, navOrder[g.id]);
+            return (
+              <div key={g.id}>
+                {!collapsed && (
+                  <div className="px-2.5 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
+                    {g.label}
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {items.map((it) => {
+                    const active = isActive(it.href);
+                    return (
+                      <div
+                        key={it.href}
+                        className={cx(
+                          "group/nav flex items-center rounded-lg transition-colors",
+                          !collapsed && dragHref && dragHref !== it.href && "border-t-2 border-transparent",
+                        )}
+                        onDragOver={(e) => !collapsed && e.preventDefault()}
+                        onDrop={(e) => {
+                          if (collapsed || !dragHref) return;
+                          e.preventDefault();
+                          reorder(g.id, items, dragHref, it.href);
+                          setDragHref(null);
+                        }}
+                      >
+                        {!collapsed && (
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={() => setDragHref(it.href)}
+                            onDragEnd={() => setDragHref(null)}
+                            aria-label="Перетащить, чтобы изменить порядок"
+                            className="hidden shrink-0 cursor-grab touch-none px-1 py-2 text-ink-subtle opacity-0 transition-opacity group-hover/nav:opacity-100 active:cursor-grabbing md:block"
+                          >
+                            <Icon path={DRAG_HANDLE_ICON} className="pointer-events-none" />
+                          </button>
+                        )}
+                        <Link
+                          href={it.href}
+                          title={collapsed ? it.label : undefined}
                           className={cx(
-                            "inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
-                            active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
-                            collapsed && "absolute ml-5 mt-[-14px]",
+                            "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
+                            collapsed && "justify-center",
+                            active ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
                           )}
+                          aria-current={active ? "page" : undefined}
                         >
-                          {it.badge > 99 ? "99+" : it.badge}
-                        </span>
-                      ) : null}
-                    </Link>
-                  );
-                })}
+                          <Icon path={it.icon} className="shrink-0" />
+                          {!collapsed && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
+                          {it.badge ? (
+                            <span
+                              className={cx(
+                                "inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
+                                active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
+                                collapsed && "absolute ml-5 mt-[-14px]",
+                              )}
+                            >
+                              {it.badge > 99 ? "99+" : it.badge}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="shrink-0 border-t border-line p-2">
@@ -192,27 +268,19 @@ export function AdminShell({
             className="hidden w-full items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-surface-muted md:flex"
           >
             <Icon path={collapsed ? I.expand : I.collapse} />
-            {!collapsed && "Свернуть меню"}
+            {!collapsed && t("shell.collapseMenu")}
           </button>
-          <Link
-            href="/"
-            className={cx(
-              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-surface-muted",
-              collapsed && "justify-center",
-            )}
-          >
-            <Icon path={I.back} />
-            {!collapsed && "На витрину"}
-          </Link>
         </div>
       </aside>
 
       {/* ── Правая колонка: закреплённая шапка + прокручиваемый контент ── */}
       <div className="flex flex-1 flex-col overflow-hidden pt-14 md:pt-0">
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
-          <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? "Админ-панель"}</span>
+          <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
 
           <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
+            <ThemeToggle compact />
+            <LanguageSwitcher locale={locale ?? "ru"} />
             {displayName && (
               <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
                 {displayName}
@@ -250,7 +318,7 @@ export function AdminShell({
                     className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                   >
                     <Icon path={I.profile} />
-                    Профиль
+                    {t("shell.profile")}
                   </Link>
                   <form action={logout}>
                     <button
@@ -258,7 +326,7 @@ export function AdminShell({
                       className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       <Icon path={I.logout} />
-                      Выйти
+                      {t("shell.logout")}
                     </button>
                   </form>
                 </div>

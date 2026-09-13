@@ -7,6 +7,7 @@ import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/li
 import { Badge, Card, Input, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
+import { getLocale, getTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ export default async function AccessPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "access.manage")) redirect("/");
+  const t = await getTranslator();
+  const locale = await getLocale();
 
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
@@ -74,33 +77,31 @@ export default async function AccessPage({
   return (
     <div className="space-y-5">
       <section className="space-y-3">
-        <SectionTitle className="text-lg">Матрица ролей и прав</SectionTitle>
+        <SectionTitle className="text-lg">{t("access.matrixTitle")}</SectionTitle>
         <p className="text-sm text-ink-muted">
-          Отметьте, какая роль к чему даёт доступ, и сохраните. Изменения
-          применяются сразу ко всему приложению. Роли сотрудникам назначаются
-          в разделе «Пользователи».
+          {t("access.matrixHint")}
         </p>
-        <MatrixForm allowed={allowed} />
+        <MatrixForm allowed={allowed} locale={locale} />
       </section>
 
-      <SectionTitle className="text-lg">Идентификация сотрудников</SectionTitle>
+      <SectionTitle className="text-lg">{t("access.identificationTitle")}</SectionTitle>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
         <Input
           name="q"
           defaultValue={q}
-          placeholder="Поиск: ФИО, подразделение, телефон"
+          placeholder={t("access.searchPlaceholder")}
           className="w-64 py-1.5 text-sm"
         />
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>Найти</button>
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("access.find")}</button>
         {q && (
           <Link href="/admin/access" className="text-xs text-ink-muted hover:text-ink hover:underline">
-            сбросить
+            {t("access.reset")}
           </Link>
         )}
         <span className="ml-auto text-sm text-ink-muted">
-          Сотрудников: {empTotal}
-          {q ? " (по фильтру)" : ""}
+          {t("access.employeesCount")}: {empTotal}
+          {q ? ` ${t("access.byFilter")}` : ""}
         </span>
       </form>
 
@@ -108,13 +109,13 @@ export default async function AccessPage({
         <Table stickyHeader>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Сотрудник</th>
-              <th>Подразделение</th>
-              <th>Телефон</th>
-              <th>Telegram</th>
-              <th>Вход</th>
-              <th className="text-right">Действия</th>
+              <th>{t("access.colId")}</th>
+              <th>{t("access.colEmployee")}</th>
+              <th>{t("access.colDepartment")}</th>
+              <th>{t("access.colPhone")}</th>
+              <th>{t("access.colTelegram")}</th>
+              <th>{t("access.colLogin")}</th>
+              <th className="text-right">{t("access.colActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -131,25 +132,25 @@ export default async function AccessPage({
                   <td>{e.phone ?? "—"}</td>
                   <td>
                     {e.telegramId ? (
-                      <Badge tone="success">привязан</Badge>
+                      <Badge tone="success">{t("access.linked")}</Badge>
                     ) : (
-                      <Badge tone="neutral">нет</Badge>
+                      <Badge tone="neutral">{t("access.notLinkedShort")}</Badge>
                     )}
                     {code && (
                       <span className="ml-2 font-mono text-xs text-warning-strong">
-                        код {code.code} до {fmt(code.expiresAt)}
+                        {t("access.codeUntil")} {code.code} {t("access.codeUntilJoin")} {fmt(code.expiresAt)}
                       </span>
                     )}
                   </td>
                   <td className="text-xs text-ink-muted">
                     {loggedIn
                       ? e.user?.mustChangePassword
-                        ? "ожидает смены пароля"
-                        : `входил ${fmt(e.user!.lastLoginAt!)}`
-                      : "не входил"}
+                        ? t("access.awaitingPasswordChange")
+                        : `${t("access.loggedInOn")} ${fmt(e.user!.lastLoginAt!)}`
+                      : t("access.neverLoggedIn")}
                   </td>
                   <td>
-                    <AccessRowActions employeeId={e.id} linked={!!e.telegramId} />
+                    <AccessRowActions employeeId={e.id} linked={!!e.telegramId} locale={locale} />
                   </td>
                 </tr>
               );
@@ -157,7 +158,7 @@ export default async function AccessPage({
             {employees.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-6 text-center text-ink-muted">
-                  {q ? "Ничего не найдено." : "Сотрудников пока нет."}
+                  {q ? t("access.nothingFound") : t("access.noEmployeesYet")}
                 </td>
               </tr>
             )}
@@ -168,7 +169,7 @@ export default async function AccessPage({
       {pages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-ink-muted">
-            Стр. {page} из {pages}
+            {t("access.pagePrefix")} {page} {t("access.pageOf")} {pages}
           </span>
           <div className="flex gap-2">
             {page > 1 && (
@@ -176,7 +177,7 @@ export default async function AccessPage({
                 href={pageHref(page - 1)}
                 className={buttonClass({ variant: "secondary", size: "sm" })}
               >
-                Назад
+                {t("access.back")}
               </Link>
             )}
             {page < pages && (
@@ -184,7 +185,7 @@ export default async function AccessPage({
                 href={pageHref(page + 1)}
                 className={buttonClass({ variant: "secondary", size: "sm" })}
               >
-                Вперёд
+                {t("access.next")}
               </Link>
             )}
           </div>

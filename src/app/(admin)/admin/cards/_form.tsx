@@ -2,8 +2,11 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { BLOCKS, BLOCK_LABELS, CARD_STATUSES, CARD_STATUS_LABELS } from "@/lib/labels";
+import { BLOCKS, CARD_STATUSES, blockLabel, cardStatusLabel } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { TranslationFields } from "@/components/translation-fields";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { CardImageField } from "./_image-field";
 import type { CardFormState } from "./actions";
 
@@ -19,61 +22,83 @@ export type CardValues = {
   sortOrder: number;
   minParticipants: number;
   partnerId: string | null;
+  translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
+
+const CARD_TRANSLATION_FIELDS = [
+  { name: "title", label: "Название" },
+  { name: "description", label: "Описание", multiline: true },
+  { name: "condition", label: "Условие / скидка" },
+];
+
+const NEW_CATEGORY = "__new__";
 
 export function CardForm({
   action,
   partners,
+  categories,
   initial,
   submitLabel,
+  locale,
 }: {
   action: (s: CardFormState, fd: FormData) => Promise<CardFormState>;
   partners: { id: string; name: string }[];
+  /** Существующие категории — выбор из списка, чтобы не плодить дубликаты вида «Транспорт»/«транспорт». */
+  categories: string[];
   initial?: Partial<CardValues>;
   submitLabel: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
   const [block, setBlock] = useState(initial?.block ?? "FLEX");
+  const initialCategory = initial?.category ?? "";
+  const [category, setCategory] = useState(
+    initialCategory && !categories.includes(initialCategory) ? NEW_CATEGORY : initialCategory,
+  );
+  const [customCategory, setCustomCategory] = useState(
+    initialCategory && !categories.includes(initialCategory) ? initialCategory : "",
+  );
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Блок" htmlFor="block" required>
+        <Field label={t("cards.form.block")} htmlFor="block" required>
           <Select id="block" name="block" value={block} onChange={(e) => setBlock(e.target.value)}>
             {BLOCKS.map((b) => (
               <option key={b} value={b}>
-                {BLOCK_LABELS[b]}
+                {blockLabel(locale, b)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Публикация" htmlFor="status">
+        <Field label={t("cards.form.publication")} htmlFor="status">
           <Select id="status" name="status" defaultValue={initial?.status ?? "PUBLISHED"}>
             {CARD_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {CARD_STATUS_LABELS[s]}
+                {cardStatusLabel(locale, s)}
               </option>
             ))}
           </Select>
         </Field>
       </div>
 
-      <Field label="Название" htmlFor="title" required>
+      <Field label={t("cards.form.title")} htmlFor="title" required>
         <Input id="title" name="title" defaultValue={initial?.title ?? ""} required />
       </Field>
 
-      <Field label="Описание" htmlFor="description">
+      <Field label={t("cards.form.description")} htmlFor="description">
         <Textarea id="description" name="description" defaultValue={initial?.description ?? ""} rows={2} />
       </Field>
 
       {block === "FLEX" && (
         <>
-          <Field label="Условие / скидка" htmlFor="condition">
+          <Field label={t("cards.form.condition")} htmlFor="condition">
             <Input id="condition" name="condition" defaultValue={initial?.condition ?? ""} />
           </Field>
-          <Field label="Партнёр" htmlFor="partnerId">
+          <Field label={t("cards.form.partner")} htmlFor="partnerId">
             <Select id="partnerId" name="partnerId" defaultValue={initial?.partnerId ?? ""}>
-              <option value="">— не выбран —</option>
+              <option value="">{t("cards.form.partnerNone")}</option>
               {partners.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -82,9 +107,9 @@ export function CardForm({
             </Select>
           </Field>
           <Field
-            label="Минимум участников (групповая скидка)"
+            label={t("cards.form.minParticipants")}
             htmlFor="minParticipants"
-            hint="Скидка активируется и купоны выдаются только когда льготу выберут столько сотрудников. 1 — без порога."
+            hint={t("cards.form.minParticipantsHint")}
           >
             <Input
               id="minParticipants"
@@ -99,15 +124,42 @@ export function CardForm({
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Категория" htmlFor="category">
-          <Input id="category" name="category" defaultValue={initial?.category ?? ""} />
+        <Field label={t("cards.form.category")} htmlFor="category">
+          <Select
+            id="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">{t("cards.form.noCategory")}</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            <option value={NEW_CATEGORY}>{t("cards.form.newCategory")}</option>
+          </Select>
+          {category === NEW_CATEGORY && (
+            <Input
+              className="mt-2"
+              placeholder={t("cards.form.newCategoryPlaceholder")}
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+            />
+          )}
+          <input
+            type="hidden"
+            name="category"
+            value={category === NEW_CATEGORY ? customCategory : category}
+          />
         </Field>
-        <Field label="Порядок" htmlFor="sortOrder">
+        <Field label={t("cards.form.sortOrder")} htmlFor="sortOrder">
           <Input id="sortOrder" type="number" name="sortOrder" defaultValue={initial?.sortOrder ?? 0} />
         </Field>
       </div>
 
-      <CardImageField initial={initial?.imageUrl} />
+      <CardImageField initial={initial?.imageUrl} locale={locale} />
+
+      <TranslationFields fields={CARD_TRANSLATION_FIELDS} initial={initial?.translations} />
 
       <label className="flex items-center gap-2 text-sm text-ink">
         <input
@@ -116,7 +168,7 @@ export function CardForm({
           defaultChecked={initial?.isActive ?? true}
           className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
         />
-        Активна (без флага — отображается как «скоро»)
+        {t("cards.form.active")}
       </label>
 
       {state.error && (
@@ -130,7 +182,7 @@ export function CardForm({
           {submitLabel}
         </Button>
         <Link href="/admin/cards" className={buttonClass({ variant: "secondary" })}>
-          Отмена
+          {t("cards.cancel")}
         </Link>
       </div>
     </form>

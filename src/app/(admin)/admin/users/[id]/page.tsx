@@ -3,8 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
+import { employmentStatusLabel } from "@/lib/labels";
 import { Badge, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { updateEmployee } from "../actions";
 import { EmployeeForm } from "../_form";
 import { AccountPanel, EmployeeActiveToggle } from "../_account";
@@ -20,6 +21,8 @@ export default async function EditUserPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const { id } = await params;
   const employee = await db.employee.findUnique({
@@ -47,14 +50,14 @@ export default async function EditUserPage({
         action={
           <div className="flex items-center gap-3">
             {employee.archivedAt ? (
-              <Badge tone="muted">в архиве</Badge>
+              <Badge tone="muted">{t("users.edit.inArchive")}</Badge>
             ) : (
               !employee.isActive && (
-                <Badge tone="muted">{EMPLOYMENT_STATUS_LABELS[employee.status]}</Badge>
+                <Badge tone="muted">{employmentStatusLabel(locale, employee.status)}</Badge>
               )
             )}
             <Link href="/admin/users" className={buttonClass({ variant: "secondary", size: "sm" })}>
-              К списку
+              {t("users.edit.toList")}
             </Link>
           </div>
         }
@@ -62,7 +65,7 @@ export default async function EditUserPage({
 
       <section className="rounded-2xl border border-line bg-surface">
         <div className="p-5">
-          <SectionTitle>Данные сотрудника</SectionTitle>
+          <SectionTitle>{t("users.edit.employeeData")}</SectionTitle>
         </div>
         <div className="border-t border-line-subtle p-5">
           <EmployeeForm
@@ -75,14 +78,15 @@ export default async function EditUserPage({
               phoneSecondary: employee.phoneSecondary,
               telegramId: employee.telegramId,
             }}
-            submitLabel="Сохранить"
+            submitLabel={t("users.edit.save")}
+            locale={locale}
           />
         </div>
       </section>
 
       <section className="rounded-2xl border border-line bg-surface">
         <div className="p-5">
-          <SectionTitle>Учётная запись и роли</SectionTitle>
+          <SectionTitle>{t("users.edit.accountAndRoles")}</SectionTitle>
         </div>
         <div className="border-t border-line-subtle p-5">
           <AccountPanel
@@ -97,39 +101,40 @@ export default async function EditUserPage({
                   }
                 : null
             }
+            locale={locale}
           />
         </div>
       </section>
 
       <section className="rounded-2xl border border-line bg-surface">
         <div className="p-5">
-          <SectionTitle>Приём / увольнение</SectionTitle>
+          <SectionTitle>{t("users.edit.onboarding")}</SectionTitle>
         </div>
         <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.isActive
-              ? "Сотрудник активен. Деактивация закрывает вход в его учётную запись; история сохраняется."
-              : `Сотрудник деактивирован${
+              ? t("users.edit.activeHint")
+              : `${t("users.edit.deactivatedPrefix")}${
                   employee.terminatedAt
                     ? ` ${employee.terminatedAt.toLocaleDateString("ru-RU")}`
                     : ""
                 }.`}
           </p>
-          <EmployeeActiveToggle employeeId={id} isActive={employee.isActive} />
+          <EmployeeActiveToggle employeeId={id} isActive={employee.isActive} locale={locale} />
         </div>
       </section>
 
       <section className="rounded-2xl border border-line bg-surface">
         <div className="p-5">
-          <SectionTitle>Архив</SectionTitle>
+          <SectionTitle>{t("users.edit.archive")}</SectionTitle>
         </div>
         <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.archivedAt
-              ? `В архиве с ${employee.archivedAt.toLocaleDateString("ru-RU")}. Запись скрыта из основного списка; вход закрыт. Восстановление вернёт её в список — вход включите отдельно.`
-              : "Архивирование убирает сотрудника из основного списка (история и заявки сохраняются) и закрывает вход. Подходит для давних записей, которые не нужно держать на виду."}
+              ? `${t("users.edit.archivedSincePrefix")} ${employee.archivedAt.toLocaleDateString("ru-RU")}. ${t("users.edit.archivedHint")}`
+              : t("users.edit.archiveHint")}
           </p>
-          <EmployeeArchiveButton id={id} archived={!!employee.archivedAt} size="md" />
+          <EmployeeArchiveButton id={id} archived={!!employee.archivedAt} size="md" locale={locale} />
         </div>
       </section>
     </div>

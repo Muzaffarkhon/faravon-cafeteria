@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { createCoupon, issueCoupon, deleteCoupon } from "./actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -10,11 +12,13 @@ function ActionButton({
   pendingLabel,
   onRun,
   variant,
+  errorFallback,
 }: {
   label: string;
   pendingLabel: string;
   onRun: () => Promise<{ error?: string; notice?: string }>;
   variant: "primary" | "success";
+  errorFallback: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +39,7 @@ function ActionButton({
               if (r?.error) setError(r.error);
               else if (r?.notice) setNotice(r.notice);
             } catch (e) {
-              setError(e instanceof Error ? e.message : "Ошибка");
+              setError(e instanceof Error ? e.message : errorFallback);
             }
           });
         }}
@@ -56,23 +60,27 @@ function ActionButton({
   );
 }
 
-export function CreateCouponButton({ itemId }: { itemId: string }) {
+export function CreateCouponButton({ itemId, locale }: { itemId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   return (
     <ActionButton
-      label="Сформировать купон"
-      pendingLabel="Формирование…"
+      label={t("coupons.create")}
+      pendingLabel={t("coupons.creating")}
       variant="primary"
+      errorFallback={t("coupons.error")}
       onRun={() => createCoupon(itemId)}
     />
   );
 }
 
-export function IssueCouponButton({ couponId }: { couponId: string }) {
+export function IssueCouponButton({ couponId, locale }: { couponId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   return (
     <ActionButton
-      label="Выдать"
-      pendingLabel="Выдача…"
+      label={t("coupons.issue")}
+      pendingLabel={t("coupons.issuing")}
       variant="success"
+      errorFallback={t("coupons.error")}
       onRun={() => issueCoupon(couponId)}
     />
   );
@@ -81,10 +89,13 @@ export function IssueCouponButton({ couponId }: { couponId: string }) {
 export function DeleteCouponButton({
   couponId,
   couponNumber,
+  locale,
 }: {
   couponId: string;
   couponNumber: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +111,7 @@ export function DeleteCouponButton({
           setOpen(false);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка удаления купона");
+        setError(e instanceof Error ? e.message : t("coupons.deleteError"));
       }
     });
   };
@@ -114,24 +125,22 @@ export function DeleteCouponButton({
         onClick={() => setOpen(true)}
         className="text-danger hover:bg-danger/10 hover:text-danger"
       >
-        Удалить
+        {t("coupons.delete")}
       </Button>
 
       <ConfirmDialog
         open={open}
-        title="Удалить купон?"
+        title={t("coupons.deleteConfirmTitle")}
         tone="danger"
-        confirmLabel="Удалить"
+        confirmLabel={t("coupons.delete")}
         busy={pending}
         message={
           <div className="space-y-2">
             <p>
-              Вы уверены, что хотите безвозвратно удалить купон{" "}
+              {t("coupons.deleteConfirmMessage")}{" "}
               <strong className="font-mono text-ink">№ {couponNumber}</strong>?
             </p>
-            <p className="text-xs text-ink-subtle">
-              Связанная позиция заявки сотрудника вернётся в статус «Одобрено» и появится в списке ожидающих формирования купона.
-            </p>
+            <p className="text-xs text-ink-subtle">{t("coupons.deleteConfirmHint")}</p>
             {error && (
               <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">
                 {error}

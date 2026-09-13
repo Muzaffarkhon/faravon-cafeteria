@@ -3,9 +3,12 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { deleteCard } from "./actions";
 
-export function DeleteCardButton({ id, title }: { id: string; title: string }) {
+export function DeleteCardButton({ id, title, locale }: { id: string; title: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -13,7 +16,7 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
   return (
     <span className="inline-flex flex-col items-end">
       <Button variant="danger" size="sm" disabled={pending} onClick={() => setOpen(true)}>
-        Удалить
+        {t("cards.delete")}
       </Button>
       {error && (
         <span className="mt-1 max-w-[220px] text-right text-xs font-medium text-danger" role="alert">
@@ -23,9 +26,9 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
 
       <ConfirmDialog
         open={open}
-        title="Удалить карточку?"
-        message={<>«{title}» будет удалено безвозвратно.</>}
-        confirmLabel="Удалить"
+        title={t("cards.deleteConfirmTitle")}
+        message={<>«{title}» {t("cards.deleteConfirmMessage")}</>}
+        confirmLabel={t("cards.delete")}
         tone="danger"
         busy={pending}
         onConfirm={() => {
@@ -36,7 +39,7 @@ export function DeleteCardButton({ id, title }: { id: string; title: string }) {
               if (r?.error) setError(r.error);
               else setOpen(false);
             } catch (e) {
-              setError(e instanceof Error ? e.message : "Ошибка");
+              setError(e instanceof Error ? e.message : t("cards.error"));
             }
           });
         }}

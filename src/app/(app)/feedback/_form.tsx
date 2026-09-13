@@ -1,10 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Button, Field, Select, Textarea } from "@/components/ui";
+import { FEEDBACK_TOPICS } from "@/lib/feedback";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { submitFeedback, type FeedbackState } from "./actions";
 
-export function FeedbackForm() {
+export function FeedbackForm({ locale }: { locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<FeedbackState, FormData>(submitFeedback, {});
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -14,11 +18,20 @@ export function FeedbackForm() {
 
   return (
     <form ref={formRef} action={formAction} className="max-w-lg space-y-4">
-      <Field label="Тема" htmlFor="topic" hint="Необязательно.">
-        <Input id="topic" name="topic" placeholder="напр. льготы, работа сервиса, предложение" />
+      <Field label={t("feedback.topicLabel")} htmlFor="topic" required>
+        <Select id="topic" name="topic" defaultValue="" required>
+          <option value="" disabled>
+            {t("feedback.topicPlaceholder")}
+          </option>
+          {FEEDBACK_TOPICS.map((topic) => (
+            <option key={topic} value={topic}>
+              {topic}
+            </option>
+          ))}
+        </Select>
       </Field>
 
-      <Field label="Сообщение" htmlFor="message" required>
+      <Field label={t("feedback.messageLabel")} htmlFor="message" required>
         <Textarea id="message" name="message" rows={5} required maxLength={4000} />
       </Field>
 
@@ -29,12 +42,12 @@ export function FeedbackForm() {
       )}
       {state.ok && (
         <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong" role="status">
-          Спасибо! Обращение отправлено — C&amp;B его рассмотрит.
+          {t("feedback.sent")}
         </p>
       )}
 
       <Button type="submit" loading={pending}>
-        Отправить обращение
+        {t("feedback.submit")}
       </Button>
     </form>
   );

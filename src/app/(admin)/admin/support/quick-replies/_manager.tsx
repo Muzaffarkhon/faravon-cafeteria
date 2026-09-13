@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Button, Card, Textarea } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { createQuickReply, deleteQuickReply, updateQuickReply } from "./actions";
 
-type QuickReply = { id: string; text: string };
+type QuickReply = { id: string; text: string; lastEdit?: string };
 
-function ReplyRow({ reply }: { reply: QuickReply }) {
+function ReplyRow({ reply, locale }: { reply: QuickReply; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(reply.text);
@@ -22,7 +25,7 @@ function ReplyRow({ reply }: { reply: QuickReply }) {
   }
 
   function remove() {
-    if (!confirm("Удалить этот быстрый ответ?")) return;
+    if (!confirm(t("quickReplies.deleteConfirm"))) return;
     start(async () => {
       await deleteQuickReply(reply.id);
     });
@@ -39,7 +42,7 @@ function ReplyRow({ reply }: { reply: QuickReply }) {
         )}
         <div className="flex gap-2">
           <Button size="sm" onClick={save} loading={pending} disabled={!text.trim()}>
-            Сохранить
+            {t("faq.save")}
           </Button>
           <Button
             size="sm"
@@ -50,7 +53,7 @@ function ReplyRow({ reply }: { reply: QuickReply }) {
               setEditing(false);
             }}
           >
-            Отмена
+            {t("faq.cancel")}
           </Button>
         </div>
       </div>
@@ -59,20 +62,28 @@ function ReplyRow({ reply }: { reply: QuickReply }) {
 
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border border-line p-3">
-      <p className="whitespace-pre-line text-sm text-ink">{reply.text}</p>
+      <div>
+        <p className="whitespace-pre-line text-sm text-ink">{reply.text}</p>
+        {reply.lastEdit && (
+          <p className="mt-1 text-xs text-ink-subtle" data-numeric>
+            {t("faq.editedLabel")}: {reply.lastEdit}
+          </p>
+        )}
+      </div>
       <div className="flex shrink-0 gap-2">
         <Button size="sm" variant="secondary" disabled={pending} onClick={() => setEditing(true)}>
-          Изменить
+          {t("faq.edit")}
         </Button>
         <Button size="sm" variant="danger" disabled={pending} onClick={remove}>
-          Удалить
+          {t("faq.delete")}
         </Button>
       </div>
     </div>
   );
 }
 
-export function QuickRepliesManager({ replies }: { replies: QuickReply[] }) {
+export function QuickRepliesManager({ replies, locale }: { replies: QuickReply[]; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -93,7 +104,7 @@ export function QuickRepliesManager({ replies }: { replies: QuickReply[] }) {
           rows={2}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Текст нового быстрого ответа…"
+          placeholder={t("quickReplies.newPlaceholder")}
           disabled={pending}
         />
         {err && (
@@ -102,16 +113,16 @@ export function QuickRepliesManager({ replies }: { replies: QuickReply[] }) {
           </p>
         )}
         <Button onClick={add} loading={pending} disabled={!text.trim()}>
-          Добавить
+          {t("faq.add")}
         </Button>
       </Card>
 
       {replies.length === 0 ? (
-        <p className="text-sm text-ink-muted">Быстрых ответов пока нет.</p>
+        <p className="text-sm text-ink-muted">{t("quickReplies.empty")}</p>
       ) : (
         <div className="space-y-2">
           {replies.map((r) => (
-            <ReplyRow key={r.id} reply={r} />
+            <ReplyRow key={r.id} reply={r} locale={locale} />
           ))}
         </div>
       )}

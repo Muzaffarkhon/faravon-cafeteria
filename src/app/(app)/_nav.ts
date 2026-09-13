@@ -1,6 +1,8 @@
 import type { Role } from "@prisma/client";
 import { can } from "@/lib/rbac";
 import type { NavGroup, NavItem } from "./_shell";
+import { translate, type TKey } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 /**
  * Единый список разделов платформы: и меню «Ещё» в шапке, и плитки «Кабинета»
@@ -41,7 +43,6 @@ export type NavBadges = {
   adRequests?: number;
   myCoupons?: number;
   partnerCoupons?: number;
-  feedback?: number;
   support?: number;
 };
 
@@ -52,11 +53,14 @@ export type NavContext = {
   /** Подрядчик со своей системой (такси): вместо кассы — рассылка промокодов. */
   isTaxiContractor: boolean;
   badges?: NavBadges;
+  /** Язык интерфейса — переведены пока только эти 4 пункта «Кабинета» сотрудника. */
+  locale?: Locale;
 };
 
 export function buildNavGroups(ctx: NavContext): NavGroup[] {
   const { roles, hasEmployee, partnerId, isTaxiContractor } = ctx;
   const b = ctx.badges ?? {};
+  const t = (key: TKey) => translate(ctx.locale ?? "ru", key);
 
   const groups: NavGroup[] = [];
   const add = (gid: string, glabel: string, item: NavItem) => {
@@ -72,31 +76,31 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
   const canConfirmCoupons = can(roles, "coupons.confirm");
-  const canManageFeedback = can(roles, "feedback.manage");
+  const canManageSupport = can(roles, "support.manage") || can(roles, "feedback.manage");
 
   if (hasEmployee) {
-    add("cabinet", "Кабинет", {
+    add("cabinet", t("nav.cabinet"), {
       href: "/",
-      label: "Обзор",
+      label: t("nav.overview"),
       desc: "витрина льгот и выбор на текущий период",
       icon: ICONS.overview,
     });
-    add("cabinet", "Кабинет", {
+    add("cabinet", t("nav.cabinet"), {
       href: "/applications",
-      label: "Мои заявки и купоны",
+      label: t("nav.myApplications"),
       desc: "история выбора и выданные купоны",
       icon: ICONS.applications,
       badge: b.myCoupons || undefined,
     });
-    add("cabinet", "Кабинет", {
+    add("cabinet", t("nav.cabinet"), {
       href: "/feedback",
-      label: "Обратная связь",
+      label: t("nav.feedback"),
       desc: "вопрос или предложение по программе льгот",
       icon: ICONS.inbox,
     });
-    add("cabinet", "Кабинет", {
+    add("cabinet", t("nav.cabinet"), {
       href: "/gamification",
-      label: "Геймификация",
+      label: t("nav.gamification"),
       desc: "баллы и достижения",
       icon: ICONS.gamification,
       soon: true,
@@ -104,143 +108,138 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
   }
 
   if (canDecide)
-    add("work", "Работа", {
+    add("work", t("nav.work"), {
       href: "/review",
-      label: "Согласование",
+      label: t("nav.review"),
       desc: "одобрение и отклонение позиций",
       icon: ICONS.review,
       badge: b.review || undefined,
     });
   if (canManageCoupons)
-    add("work", "Работа", {
+    add("work", t("nav.work"), {
       href: "/coupons",
-      label: "Купоны",
+      label: t("nav.coupons"),
       desc: "формирование и выдача купонов",
       icon: ICONS.coupons,
       badge: b.coupons || undefined,
     });
   if (isTaxiContractor)
-    add("work", "Работа", {
+    add("work", t("nav.work"), {
       href: "/provider/taxi",
-      label: "Промокоды",
+      label: t("nav.promoCodes"),
       desc: "выгрузка номеров и рассылка промокодов",
       icon: ICONS.coupons,
     });
   else if (canConfirmCoupons)
-    add("work", "Работа", {
+    add("work", t("nav.work"), {
       href: "/provider",
-      label: "Касса партнёра",
+      label: t("nav.partnerCashier"),
       desc: "проверка и активация купонов сотрудников",
       icon: ICONS.scan,
       badge: b.partnerCoupons || undefined,
     });
   if (canConfirmCoupons && partnerId)
-    add("work", "Работа", {
+    add("work", t("nav.work"), {
       href: "/advertising",
-      label: "Реклама",
+      label: t("nav.advertising"),
       desc: "заявки на рекламу вашей организации",
       icon: ICONS.ad,
     });
 
   if (canManageCards)
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/cards",
-      label: "Карточки",
+      label: t("nav.cards"),
       desc: "программы признания, витрина заботы, реестр гибких льгот",
       icon: ICONS.cards,
     });
   if (can(roles, "partners.manage"))
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/partners",
-      label: "Партнёры",
+      label: t("nav.partners"),
       desc: "организации-провайдеры льгот",
       icon: ICONS.partners,
     });
   if (can(roles, "partners.manage"))
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/partner-banners",
-      label: "Баннеры",
+      label: t("nav.banners"),
       desc: "карусель на витрине сотрудника",
       icon: ICONS.banners,
     });
   if (canManageCards)
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/advertising-requests",
-      label: "Заявки на рекламу",
+      label: t("nav.adRequests"),
       desc: "обращения партнёров о размещении",
       icon: ICONS.inbox,
       badge: b.adRequests || undefined,
     });
   if (canManageCards)
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/texts",
-      label: "Тексты",
+      label: t("nav.texts"),
       desc: "«Цель программы» и уведомление о новизне",
       icon: ICONS.texts,
     });
   if (canManageCards)
-    add("catalog", "Каталог", {
+    add("catalog", t("nav.catalog"), {
       href: "/admin/notifications",
-      label: "Уведомления",
+      label: t("nav.notifications"),
       desc: "шаблоны сообщений в Telegram",
       icon: ICONS.bell,
     });
 
-  if (canManageFeedback)
-    add("admin", "Аналитика и доступ", {
-      href: "/admin/feedback",
-      label: "Обратная связь",
-      desc: "обращения сотрудников по программе льгот",
-      icon: ICONS.inbox,
-      badge: b.feedback || undefined,
-    });
-  if (can(roles, "support.manage"))
-    add("admin", "Аналитика и доступ", {
+  // Порядок внутри группы — по типичной частоте обращения: инбоксы (смотрят
+  // каждый день) → справочник сотрудников (часто) → отчёты/периоды (по
+  // расписанию) → настройки, которые правят раз и надолго.
+  if (canManageSupport)
+    add("admin", t("nav.adminGroup"), {
       href: "/admin/support",
-      label: "Чат поддержки",
-      desc: "когда бот не смог опознать человека при входе",
+      label: t("nav.support"),
+      desc: "обратная связь сотрудников и чат для тех, кого не узнал бот — один инбокс",
       icon: ICONS.chat,
       badge: b.support || undefined,
     });
+  if (can(roles, "users.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/users",
+      label: t("nav.users"),
+      desc: "справочник сотрудников, учётные записи, роли, архив",
+      icon: ICONS.users,
+    });
+  if (can(roles, "periods.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/periods",
+      label: t("nav.periods"),
+      desc: "окна подачи заявок, лимит, открытие и закрытие",
+      icon: ICONS.periods,
+    });
   if (can(roles, "reports.view"))
-    add("admin", "Аналитика и доступ", {
+    add("admin", t("nav.adminGroup"), {
       href: "/admin/reports",
-      label: "Отчёты",
+      label: t("nav.reports"),
       desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX",
       icon: ICONS.reports,
     });
   if (canManageCards)
-    add("admin", "Аналитика и доступ", {
+    add("admin", t("nav.adminGroup"), {
       href: "/admin/sla",
-      label: "SLA",
+      label: t("nav.sla"),
       desc: "сроки согласования и правила эскалации",
       icon: ICONS.sla,
     });
-  if (can(roles, "periods.manage"))
-    add("admin", "Аналитика и доступ", {
-      href: "/admin/periods",
-      label: "Периоды",
-      desc: "окна подачи заявок, лимит, открытие и закрытие",
-      icon: ICONS.periods,
-    });
   if (can(roles, "access.manage"))
-    add("admin", "Аналитика и доступ", {
+    add("admin", t("nav.adminGroup"), {
       href: "/admin/access",
-      label: "Доступ",
+      label: t("nav.access"),
       desc: "коды идентификации для Telegram-бота, привязка Telegram",
       icon: ICONS.access,
     });
-  if (can(roles, "users.manage"))
-    add("admin", "Аналитика и доступ", {
-      href: "/admin/users",
-      label: "Пользователи",
-      desc: "справочник сотрудников, учётные записи, роли, архив",
-      icon: ICONS.users,
-    });
   if (can(roles, "audit.view"))
-    add("admin", "Аналитика и доступ", {
+    add("admin", t("nav.adminGroup"), {
       href: "/admin/audit",
-      label: "Аудит",
+      label: t("nav.audit"),
       desc: "история действий: кто, что и когда изменял, согласования, входы",
       icon: ICONS.history,
     });

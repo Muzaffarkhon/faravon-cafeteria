@@ -3,17 +3,22 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { setEmployeeArchived } from "./actions";
 
 export function EmployeeArchiveButton({
   id,
   archived,
   size = "sm",
+  locale,
 }: {
   id: string;
   archived: boolean;
   size?: "sm" | "md";
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -35,13 +40,13 @@ export function EmployeeArchiveButton({
         disabled={pending}
         onClick={() => (archived ? toggle() : setConfirming(true))}
       >
-        {archived ? "Вернуть из архива" : "В архив"}
+        {archived ? t("users.arch.returnFromArchive") : t("users.arch.toArchive")}
       </Button>
       <ConfirmDialog
         open={confirming}
-        title="В архив?"
-        message="Сотрудник исчезнет из основного списка, вход будет закрыт."
-        confirmLabel="В архив"
+        title={t("users.arch.confirmTitle")}
+        message={t("users.arch.confirmMessage")}
+        confirmLabel={t("users.arch.toArchive")}
         tone="danger"
         busy={pending}
         onConfirm={toggle}

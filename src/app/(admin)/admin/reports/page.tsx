@@ -5,6 +5,7 @@ import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import { computeReport, listReportPeriods, type Report } from "@/lib/reports";
 import { Card, EmptyState, Select, buttonClass, cx } from "@/components/ui";
+import { getTranslator } from "@/lib/i18n";
 
 const fmtPct = (v: number | null) => (v == null ? "—" : `${v.toFixed(1)}%`);
 const fmtNum = (v: number | null, d = 2) => (v == null ? "—" : v.toFixed(d));
@@ -53,10 +54,12 @@ function BarList({
   title,
   unit,
   rows,
+  noDataLabel,
 }: {
   title: string;
   unit: string;
   rows: { label: string; n: number }[];
+  noDataLabel: string;
 }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
@@ -66,7 +69,7 @@ function BarList({
         <span className="text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-subtle">Нет данных.</p>
+        <p className="mt-3 text-sm text-ink-subtle">{noDataLabel}</p>
       ) : (
         <ul className="mt-4 space-y-3.5">
           {rows.map((r) => (
@@ -97,10 +100,11 @@ export default async function ReportsPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "reports.view")) redirect("/");
+  const t = await getTranslator();
 
   const periods = await listReportPeriods();
   if (periods.length === 0) {
-    return <EmptyState>Периодов ещё нет.</EmptyState>;
+    return <EmptyState>{t("reports.noPeriods")}</EmptyState>;
   }
 
   const sp = await searchParams;
@@ -120,97 +124,100 @@ export default async function ReportsPage({
               </option>
             ))}
           </Select>
-          <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
+          <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("reports.show")}</button>
         </form>
         <a href={exportBase} className={buttonClass({ size: "sm" })}>
-          Экспорт в XLSX
+          {t("reports.exportXlsx")}
         </a>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
-          label="Активация"
+          label={t("reports.activation")}
           value={fmtPct(k.activationPct)}
           pct={k.activationPct}
           tone="good"
-          hint={`${k.everLoggedIn} из ${k.accounts} вошли хотя бы раз`}
+          hint={`${k.everLoggedIn} ${t("reports.of")} ${k.accounts} ${t("reports.activationHintSuffix")}`}
         />
         <Metric
-          label="Вовлечение"
+          label={t("reports.engagement")}
           value={fmtPct(k.engagementPct)}
           pct={k.engagementPct}
           tone="good"
-          hint={`${k.engagedLoggedIn} из ${k.everLoggedIn} вошедших выбрали ≥ 1 льготу`}
+          hint={`${k.engagedLoggedIn} ${t("reports.of")} ${k.everLoggedIn} ${t("reports.engagementHintSuffix")}`}
         />
         <Metric
-          label="Льгот на активного сотрудника"
+          label={t("reports.benefitsPerActive")}
           value={fmtNum(k.avgSelectionsPerActive)}
-          hint={`${k.activeEmployees} активных в периоде`}
+          hint={`${k.activeEmployees} ${t("reports.benefitsPerActiveHint")}`}
         />
         <Metric
-          label="Конверсия заявка → купон"
+          label={t("reports.conversion")}
           value={fmtPct(k.conversionPct)}
           pct={k.conversionPct}
           tone="good"
-          hint={`${k.issued} из ${k.submitted} поданных`}
+          hint={`${k.issued} ${t("reports.of")} ${k.submitted} ${t("reports.conversionHintSuffix")}`}
         />
         <Metric
-          label="Доля отклонений"
+          label={t("reports.rejectionShare")}
           value={fmtPct(k.rejectionPct)}
           pct={k.rejectionPct}
           tone="bad"
-          hint={`${k.rejected} из ${k.decided} решений`}
+          hint={`${k.rejected} ${t("reports.of")} ${k.decided} ${t("reports.rejectionShareHintSuffix")}`}
         />
         <Metric
-          label="Время до решения"
+          label={t("reports.timeToDecision")}
           value={fmtDays(k.avgDecisionDays)}
           hint={`p90: ${fmtDays(k.p90DecisionDays)}`}
         />
         <Metric
-          label="Время до выдачи купона"
+          label={t("reports.timeToIssue")}
           value={fmtDays(k.avgIssueDays)}
           hint={`p90: ${fmtDays(k.p90IssueDays)}`}
         />
         <Metric
-          label="Нарушения SLA согласования"
+          label={t("reports.slaBreach")}
           value={fmtPct(k.slaBreachPct)}
           pct={k.slaBreachPct}
           tone="bad"
-          hint={`${k.slaBreached} позиций (порог 5 раб. дн.)`}
+          hint={`${k.slaBreached} ${t("reports.slaBreachHint")}`}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <BarList
-          title="Топ льгот по числу выборов"
-          unit="выборов"
+          title={t("reports.topSelections")}
+          unit={t("reports.selectionsUnit")}
           rows={report.topSelections.map((r) => ({ label: r.title, n: r.n }))}
+          noDataLabel={t("reports.noData")}
         />
         <BarList
-          title="Топ льгот по числу одобрений"
-          unit="одобрено"
+          title={t("reports.topApprovals")}
+          unit={t("reports.approvedUnit")}
           rows={report.topApprovals.map((r) => ({ label: r.title, n: r.n }))}
+          noDataLabel={t("reports.noData")}
         />
         <BarList
-          title="Отклонения по причинам"
-          unit="кол-во"
+          title={t("reports.rejectionsByReason")}
+          unit={t("reports.countUnit")}
           rows={report.rejectionsByReason.map((r) => ({ label: r.reason, n: r.n }))}
+          noDataLabel={t("reports.noData")}
         />
         <BarList
-          title="Выборы по подразделениям"
-          unit="позиций"
+          title={t("reports.byDepartment")}
+          unit={t("reports.itemsUnit")}
           rows={report.byDepartment.map((r) => ({
-            label: `${r.department} · ${r.employees} чел.`,
+            label: `${r.department} · ${r.employees} ${t("reports.peopleUnit")}`,
             n: r.items,
           }))}
+          noDataLabel={t("reports.noData")}
         />
       </div>
 
       <p className="text-xs leading-5 text-ink-subtle">
-        «Экспорт в XLSX» выгружает книгу с листами «Метрики»,
-        «Топ льгот», «Отклонения», «Подразделения».{" "}
+        {t("reports.exportHint")}{" "}
         <Link href="/admin/periods" className="text-primary hover:underline">
-          Управление периодами
+          {t("reports.managePeriods")}
         </Link>
         .
       </p>

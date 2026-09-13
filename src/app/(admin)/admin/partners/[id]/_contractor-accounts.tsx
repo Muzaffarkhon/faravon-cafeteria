@@ -4,6 +4,8 @@ import { useActionState, useState, useTransition } from "react";
 import { Badge, Button, Field, Input } from "@/components/ui";
 import { OtpModal } from "../../users/_otp-modal";
 import { loginFromPartnerName } from "@/lib/translit";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import {
   createPartnerContractorAccount,
   issuePartnerAccountOtp,
@@ -22,11 +24,14 @@ export function PartnerContractorAccounts({
   partnerId,
   partnerName,
   accounts,
+  locale,
 }: {
   partnerId: string;
   partnerName: string;
   accounts: ContractorAccount[];
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showAddForm, setShowAddForm] = useState(accounts.length === 0);
   const [activeOtp, setActiveOtp] = useState<{ otp: string; login?: string } | null>(null);
 
@@ -37,6 +42,7 @@ export function PartnerContractorAccounts({
           otp={activeOtp.otp}
           login={activeOtp.login}
           permanent
+          locale={locale}
           onClose={() => setActiveOtp(null)}
         />
       )}
@@ -44,10 +50,10 @@ export function PartnerContractorAccounts({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-ink">
-            Учётные записи подрядчика
+            {t("partners.accountsTitle")}
           </h2>
           <p className="text-xs text-ink-muted">
-            Используются кассирами и администраторами партнёра для активации купонов и рекламы.
+            {t("partners.accountsHint")}
           </p>
         </div>
         {accounts.length > 0 && !showAddForm && (
@@ -57,21 +63,21 @@ export function PartnerContractorAccounts({
             size="sm"
             onClick={() => setShowAddForm(true)}
           >
-            + Добавить учётку
+            {t("partners.addAccount")}
           </Button>
         )}
       </div>
 
       {accounts.length === 0 && !showAddForm && (
         <div className="rounded-xl border border-dashed border-line-subtle p-6 text-center">
-          <p className="text-sm text-ink-muted">У этого партнёра ещё нет учётной записи.</p>
+          <p className="text-sm text-ink-muted">{t("partners.noAccountsYet")}</p>
           <Button
             type="button"
             size="sm"
             className="mt-3"
             onClick={() => setShowAddForm(true)}
           >
-            Создать учётку для кассира
+            {t("partners.createCashierAccount")}
           </Button>
         </div>
       )}
@@ -83,6 +89,7 @@ export function PartnerContractorAccounts({
               key={acc.id}
               account={acc}
               partnerId={partnerId}
+              locale={locale}
               onOtpIssued={(otp) => setActiveOtp({ otp, login: acc.login })}
             />
           ))}
@@ -93,6 +100,7 @@ export function PartnerContractorAccounts({
         <NewAccountCard
           partnerId={partnerId}
           partnerName={partnerName}
+          locale={locale}
           onCancel={accounts.length > 0 ? () => setShowAddForm(false) : undefined}
           onSuccess={(login, otp) => {
             setShowAddForm(false);
@@ -107,12 +115,15 @@ export function PartnerContractorAccounts({
 function AccountRow({
   account,
   partnerId,
+  locale,
   onOtpIssued,
 }: {
   account: ContractorAccount;
   partnerId: string;
+  locale: Locale;
   onOtpIssued: (otp: string) => void;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
@@ -122,12 +133,12 @@ function AccountRow({
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-all font-mono font-bold text-ink">{account.login}</span>
           <Badge tone={account.isActive ? "success" : "warning"}>
-            {account.isActive ? "Активен" : "Заблокирован"}
+            {account.isActive ? t("partners.active") : t("partners.blocked")}
           </Badge>
-          <Badge tone="neutral">Подрядчик</Badge>
+          <Badge tone="neutral">{t("partners.contractor")}</Badge>
         </div>
         <p className="text-xs text-ink-subtle">
-          Создан: {new Date(account.createdAt).toLocaleDateString("ru-RU")}
+          {t("partners.createdOn")} {new Date(account.createdAt).toLocaleDateString("ru-RU")}
         </p>
       </div>
 
@@ -146,7 +157,7 @@ function AccountRow({
             });
           }}
         >
-          Выдать новый PIN
+          {t("partners.issueNewPin")}
         </Button>
 
         <Button
@@ -155,7 +166,7 @@ function AccountRow({
           size="sm"
           disabled={pending}
           onClick={() => {
-            if (account.isActive && !confirm(`Заблокировать вход для «${account.login}»?`)) return;
+            if (account.isActive && !confirm(`${t("partners.blockLoginConfirmPrefix")}${account.login}${t("partners.blockLoginConfirmSuffix")}`)) return;
             setErr(null);
             start(async () => {
               const res = await setPartnerAccountActive(account.id, partnerId, !account.isActive);
@@ -163,7 +174,7 @@ function AccountRow({
             });
           }}
         >
-          {account.isActive ? "Отключить" : "Включить"}
+          {account.isActive ? t("partners.disable") : t("partners.enable")}
         </Button>
       </div>
 
@@ -175,14 +186,17 @@ function AccountRow({
 function NewAccountCard({
   partnerId,
   partnerName,
+  locale,
   onCancel,
   onSuccess,
 }: {
   partnerId: string;
   partnerName: string;
+  locale: Locale;
   onCancel?: () => void;
   onSuccess: (login: string, otp: string) => void;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const action = createPartnerContractorAccount.bind(null, partnerId);
   const [state, formAction, pending] = useActionState<PartnerAccountResult, FormData>(
     async (prev, fd) => {
@@ -200,11 +214,11 @@ function NewAccountCard({
       action={formAction}
       className="space-y-3 rounded-xl border border-line-subtle bg-surface-muted/40 p-4"
     >
-      <p className="text-sm font-medium text-ink">Новая учётная запись подрядчика</p>
+      <p className="text-sm font-medium text-ink">{t("partners.newContractorAccount")}</p>
       <Field
-        label="Логин"
+        label={t("partners.login")}
         htmlFor="new-contractor-login"
-        hint="Логин для входа (только латиница, цифры, дефис, подчёркивание)."
+        hint={t("partners.loginHint")}
       >
         <Input
           id="new-contractor-login"
@@ -224,11 +238,11 @@ function NewAccountCard({
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" loading={pending}>
-          Создать точку и получить PIN
+          {t("partners.createPointAndPin")}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Отмена
+            {t("partners.cancel")}
           </Button>
         )}
       </div>

@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
+import { itemStatusLabel } from "@/lib/application-workflow";
 import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
 import { isCouponExpired, isCouponOverdue, isCouponPeriodPassed } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { couponQrSvg } from "@/lib/qr";
 import { safeImageSrc } from "@/lib/safe-url";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { CancelItemButton } from "./_cancel-button";
 import { QrZoom } from "./_qr-zoom";
 
@@ -24,6 +25,9 @@ const STATUS_TONE: Record<string, BadgeTone> = {
 export default async function ApplicationsPage() {
   const session = await getSession();
   if (!session?.employee) redirect("/");
+
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const applications = await db.application.findMany({
     where: { employeeId: session.employee.id },
@@ -42,14 +46,19 @@ export default async function ApplicationsPage() {
       <EmptyState
         action={
           <Link href="/" className={buttonClass({ variant: "primary", size: "sm" })}>
-            Перейти к выбору льгот
+            {t("applications.emptyAction")}
           </Link>
         }
       >
-        В этом периоде вы ещё не выбрали льготы. Откройте обзор и отметьте нужные карточки.
+        {t("applications.emptyText")}
       </EmptyState>
     );
   }
+
+  const blockedPromo = await db.notification.findFirst({
+    where: { userId: session.user.id, event: "TAXI_PROMO_CODE", blockedAt: { not: null } },
+    orderBy: { sentAt: "desc" },
+  });
 
   const allItems = applications.flatMap((a) => a.items);
   const coupons = allItems.filter((i) => i.coupon).length;
@@ -84,12 +93,18 @@ export default async function ApplicationsPage() {
     <div className="space-y-8">
       <header className="space-y-1.5">
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-          Мои заявки и купоны
+          {t("applications.title")}
         </h1>
         <p className="text-sm text-ink-muted" data-numeric>
-          Периодов: {applications.length} · на согласовании: {pending} · купонов: {coupons}
+          {t("applications.summary")}: {applications.length} · {t("applications.pendingShort")}: {pending} · {t("applications.couponsShort")}: {coupons}
         </p>
       </header>
+
+      {blockedPromo && (
+        <p className="rounded-xl border border-warning-soft bg-warning-soft/40 px-4 py-3 text-sm text-warning-strong">
+          {t("applications.blockedPromo")}
+        </p>
+      )}
 
       <div className="space-y-6">
         {applications.map((app) => (
@@ -99,7 +114,7 @@ export default async function ApplicationsPage() {
                 {app.period.name}
               </div>
               <span className="text-xs text-ink-muted" data-numeric>
-                позиций: {app.items.length}
+                {t("applications.itemsCount")}: {app.items.length}
               </span>
             </div>
 
@@ -128,10 +143,10 @@ export default async function ApplicationsPage() {
                         {item.card.title}
                       </div>
                       <div className="text-sm text-ink-muted">
-                        {item.card.partner?.name ?? "Без партнёра"}
+                        {item.card.partner?.name ?? t("applications.noPartner")}
                         {item.submittedAt && (
                           <span data-numeric>
-                            {" · подано "}
+                            {` · ${t("applications.submittedOn")} `}
                             {item.submittedAt.toLocaleDateString("ru-RU")}
                           </span>
                         )}
@@ -139,34 +154,38 @@ export default async function ApplicationsPage() {
 
                     {item.status === "REJECTED" && item.decisionComment && (
                       <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
-                        Причина отклонения: {item.decisionComment}
+                        {t("applications.rejectReason")}: {item.decisionComment}
                       </p>
                     )}
 
-                    {item.card.minParticipants > 1 &&
-                      !["REJECTED", "CANCELLED", "COUPON_ISSUED"].includes(item.status) &&
-                      (() => {
-                        const have = groupByPeriod.get(app.periodId)?.get(item.cardId) ?? 0;
-                        const done = have >= item.card.minParticipants;
-                        return (
-                          <p
-                            className={
-                              done
-                                ? "rounded-lg bg-success-soft/60 px-3 py-2 text-sm font-medium text-success-strong"
-                                : "rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted"
-                            }
-                            data-numeric
-                          >
-                            Групповая скидка: {Math.min(have, item.card.minParticipants)} /{" "}
-                            {item.card.minParticipants}
-                            {done ? " — набрана, купон выдадут" : " — ждём набора группы"}
-                          </p>
-                        );
-                      })()}
+                    {(() => {
+                      const isGroup = item.card.minParticipants > 1;
+                      const groupHave = isGroup
+                        ? groupByPeriod.get(app.periodId)?.get(item.cardId) ?? 0
+                        : 0;
+                      const groupDone = !isGroup || groupHave >= item.card.minParticipants;
 
-                    {item.coupon &&
-                      (() => {
-                        const c = item.coupon;
+                      return (
+                        <>
+                          {isGroup &&
+                            !["REJECTED", "CANCELLED", "COUPON_ISSUED"].includes(item.status) && (
+                              <p
+                                className={
+                                  groupDone
+                                    ? "rounded-lg bg-success-soft/60 px-3 py-2 text-sm font-medium text-success-strong"
+                                    : "rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted"
+                                }
+                                data-numeric
+                              >
+                                {t("applications.groupDiscount")}: {Math.min(groupHave, item.card.minParticipants)} /{" "}
+                                {item.card.minParticipants}
+                                {groupDone ? ` — ${t("applications.groupDone")}` : ` — ${t("applications.groupWaiting")}`}
+                              </p>
+                            )}
+
+                          {item.coupon &&
+                            (() => {
+                              const c = item.coupon!;
                         const qr = qrByCoupon.get(c.id);
                         const pastValid = isCouponExpired(c.validUntil);
                         const periodPassed = isCouponPeriodPassed(app.period);
@@ -178,18 +197,18 @@ export default async function ApplicationsPage() {
                         // Пояснение под номером — почему QR есть / нет и что делать.
                         const hint = expired
                           ? periodPassed
-                            ? "Период завершён. Срок действия купона истёк."
-                            : "Срок действия купона истёк."
+                            ? t("applications.hintExpiredPeriod")
+                            : t("applications.hintExpired")
                           : activatedLive
-                            ? "Купон активирован у партнёра и действует до конца срока."
+                            ? t("applications.hintActivatedLive")
                             : c.status === "CANCELLED"
-                              ? "Купон аннулирован."
+                              ? t("applications.hintCancelled")
                               : c.status === "CREATED"
-                                ? "Купон сформирован. QR появится после выдачи."
+                                ? t("applications.hintCreated")
                                 : live && qr
-                                  ? "Покажите QR партнёру для активации."
+                                  ? t("applications.hintShowQr")
                                   : live
-                                    ? "QR временно недоступен — назовите партнёру номер купона."
+                                    ? t("applications.hintNoQr")
                                     : null;
                         return (
                           <div
@@ -209,19 +228,20 @@ export default async function ApplicationsPage() {
                                 }
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold">Купон</span>
+                                  <span className="font-semibold">{t("applications.coupon")}</span>
                                   {expired && (
                                     <Badge tone="warning" className="px-1.5 py-0 text-[11px]">
-                                      Просрочен
+                                      {t("applications.overdue")}
                                     </Badge>
                                   )}
                                 </div>
                                 <div className="font-mono" data-numeric>
-                                  № {c.number}
+                                  {t("applications.couponNumberShort")} {c.number}
                                 </div>
-                                {c.validUntil && (live || c.status === "CREATED") && (
+                                {groupDone && c.validUntil && (live || c.status === "CREATED") && (
                                   <div className={live ? "text-success-strong/80" : ""} data-numeric>
-                                    действует до {c.validUntil.toLocaleDateString("ru-RU")}
+                                    {t("applications.periodShort")}: {app.period.startDate.toLocaleDateString("ru-RU")} –{" "}
+                                    {c.validUntil.toLocaleDateString("ru-RU")}
                                   </div>
                                 )}
                                 {hint && (
@@ -232,21 +252,24 @@ export default async function ApplicationsPage() {
                               </div>
                             </div>
                           </div>
-                        );
-                      })()}
+                              );
+                            })()}
+                        </>
+                      );
+                    })()}
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
                     {item.coupon && isCouponOverdue({ ...item.coupon, period: app.period }) ? (
-                      <Badge tone="warning">Просрочен</Badge>
+                      <Badge tone="warning">{t("applications.overdue")}</Badge>
                     ) : (
                       <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
-                        {ITEM_STATUS_LABELS[item.status]}
+                        {itemStatusLabel(locale, item.status)}
                       </Badge>
                     )}
                     {(item.status === "DRAFT" || item.status === "PENDING") && (
-                      <CancelItemButton itemId={item.id} />
+                      <CancelItemButton itemId={item.id} locale={locale} />
                     )}
                   </div>
                 </li>

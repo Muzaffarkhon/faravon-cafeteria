@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PartnerStatus } from "@prisma/client";
+import { Prisma, type PartnerStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -42,6 +42,14 @@ function parse(formData: FormData) {
     const v = String(formData.get(k) ?? "").trim();
     return v || null;
   };
+  let translations: object | null = null;
+  try {
+    const parsed = JSON.parse(String(formData.get("translations") ?? "{}"));
+    if (parsed && typeof parsed === "object" && Object.keys(parsed).length) translations = parsed;
+  } catch {
+    /* поле пришло в неожиданном виде — просто не сохраняем переводы */
+  }
+
   return {
     name,
     status,
@@ -57,6 +65,7 @@ function parse(formData: FormData) {
     logoUrl: str("logoUrl"),
     contractStart: date("contractStart"),
     contractEnd: date("contractEnd"),
+    translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };
 }
 

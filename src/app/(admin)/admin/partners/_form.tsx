@@ -2,10 +2,13 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { PARTNER_STATUSES, PARTNER_STATUS_LABELS } from "@/lib/labels";
+import { PARTNER_STATUSES, partnerStatusLabel } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { TranslationFields } from "@/components/translation-fields";
 import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 import { loginFromPartnerName } from "@/lib/translit";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { OtpModal } from "../users/_otp-modal";
 import type { PartnerFormState } from "./actions";
 
@@ -24,7 +27,15 @@ export type PartnerValues = {
   logoUrl: string | null;
   contractStart: Date | string | null;
   contractEnd: Date | string | null;
+  translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
+
+const PARTNER_TRANSLATION_FIELDS = [
+  { name: "name", label: "Название" },
+  { name: "discountType", label: "Тип скидки / условие" },
+  { name: "terms", label: "Условия (подробно)", multiline: true },
+  { name: "contactPerson", label: "Контактное лицо" },
+];
 
 function d(v: Date | string | null) {
   if (!v) return "";
@@ -35,11 +46,14 @@ export function PartnerForm({
   action,
   initial,
   submitLabel,
+  locale,
 }: {
   action: (s: PartnerFormState, fd: FormData) => Promise<PartnerFormState>;
   initial?: Partial<PartnerValues>;
   submitLabel: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
   const [name, setName] = useState(initial?.name ?? "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
@@ -60,6 +74,7 @@ export function PartnerForm({
             login={state.login}
             permanent
             onClose={() => setOtpSeen(true)}
+            locale={locale}
           />
         )}
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm space-y-4">
@@ -75,7 +90,7 @@ export function PartnerForm({
             </div>
             <div>
               <h2 className="text-base font-semibold text-ink">
-                Партнёр успешно добавлен!
+                {t("partners.form.createdTitle")}
               </h2>
               <p className="text-xs text-ink-muted">
                 {state.partnerName}
@@ -86,30 +101,30 @@ export function PartnerForm({
           {state.login && (
             <div className="rounded-xl border border-line-subtle bg-surface-muted/50 p-4 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                Учётная запись подрядчика создана
+                {t("partners.form.accountCreated")}
               </p>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-ink-muted">Логин:</span>
+                <span className="text-ink-muted">{t("partners.form.login")}</span>
                 <span className="font-mono font-bold text-ink">{state.login}</span>
               </div>
               {state.otp && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-ink-muted">Временный пароль:</span>
+                  <span className="text-ink-muted">{t("partners.form.tempPassword")}</span>
                   <span className="font-mono font-bold text-primary-strong">{state.otp}</span>
                 </div>
               )}
               <p className="text-xs text-ink-subtle pt-1">
-                Кассир/администратор партнёра может входить на платформу по этому логину и гасить купоны в разделе «Активация купонов».
+                {t("partners.form.cashierHint")}
               </p>
             </div>
           )}
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Link href={`/admin/partners/${state.partnerId}`} className={buttonClass()}>
-              Перейти к партнёру
+              {t("partners.form.goToPartner")}
             </Link>
             <Link href="/admin/partners" className={buttonClass({ variant: "secondary" })}>
-              К списку партнёров
+              {t("partners.form.toPartnersList")}
             </Link>
           </div>
         </div>
@@ -119,7 +134,7 @@ export function PartnerForm({
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
-      <Field label="Название" htmlFor="name" required>
+      <Field label={t("partners.form.name")} htmlFor="name" required>
         <Input
           id="name"
           name="name"
@@ -131,72 +146,74 @@ export function PartnerForm({
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Статус" htmlFor="status">
+        <Field label={t("partners.form.status")} htmlFor="status">
           <Select id="status" name="status" defaultValue={initial?.status ?? "ACTIVE"}>
             {PARTNER_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {PARTNER_STATUS_LABELS[s]}
+                {partnerStatusLabel(locale, s)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Категория" htmlFor="category">
+        <Field label={t("partners.form.category")} htmlFor="category">
           <Input id="category" name="category" defaultValue={initial?.category ?? ""} />
         </Field>
       </div>
 
       <Field
-        label="Способ выдачи"
+        label={t("partners.form.deliveryMode")}
         htmlFor="deliveryMode"
-        hint="«По номеру телефона» — у партнёра своя система (напр. такси): наш QR не используется, промокоды рассылает подрядчик."
+        hint={t("partners.form.deliveryModeHint")}
       >
         <Select id="deliveryMode" name="deliveryMode" defaultValue={initial?.deliveryMode ?? "QR"}>
-          <option value="QR">QR / номер купона (касса партнёра)</option>
-          <option value="PHONE_PROMO">По номеру телефона (подрядчик рассылает промокоды)</option>
+          <option value="QR">{t("partners.form.deliveryQr")}</option>
+          <option value="PHONE_PROMO">{t("partners.form.deliveryPhone")}</option>
         </Select>
       </Field>
 
-      <Field label="Тип скидки / условие" htmlFor="discountType">
+      <Field label={t("partners.form.discountType")} htmlFor="discountType">
         <Input id="discountType" name="discountType" defaultValue={initial?.discountType ?? ""} />
       </Field>
 
-      <Field label="Условия (подробно)" htmlFor="terms">
+      <Field label={t("partners.form.terms")} htmlFor="terms">
         <Textarea id="terms" name="terms" defaultValue={initial?.terms ?? ""} rows={2} />
       </Field>
 
       <p className="pt-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">
-        Куда идти сотруднику — показывается в карточке льготы («Подробнее»)
+        {t("partners.form.whereToGoTitle")}
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Адрес" htmlFor="address" hint="Куда приходить/ехать, чтобы воспользоваться льготой.">
+        <Field label={t("partners.form.address")} htmlFor="address" hint={t("partners.form.addressHint")}>
           <Input id="address" name="address" defaultValue={initial?.address ?? ""} autoComplete="off" />
         </Field>
-        <Field label="Часы работы" htmlFor="workingHours">
+        <Field label={t("partners.form.workingHours")} htmlFor="workingHours">
           <Input id="workingHours" name="workingHours" defaultValue={initial?.workingHours ?? ""} autoComplete="off" placeholder="Пн–Вс, 8:00–22:00" />
         </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Контактное лицо" htmlFor="contactPerson" hint="К кому обращаться на месте.">
+        <Field label={t("partners.form.contactPerson")} htmlFor="contactPerson" hint={t("partners.form.contactPersonHint")}>
           <Input id="contactPerson" name="contactPerson" defaultValue={initial?.contactPerson ?? ""} autoComplete="off" />
         </Field>
-        <Field label="Контакты" htmlFor="contacts">
+        <Field label={t("partners.form.contacts")} htmlFor="contacts">
           <Input id="contacts" name="contacts" defaultValue={initial?.contacts ?? ""} autoComplete="off" placeholder="телефон, email, Telegram…" />
         </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Договор с" htmlFor="contractStart">
+        <Field label={t("partners.form.contractStart")} htmlFor="contractStart">
           <Input id="contractStart" type="date" name="contractStart" defaultValue={d(initial?.contractStart ?? null)} />
         </Field>
-        <Field label="Договор по" htmlFor="contractEnd">
+        <Field label={t("partners.form.contractEnd")} htmlFor="contractEnd">
           <Input id="contractEnd" type="date" name="contractEnd" defaultValue={d(initial?.contractEnd ?? null)} />
         </Field>
       </div>
 
-      <Field label="Ответственный (Фаровон)" htmlFor="responsible">
+      <Field label={t("partners.form.responsible")} htmlFor="responsible">
         <Input id="responsible" name="responsible" defaultValue={initial?.responsible ?? ""} autoComplete="off" />
       </Field>
+
+      <TranslationFields fields={PARTNER_TRANSLATION_FIELDS} initial={initial?.translations} />
 
       <div>
         <input type="hidden" name="logoUrl" value={logoUrl} />
@@ -205,8 +222,9 @@ export function PartnerForm({
           onChange={setLogoUrl}
           purpose="card"
           aspect={1}
-          label="Логотип партнёра"
-          hint="Загрузите логотип и настройте его положение (кадрирование 1:1), либо укажите ссылку."
+          label={t("partners.form.logoLabel")}
+          hint={t("partners.form.logoHint")}
+          locale={locale}
         />
       </div>
 
@@ -220,18 +238,18 @@ export function PartnerForm({
               onChange={(e) => setMakeAccount(e.target.checked)}
               className="h-4 w-4 accent-[var(--primary)]"
             />
-            Сразу создать учётную запись подрядчика для входа
+            {t("partners.form.createAccountLabel")}
           </label>
           <p className="text-xs text-ink-muted">
-            Учётная запись получит роль «Подрядчик» и привязку к этому партнёру для активации купонов на /provider.
+            {t("partners.form.createAccountHint")}
           </p>
 
           {makeAccount && (
             <div className="space-y-2 pt-1">
               <Field
-                label="Логин подрядчика"
+                label={t("partners.form.contractorLogin")}
                 htmlFor="contractorLogin"
-                hint="Сгенерирован из названия компании. Латиница, цифры, дефис или подчёркивание."
+                hint={t("partners.form.contractorLoginHint")}
               >
                 <div className="flex gap-2">
                   <Input
@@ -257,13 +275,13 @@ export function PartnerForm({
                         setContractorLogin("");
                       }}
                     >
-                      Из названия
+                      {t("partners.form.fromName")}
                     </Button>
                   )}
                 </div>
               </Field>
               <p className="text-xs text-ink-muted">
-                Одноразовый пароль (OTP) покажется в окне сразу после сохранения.
+                {t("partners.form.otpHint")}
               </p>
             </div>
           )}
@@ -281,7 +299,7 @@ export function PartnerForm({
           {submitLabel}
         </Button>
         <Link href="/admin/partners" className={buttonClass({ variant: "secondary" })}>
-          Отмена
+          {t("partners.form.cancel")}
         </Link>
       </div>
     </form>

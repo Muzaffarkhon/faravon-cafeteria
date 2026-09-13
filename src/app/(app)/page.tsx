@@ -10,9 +10,13 @@ import { FlexSelection } from "./_components/flex-selection";
 import { BannerCarousel, type BannerSlide } from "./_banner-carousel";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
+import { getLocale, getTranslator } from "@/lib/i18n";
+import { localize } from "@/lib/localize";
 
 export default async function OverviewPage() {
   const session = await getSession();
+  const t = await getTranslator();
+  const locale = await getLocale();
   const [goal, notice] = await Promise.all([
     db.textBlock.findUnique({ where: { key: "GOAL" } }),
     db.textBlock.findUnique({ where: { key: "NOVELTY_NOTICE" } }),
@@ -54,16 +58,16 @@ export default async function OverviewPage() {
     return (
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">Кабинет</h1>
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">{t("home.cabinet")}</h1>
           <p className="text-sm text-ink-muted">
-            Вы вошли как {roles.map((r) => ROLE_LABELS[r]).join(", ")}
+            {t("home.loggedInAs")} {roles.map((r) => ROLE_LABELS[r]).join(", ")}
           </p>
         </div>
 
         {total === 0 ? (
           <Card className="p-6">
             <p className="text-sm text-ink-muted">
-              Разделы для вашей роли (справочники, отчёты) появятся здесь по мере готовности.
+              {t("home.rolesEmptyHint")}
             </p>
           </Card>
         ) : (
@@ -118,7 +122,7 @@ export default async function OverviewPage() {
   const period = ctx.windowPeriod;
   const targetPeriod = ctx.targetPeriod;
 
-  const [recognition, care, flex] = await Promise.all([
+  const [recognitionRaw, careRaw, flexRaw] = await Promise.all([
     db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
     db.benefitCard.findMany({ where: { block: "CARE", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
     db.benefitCard.findMany({
@@ -127,6 +131,31 @@ export default async function OverviewPage() {
       include: { partner: true },
     }),
   ]);
+
+  // Переводы (§i18n) — карточка и её партнёр локализуются один раз здесь, весь
+  // остальной код страницы (баннеры, группы, вывод) дальше работает как обычно.
+  const localizeCard = <T extends { title: string; description: string | null; condition: string | null; translations: unknown }>(
+    c: T,
+  ): T => ({
+    ...c,
+    title: localize(c.title, c.translations, locale, "title"),
+    description: localize(c.description, c.translations, locale, "description"),
+    condition: localize(c.condition, c.translations, locale, "condition"),
+  });
+  const recognition = recognitionRaw.map(localizeCard);
+  const care = careRaw.map(localizeCard);
+  const flex = flexRaw.map((c) => ({
+    ...localizeCard(c),
+    partner: c.partner
+      ? {
+          ...c.partner,
+          name: localize(c.partner.name, c.partner.translations, locale, "name"),
+          discountType: localize(c.partner.discountType, c.partner.translations, locale, "discountType"),
+          terms: localize(c.partner.terms, c.partner.translations, locale, "terms"),
+          contactPerson: localize(c.partner.contactPerson, c.partner.translations, locale, "contactPerson"),
+        }
+      : c.partner,
+  }));
 
   const banners = await db.partnerBanner.findMany({ where: { isActive: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: new Date() } }] }, { OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }] }] }, orderBy: { sortOrder: "asc" } });
 
@@ -176,7 +205,7 @@ export default async function OverviewPage() {
       androidUrl,
       iosUrl,
       external: !!appHref || (!cardHref && !!safeHref && /^https?:\/\//i.test(safeHref)),
-      cta: appHref ? "Установить приложение" : cardHref ? "Перейти к льготе" : "Подробнее",
+      cta: appHref ? t("home.installApp") : cardHref ? t("home.goToBenefit") : t("home.moreDetails"),
     };
   });
 
@@ -189,11 +218,11 @@ export default async function OverviewPage() {
         id: `group-${c.id}`,
         kind: "group",
         title: c.title,
-        subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${remaining}${period?.windowOpen ? " — выберите в один клик." : "."}`,
+        subtitle: `${t("home.groupBenefitPrefix")} ${have} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
         imageUrl: safeImageSrc(c.imageUrl),
         linkHref: `#card-${c.id}`,
         external: false,
-        cta: period?.windowOpen ? "Перейти к выбору" : "Перейти к льготе",
+        cta: period?.windowOpen ? t("home.goToSelection") : t("home.goToBenefit"),
         progress: { current: have, min: c.minParticipants },
       };
     });
@@ -205,53 +234,57 @@ export default async function OverviewPage() {
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period
     ? period.windowOpen
-      ? `Окно выбора открыто до ${period.windowEnd.toLocaleDateString("ru-RU")}`
-      : "Окно выбора сейчас закрыто"
-    : "Активный период ещё не открыт";
+      ? `${t("home.windowOpenUntil")} ${period.windowEnd.toLocaleDateString("ru-RU")}`
+      : t("home.windowClosed")
+    : t("home.periodNotOpen");
 
   return (
     <div className="space-y-8">
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
         <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
-          Здравствуйте, {firstName}
+          {t("home.greeting")}, {firstName}
         </h1>
         <p className="mt-1 text-sm text-on-brand/80">{periodLine}</p>
         {ctx.rolledOver && targetPeriod && (
           <p className="mt-1 text-sm font-semibold text-on-brand">
-            Текущий период уже идёт — ваш выбор пойдёт в «{targetPeriod.name}».
+            {t("home.rolledOverPrefix")}{targetPeriod.name}{t("home.rolledOverSuffix")}
           </p>
         )}
         {ctx.missingNextPeriod && (
           <p className="mt-1 text-sm font-semibold text-on-brand">
-            Период уже начался. Выбор откроется, когда C&amp;B создаст следующий период.
+            {t("home.missingNextPeriod")}
           </p>
         )}
       </section>
 
-      {bannerSlides.length > 0 && <BannerCarousel slides={bannerSlides} />}
+      {bannerSlides.length > 0 && <BannerCarousel slides={bannerSlides} locale={locale} />}
 
       {goal && (
         <section className="rounded-[20px] bg-primary-soft px-6 py-7 sm:px-8">
           <div className="text-xs font-bold uppercase tracking-[0.1em] text-primary-strong">
-            Цель программы
+            {t("home.goalLabel")}
           </div>
           <p className="mt-3 max-w-3xl whitespace-pre-line text-[1.0625rem] leading-8 text-ink sm:text-[1.125rem] sm:leading-9">
-            {goal.content}
+            {localize(goal.content, goal.translations, locale, "content")}
           </p>
         </section>
       )}
 
       {notice && (
         <section className="rounded-[20px] border border-warning-soft bg-warning-soft/70 px-6 py-5">
-          <div className="text-sm font-bold text-warning-strong">{notice.title}</div>
-          <p className="mt-1.5 text-sm leading-6 text-warning-strong/80">{notice.content}</p>
+          <div className="text-sm font-bold text-warning-strong">
+            {localize(notice.title, notice.translations, locale, "title")}
+          </div>
+          <p className="mt-1.5 text-sm leading-6 text-warning-strong/80">
+            {localize(notice.content, notice.translations, locale, "content")}
+          </p>
         </section>
       )}
 
       {recognition.length > 0 && (
         <section className="space-y-4">
-          <h2 className="font-display text-[19px] font-bold text-ink">Программы признания</h2>
+          <h2 className="font-display text-[19px] font-bold text-ink">{t("home.recognitionPrograms")}</h2>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recognition.map((c) => (
               <li
@@ -287,7 +320,7 @@ export default async function OverviewPage() {
 
       {care.length > 0 && (
         <section className="space-y-4">
-          <h2 className="font-display text-[19px] font-bold text-ink">Витрина заботы</h2>
+          <h2 className="font-display text-[19px] font-bold text-ink">{t("home.careShowcase")}</h2>
           <ul className="grid gap-4 sm:grid-cols-2">
             {care.map((c) => (
               <li
@@ -309,7 +342,7 @@ export default async function OverviewPage() {
                 </div>
                 <div className="p-[18px]">
                   <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-                    Гарантировано всем
+                    {t("home.guaranteedForAll")}
                   </p>
                   <p className="mt-1 text-[17px] font-bold leading-snug text-ink">{c.title}</p>
                 </div>
@@ -320,9 +353,9 @@ export default async function OverviewPage() {
       )}
 
       <section className="space-y-4">
-        <h2 className="font-display text-[19px] font-bold text-ink">Гибкие льготы</h2>
+        <h2 className="font-display text-[19px] font-bold text-ink">{t("home.flexBenefits")}</h2>
         <p className="text-sm leading-6 text-ink-muted">
-          Выберите до {maxSelections} льгот. После подтверждения выбор поступит на согласование.
+          {t("home.selectUpTo")} {maxSelections} {t("home.benefitsAfterConfirm")}
         </p>
         <FlexSelection
           cards={flex.map((c) => ({
@@ -354,6 +387,7 @@ export default async function OverviewPage() {
           windowOpen={windowOpen}
           hasSubmittable={draftCount > 0}
           defaultPhone={emp.phone ?? ""}
+          locale={locale}
         />
       </section>
     </div>

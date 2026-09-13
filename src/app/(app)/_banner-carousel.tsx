@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "@/components/ui";
+import { translate, type TKey } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 export type BannerSlide = {
   id: string;
@@ -17,10 +19,10 @@ export type BannerSlide = {
   progress?: { current: number; min: number };
 };
 
-const KIND_LABEL: Record<NonNullable<BannerSlide["kind"]>, string> = {
-  partner: "Партнёр",
-  news: "Новость",
-  group: "Групповая льгота",
+const KIND_KEY: Record<NonNullable<BannerSlide["kind"]>, TKey> = {
+  partner: "banner.partner",
+  news: "banner.news",
+  group: "banner.group",
 };
 
 /** Ссылка на приложение под платформу устройства (§реклама): Android → Google Play,
@@ -35,7 +37,8 @@ function resolveAppHref(b: BannerSlide): string | null {
 
 const AUTOPLAY_MS = 6000;
 
-export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
+export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const count = slides.length;
   const loop = count > 1;
 
@@ -215,7 +218,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                         : "bg-white/15 text-white",
                   )}
                 >
-                  {KIND_LABEL[b.kind ?? "partner"]}
+                  {t(KIND_KEY[b.kind ?? "partner"])}
                 </div>
                 <div className="relative z-10 max-w-2xl p-4 sm:p-6">
                   <h2 className="text-base font-semibold leading-snug text-balance text-white line-clamp-2 sm:text-xl">
@@ -227,7 +230,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
                   {b.progress && (
                     <div className="mt-2 max-w-xs rounded-xl bg-black/35 p-2 backdrop-blur sm:mt-2.5 sm:p-2.5">
                       <div className="flex items-center justify-between text-[11px] font-semibold text-white/95 sm:text-xs">
-                        <span>Набрано участников</span>
+                        <span>{t("banner.membersGathered")}</span>
                         <span className="tabular-nums" data-numeric>
                           {b.progress.current} / {b.progress.min}
                         </span>

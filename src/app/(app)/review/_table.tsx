@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 
 export type ReviewRow = {
@@ -20,7 +22,8 @@ export type ReviewRow = {
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("ru-RU") : "—");
 
-export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
+export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const [bulkComment, setBulkComment] = useState("");
@@ -86,14 +89,14 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
       {sel.size > 0 && (
         <div className="sticky top-16 z-10 space-y-2 rounded-lg border border-line bg-surface p-3 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-ink">Выбрано: {sel.size}</span>
+            <span className="text-sm font-medium text-ink">{t("review.selectedCount")}: {sel.size}</span>
             <Button
               variant="success"
               size="sm"
               disabled={pending}
               onClick={() => setConfirmBulkApprove(true)}
             >
-              Одобрить выбранные
+              {t("review.approveSelected")}
             </Button>
             <Button
               variant="danger"
@@ -101,21 +104,21 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
               disabled={pending || bulkComment.trim().length < 3}
               onClick={() => runBulk("reject")}
             >
-              Отклонить выбранные
+              {t("review.rejectSelected")}
             </Button>
             <button
               type="button"
               className="text-xs text-ink-muted hover:text-ink hover:underline"
               onClick={() => setSel(new Set())}
             >
-              снять выбор
+              {t("review.clearSelection")}
             </button>
           </div>
           <Textarea
             value={bulkComment}
             onChange={(e) => setBulkComment(e.target.value)}
             rows={2}
-            placeholder="Причина отклонения — обязательна для «Отклонить выбранные», общая для всех выбранных позиций"
+            placeholder={t("review.rejectReasonBulkPlaceholder")}
           />
         </div>
       )}
@@ -125,8 +128,8 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
           className="rounded-md bg-surface-muted px-3 py-2 text-sm text-ink"
           role="status"
         >
-          Обработано: {result.ok}
-          {result.failed > 0 && `, с ошибкой: ${result.failed}`}
+          {t("review.processed")}: {result.ok}
+          {result.failed > 0 && `, ${t("review.withError")}: ${result.failed}`}
           {result.errors.length > 0 && ` — ${result.errors.join("; ")}`}
         </p>
       )}
@@ -140,16 +143,16 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  aria-label="Выбрать все на странице"
+                  aria-label={t("review.selectAllOnPage")}
                   className="h-4 w-4 accent-[var(--primary)]"
                 />
               </th>
-              <th>ID</th>
-              <th>Сотрудник</th>
-              <th>Льгота / партнёр</th>
-              <th>Период</th>
-              <th>Подана</th>
-              <th className="text-right">Действия</th>
+              <th>{t("review.colId")}</th>
+              <th>{t("review.colEmployee")}</th>
+              <th>{t("review.colCardPartner")}</th>
+              <th>{t("review.colPeriod")}</th>
+              <th>{t("review.colSubmitted")}</th>
+              <th className="text-right">{t("review.colActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -160,7 +163,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                     type="checkbox"
                     checked={sel.has(r.id)}
                     onChange={() => toggle(r.id)}
-                    aria-label={`Выбрать позицию ${r.card}`}
+                    aria-label={`${t("review.selectRow")} ${r.card}`}
                     className="h-4 w-4 accent-[var(--primary)]"
                   />
                 </td>
@@ -183,7 +186,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                         value={rejectText}
                         onChange={(e) => setRejectText(e.target.value)}
                         rows={2}
-                        placeholder="Причина отклонения (обязательно)"
+                        placeholder={t("review.rejectReasonPlaceholder")}
                       />
                       <div className="mt-2 flex gap-2">
                         <Button
@@ -191,7 +194,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                           disabled={pending || rejectText.trim().length < 3}
                           onClick={() => runRow(r.id, () => rejectItem(r.id, rejectText))}
                         >
-                          Подтвердить
+                          {t("review.confirm")}
                         </Button>
                         <Button
                           variant="secondary"
@@ -202,7 +205,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                             setRejectText("");
                           }}
                         >
-                          Отмена
+                          {t("review.cancel")}
                         </Button>
                       </div>
                     </div>
@@ -218,7 +221,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                   {fmtDate(r.submittedAt)}
                   {r.overdue && (
                     <Badge tone="warning" className="ml-2">
-                      просрочено
+                      {t("review.overdueBadge")}
                     </Badge>
                   )}
                 </td>
@@ -231,7 +234,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                         disabled={pending}
                         onClick={() => setApproveId(r.id)}
                       >
-                        Одобрить
+                        {t("review.approve")}
                       </Button>
                       <Button
                         variant="danger"
@@ -242,7 +245,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                           setRejectText("");
                         }}
                       >
-                        Отклонить
+                        {t("review.reject")}
                       </Button>
                     </div>
                   )}
@@ -255,15 +258,15 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
 
       <ConfirmDialog
         open={!!approveId}
-        title="Одобрить заявку?"
+        title={t("review.approveConfirmTitle")}
         message={
           approveRow ? (
             <>
-              {approveRow.employee} — {approveRow.card}. Сотруднику будет выдан купон.
+              {approveRow.employee} — {approveRow.card}. {t("review.approveConfirmMessage")}
             </>
           ) : undefined
         }
-        confirmLabel="Одобрить"
+        confirmLabel={t("review.approve")}
         tone="success"
         busy={pending}
         onConfirm={() => {
@@ -275,9 +278,9 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
 
       <ConfirmDialog
         open={confirmBulkApprove}
-        title="Одобрить заявки?"
-        message={`Одобрить выбранные позиции (${sel.size})? Сотрудникам будут выданы купоны.`}
-        confirmLabel="Одобрить"
+        title={t("review.bulkApproveTitle")}
+        message={`${t("review.bulkApproveMessage")} (${sel.size})? ${t("review.bulkApproveMessageSuffix")}`}
+        confirmLabel={t("review.approve")}
         tone="success"
         busy={pending}
         onConfirm={() => {

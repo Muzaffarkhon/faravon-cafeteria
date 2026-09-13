@@ -17,9 +17,16 @@ const BATCH_INTERVAL_MS = 1000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-async function tgOk(r: Response): Promise<boolean> {
-  const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
-  return !!data?.ok;
+type TgResult = { ok: boolean; blocked: boolean };
+
+async function tgResult(r: Response): Promise<TgResult> {
+  const data = (await r.json().catch(() => null)) as
+    | { ok?: boolean; error_code?: number; description?: string }
+    | null;
+  const ok = !!data?.ok;
+  // 403 = бот заблокирован (или чат удалён) — постоянная ошибка, ретраить бессмысленно.
+  const blocked = !ok && data?.error_code === 403;
+  return { ok, blocked };
 }
 
 /**
@@ -34,15 +41,24 @@ export async function sendTelegram(
   html: string,
   extra: Record<string, unknown> = {},
 ): Promise<boolean> {
+  return (await sendTelegramDetailed(token, chatId, html, extra)).ok;
+}
+
+async function sendTelegramDetailed(
+  token: string,
+  chatId: string,
+  html: string,
+  extra: Record<string, unknown> = {},
+): Promise<TgResult> {
   try {
     const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML", ...extra }),
     });
-    return await tgOk(r);
+    return await tgResult(r);
   } catch {
-    return false;
+    return { ok: false, blocked: false };
   }
 }
 
@@ -52,7 +68,7 @@ async function sendTelegramQr(
   chatId: string,
   qrText: string,
   caption: string,
-): Promise<boolean> {
+): Promise<TgResult> {
   try {
     const png = await QRCode.toBuffer(qrText, {
       type: "png",
@@ -70,9 +86,9 @@ async function sendTelegramQr(
       "coupon-qr.png",
     );
     const r = await fetch(`${TG_API}/bot${token}/sendPhoto`, { method: "POST", body: form });
-    return await tgOk(r);
+    return await tgResult(r);
   } catch {
-    return false;
+    return { ok: false, blocked: false };
   }
 }
 
@@ -108,6 +124,7 @@ export async function deliverTelegramNotifications(opts: {
   const pending = await db.notification.findMany({
     where: {
       deliveredAt: null,
+      blockedAt: null,
       channel: "TELEGRAM",
       sentAt: { gt: new Date(Date.now() - STALE_MS) },
       // Адресат в Telegram: сотрудник с привязкой ЛИБО учётка без Employee
@@ -156,20 +173,28 @@ export async function deliverTelegramNotifications(opts: {
     const payload = n.payload as Record<string, unknown> | null;
     const body = formatNotificationText(n.event, payload, templates);
 
-    let ok: boolean;
+    let result: TgResult;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
       // §11: вместо текстового кода — QR-картинка купона. В подписи номер не
       // нужен (партнёр сканирует QR) — рендерим тот же шаблон без {number},
       // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
       // остальных опциональных блоков, а не разбор готового HTML регуляркой).
       const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates);
-      ok = await sendTelegramQr(token, tgId, payload.number, caption);
+      result = await sendTelegramQr(token, tgId, payload.number, caption);
     } else {
-      ok = await sendTelegram(token, tgId, body);
+      result = await sendTelegramDetailed(token, tgId, body);
     }
 
-    if (ok) {
+    if (result.ok) {
       delivered++;
+    } else if (result.blocked) {
+      // Бот заблокирован сотрудником — постоянная ошибка, ретраить бессмысленно.
+      await db.notification.update({
+        where: { id: n.id },
+        data: { deliveredAt: null, blockedAt: new Date() },
+      });
+      failed++;
+      log?.(`уведомление ${n.id}: бот заблокирован получателем`);
     } else {
       // не ушло — возвращаем в очередь, повторит cron/бот
       await db.notification.update({ where: { id: n.id }, data: { deliveredAt: null } });

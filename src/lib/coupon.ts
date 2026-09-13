@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
 import { normalizePhone } from "@/lib/phone";
+import { translate, type TKey } from "./i18n/dict";
+import type { Locale } from "./i18n/shared";
 import type { CouponStatus } from "@prisma/client";
 
 export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
@@ -13,6 +15,10 @@ export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
   EXPIRED: "Просрочен",
   CANCELLED: "Аннулирован",
 };
+
+export function couponStatusLabel(locale: Locale, status: CouponStatus): string {
+  return translate(locale, `status.coupon.${status}` as TKey);
+}
 
 const normalizeNumber = (n: string) => n.trim().toUpperCase();
 

@@ -2,9 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { generateMissingEmployeeAccounts } from "./actions";
 
-export function GenerateMissingAccountsBanner({ missingCount }: { missingCount: number }) {
+export function GenerateMissingAccountsBanner({ missingCount, locale }: { missingCount: number; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<{ ok?: boolean; error?: string; count?: number } | null>(
     null,
@@ -31,16 +34,15 @@ export function GenerateMissingAccountsBanner({ missingCount }: { missingCount: 
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
           {missingCount > 0
-            ? `У ${missingCount} сотрудников нет учётной записи для входа`
-            : "Все сотрудники имеют учётные записи"}
+            ? `${t("users.gen.noAccountPrefix")}${missingCount} ${t("users.gen.noAccountSuffix")}`
+            : t("users.gen.allHaveAccounts")}
         </div>
         <p className="text-xs text-ink-muted">
-          Сотрудники без учётной записи не могут войти на сайт и не распознаются в Telegram-боте.
-          Нажмите кнопку, чтобы автоматически сгенерировать уникальные логины для всех.
+          {t("users.gen.hint")}
         </p>
         {result?.ok && (
           <p className="text-xs font-semibold text-success-strong">
-            Успешно создано учётных записей: {result.count}
+            {t("users.gen.successPrefix")} {result.count}
           </p>
         )}
         {result?.error && (
@@ -58,7 +60,7 @@ export function GenerateMissingAccountsBanner({ missingCount }: { missingCount: 
             onClick={() => {
               if (
                 !confirm(
-                  `Сгенерировать учётные записи и логины для ${missingCount} сотрудников?`,
+                  `${t("users.gen.confirmPrefix")} ${missingCount} ${t("users.gen.confirmSuffix")}`,
                 )
               ) {
                 return;
@@ -69,7 +71,7 @@ export function GenerateMissingAccountsBanner({ missingCount }: { missingCount: 
               });
             }}
           >
-            Сгенерировать логины ({missingCount})
+            {t("users.gen.generateLogins")} ({missingCount})
           </Button>
         </div>
       )}

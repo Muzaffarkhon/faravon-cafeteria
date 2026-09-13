@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { COUPON_STATUS_LABELS, isCouponOverdue } from "@/lib/coupon";
+import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
-import { PERIOD_STATUS_LABELS } from "@/lib/labels";
+import { periodStatusLabel } from "@/lib/labels";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import {
   Badge,
@@ -17,6 +18,8 @@ import {
   type BadgeTone,
 } from "@/components/ui";
 import { CreateCouponButton, IssueCouponButton, DeleteCouponButton } from "./_buttons";
+
+const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 
 const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   CREATED: "accent",
@@ -40,6 +43,9 @@ export default async function CouponsPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "coupons.manage")) redirect("/");
+
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const sp = await searchParams;
   const periodId = sp.period || undefined;
@@ -99,21 +105,21 @@ export default async function CouponsPage({
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">Купоны</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("coupons.title")}</h1>
       </header>
 
       {/* Одобренные позиции без купона */}
       <section className="space-y-3">
         <SectionTitle className="text-lg" count={awaitingTotal}>
-          Ожидают формирования купона
+          {t("coupons.awaitingTitle")}
         </SectionTitle>
         {awaitingTotal > awaiting.length && (
           <p className="text-sm text-ink-muted">
-            Показаны первые {awaiting.length}. Сформируйте купоны, чтобы разобрать очередь.
+            {t("coupons.awaitingShown")} {awaiting.length}. {t("coupons.awaitingHint")}
           </p>
         )}
         {awaiting.length === 0 ? (
-          <EmptyState>Нет одобренных позиций без купона.</EmptyState>
+          <EmptyState>{t("coupons.awaitingEmpty")}</EmptyState>
         ) : (
           <ul className="space-y-3">
             {awaiting.map((item) => (
@@ -128,7 +134,7 @@ export default async function CouponsPage({
                     {item.application.period.name}
                   </div>
                 </div>
-                <CreateCouponButton itemId={item.id} />
+                <CreateCouponButton itemId={item.id} locale={locale} />
               </li>
             ))}
           </ul>
@@ -138,19 +144,19 @@ export default async function CouponsPage({
       {/* Реестр купонов */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle className="text-lg" count={couponsTotal}>Реестр купонов</SectionTitle>
+          <SectionTitle className="text-lg" count={couponsTotal}>{t("coupons.registryTitle")}</SectionTitle>
           <form method="get" className="flex flex-wrap items-center gap-2">
             <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">Все периоды</option>
+              <option value="">{t("coupons.allPeriods")}</option>
               {periods.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {PERIOD_STATUS_LABELS[p.status]}
+                  {p.name} — {periodStatusLabel(locale, p.status)}
                 </option>
               ))}
             </Select>
             {hiddenChipInputs(sp, ["status"])}
             <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">Все партнёры</option>
+              <option value="">{t("coupons.allPartners")}</option>
               {partners.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -160,12 +166,12 @@ export default async function CouponsPage({
             <input
               name="emp"
               defaultValue={emp}
-              placeholder="ФИО сотрудника"
+              placeholder={t("coupons.employeeNamePlaceholder")}
               className="w-40 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
             />
-            <button className={buttonClass({ variant: "secondary", size: "sm" })}>Показать</button>
+            <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("coupons.show")}</button>
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
-              Экспорт в XLSX
+              {t("coupons.exportXlsx")}
             </a>
           </form>
         </div>
@@ -176,29 +182,29 @@ export default async function CouponsPage({
           groups={[
             {
               param: "status",
-              label: "Статус",
-              options: Object.entries(COUPON_STATUS_LABELS).map(([value, label]) => ({
+              label: t("coupons.statusLabel"),
+              options: COUPON_STATUSES.map((value) => ({
                 value,
-                label,
+                label: couponStatusLabel(locale, value),
               })),
             },
           ]}
         />
 
         {coupons.length === 0 ? (
-          <EmptyState>Купонов по заданным условиям нет.</EmptyState>
+          <EmptyState>{t("coupons.empty")}</EmptyState>
         ) : (
           <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>Номер</th>
-                  <th>Сотрудник</th>
-                  <th>Льгота / партнёр</th>
-                  <th>Период</th>
-                  <th>Действует до</th>
-                  <th>Статус</th>
-                  <th className="text-right">Действия</th>
+                  <th>{t("coupons.colNumber")}</th>
+                  <th>{t("coupons.colEmployee")}</th>
+                  <th>{t("coupons.colCardPartner")}</th>
+                  <th>{t("coupons.colPeriod")}</th>
+                  <th>{t("coupons.colValidUntil")}</th>
+                  <th>{t("coupons.colStatus")}</th>
+                  <th className="text-right">{t("coupons.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,7 +227,7 @@ export default async function CouponsPage({
                       <td>
                         {c.period.name}
                         {periodEnded && (
-                          <span className="ml-1.5 text-xs font-semibold text-warning-strong">завершён</span>
+                          <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
                         )}
                       </td>
                       <td data-numeric>
@@ -229,20 +235,20 @@ export default async function CouponsPage({
                       </td>
                       <td>
                         <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
-                          {COUPON_STATUS_LABELS[displayStatus]}
+                          {couponStatusLabel(locale, displayStatus)}
                         </Badge>
                       </td>
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {c.status === "CREATED" &&
                             (phonePromo ? (
-                              <span className="text-xs text-ink-subtle">по номеру телефона</span>
+                              <span className="text-xs text-ink-subtle">{t("coupons.byPhone")}</span>
                             ) : overdue ? (
-                              <span className="text-xs text-ink-subtle">период завершён</span>
+                              <span className="text-xs text-ink-subtle">{t("coupons.periodOver")}</span>
                             ) : (
-                              <IssueCouponButton couponId={c.id} />
+                              <IssueCouponButton couponId={c.id} locale={locale} />
                             ))}
-                          <DeleteCouponButton couponId={c.id} couponNumber={c.number} />
+                          <DeleteCouponButton couponId={c.id} couponNumber={c.number} locale={locale} />
                         </div>
                       </td>
                     </tr>
@@ -256,7 +262,7 @@ export default async function CouponsPage({
         {pages > 1 && (
           <div className="flex items-center justify-between text-sm">
             <span className="text-ink-muted">
-              Стр. {page} из {pages}
+              {t("coupons.pagePrefix")} {page} {t("coupons.pageOf")} {pages}
             </span>
             <div className="flex gap-2">
               {page > 1 && (
@@ -264,7 +270,7 @@ export default async function CouponsPage({
                   href={pageHref(page - 1)}
                   className={buttonClass({ variant: "secondary", size: "sm" })}
                 >
-                  Назад
+                  {t("coupons.back")}
                 </a>
               )}
               {page < pages && (
@@ -272,7 +278,7 @@ export default async function CouponsPage({
                   href={pageHref(page + 1)}
                   className={buttonClass({ variant: "secondary", size: "sm" })}
                 >
-                  Вперёд
+                  {t("coupons.next")}
                 </a>
               )}
             </div>

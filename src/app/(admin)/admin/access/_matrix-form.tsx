@@ -4,10 +4,13 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import type { Role } from "@prisma/client";
 import { ALL_PERMISSIONS, PERMISSION_LABELS, ROLE_LABELS, type Permission } from "@/lib/rbac";
 import { Button, Card } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { ALL_ROLES } from "../users/roles";
 import { saveRbacMatrix } from "./actions";
 
-export function MatrixForm({ allowed }: { allowed: Record<Permission, Role[]> }) {
+export function MatrixForm({ allowed, locale }: { allowed: Record<Permission, Role[]>; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(saveRbacMatrix, {});
   const [dirty, setDirty] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -34,7 +37,7 @@ export function MatrixForm({ allowed }: { allowed: Record<Permission, Role[]> })
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line-subtle text-left text-xs text-ink-muted">
-              <th className="px-4 py-2 font-medium">Право</th>
+              <th className="px-4 py-2 font-medium">{t("access.permissionCol")}</th>
               {ALL_ROLES.map((r) => (
                 <th key={r} className="px-4 py-2 text-center font-medium whitespace-nowrap">
                   {ROLE_LABELS[r]}
@@ -68,7 +71,7 @@ export function MatrixForm({ allowed }: { allowed: Record<Permission, Role[]> })
 
       <div className="flex items-center gap-3">
         <Button type="submit" loading={pending} disabled={!dirty}>
-          Сохранить матрицу
+          {t("access.saveMatrix")}
         </Button>
         {state.error && (
           <span className="text-sm font-medium text-danger" role="alert">
@@ -76,7 +79,7 @@ export function MatrixForm({ allowed }: { allowed: Record<Permission, Role[]> })
           </span>
         )}
         {justSaved && !state.error && (
-          <span className="text-sm font-medium text-success-strong">Матрица сохранена.</span>
+          <span className="text-sm font-medium text-success-strong">{t("access.matrixSaved")}</span>
         )}
       </div>
     </form>

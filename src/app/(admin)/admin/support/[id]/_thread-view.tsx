@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Input, Textarea } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { closeThread, markThreadRead, replyToThread, findEmployeeForLink, linkEmployeeToThread } from "../actions";
 import type { EmployeeMatch } from "../actions";
 
@@ -19,11 +21,14 @@ function EmployeeLinkPanel({
   threadId,
   guestPhone,
   initialMatches,
+  locale,
 }: {
   threadId: string;
   guestPhone: string | null;
   initialMatches: EmployeeMatch[];
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [query, setQuery] = useState(guestPhone ?? "");
   const [matches, setMatches] = useState(initialMatches);
@@ -54,11 +59,11 @@ function EmployeeLinkPanel({
   return (
     <div className="space-y-2 rounded-xl border border-line bg-surface p-3 shadow-sm">
       <div className="flex items-center gap-2">
-        <span className="shrink-0 text-sm font-semibold text-ink">Найти сотрудника:</span>
+        <span className="shrink-0 text-sm font-semibold text-ink">{t("support.findEmployee")}</span>
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Номер телефона или ФИО…"
+          placeholder={t("support.searchPlaceholder")}
           disabled={pending}
           className="h-9"
         />
@@ -69,12 +74,12 @@ function EmployeeLinkPanel({
           loading={pending}
           disabled={query.trim().length < 2}
         >
-          Искать
+          {t("support.search")}
         </Button>
       </div>
       <p className="text-xs text-ink-subtle">
-        Номер гостя: {guestPhone ?? "не определён"}
-        {guestPhone ? " — именно он сохранится по кнопке «Сохранить номер»." : " — привяжется только Telegram."}
+        {t("support.guestNumber")} {guestPhone ?? t("support.notFound")}
+        {guestPhone ? ` ${t("support.willSavePhone")}` : ` ${t("support.telegramOnly")}`}
       </p>
       {err && (
         <p className="text-sm font-medium text-danger" role="alert">
@@ -83,7 +88,7 @@ function EmployeeLinkPanel({
       )}
 
       {matches.length === 0 ? (
-        <p className="text-xs text-ink-muted">Совпадений не найдено.</p>
+        <p className="text-xs text-ink-muted">{t("support.noMatches")}</p>
       ) : (
         <div className="space-y-1.5">
           {matches.map((m) => {
@@ -96,7 +101,7 @@ function EmployeeLinkPanel({
                 </span>
                 {already ? (
                   <span className="text-xs font-medium text-success">
-                    Отправлено: логин {already.login}, временный пароль {already.otp}
+                    {t("support.sentPrefix")} {already.login}{t("support.sentMiddle")} {already.otp}
                   </span>
                 ) : (
                   <div className="ml-auto flex shrink-0 gap-1.5">
@@ -106,18 +111,18 @@ function EmployeeLinkPanel({
                       disabled={pending}
                       onClick={() => setExpanded(expanded === m.id ? null : m.id)}
                     >
-                      Проверить
+                      {t("support.check")}
                     </Button>
                     <Button size="sm" disabled={pending} onClick={() => save(m.id)}>
-                      Сохранить номер
+                      {t("support.savePhone")}
                     </Button>
                   </div>
                 )}
                 {expanded === m.id && (
                   <p className="w-full text-xs text-ink-subtle">
-                    Телефон: {m.phoneNormalized ?? "не указан"} · Telegram:{" "}
-                    {m.telegramId ? "уже привязан" : "не привязан"} · Учётная запись:{" "}
-                    {m.hasUser ? "есть" : "будет создана"}
+                    {t("support.phoneLabel")} {m.phoneNormalized ?? t("support.notSpecified")} · {t("support.telegramLabel")}{" "}
+                    {m.telegramId ? t("support.alreadyLinked") : t("support.notLinked")} · {t("support.accountLabel")}{" "}
+                    {m.hasUser ? t("support.exists") : t("support.willBeCreated")}
                   </p>
                 )}
               </div>
@@ -132,6 +137,7 @@ function EmployeeLinkPanel({
 export function ThreadView({
   threadId,
   status,
+  source,
   identityTitle,
   identitySubtitle,
   messages,
@@ -139,9 +145,11 @@ export function ThreadView({
   alreadyLinked,
   initialMatches,
   quickReplies,
+  locale,
 }: {
   threadId: string;
   status: "OPEN" | "CLOSED";
+  source: "TELEGRAM" | "WEB";
   identityTitle: string;
   identitySubtitle: string;
   messages: Msg[];
@@ -149,7 +157,9 @@ export function ThreadView({
   alreadyLinked: boolean;
   initialMatches: EmployeeMatch[];
   quickReplies: QuickReply[];
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -176,19 +186,31 @@ export function ThreadView({
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-line bg-canvas/95 px-4 pb-3 pt-4 backdrop-blur sm:-mx-6 sm:px-6">
-        <div>
-          <h1 className="text-lg font-bold text-ink">{identityTitle}</h1>
-          <p className="text-sm text-ink-muted">{identitySubtitle}</p>
+      <div className="sticky top-0 z-20 -mx-4 -mt-4 space-y-2 border-b border-line bg-canvas/95 px-4 pb-2 pt-2 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-base font-bold leading-tight text-ink">{identityTitle}</h1>
+            <p className="text-xs text-ink-muted">{identitySubtitle}</p>
+          </div>
+          {status === "OPEN" && (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              onClick={() => start(async () => { await closeThread(threadId); })}
+            >
+              {t("support.closeDialog")}
+            </Button>
+          )}
         </div>
         {!alreadyLinked && (
-          <EmployeeLinkPanel threadId={threadId} guestPhone={guestPhone} initialMatches={initialMatches} />
+          <EmployeeLinkPanel threadId={threadId} guestPhone={guestPhone} initialMatches={initialMatches} locale={locale} />
         )}
       </div>
 
       <div className="space-y-2 rounded-[18px] bg-surface p-4 shadow-sm">
         {messages.length === 0 ? (
-          <p className="text-sm text-ink-muted">Сообщений пока нет.</p>
+          <p className="text-sm text-ink-muted">{t("support.noMessages")}</p>
         ) : (
           messages.map((m) => (
             <div key={m.id} className={m.direction === "OUT" ? "flex justify-end" : "flex justify-start"}>
@@ -204,7 +226,7 @@ export function ThreadView({
                     "mt-1 text-[11px] " + (m.direction === "OUT" ? "text-on-brand/70" : "text-ink-subtle")
                   }
                 >
-                  {m.direction === "OUT" ? (m.author ?? "C&B") : "Гость"} ·{" "}
+                  {m.direction === "OUT" ? (m.author ?? "C&B") : source === "WEB" ? t("support.employee") : t("support.guest")} ·{" "}
                   {new Date(m.createdAt).toLocaleString("ru-RU")}
                 </p>
               </div>
@@ -214,7 +236,7 @@ export function ThreadView({
       </div>
 
       {status === "CLOSED" && (
-        <p className="text-sm text-ink-muted">Диалог закрыт. Если гость напишет снова, он откроется сам.</p>
+        <p className="text-sm text-ink-muted">{t("support.dialogClosed")}</p>
       )}
 
       <div className="flex flex-col gap-2">
@@ -237,7 +259,7 @@ export function ThreadView({
           rows={3}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ответ гостю…"
+          placeholder={t("support.replyPlaceholder")}
           disabled={pending}
         />
         {err && (
@@ -247,17 +269,8 @@ export function ThreadView({
         )}
         <div className="flex gap-2">
           <Button onClick={send} loading={pending} disabled={!text.trim()}>
-            Отправить
+            {t("support.send")}
           </Button>
-          {status === "OPEN" && (
-            <Button
-              variant="secondary"
-              disabled={pending}
-              onClick={() => start(async () => { await closeThread(threadId); })}
-            >
-              Закрыть диалог
-            </Button>
-          )}
         </div>
       </div>
     </div>

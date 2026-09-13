@@ -1,14 +1,10 @@
-"use client";
-
-import { Suspense } from "react";
-import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
-import { Button, Field, Input, buttonClass, cx } from "@/components/ui";
-import { loginAction, type LoginState } from "./actions";
-
-const initial: LoginState = {};
+import { buttonClass, cx } from "@/components/ui";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getLocale, getTranslator } from "@/lib/i18n";
+import { LoginForm } from "./_login-form";
 
 // Логин бота (@BotFather) — та же ссылка, что открывается по кнопке
 // «Поделиться контактом» внутри самого Telegram. `?start=support` заводит
@@ -16,57 +12,10 @@ const initial: LoginState = {};
 // не нужно самому искать бота и нажимать кнопку внутри переписки.
 const BOT_URL = "https://t.me/cafeteria_farovon_bot";
 
-const microLabel = (text: string) => (
-  <span className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-    {text}
-  </span>
-);
+export default async function LoginPage() {
+  const locale = await getLocale();
+  const t = await getTranslator();
 
-function LoginForm() {
-  const params = useSearchParams();
-  const next = params.get("next") ?? "/";
-  const [state, formAction, pending] = useActionState(loginAction, initial);
-
-  return (
-    <form action={formAction} className="space-y-4">
-      <input type="hidden" name="next" value={next} />
-      {/* honeypot: скрыт от людей, заполняют боты (§5.1) */}
-      <input
-        type="text"
-        name="company"
-        tabIndex={-1}
-        autoComplete="off"
-        aria-hidden="true"
-        className="absolute left-[-9999px] h-0 w-0 opacity-0"
-      />
-      <Field label={microLabel("Логин")} htmlFor="login">
-        <Input
-          id="login"
-          name="login"
-          autoComplete="username"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-        />
-      </Field>
-      <Field label={microLabel("Пароль")} htmlFor="password" error={state.error}>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-      </Field>
-
-      <Button type="submit" loading={pending} fullWidth size="lg">
-        Войти
-      </Button>
-    </form>
-  );
-}
-
-export default function LoginPage() {
   return (
     <main
       className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4"
@@ -81,25 +30,32 @@ export default function LoginPage() {
             <BrandMark size={40} priority />
           </span>
           <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
-            Кафетерий льгот
+            {t("login.title")}
           </h1>
-          <p className="mt-1.5 text-sm text-on-brand/80">Ваши льготы. Просто.</p>
+          <p className="mt-1.5 text-sm text-on-brand/80">{t("login.tagline")}</p>
         </div>
 
         {/* Белое тело */}
         <div className="bg-surface p-7">
-          <Suspense fallback={<div className="h-[13.5rem]" />}>
-            <LoginForm />
-          </Suspense>
+          <div className="mb-4 flex justify-center gap-2">
+            <ThemeToggle compact />
+            <LanguageSwitcher locale={locale} />
+          </div>
+
+          <LoginForm
+            loginLabel={t("login.loginLabel")}
+            passwordLabel={t("login.passwordLabel")}
+            submitLabel={t("login.submit")}
+          />
 
           <div className="my-5 flex items-center gap-2.5">
             <span className="h-px flex-1 bg-line" />
-            <span className="text-xs text-ink-subtle">как получить доступ</span>
+            <span className="text-xs text-ink-subtle">{t("login.accessHint")}</span>
             <span className="h-px flex-1 bg-line" />
           </div>
 
           <p className="text-center text-xs leading-relaxed text-ink-subtle">
-            Логин и одноразовый пароль сотрудник получает в Telegram-боте.
+            {t("login.helpText")}
             {process.env.NODE_ENV !== "production" && (
               <>
                 <br />
@@ -114,7 +70,7 @@ export default function LoginPage() {
             rel="noopener noreferrer"
             className={cx(buttonClass({ variant: "primary", size: "sm" }), "mt-3 w-full")}
           >
-            Открыть бота Farovon Cafeteria
+            {t("login.openBot")}
           </a>
 
           <a
@@ -123,7 +79,7 @@ export default function LoginPage() {
             rel="noopener noreferrer"
             className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-2 w-full")}
           >
-            Не получается войти? Написать администратору
+            {t("login.cantLogin")}
           </a>
         </div>
       </div>

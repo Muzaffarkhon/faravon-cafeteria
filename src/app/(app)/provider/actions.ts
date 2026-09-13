@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
+import { getLocale, getTranslator } from "@/lib/i18n";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import {
-  COUPON_STATUS_LABELS,
+  couponStatusLabel,
   isCouponOverdue,
   lookupCouponByEmployeePhone,
   lookupCouponByNumber,
@@ -36,6 +39,7 @@ export type PhoneLookupResult =
 
 function toCouponView(
   c: NonNullable<Awaited<ReturnType<typeof lookupCouponByNumber>>>,
+  locale: Locale,
   actorPartnerId?: string | null,
 ): CouponView {
   const expired = isCouponOverdue(c);
@@ -43,7 +47,10 @@ function toCouponView(
   return {
     number: c.number,
     status: c.status,
-    statusLabel: expired && c.status === "ISSUED" ? "Просрочен" : COUPON_STATUS_LABELS[c.status],
+    statusLabel:
+      expired && c.status === "ISSUED"
+        ? translate(locale, "provider.statusExpired")
+        : couponStatusLabel(locale, c.status),
     employee: c.employee.fullName,
     department: c.employee.department,
     card: c.item.card.title,
@@ -60,35 +67,39 @@ function toCouponView(
 export async function lookupCoupon(number: string): Promise<LookupResult> {
   const s = await requireSession();
   assertCan(s.roles, "coupons.confirm");
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const n = number.trim();
-  if (!n) return { error: "Введите номер купона." };
+  if (!n) return { error: t("provider.errors.enterNumber") };
 
   const c = await lookupCouponByNumber(n);
-  if (!c) return { error: "Купон с таким номером не найден." };
+  if (!c) return { error: t("provider.errors.notFound") };
 
-  return { coupon: toCouponView(c, s.user.partnerId) };
+  return { coupon: toCouponView(c, locale, s.user.partnerId) };
 }
 
 /** Поиск по телефону — касса партнёра (§8): работает, даже если сотрудник не знает про купон. */
 export async function lookupCouponByPhone(phone: string): Promise<PhoneLookupResult> {
   const s = await requireSession();
   assertCan(s.roles, "coupons.confirm");
+  const locale = await getLocale();
 
   const { employee, coupon } = await lookupCouponByEmployeePhone(phone, s.user.partnerId);
   if (!employee) return { status: "not_found" };
   if (!coupon) return { status: "no_benefit", employee: employee.fullName };
-  return { status: "found", coupon: toCouponView(coupon, s.user.partnerId) };
+  return { status: "found", coupon: toCouponView(coupon, locale, s.user.partnerId) };
 }
 
 export async function redeemCoupon(number: string): Promise<RedeemResult> {
   const s = await requireSession();
   assertCan(s.roles, "coupons.confirm");
+  const t = await getTranslator();
   try {
     await redeemCouponByNumber(number, s.user.id, s.user.partnerId);
     revalidatePath("/provider");
     return { ok: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Не удалось активировать купон." };
+    return { error: e instanceof Error ? e.message : t("provider.errors.redeemFailed") };
   }
 }

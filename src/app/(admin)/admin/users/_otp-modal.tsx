@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 /** Модальное окно с одноразовым паролем — показывается один раз, нельзя не заметить. */
 export function OtpModal({
@@ -10,12 +12,15 @@ export function OtpModal({
   /** Учётка подрядчика: PIN не одноразовый и не требует смены (общий код на кассу точки). */
   permanent,
   onClose,
+  locale = "ru",
 }: {
   otp: string;
   login?: string;
   permanent?: boolean;
   onClose: () => void;
+  locale?: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -42,29 +47,27 @@ export function OtpModal({
             <path d="M8 10V7a4 4 0 0 1 8 0v3" />
           </svg>
         </div>
-        <h2 className="mt-3 text-lg font-semibold text-ink">Учётная запись создана</h2>
+        <h2 className="mt-3 text-lg font-semibold text-ink">{t("users.otp.accountCreated")}</h2>
         {login && (
           <p className="mt-1 text-sm text-ink-muted">
-            Логин: <b className="font-mono text-ink">{login}</b>
+            {t("users.otp.loginLabel")} <b className="font-mono text-ink">{login}</b>
           </p>
         )}
         <p className="mt-3 text-xs uppercase tracking-[0.12em] text-ink-subtle">
-          {permanent ? "PIN точки (постоянный, показывается один раз)" : "Одноразовый пароль (24 ч, показывается один раз)"}
+          {permanent ? t("users.otp.permanentPin") : t("users.otp.tempPassword")}
         </p>
         <p className="mt-1.5 select-all font-mono text-2xl font-bold tracking-wider text-primary-strong">
           {otp}
         </p>
         <p className="mt-3 text-xs leading-5 text-ink-muted">
-          {permanent
-            ? "Отдайте логин и PIN на кассу партнёра — устройство останется залогинено, вводить заново не нужно. Меняется только при перевыпуске здесь."
-            : "Передайте сотруднику логин и пароль. При первом входе он сменит пароль."}
+          {permanent ? t("users.otp.permanentHint") : t("users.otp.tempHint")}
         </p>
         <div className="mt-5 flex gap-2">
           <Button variant="secondary" fullWidth onClick={copy}>
-            {copied ? "Скопировано" : "Скопировать"}
+            {copied ? t("users.otp.copied") : t("users.otp.copy")}
           </Button>
           <Button fullWidth onClick={onClose}>
-            Закрыть
+            {t("users.otp.close")}
           </Button>
         </div>
       </div>

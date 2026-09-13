@@ -5,6 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import type { Locale } from "@/lib/i18n/shared";
+import { translate } from "@/lib/i18n/dict";
 import { logout } from "./actions";
 import { LiveRefresh } from "./_live-refresh";
 
@@ -58,6 +62,7 @@ export function AppShell({
   selectionStat,
   backdrop,
   adminHref,
+  locale,
   children,
 }: {
   groups: NavGroup[];
@@ -70,8 +75,10 @@ export function AppShell({
   backdrop?: React.ReactNode;
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
   adminHref?: string;
+  locale?: Locale;
   children: React.ReactNode;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale ?? "ru", key);
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -163,13 +170,13 @@ export function AppShell({
             <div className="flex shrink-0 items-center gap-1.5" aria-label="Выбор льгот">
               <span className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong">
                 <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong/70 md:inline">
-                  Выбрано
+                  {t("shell.selected")}
                 </span>
                 {selectionStat.used}/{selectionStat.max}
               </span>
               <span className="rounded-[10px] bg-surface-muted px-2 py-1.5 text-[13px] font-bold tabular-nums text-ink">
                 <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted md:inline">
-                  Черновики
+                  {t("shell.drafts")}
                 </span>
                 {selectionStat.drafts}
               </span>
@@ -188,7 +195,7 @@ export function AppShell({
                 className={pill(moreActive || moreOpen)}
               >
                 <Icon path={I.more} />
-                <span>Ещё</span>
+                <span>{t("nav.more")}</span>
                 {moreBadge > 0 && !moreOpen && (
                   <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
                     {moreBadge > 99 ? "99+" : moreBadge}
@@ -242,6 +249,8 @@ export function AppShell({
 
           {/* Профиль */}
           <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
+            <ThemeToggle compact className="hidden sm:flex" />
+            <LanguageSwitcher locale={locale ?? "ru"} />
             {displayName && (
               <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
                 {displayName}
@@ -275,13 +284,16 @@ export function AppShell({
                     <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
                     {roleLabel}
                   </div>
+                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 sm:hidden">
+                    <ThemeToggle compact />
+                  </div>
                   <Link
                     href="/profile"
                     onClick={closeMenus}
                     className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                   >
                     <Icon path={I.profile} />
-                    Профиль
+                    {t("shell.profile")}
                   </Link>
                   {adminHref && (
                     <Link
@@ -290,7 +302,7 @@ export function AppShell({
                       className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                     >
                       <Icon path={I.admin} />
-                      Админ-панель
+                      {t("shell.adminPanel")}
                     </Link>
                   )}
                   <form action={logout}>
@@ -299,7 +311,7 @@ export function AppShell({
                       className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       <Icon path={I.logout} />
-                      Выйти
+                      {t("shell.logout")}
                     </button>
                   </form>
                 </div>
@@ -364,7 +376,7 @@ export function AppShell({
             )}
           >
             <Icon path={I.more} className="h-5 w-5" />
-            <span>Ещё</span>
+            <span>{t("nav.more")}</span>
             {moreBadge > 0 && <span className="absolute right-[28%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />}
           </button>
         )}
@@ -472,7 +484,9 @@ function ScrollNav() {
 
   return (
     <div
-      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:right-6"
+      // Слева, а не справа — справа снизу иногда всплывает панель подтверждения выбора
+      // (flex-selection.tsx), и обе плавающие кнопки садились в один угол одна на другую.
+      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:left-6"
       role="navigation"
       aria-label="Быстрая навигация по странице"
     >

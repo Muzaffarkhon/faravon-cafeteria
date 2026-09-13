@@ -20,7 +20,7 @@ function revalidateAll(threadId: string) {
   revalidatePath(`/admin/support/${threadId}`);
 }
 
-/** Ответить гостю: уходит в Telegram и сохраняется в переписке. */
+/** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. */
 export async function replyToThread(threadId: string, body: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
@@ -32,15 +32,21 @@ export async function replyToThread(threadId: string, body: string): Promise<Act
     const thread = await db.supportThread.findUnique({ where: { id: threadId } });
     if (!thread) throw new Error("Диалог не найден.");
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) throw new Error("TELEGRAM_BOT_TOKEN не задан — отправка недоступна.");
+    if (thread.source === "TELEGRAM") {
+      if (!thread.telegramId) throw new Error("У диалога нет Telegram-чата.");
+      const token = process.env.TELEGRAM_BOT_TOKEN;
+      if (!token) throw new Error("TELEGRAM_BOT_TOKEN не задан — отправка недоступна.");
 
-    // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
-    // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
-    const ok = await sendTelegram(token, thread.telegramId, escHtml(text), {
-      reply_markup: await getFaqKeyboard(),
-    });
-    if (!ok) throw new Error("Не удалось отправить сообщение в Telegram.");
+      // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
+      // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
+      const ok = await sendTelegram(token, thread.telegramId, escHtml(text), {
+        reply_markup: await getFaqKeyboard(),
+      });
+      if (!ok) throw new Error("Не удалось отправить сообщение в Telegram.");
+    }
+    // WEB — сообщение остаётся только на сайте, сотрудник увидит его в своей
+    // «Обратной связи»; Telegram-пуш на каждую реплику намеренно не шлём (см.
+    // support-chat-feature.md — тот же принцип, что и для Telegram-гостей).
 
     await db.$transaction([
       db.supportMessage.create({
@@ -169,13 +175,15 @@ export async function linkEmployeeToThread(
 
   const thread = await db.supportThread.findUnique({ where: { id: threadId } });
   if (!thread) return { error: "Диалог не найден." };
+  if (!thread.telegramId) return { error: "У этого диалога нет Telegram-чата для привязки." };
+  const threadTelegramId = thread.telegramId;
 
   const employee = await db.employee.findUnique({ where: { id: employeeId }, include: { user: true } });
   if (!employee || employee.archivedAt) return { error: "Сотрудник не найден." };
   if (!employee.isActive || employee.status === "TERMINATED") {
     return { error: "Учётная запись сотрудника неактивна." };
   }
-  if (employee.telegramId && employee.telegramId !== thread.telegramId) {
+  if (employee.telegramId && employee.telegramId !== threadTelegramId) {
     return { error: "Этот сотрудник уже привязан к другому Telegram-аккаунту." };
   }
 
@@ -188,7 +196,7 @@ export async function linkEmployeeToThread(
   await db.employee.update({
     where: { id: employeeId },
     data: {
-      telegramId: thread.telegramId,
+      telegramId: threadTelegramId,
       ...(phone && norm ? { phone, phoneNormalized: norm } : {}),
     },
   });
@@ -224,10 +232,10 @@ export async function linkEmployeeToThread(
   // (linkByPhone/linkByCode) — иначе гость получает от одного и того же
   // бота два визуально разных сообщения с логином/паролем. В историю чата
   // (админ видит как обычный текст, без HTML) — та же формулировка без тегов.
-  const html = grantMessage(user.login, otp, employee.fullName);
+  const html = grantMessage(user.login, otp, employee.fullName, false);
   const plain = html.replace(/<\/?code>/g, "");
 
-  const sent = await sendTelegram(token, thread.telegramId, html, { reply_markup: await getFaqKeyboard() });
+  const sent = await sendTelegram(token, threadTelegramId, html, { reply_markup: await getFaqKeyboard() });
   if (!sent) return { error: "Не удалось отправить сообщение в Telegram." };
 
   await db.$transaction([

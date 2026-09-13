@@ -2,8 +2,10 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
 import { buttonClass } from "@/components/ui";
+import { getTranslator } from "@/lib/i18n";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslator();
   return (
     <main className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4">
       <PetalDrift />
@@ -12,12 +14,12 @@ export default function NotFound() {
           <BrandMark size={32} />
         </span>
         <div className="mt-4 font-display text-3xl font-bold text-primary">404</div>
-        <h1 className="mt-1 text-lg font-bold text-ink">Страница не найдена</h1>
+        <h1 className="mt-1 text-lg font-bold text-ink">{t("misc.notFoundTitle")}</h1>
         <p className="mt-2 text-sm leading-6 text-ink-muted">
-          Похоже, этой страницы не существует или у вас нет к ней доступа.
+          {t("misc.notFoundText")}
         </p>
         <Link href="/" className={buttonClass({ fullWidth: true, className: "mt-6" })}>
-          На главную
+          {t("misc.toHome")}
         </Link>
       </div>
     </main>

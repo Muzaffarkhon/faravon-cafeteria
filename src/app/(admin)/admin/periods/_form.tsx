@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { Button, Field, Input, buttonClass } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import type { PeriodFormState } from "./actions";
 
 export type PeriodValues = {
@@ -23,49 +25,50 @@ export function PeriodForm({
   action,
   initial,
   submitLabel,
+  locale,
 }: {
   action: (s: PeriodFormState, fd: FormData) => Promise<PeriodFormState>;
   initial?: Partial<PeriodValues>;
   submitLabel: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
-      <Field label="Название" htmlFor="name" required>
+      <Field label={t("periods.form.name")} htmlFor="name" required>
         <Input
           id="name"
           name="name"
           defaultValue={initial?.name ?? ""}
-          placeholder="Например: Сентябрь 2026"
+          placeholder={t("periods.form.namePlaceholder")}
           required
         />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Начало периода" htmlFor="startDate" required>
+        <Field label={t("periods.form.startDate")} htmlFor="startDate" required>
           <Input id="startDate" type="date" name="startDate" defaultValue={d(initial?.startDate)} required />
         </Field>
-        <Field label="Конец периода" htmlFor="endDate" required>
+        <Field label={t("periods.form.endDate")} htmlFor="endDate" required>
           <Input id="endDate" type="date" name="endDate" defaultValue={d(initial?.endDate)} required />
         </Field>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Окно выбора: с" htmlFor="windowStart" required>
+        <Field label={t("periods.form.windowStart")} htmlFor="windowStart" required>
           <Input id="windowStart" type="date" name="windowStart" defaultValue={d(initial?.windowStart)} required />
         </Field>
-        <Field label="Окно выбора: по" htmlFor="windowEnd" required>
+        <Field label={t("periods.form.windowEnd")} htmlFor="windowEnd" required>
           <Input id="windowEnd" type="date" name="windowEnd" defaultValue={d(initial?.windowEnd)} required />
         </Field>
       </div>
       <p className="-mt-1 text-sm leading-6 text-ink-muted">
-        Окно выбора обычно открывается в предыдущем месяце (до начала периода). Если сотрудник
-        выберет льготу уже после старта периода, выбор автоматически перенесётся на следующий
-        месяц.
+        {t("periods.form.windowHint")}
       </p>
 
-      <Field label="Лимит выбора льгот" htmlFor="maxSelections">
+      <Field label={t("periods.form.maxSelections")} htmlFor="maxSelections">
         <Input
           id="maxSelections"
           type="number"
@@ -87,7 +90,7 @@ export function PeriodForm({
           {submitLabel}
         </Button>
         <Link href="/admin/periods" className={buttonClass({ variant: "secondary" })}>
-          Отмена
+          {t("periods.form.cancel")}
         </Link>
       </div>
     </form>

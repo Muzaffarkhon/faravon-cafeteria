@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { createPeriod } from "../actions";
 import { PeriodForm } from "../_form";
 
@@ -8,14 +9,16 @@ export default async function NewPeriodPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "periods.manage")) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   return (
     <div className="space-y-5">
-      <h1 className="font-display text-2xl font-bold text-ink">Новый период</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("periods.newTitle")}</h1>
       <p className="text-sm text-ink-muted">
-        Период создаётся в статусе «Черновик». Откройте его на странице списка, когда всё готово.
+        {t("periods.newHint")}
       </p>
-      <PeriodForm action={createPeriod} submitLabel="Создать" />
+      <PeriodForm action={createPeriod} submitLabel={t("periods.create")} locale={locale} />
     </div>
   );
 }

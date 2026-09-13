@@ -3,15 +3,20 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { issueCode, unlinkTelegram } from "./actions";
 
 export function AccessRowActions({
   employeeId,
   linked,
+  locale,
 }: {
   employeeId: string;
   linked: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +29,7 @@ export function AccessRowActions({
         const r = await unlinkTelegram(employeeId);
         if (r?.error) setError(r.error);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+        setError(e instanceof Error ? e.message : t("access.error"));
       } finally {
         setConfirming(false);
       }
@@ -36,7 +41,7 @@ export function AccessRowActions({
       <div className="flex items-center gap-2">
         {code ? (
           <span className="rounded-md bg-success-soft px-2.5 py-1 font-mono text-xs text-success-strong">
-            Код: {code}
+            {t("access.codeLabel")} {code}
           </span>
         ) : (
           <Button
@@ -52,12 +57,12 @@ export function AccessRowActions({
               });
             }}
           >
-            Выдать код
+            {t("access.issueCode")}
           </Button>
         )}
         {linked && (
           <Button variant="danger" size="sm" disabled={pending} onClick={() => setConfirming(true)}>
-            Сбросить Telegram
+            {t("access.resetTelegram")}
           </Button>
         )}
       </div>
@@ -68,9 +73,9 @@ export function AccessRowActions({
       )}
       <ConfirmDialog
         open={confirming}
-        title="Сбросить Telegram?"
-        message="Привязка Telegram у сотрудника будет сброшена — потребуется код для повторной идентификации."
-        confirmLabel="Сбросить"
+        title={t("access.resetConfirmTitle")}
+        message={t("access.resetConfirmMessage")}
+        confirmLabel={t("access.reset2")}
         tone="danger"
         busy={pending}
         onConfirm={doUnlink}

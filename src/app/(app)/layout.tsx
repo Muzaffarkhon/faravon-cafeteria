@@ -12,6 +12,7 @@ import { SupportAlert } from "./_support-alert";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getAdminNav } from "./_admin-nav";
+import { getLocale } from "@/lib/i18n";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -44,10 +45,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session.employee) {
     const { groups, hasAdminAccess } = await getAdminNav(session);
     if (hasAdminAccess) {
+      const locale = await getLocale();
       return (
         <>
           {canManageSupport && <SupportAlert />}
-          <AdminShell groups={groups} roleLabel={roleLabel} displayName={displayName}>
+          <AdminShell groups={groups} roleLabel={roleLabel} displayName={displayName} locale={locale}>
             {children}
           </AdminShell>
         </>
@@ -83,12 +85,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
+  const locale = await getLocale();
   const allGroups = buildNavGroups({
     roles,
     hasEmployee: !!session.employee,
     partnerId,
     isTaxiContractor,
     badges,
+    locale,
   });
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
   // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».
@@ -106,6 +110,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         displayName={displayName}
         selectionStat={selectionStat}
         adminHref={hasAdminAccess ? "/admin" : undefined}
+        locale={locale}
         backdrop={
           <>
             <PetalDrift fixed />

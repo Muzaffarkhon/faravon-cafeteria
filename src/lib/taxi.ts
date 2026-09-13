@@ -23,6 +23,8 @@ export type TaxiRecipient = {
   card: string;
   period: string;
   approvedAt: Date | null;
+  /** Статус последней рассылки промокода этому сотруднику (если была). */
+  promoStatus: "NONE" | "DELIVERED" | "BLOCKED" | "PENDING";
 };
 
 /** Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах. */
@@ -45,9 +47,41 @@ export async function taxiRecipientsForPartner(partnerId: string): Promise<TaxiR
     orderBy: { decidedAt: "desc" },
   });
 
+  // Последняя рассылка промокода на сотрудника — промокод активируется один раз
+  // за период, поэтому важен статус самой свежей попытки, а не всей истории.
+  const employeeIds = [...new Set(items.map((i) => i.application.employee.id))];
+  const users = employeeIds.length
+    ? await db.user.findMany({
+        where: { employeeId: { in: employeeIds } },
+        select: { employeeId: true, id: true },
+      })
+    : [];
+  const userIdByEmployee = new Map(users.map((u) => [u.employeeId, u.id]));
+  const userIds = users.map((u) => u.id);
+  const notifications = userIds.length
+    ? await db.notification.findMany({
+        where: { userId: { in: userIds }, event: "TAXI_PROMO_CODE" },
+        orderBy: { sentAt: "desc" },
+        select: { userId: true, deliveredAt: true, blockedAt: true },
+      })
+    : [];
+  const latestByUser = new Map<string, (typeof notifications)[number]>();
+  for (const n of notifications) {
+    if (!latestByUser.has(n.userId)) latestByUser.set(n.userId, n);
+  }
+
   return items.map((i) => {
     const custom = (i.contactPhone ?? "").trim();
     const profile = (i.application.employee.phone ?? "").trim();
+    const userId = userIdByEmployee.get(i.application.employee.id);
+    const latest = userId ? latestByUser.get(userId) : undefined;
+    const promoStatus: TaxiRecipient["promoStatus"] = !latest
+      ? "NONE"
+      : latest.blockedAt
+        ? "BLOCKED"
+        : latest.deliveredAt
+          ? "DELIVERED"
+          : "PENDING";
     return {
       itemId: i.id,
       employeeId: i.application.employee.id,
@@ -58,6 +92,7 @@ export async function taxiRecipientsForPartner(partnerId: string): Promise<TaxiR
       card: i.card.title,
       period: i.application.period.name,
       approvedAt: i.decidedAt,
+      promoStatus,
     };
   });
 }

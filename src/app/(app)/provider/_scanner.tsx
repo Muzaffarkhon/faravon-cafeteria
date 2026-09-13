@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
 import { Button } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 type Props = {
   onScan: (text: string) => void;
@@ -10,6 +12,7 @@ type Props = {
   autoStart?: boolean;
   /** Скан недоступен (десктоп) или камера не запустилась — родитель показывает ручной ввод. */
   onFallback?: () => void;
+  locale: Locale;
 };
 
 interface TgScan {
@@ -20,7 +23,8 @@ interface TgScan {
   closeScanQrPopup?: () => void;
 }
 
-export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) {
+export function CouponScanner({ onScan, autoStart = false, onFallback, locale }: Props) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Кнопку показываем, если есть либо нативный сканер Telegram, либо getUserMedia
@@ -73,7 +77,7 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
     const tg = (window as unknown as { Telegram?: { WebApp?: TgScan } }).Telegram?.WebApp;
     if (tg?.showScanQrPopup) {
       try {
-        tg.showScanQrPopup({ text: "Наведите камеру на QR купона" }, (text) => {
+        tg.showScanQrPopup({ text: t("provider.cameraPromptTg") }, (text) => {
           tg.closeScanQrPopup?.();
           if (text) onScan(text);
           return true;
@@ -88,8 +92,8 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
     if (!navigator.mediaDevices?.getUserMedia) {
       setError(
         window.isSecureContext
-          ? "Камера недоступна в этом браузере. Введите номер вручную."
-          : "Камера работает только по https. Откройте сайт по https или введите номер вручную.",
+          ? t("provider.cameraUnavailable")
+          : t("provider.cameraHttpsOnly"),
       );
       onFallback?.();
       return;
@@ -106,7 +110,7 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
       const video = videoRef.current;
       if (!video) {
         stop();
-        setError("Не удалось включить камеру. Введите номер вручную.");
+        setError(t("provider.cameraStartFailed"));
         return;
       }
       video.srcObject = stream;
@@ -118,12 +122,12 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
       const name = e instanceof DOMException ? e.name : "";
       setError(
         name === "NotAllowedError" || name === "SecurityError"
-          ? "Доступ к камере отклонён. Разрешите камеру в настройках браузера или введите номер вручную."
+          ? t("provider.cameraDenied")
           : name === "NotFoundError" || name === "OverconstrainedError"
-            ? "Камера не найдена на устройстве. Введите номер вручную."
+            ? t("provider.cameraNotFound")
             : name === "NotReadableError"
-              ? "Камера занята другим приложением. Закройте его и попробуйте снова."
-              : "Не удалось включить камеру. Введите номер вручную.",
+              ? t("provider.cameraBusy")
+              : t("provider.cameraStartFailed"),
       );
       stop();
       onFallback?.();
@@ -161,14 +165,14 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
     <div>
       <div className="mb-3 flex items-center gap-3">
         <span className="h-px flex-1 bg-line" />
-        <span className="text-xs text-ink-subtle">или</span>
+        <span className="text-xs text-ink-subtle">{t("provider.or")}</span>
         <span className="h-px flex-1 bg-line" />
       </div>
       <Button type="button" variant="secondary" onClick={start} hidden={active}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10" />
         </svg>
-        Сканировать QR
+        {t("provider.scanQr")}
       </Button>
 
       {/* Видео монтируется всегда: иначе videoRef.current === null в момент start(). */}
@@ -178,7 +182,7 @@ export function CouponScanner({ onScan, autoStart = false, onFallback }: Props) 
           <div className="pointer-events-none absolute inset-0 m-auto h-40 w-40 rounded-lg border-2 border-white/80" />
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={stop}>
-          Остановить камеру
+          {t("provider.stopCamera")}
         </Button>
       </div>
       {error && (

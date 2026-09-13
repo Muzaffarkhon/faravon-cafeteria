@@ -7,7 +7,8 @@ import { SectionTitle } from "@/components/ui";
 import { ChangePasswordForm } from "./_form";
 import { ContactEditor, TelegramLink, ServiceTelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
-import { ThemeToggle } from "./_theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getLocale, getTranslator } from "@/lib/i18n";
 
 const shortUa = (ua: string | null) => {
   if (!ua) return "—";
@@ -21,6 +22,8 @@ export default async function ProfilePage() {
   if (!session) redirect("/login");
 
   const { user, employee } = session;
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const recentLogins = await db.loginAttempt.findMany({
     where: { login: user.login, success: true },
@@ -31,23 +34,23 @@ export default async function ProfilePage() {
   const rows: { k: string; v: ReactNode }[] = [];
   if (employee) {
     rows.push(
-      { k: "ФИО", v: employee.fullName },
-      { k: "Должность", v: employee.position },
-      { k: "Подразделение", v: employee.department },
+      { k: t("profile.fullName"), v: employee.fullName },
+      { k: t("profile.position"), v: employee.position },
+      { k: t("profile.department"), v: employee.department },
     );
   }
   rows.push(
-    { k: "Логин", v: <span className="font-mono">{user.login}</span> },
-    { k: "Роли", v: session.roles.map((r) => ROLE_LABELS[r]).join(", ") },
+    { k: t("profile.login"), v: <span className="font-mono">{user.login}</span> },
+    { k: t("profile.roles"), v: session.roles.map((r) => ROLE_LABELS[r]).join(", ") },
   );
   if (user.lastLoginAt) {
-    rows.push({ k: "Последний вход", v: <span data-numeric>{user.lastLoginAt.toLocaleString("ru-RU")}</span> });
+    rows.push({ k: t("profile.lastLogin"), v: <span data-numeric>{user.lastLoginAt.toLocaleString("ru-RU")}</span> });
   }
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">Профиль</h1>
+        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">{t("profile.title")}</h1>
       </header>
 
       <div className="rounded-[18px] bg-surface p-6 shadow-sm">
@@ -62,40 +65,40 @@ export default async function ProfilePage() {
       </div>
 
       <div className="rounded-[18px] bg-surface p-6 shadow-sm">
-        <SectionTitle className="text-lg">Оформление</SectionTitle>
+        <SectionTitle className="text-lg">{t("profile.appearance")}</SectionTitle>
         <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-          Тема интерфейса. «Системная» следует настройке устройства.
+          {t("profile.appearanceHint")}
         </p>
         <ThemeToggle />
       </div>
 
       <div className="rounded-[18px] bg-surface p-6 shadow-sm">
-        <SectionTitle className="text-lg">Контакты и Telegram</SectionTitle>
+        <SectionTitle className="text-lg">{t("profile.contactsTitle")}</SectionTitle>
         <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-          Привязка к Telegram-боту нужна для входа и уведомлений.
+          {t("profile.contactsHint")}
         </p>
         {employee ? (
           <>
-            <ContactEditor phone={employee.phone} />
+            <ContactEditor phone={employee.phone} locale={locale} />
             <div className="mt-5 border-t border-line-subtle pt-4">
-              <TelegramLink linked={!!employee.telegramId} />
+              <TelegramLink linked={!!employee.telegramId} locale={locale} />
             </div>
           </>
         ) : (
-          <ServiceTelegramLink linked={!!user.telegramId} />
+          <ServiceTelegramLink linked={!!user.telegramId} locale={locale} />
         )}
       </div>
 
       <div className="rounded-[18px] bg-surface p-6 shadow-sm">
-        <SectionTitle className="text-lg">Смена пароля</SectionTitle>
+        <SectionTitle className="text-lg">{t("profile.passwordTitle")}</SectionTitle>
         <p className="mt-1 max-w-prose text-sm leading-6 text-ink-muted">
-          Укажите текущий пароль. После смены вход на других устройствах завершается.
+          {t("profile.passwordHint")}
         </p>
-        <ChangePasswordForm />
+        <ChangePasswordForm locale={locale} />
       </div>
 
       <div className="space-y-3 rounded-[18px] bg-surface p-5 shadow-sm">
-        <SectionTitle>Сессии и недавние входы</SectionTitle>
+        <SectionTitle>{t("profile.sessionsTitle")}</SectionTitle>
         {recentLogins.length > 0 ? (
           <ul className="divide-y divide-line-subtle text-sm">
             {recentLogins.map((a) => (
@@ -108,9 +111,9 @@ export default async function ProfilePage() {
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-ink-muted">Записей о входах пока нет.</p>
+          <p className="text-xs text-ink-muted">{t("profile.noLogins")}</p>
         )}
-        <RevokeSessionsButton />
+        <RevokeSessionsButton locale={locale} />
       </div>
     </div>
   );

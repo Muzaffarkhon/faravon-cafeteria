@@ -5,6 +5,8 @@ import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
 import { Badge, Button, Field, Input, RowId } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { RolePicker } from "./_form";
 import { RowContextMenu } from "./_row-menu";
 import {
@@ -22,22 +24,32 @@ import { ALL_ROLES } from "./roles";
 
 type PartnerOption = { id: string; name: string };
 
-function OtpBanner({ otp, login }: { otp: string; login?: string }) {
+/** Ловит непойманные исключения серверных экшенов — иначе кнопка молча ничего не делает. */
+async function safeRun(p: Promise<AccountResult>, errorMsg: string): Promise<AccountResult> {
+  try {
+    return await p;
+  } catch {
+    return { error: errorMsg };
+  }
+}
+
+function OtpBanner({ otp, login, locale }: { otp: string; login?: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   return (
     <div className="rounded-md border border-line bg-surface px-4 py-3 text-sm">
       <p className="text-ink-muted">
         {login ? (
           <>
-            Учётная запись <b className="text-ink">{login}</b> создана. Одноразовый пароль
+            {t("users.acc.createdPrefix")} <b className="text-ink">{login}</b> {t("users.acc.createdSuffix")}
           </>
         ) : (
-          <>Одноразовый пароль</>
+          <>{t("users.acc.otpOnly")}</>
         )}{" "}
-        (действует 24&nbsp;ч, показывается один раз):
+        {t("users.acc.otpValidHint")}
       </p>
       <p className="mt-1 font-mono text-lg font-semibold text-primary-strong">{otp}</p>
       <p className="mt-1 text-xs text-ink-muted">
-        При первом входе система потребует сменить пароль.
+        {t("users.acc.mustChangeHint")}
       </p>
     </div>
   );
@@ -48,6 +60,7 @@ function OtpBanner({ otp, login }: { otp: string; login?: string }) {
 export function AccountPanel({
   employeeId,
   user,
+  locale,
 }: {
   employeeId: string;
   user: {
@@ -58,7 +71,9 @@ export function AccountPanel({
     mustChangePassword: boolean;
     lastLoginAt: string | null;
   } | null;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
 
@@ -67,25 +82,25 @@ export function AccountPanel({
       <form
         action={(fd) => {
           setMsg(null);
-          start(async () => setMsg(await createAccountForEmployee(employeeId, fd)));
+          start(async () => setMsg(await safeRun(createAccountForEmployee(employeeId, fd), t("users.acc.actionFailed"))));
         }}
         className="max-w-md space-y-4"
       >
         <p className="text-sm text-ink-muted">
-          У сотрудника ещё нет учётной записи для входа на платформу.
+          {t("users.acc.noAccountHint")}
         </p>
-        <Field label="Логин" htmlFor="acc-login" hint="Латиница, цифры, «.», «-», «_».">
+        <Field label={t("users.acc.loginLabel")} htmlFor="acc-login" hint={t("users.acc.loginHint")}>
           <Input id="acc-login" name="login" autoCapitalize="none" spellCheck={false} required />
         </Field>
-        <RolePicker defaultRoles={["EMPLOYEE"]} />
+        <RolePicker defaultRoles={["EMPLOYEE"]} locale={locale} />
         {msg?.error && (
           <p className="text-sm font-medium text-danger" role="alert">
             {msg.error}
           </p>
         )}
-        {msg?.otp && <OtpBanner otp={msg.otp} />}
+        {msg?.otp && <OtpBanner otp={msg.otp} locale={locale} />}
         <Button type="submit" loading={pending}>
-          {pending ? "Создание…" : "Создать учётную запись"}
+          {pending ? t("users.acc.creating") : t("users.acc.createAccount")}
         </Button>
       </form>
     );
@@ -94,26 +109,26 @@ export function AccountPanel({
   return (
     <div className="space-y-5">
       <dl className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-[160px_1fr]">
-        <dt className="text-ink-muted">Логин</dt>
+        <dt className="text-ink-muted">{t("users.acc.loginLabel")}</dt>
         <dd className="font-medium text-ink">{user.login}</dd>
-        <dt className="text-ink-muted">Статус входа</dt>
+        <dt className="text-ink-muted">{t("users.acc.loginStatus")}</dt>
         <dd>
           {user.isActive ? (
-            <Badge tone="success">активна</Badge>
+            <Badge tone="success">{t("users.acc.active")}</Badge>
           ) : (
-            <Badge tone="muted">отключена</Badge>
+            <Badge tone="muted">{t("users.acc.disabled")}</Badge>
           )}
           {user.mustChangePassword && (
-            <span className="ml-2 text-xs text-warning-strong">ожидает смены пароля</span>
+            <span className="ml-2 text-xs text-warning-strong">{t("users.acc.awaitingPasswordChange")}</span>
           )}
         </dd>
-        <dt className="text-ink-muted">Последний вход</dt>
+        <dt className="text-ink-muted">{t("users.acc.lastLogin")}</dt>
         <dd className="text-ink-muted">
-          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU") : "не входил"}
+          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU") : t("users.acc.neverLoggedIn")}
         </dd>
       </dl>
 
-      <RoleEditor userId={user.id} roles={user.roles} />
+      <RoleEditor userId={user.id} roles={user.roles} locale={locale} />
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line-subtle pt-4">
         <Button
@@ -122,10 +137,10 @@ export function AccountPanel({
           disabled={pending}
           onClick={() => {
             setMsg(null);
-            start(async () => setMsg(await issuePassword(user.id)));
+            start(async () => setMsg(await safeRun(issuePassword(user.id), t("users.acc.actionFailed"))));
           }}
         >
-          Выдать одноразовый пароль
+          {t("users.acc.issuePassword")}
         </Button>
         <Button
           variant={user.isActive ? "danger" : "success"}
@@ -133,10 +148,10 @@ export function AccountPanel({
           disabled={pending}
           onClick={() => {
             setMsg(null);
-            start(async () => setMsg(await setAccountActive(user.id, !user.isActive)));
+            start(async () => setMsg(await safeRun(setAccountActive(user.id, !user.isActive), t("users.acc.actionFailed"))));
           }}
         >
-          {user.isActive ? "Отключить вход" : "Включить вход"}
+          {user.isActive ? t("users.acc.disableLogin") : t("users.acc.enableLogin")}
         </Button>
       </div>
 
@@ -145,12 +160,13 @@ export function AccountPanel({
           {msg.error}
         </p>
       )}
-      {msg?.otp && <OtpBanner otp={msg.otp} />}
+      {msg?.otp && <OtpBanner otp={msg.otp} locale={locale} />}
     </div>
   );
 }
 
-function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
+function RoleEditor({ userId, roles, locale }: { userId: string; roles: Role[]; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Role[]>(roles);
   const [saved, setSaved] = useState(false);
@@ -176,7 +192,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-ink">Роли</p>
+      <p className="text-sm font-medium text-ink">{t("users.acc.roles")}</p>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {ALL_ROLES.map((r) => (
           <label key={r} className="flex items-center gap-2 text-sm text-ink cursor-pointer">
@@ -192,7 +208,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
       </div>
 
       <div className="rounded-md border border-line-subtle bg-surface-muted/40 px-3 py-2">
-        <p className="text-xs font-medium text-ink-muted">Доступ с выбранными ролями</p>
+        <p className="text-xs font-medium text-ink-muted">{t("users.acc.accessWithRoles")}</p>
         {grants.length ? (
           <ul className="mt-1 flex flex-wrap gap-1">
             {grants.map((p) => (
@@ -206,7 +222,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
           </ul>
         ) : (
           <p className="mt-1 text-xs text-ink-subtle">
-            Ролей не выбрано — доступа к разделам нет.
+            {t("users.acc.noRolesSelected")}
           </p>
         )}
       </div>
@@ -217,7 +233,7 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
           disabled={!dirty || pending}
           onClick={() =>
             start(async () => {
-              const r = await setUserRoles(userId, sel);
+              const r = await safeRun(setUserRoles(userId, sel), t("users.acc.actionFailed"));
               if (r.error) setErr(r.error);
               else {
                 setErr(null);
@@ -226,9 +242,9 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
             })
           }
         >
-          Сохранить роли
+          {t("users.acc.saveRoles")}
         </Button>
-        {saved && <span className="text-xs font-medium text-success-strong">Роли обновлены.</span>}
+        {saved && <span className="text-xs font-medium text-success-strong">{t("users.acc.rolesUpdated")}</span>}
         {err && (
           <span className="text-xs font-medium text-danger" role="alert">
             {err}
@@ -244,10 +260,13 @@ function RoleEditor({ userId, roles }: { userId: string; roles: Role[] }) {
 export function EmployeeActiveToggle({
   employeeId,
   isActive,
+  locale,
 }: {
   employeeId: string;
   isActive: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -255,7 +274,7 @@ export function EmployeeActiveToggle({
   function toggle() {
     setErr(null);
     start(async () => {
-      const r = await setEmployeeActive(employeeId, !isActive);
+      const r = await safeRun(setEmployeeActive(employeeId, !isActive), t("users.acc.actionFailed"));
       if (r.error) setErr(r.error);
       setConfirming(false);
     });
@@ -269,13 +288,13 @@ export function EmployeeActiveToggle({
         disabled={pending}
         onClick={() => (isActive ? setConfirming(true) : toggle())}
       >
-        {isActive ? "Деактивировать сотрудника" : "Вернуть в активные"}
+        {isActive ? t("users.acc.deactivateEmployee") : t("users.acc.returnActive")}
       </Button>
       <ConfirmDialog
         open={confirming}
-        title="Деактивировать сотрудника?"
-        message="Вход в его учётную запись будет закрыт немедленно."
-        confirmLabel="Деактивировать"
+        title={t("users.acc.deactivateConfirmTitle")}
+        message={t("users.acc.deactivateConfirmMessage")}
+        confirmLabel={t("users.acc.deactivate")}
         tone="danger"
         busy={pending}
         onConfirm={toggle}
@@ -295,6 +314,7 @@ export function EmployeeActiveToggle({
 export function ServiceAccountRow({
   user,
   partners,
+  locale,
 }: {
   user: {
     id: string;
@@ -307,7 +327,9 @@ export function ServiceAccountRow({
     telegramId: string | null;
   };
   partners: PartnerOption[];
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
   const [tg, setTg] = useState(user.telegramId ?? "");
@@ -320,7 +342,7 @@ export function ServiceAccountRow({
           <RowId id={user.id} seq={user.seq} />
         </td>
         <td>
-          <Badge tone="neutral">Служебная</Badge>
+          <Badge tone="neutral">{t("users.acc.serviceAccount")}</Badge>
         </td>
         <td>
           <span className="font-medium text-ink">{user.login}</span>
@@ -328,6 +350,7 @@ export function ServiceAccountRow({
             ({user.roles.map((r) => ROLE_LABELS[r]).join(", ")})
           </span>
         </td>
+        <td className="text-ink-muted">—</td>
         <td className="text-ink-muted">—</td>
         <td className="text-ink-muted">
           {isContractor ? (
@@ -337,11 +360,11 @@ export function ServiceAccountRow({
               onChange={(e) => {
                 setMsg(null);
                 const v = e.target.value || null;
-                start(async () => setMsg(await setServicePartner(user.id, v)));
+                start(async () => setMsg(await safeRun(setServicePartner(user.id, v), t("users.acc.actionFailed"))));
               }}
               className="rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none"
             >
-              <option value="">Все партнёры</option>
+              <option value="">{t("users.acc.allPartners")}</option>
               {partners.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -354,20 +377,21 @@ export function ServiceAccountRow({
         </td>
         <td>
           {user.isActive ? (
-            <Badge tone="success">активна</Badge>
+            <Badge tone="success">{t("users.acc.active")}</Badge>
           ) : (
-            <Badge tone="muted">отключена</Badge>
+            <Badge tone="muted">{t("users.acc.disabled")}</Badge>
           )}
         </td>
+        <td className="text-ink-muted">—</td>
         <td>
           <div className="flex items-center justify-end gap-2">
             <input
               value={tg}
               onChange={(e) => setTg(e.target.value)}
-              placeholder="Telegram ID"
+              placeholder={t("users.acc.telegramIdPlaceholder")}
               inputMode="numeric"
               className="w-28 rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none"
-              title="Telegram ID для уведомлений (узнать: /id в боте)"
+              title={t("users.acc.telegramIdHint")}
             />
             <Button
               variant="secondary"
@@ -375,7 +399,7 @@ export function ServiceAccountRow({
               disabled={pending || tg === (user.telegramId ?? "")}
               onClick={() => {
                 setMsg(null);
-                start(async () => setMsg(await setUserTelegramId(user.id, tg)));
+                start(async () => setMsg(await safeRun(setUserTelegramId(user.id, tg), t("users.acc.actionFailed"))));
               }}
             >
               TG
@@ -386,10 +410,10 @@ export function ServiceAccountRow({
               disabled={pending}
               onClick={() => {
                 setMsg(null);
-                start(async () => setMsg(await issuePassword(user.id)));
+                start(async () => setMsg(await safeRun(issuePassword(user.id), t("users.acc.actionFailed"))));
               }}
             >
-              Пароль
+              {t("users.acc.password")}
             </Button>
             <Button
               variant={user.isActive ? "danger" : "success"}
@@ -397,24 +421,24 @@ export function ServiceAccountRow({
               disabled={pending}
               onClick={() => {
                 setMsg(null);
-                start(async () => setMsg(await setAccountActive(user.id, !user.isActive)));
+                start(async () => setMsg(await safeRun(setAccountActive(user.id, !user.isActive), t("users.acc.actionFailed"))));
               }}
             >
-              {user.isActive ? "Отключить" : "Включить"}
+              {user.isActive ? t("users.acc.disable") : t("users.acc.enable")}
             </Button>
-            <RowContextMenu kind="service" id={user.id} name={user.login} />
+            <RowContextMenu kind="service" id={user.id} name={user.login} locale={locale} />
           </div>
         </td>
       </tr>
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={7} className="px-4 pb-3">
+          <td colSpan={9} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}
               </span>
             ) : (
-              <OtpBanner otp={msg.otp!} login={user.login} />
+              <OtpBanner otp={msg.otp!} login={user.login} locale={locale} />
             )}
           </td>
         </tr>
@@ -426,11 +450,14 @@ export function ServiceAccountRow({
 export function NewServiceAccount({
   partners,
   embedded = false,
+  locale,
 }: {
   partners: PartnerOption[];
   /** true — форма раскрыта сразу, без кнопки-открывашки и «Закрыть» (для единого шага создания). */
   embedded?: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(embedded);
   const [state, formAction, pending] = useActionState<AccountResult, FormData>(
     createServiceAccount,
@@ -440,7 +467,7 @@ export function NewServiceAccount({
   if (!open) {
     return (
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        Добавить служебную учётную запись
+        {t("users.acc.addServiceAccount")}
       </Button>
     );
   }
@@ -456,20 +483,20 @@ export function NewServiceAccount({
     >
       {!embedded && (
         <>
-          <p className="text-sm font-medium text-ink">Служебная учётная запись</p>
+          <p className="text-sm font-medium text-ink">{t("users.acc.serviceAccountTitle")}</p>
           <p className="text-xs text-ink-muted">
-            Для C&B, подрядчиков и других ролей без карточки сотрудника.
+            {t("users.acc.serviceAccountHint")}
           </p>
         </>
       )}
-      <Field label="Логин" htmlFor="svc-login">
+      <Field label={t("users.acc.loginLabel")} htmlFor="svc-login">
         <Input id="svc-login" name="login" autoCapitalize="none" spellCheck={false} required />
       </Field>
-      <RolePicker defaultRoles={["C_AND_B"]} />
+      <RolePicker defaultRoles={["C_AND_B"]} locale={locale} />
       <Field
-        label="Партнёр"
+        label={t("users.acc.partnerLabel")}
         htmlFor="svc-partner"
-        hint="Только для роли «Подрядчик»: учётка будет активировать купоны лишь этого партнёра. «Все партнёры» — без ограничения."
+        hint={t("users.acc.partnerHint")}
       >
         <select
           id="svc-partner"
@@ -477,7 +504,7 @@ export function NewServiceAccount({
           defaultValue=""
           className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none"
         >
-          <option value="">Все партнёры</option>
+          <option value="">{t("users.acc.allPartners")}</option>
           {partners.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -490,14 +517,14 @@ export function NewServiceAccount({
           {state.error}
         </p>
       )}
-      {state.otp && <OtpBanner otp={state.otp} />}
+      {state.otp && <OtpBanner otp={state.otp} locale={locale} />}
       <div className="flex gap-3">
         <Button type="submit" loading={pending}>
-          {pending ? "Создание…" : "Создать"}
+          {pending ? t("users.acc.creating") : t("users.acc.create")}
         </Button>
         {!embedded && (
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-            Закрыть
+            {t("users.acc.close")}
           </Button>
         )}
       </div>

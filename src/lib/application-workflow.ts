@@ -1,15 +1,21 @@
 import type { ItemStatus } from "@prisma/client";
+import { translate, type TKey } from "./i18n/dict";
+import type { Locale } from "./i18n/shared";
 
 /** Диаграмма статусов позиции заявки, ТЗ v2 §5.7 / Приложение Б. */
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   DRAFT: "Черновик",
   PENDING: "На рассмотрении",
-  APPROVED: "Одобрено согласующим",
+  APPROVED: "Одобрено C&B",
   COUPON_CREATED: "Купон сформирован",
   COUPON_ISSUED: "Купон выдан",
   REJECTED: "Отклонено",
   CANCELLED: "Отменено сотрудником",
 };
+
+export function itemStatusLabel(locale: Locale, status: ItemStatus): string {
+  return translate(locale, `status.item.${status}` as TKey);
+}
 
 type Actor = "EMPLOYEE" | "C_AND_B" | "CONTRACTOR";
 
