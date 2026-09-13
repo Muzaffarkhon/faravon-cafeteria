@@ -69,7 +69,7 @@ export default async function AdvertisingPage() {
                 {requests.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <RowId id={r.id} />
+                      <RowId id={r.id} seq={r.seq} />
                     </td>
                     <td className="text-ink">
                       <div className="font-medium">{r.productName}</div>

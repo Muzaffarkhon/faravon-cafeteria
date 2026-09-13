@@ -122,7 +122,53 @@ async function issueCouponImpl(couponId: string) {
   await notifyEmployee({
     employeeId: coupon.employeeId,
     event: "COUPON_ISSUED",
-    payload: { card: coupon.item.card.title, number: coupon.number, period: coupon.period.name },
+    payload: {
+      card: coupon.item.card.title,
+      number: coupon.number,
+      period: coupon.period.name,
+      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU") : null,
+    },
+  });
+
+  revalidateAll();
+}
+
+/** Удалить купон (C_AND_B). Связанная позиция возвращается в статус «Одобрено». */
+export async function deleteCoupon(couponId: string): Promise<ActionResult> {
+  return runAction(() => deleteCouponImpl(couponId));
+}
+
+async function deleteCouponImpl(couponId: string) {
+  const s = await requireSession();
+  assertCan(s.roles, "coupons.manage");
+
+  const coupon = await db.coupon.findUnique({
+    where: { id: couponId },
+    include: { item: { include: { card: true } } },
+  });
+  if (!coupon) throw new Error("Купон не найден.");
+
+  await db.$transaction(async (tx) => {
+    await tx.coupon.delete({ where: { id: couponId } });
+    if (coupon.itemId) {
+      await tx.applicationItem.update({
+        where: { id: coupon.itemId },
+        data: { status: "APPROVED" },
+      });
+    }
+  });
+
+  await audit({
+    actorId: s.user.id,
+    action: "COUPON_DELETED",
+    entityType: "Coupon",
+    entityId: couponId,
+    oldValue: {
+      number: coupon.number,
+      status: coupon.status,
+      employeeId: coupon.employeeId,
+      card: coupon.item?.card?.title,
+    },
   });
 
   revalidateAll();

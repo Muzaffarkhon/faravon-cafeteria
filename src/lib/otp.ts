@@ -12,7 +12,7 @@ export function generateOtp(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-/** Код идентификации от HR — 8 символов без похожих глифов. */
+/** Код идентификации от администратора — 8 символов без похожих глифов. */
 export function generateIdCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const buf = randomBytes(8);
@@ -20,8 +20,15 @@ export function generateIdCode(): string {
 }
 
 /**
- * Выдать пользователю одноразовый пароль (замещает текущий), включить обязательную смену
- * при первом входе. Возвращает OTP в открытом виде — его отправляет Telegram-бот.
+ * Выдать пользователю пароль (замещает текущий). Возвращает код в открытом
+ * виде — его отправляет Telegram-бот или показывает админ.
+ *
+ * Подрядчик (CONTRACTOR) — исключение из общей схемы: это общий PIN на кассу
+ * точки партнёра (может стоять залогиненным на одном устройстве постоянно,
+ * см. createSession), а не личный пароль сотрудника. Поэтому для него код не
+ * истекает и не требует обязательной смены при входе — иначе кассиры каждый
+ * день натыкались бы на экран смены пароля на общем терминале. Для всех
+ * остальных ролей — как раньше: 24ч и обязательная смена при первом входе.
  */
 export async function issueOtpForUser(
   userId: string,
@@ -30,26 +37,35 @@ export async function issueOtpForUser(
    *  (self-service через бот); при выдаче админом передавать id админа. */
   actorId: string = userId,
 ): Promise<string> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { roles: true } });
+  const isContractorPin = !!user?.roles.includes("CONTRACTOR");
+
   const otp = generateOtp();
   const passwordHash = await hashPassword(otp);
   await db.user.update({
     where: { id: userId },
     data: {
       passwordHash,
-      mustChangePassword: true,
-      otpExpiresAt: new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
+      mustChangePassword: !isContractorPin,
+      otpExpiresAt: isContractorPin ? null : new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
       failedLoginCount: 0,
       lockedUntil: null,
-      // Выдача нового OTP = «начать вход заново»: отзываем все прежние сессии
-      // этого пользователя (защита, если аккаунт был скомпрометирован).
+      // Выдача нового кода = «начать вход заново»: отзываем все прежние сессии
+      // этого пользователя (защита, если аккаунт/устройство было скомпрометировано).
       sessionEpoch: { increment: 1 },
     },
   });
-  await audit({ actorId, action: "OTP_ISSUED", entityType: "User", entityId: userId, newValue: { via: actorNote } });
+  await audit({
+    actorId,
+    action: isContractorPin ? "PIN_ISSUED" : "OTP_ISSUED",
+    entityType: "User",
+    entityId: userId,
+    newValue: { via: actorNote },
+  });
   return otp;
 }
 
-/** Создать код идентификации для сотрудника (для передачи через HR). */
+/** Создать код идентификации для сотрудника (для передачи через администратора). */
 export async function issueIdentificationCode(employeeId: string, issuedById: string): Promise<string> {
   // погасить прежние неиспользованные коды
   await db.identificationCode.updateMany({

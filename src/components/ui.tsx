@@ -111,47 +111,6 @@ export function Button({
   );
 }
 
-/**
- * Модальное подтверждение деструктивного/значимого действия — не должно быть
- * ни одобрения, ни удаления без явного клика (клик по фону тоже отменяет).
- */
-export function ConfirmDialog({
-  title,
-  message,
-  confirmLabel,
-  variant = "primary",
-  pending,
-  onConfirm,
-  onCancel,
-}: {
-  title: ReactNode;
-  message: ReactNode;
-  confirmLabel: string;
-  /** Цвет кнопки подтверждения: primary — брендовый красный (удаление и т.п.), success — зелёный (одобрение). */
-  variant?: "primary" | "success";
-  pending?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onCancel} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-[380px] rounded-[20px] bg-surface p-6 shadow-2xl">
-        <h2 className="text-[17px] font-bold text-ink">{title}</h2>
-        <div className="mt-2 text-sm leading-6 text-ink-muted">{message}</div>
-        <div className="mt-5 flex gap-2.5">
-          <Button variant={variant} fullWidth disabled={pending} onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-          <Button variant="secondary" fullWidth disabled={pending} onClick={onCancel}>
-            Отмена
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------- Form controls --- */
 
 const CONTROL_BASE =
@@ -299,21 +258,22 @@ export function Table({
 }
 
 /**
- * Идентификатор записи в таблице — компактный чип с последними символами id.
- * Полное значение в `title`; сам чип выделяется одним кликом.
+ * Идентификатор записи в таблице — компактный чип с порядковым номером
+ * создания (`seq`, обычный Postgres autoincrement: назначается один раз,
+ * никогда не пересчитывается и не переиспользуется после удаления записи).
+ * Полный id — в `title`; сам чип выделяется одним кликом.
  */
-export function RowId({ id, className }: { id: string; className?: string }) {
-  const short = id.length > 6 ? id.slice(-6) : id;
+export function RowId({ id, seq, className }: { id: string; seq: number; className?: string }) {
   return (
     <span
       title={id}
       className={cx(
         "inline-flex select-all items-center rounded-md bg-surface-muted px-1.5 py-0.5 " +
-          "font-mono text-[11px] leading-none tracking-tight text-ink-subtle",
+          "font-mono text-[11px] leading-none tracking-tight text-ink-subtle tabular-nums",
         className,
       )}
     >
-      #{short}
+      #{seq}
     </span>
   );
 }
@@ -380,7 +340,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{title}</h1>
         {description && (
           <p className="mt-1.5 text-sm text-ink-muted">{description}</p>
         )}
@@ -402,7 +362,7 @@ export function SectionTitle({
   return (
     <h2
       className={cx(
-        "font-display text-base font-bold text-ink",
+        "text-base font-bold text-ink",
         className,
       )}
     >
@@ -427,7 +387,8 @@ export function EmptyState({
   return (
     <div
       className={cx(
-        "petal-field flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-10 text-center",
+        "flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-14 text-center",
+        "bg-canvas bg-[radial-gradient(circle_at_center,var(--brand-100)_0_1.5px,transparent_1.6px)] [background-size:22px_22px]",
         className,
       )}
     >

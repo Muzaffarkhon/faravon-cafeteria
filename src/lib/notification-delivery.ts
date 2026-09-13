@@ -10,26 +10,35 @@ import { formatNotificationText } from "./notification-format";
 
 const TG_API = "https://api.telegram.org";
 
-const escHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Пропускная способность рассылки: 25 сообщений параллельно, не чаще раза в
+// секунду — под лимитом Telegram (~30/с разным чатам).
+const BATCH_SIZE = 25;
+const BATCH_INTERVAL_MS = 1000;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 async function tgOk(r: Response): Promise<boolean> {
   const data = (await r.json().catch(() => null)) as { ok?: boolean } | null;
   return !!data?.ok;
 }
 
-async function sendTelegram(token: string, chatId: string, text: string): Promise<boolean> {
+/**
+ * Текст уведомления — всегда HTML (жирный заголовок, `<code>` для номеров и
+ * промокодов, см. DEFAULT_TEMPLATES). Значения, подставленные в шаблон
+ * (formatNotificationText → renderTemplate), уже экранированы — сама разметка
+ * шаблона (b/code) экранированию не подлежит, поэтому шлём как есть.
+ */
+export async function sendTelegram(
+  token: string,
+  chatId: string,
+  html: string,
+  extra: Record<string, unknown> = {},
+): Promise<boolean> {
   try {
-    // Без parse_mode: тексты уведомлений — обычный текст из шаблонов
-    // (NotificationTemplate) с подстановкой названий карточек и комментариев.
-    // При parse_mode:"HTML" любой «<», «&» или «>» в этих данных (напр. карточка
-    // «Спорт & фитнес» или причина отказа «бюджет < 5000») приводил к ответу
-    // Telegram { ok:false } → уведомление зависало в бесконечном ретрае и
-    // сотрудник его не получал никогда.
     const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML", ...extra }),
     });
     return await tgOk(r);
   } catch {
@@ -37,21 +46,7 @@ async function sendTelegram(token: string, chatId: string, text: string): Promis
   }
 }
 
-/** Сообщение с моноширинным блоком (§11: промокод, который удобно копировать). */
-async function sendTelegramHtml(token: string, chatId: string, html: string): Promise<boolean> {
-  try {
-    const r = await fetch(`${TG_API}/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: "HTML" }),
-    });
-    return await tgOk(r);
-  } catch {
-    return false;
-  }
-}
-
-/** QR-картинка купона вместо текстового кода (§11). */
+/** QR-картинка купона вместо текстового кода (§11), подпись — тот же HTML. */
 async function sendTelegramQr(
   token: string,
   chatId: string,
@@ -68,6 +63,7 @@ async function sendTelegramQr(
     const form = new FormData();
     form.append("chat_id", chatId);
     form.append("caption", caption);
+    form.append("parse_mode", "HTML");
     form.append(
       "photo",
       new Blob([new Uint8Array(png)], { type: "image/png" }),
@@ -92,7 +88,10 @@ export async function deliverTelegramNotifications(opts: {
   limit?: number;
   log?: (msg: string) => void;
 }): Promise<DeliveryResult> {
-  const { db, token, limit = 25, log } = opts;
+  // 300 за запуск — это ~12 с отправки при BATCH_SIZE/BATCH_INTERVAL_MS,
+  // с запасом укладывается в maxDuration cron-функции; бот-воркер просто
+  // повторяет цикл, пока очередь не разойдётся.
+  const { db, token, limit = 300, log } = opts;
   if (!token) {
     log?.("TELEGRAM_BOT_TOKEN не задан — доставка пропущена.");
     return { delivered: 0, failed: 0, skipped: 0 };
@@ -136,11 +135,11 @@ export async function deliverTelegramNotifications(opts: {
   let failed = 0;
   let skipped = 0;
 
-  for (const n of pending) {
+  const sendOne = async (n: (typeof pending)[number]) => {
     const tgId = n.user.telegramId ?? n.user.employee?.telegramId;
     if (!tgId) {
       skipped++;
-      continue;
+      return;
     }
     // Атомарно «забираем» уведомление: помечаем deliveredAt ещё до отправки.
     // Параллельные воркеры (несколько after()-флашей, cron, бот) на это же уведомление
@@ -152,28 +151,21 @@ export async function deliverTelegramNotifications(opts: {
     });
     if (claim.count === 0) {
       skipped++;
-      continue;
+      return;
     }
     const payload = n.payload as Record<string, unknown> | null;
     const body = formatNotificationText(n.event, payload, templates);
 
     let ok: boolean;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
-      // §11: вместо текстового кода — QR-картинка купона. В подписи — только
-      // название льготы (код сотруднику больше не нужен, партнёр сканирует QR).
-      const card = typeof payload.card === "string" ? payload.card : "";
-      const caption = card
-        ? `🔔 Купон по льготе «${card}» готов. Предъявите QR партнёру.`
-        : "🔔 Купон готов. Предъявите QR партнёру.";
+      // §11: вместо текстового кода — QR-картинка купона. В подписи номер не
+      // нужен (партнёр сканирует QR) — рендерим тот же шаблон без {number},
+      // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
+      // остальных опциональных блоков, а не разбор готового HTML регуляркой).
+      const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates);
       ok = await sendTelegramQr(token, tgId, payload.number, caption);
-    } else if (n.event === "TAXI_PROMO_CODE" && typeof payload?.promo === "string" && payload.promo) {
-      // §11: промокод моноширинным блоком, чтобы удобно копировать.
-      const promo = payload.promo;
-      let html = "🔔 " + escHtml(body);
-      html = html.split(escHtml(promo)).join(`<code>${escHtml(promo)}</code>`);
-      ok = await sendTelegramHtml(token, tgId, html);
     } else {
-      ok = await sendTelegram(token, tgId, "🔔 " + body);
+      ok = await sendTelegram(token, tgId, body);
     }
 
     if (ok) {
@@ -184,6 +176,15 @@ export async function deliverTelegramNotifications(opts: {
       failed++;
       log?.(`не удалось отправить уведомление ${n.id}`);
     }
+  };
+
+  // Пачками по BATCH_SIZE параллельно, не быстрее одной пачки в секунду: это
+  // и есть лимит бота (~30 сообщений в секунду разным чатам). Последовательная
+  // отправка на рассылке в 3000 человек растянулась бы на часы.
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    const batch = pending.slice(i, i + BATCH_SIZE);
+    const paced = i + BATCH_SIZE < pending.length ? [sleep(BATCH_INTERVAL_MS)] : [];
+    await Promise.all([...batch.map(sendOne), ...paced]);
   }
 
   if (delivered || failed) log?.(`доставлено ${delivered}, ошибок ${failed}`);

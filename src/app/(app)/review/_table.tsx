@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Badge, Button, ConfirmDialog, RowId, Table, Textarea } from "@/components/ui";
+import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 
 export type ReviewRow = {
   id: string;
+  seq: number;
   employee: string;
   department: string;
   card: string;
@@ -18,8 +20,6 @@ export type ReviewRow = {
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("ru-RU") : "—");
 
-type Confirm = { message: string; onConfirm: () => void };
-
 export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
@@ -28,7 +28,9 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
   const [rowErr, setRowErr] = useState<Record<string, string>>({});
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectText, setRejectText] = useState("");
-  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const approveRow = rows.find((r) => r.id === approveId) ?? null;
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
 
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const allChecked = sel.size > 0 && allIds.every((id) => sel.has(id));
@@ -89,12 +91,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
               variant="success"
               size="sm"
               disabled={pending}
-              onClick={() =>
-                setConfirm({
-                  message: `Одобрить выбранные позиции (${sel.size})? Сотрудникам будут выданы купоны.`,
-                  onConfirm: () => runBulk("approve"),
-                })
-              }
+              onClick={() => setConfirmBulkApprove(true)}
             >
               Одобрить выбранные
             </Button>
@@ -168,7 +165,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                   />
                 </td>
                 <td>
-                  <RowId id={r.id} />
+                  <RowId id={r.id} seq={r.seq} />
                 </td>
                 <td>
                   <div className="font-medium text-ink">{r.employee}</div>
@@ -232,12 +229,7 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
                         variant="success"
                         size="sm"
                         disabled={pending}
-                        onClick={() =>
-                          setConfirm({
-                            message: `${r.employee} — ${r.card}. Сотруднику будет выдан купон.`,
-                            onConfirm: () => runRow(r.id, () => approveItem(r.id)),
-                          })
-                        }
+                        onClick={() => setApproveId(r.id)}
                       >
                         Одобрить
                       </Button>
@@ -261,20 +253,39 @@ export function ReviewTable({ rows }: { rows: ReviewRow[] }) {
         </Table>
       </div>
 
-      {confirm && (
-        <ConfirmDialog
-          title="Одобрить заявку?"
-          message={confirm.message}
-          confirmLabel="Одобрить"
-          variant="success"
-          pending={pending}
-          onConfirm={() => {
-            confirm.onConfirm();
-            setConfirm(null);
-          }}
-          onCancel={() => setConfirm(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={!!approveId}
+        title="Одобрить заявку?"
+        message={
+          approveRow ? (
+            <>
+              {approveRow.employee} — {approveRow.card}. Сотруднику будет выдан купон.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Одобрить"
+        tone="success"
+        busy={pending}
+        onConfirm={() => {
+          if (approveId) runRow(approveId, () => approveItem(approveId));
+          setApproveId(null);
+        }}
+        onClose={() => setApproveId(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkApprove}
+        title="Одобрить заявки?"
+        message={`Одобрить выбранные позиции (${sel.size})? Сотрудникам будут выданы купоны.`}
+        confirmLabel="Одобрить"
+        tone="success"
+        busy={pending}
+        onConfirm={() => {
+          runBulk("approve");
+          setConfirmBulkApprove(false);
+        }}
+        onClose={() => setConfirmBulkApprove(false)}
+      />
     </div>
   );
 }

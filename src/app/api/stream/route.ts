@@ -13,14 +13,20 @@ export const maxDuration = 30;
 // нет Redis). На Vercel Hobby держать SSE открытым долго нельзя — лимит времени
 // функции, — поэтому соединение короткоживущее: сервер стримит ~25 с и
 // закрывается, EventSource переподключается через `retry`. Пока соединение
-// живо, сервер каждые POLL_MS сверяет «сигнатуру» релевантных пользователю
+// живо, сервер каждые pollMs сверяет «сигнатуру» релевантных пользователю
 // данных и присылает событие `update` только при её изменении.
-const POLL_MS = 8000;
+// Опрос — по роли: персонал C&B держит реестры открытыми и ждёт реакции в
+// секундах, сотруднику достаточно увидеть свою заявку/купон с задержкой.
+// При 3000 сотрудников разница в частоте — это сотни запросов в секунду к БД.
+const STAFF_POLL_MS = 8000;
+const EMPLOYEE_POLL_MS = 20_000;
+const STAFF_RETRY_MS = 3000;
+const EMPLOYEE_RETRY_MS = 15_000;
 const MAX_LIFETIME_MS = 25_000;
 
 // Мягкий лимит одновременных SSE-соединений на пользователя (в пределах одного
 // инстанса функции). Защита от «открыл 50 вкладок» → 50×N агрегатов каждые
-// POLL_MS. EventSource переподключается, поэтому кратковременный отказ безвреден.
+// pollMs. EventSource переподключается, поэтому кратковременный отказ безвреден.
 const MAX_CONN_PER_USER = 6;
 const liveConns = new Map<string, number>();
 
@@ -75,6 +81,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
   }
 
+  // Частота опроса зависит от роли (см. константы выше).
+  const isStaff =
+    can(session.roles, "applications.decide") ||
+    can(session.roles, "coupons.manage") ||
+    can(session.roles, "cards.manage");
+  const pollMs = isStaff ? STAFF_POLL_MS : EMPLOYEE_POLL_MS;
+
   const uid = session.user.id;
   const n = liveConns.get(uid) ?? 0;
   if (n >= MAX_CONN_PER_USER) {
@@ -116,8 +129,8 @@ export async function GET(request: Request) {
 
       request.signal.addEventListener("abort", close);
 
-      // Подсказка браузеру: переподключаться через 3 с после разрыва.
-      send("retry: 3000\n\n");
+      // Подсказка браузеру: когда переподключаться после разрыва.
+      send(`retry: ${isStaff ? STAFF_RETRY_MS : EMPLOYEE_RETRY_MS}\n\n`);
 
       // null — базовая сигнатура ещё не получена (например, Neon просыпается).
       // Пока её нет, первый удачный опрос принимаем за базу и НЕ шлём `update`,
@@ -152,7 +165,7 @@ export async function GET(request: Request) {
         } catch {
           send(": err\n\n");
         }
-      }, POLL_MS);
+      }, pollMs);
     },
     cancel() {
       if (!closed) releaseConn();

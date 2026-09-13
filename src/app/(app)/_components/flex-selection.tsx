@@ -1,17 +1,27 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { toggleSelection, submitSelection } from "../actions";
+import { CardDetailsButton } from "./card-details";
+
+const emptySubscribe = () => () => {};
 
 type Card = {
   id: string;
   title: string;
+  description: string | null;
   condition: string | null;
   isActive: boolean;
   partner: string | null;
+  address: string | null;
+  workingHours: string | null;
+  discountType: string | null;
+  terms: string | null;
+  contactPerson: string | null;
+  contacts: string | null;
   imageUrl: string | null;
   category: string | null;
   minParticipants: number;
@@ -39,19 +49,19 @@ export function FlexSelection({
   hasSubmittable: boolean;
   defaultPhone: string;
 }) {
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   // Ввод номера телефона для PHONE_PROMO-льготы (id карточки, для которой открыт ввод).
   const [phoneFor, setPhoneFor] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
-
-  // Портал в <body> доступен только после монтирования на клиенте.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setMounted(true), []);
 
   // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
   useEffect(() => {
@@ -141,7 +151,7 @@ export function FlexSelection({
                 flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
-              <div className="relative h-36 shrink-0 overflow-hidden bg-surface-muted">
+              <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted">
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -169,11 +179,14 @@ export function FlexSelection({
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </span>
-                {!c.isActive && (
-                  <Badge tone="neutral" className="absolute left-3 top-3">
-                    скоро
-                  </Badge>
-                )}
+                <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+                  {!c.isActive && <Badge tone="neutral">скоро</Badge>}
+                  {c.minParticipants > 1 && (
+                    <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur">
+                      Групповая
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-1 flex-col p-4">
@@ -184,24 +197,39 @@ export function FlexSelection({
                   <p className="mt-2 text-sm font-medium leading-6 text-ink">{c.condition}</p>
                 )}
 
+                <CardDetailsButton
+                  card={{
+                    title: c.title,
+                    description: c.description,
+                    condition: c.condition,
+                    partnerName: c.partner,
+                    address: c.address,
+                    workingHours: c.workingHours,
+                    discountType: c.discountType,
+                    terms: c.terms,
+                    contactPerson: c.contactPerson,
+                    contacts: c.contacts,
+                  }}
+                />
+
               {c.minParticipants > 1 &&
                 (() => {
                   const done = c.groupCount >= c.minParticipants;
                   return (
-                    <div className="mt-3 rounded-lg bg-surface-muted px-3 py-2">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className={done ? "text-success-strong" : "text-ink-muted"}>
-                          {done ? "Групповая скидка активна" : "Групповая скидка"}
+                    <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-50/50 p-2.5 dark:bg-amber-950/20">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className={done ? "text-success-strong" : "text-amber-800 dark:text-amber-300"}>
+                          {done ? "Групповая скидка активна" : "Групповая льгота"}
                         </span>
                         <span className="tabular-nums text-ink" data-numeric>
                           {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}
                         </span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-sunken">
                         <div
                           className={cx(
                             "h-full rounded-full transition-[width] duration-300 ease-out",
-                            done ? "bg-success" : "bg-primary",
+                            done ? "bg-success" : "bg-amber-500",
                           )}
                           style={{
                             width: `${Math.min(100, (c.groupCount / c.minParticipants) * 100)}%`,
@@ -228,35 +256,37 @@ export function FlexSelection({
                     </p>
                   ) : windowOpen && c.isActive ? (
                     <>
-                      <Button
-                        variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
-                        onClick={() => onSelectClick(c, isSel)}
-                        disabled={pending || atLimit}
-                        loading={busyId === c.id}
-                        fullWidth
-                        className="mt-4"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          {isSel ? (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                              В выборе — убрать
-                            </>
-                          ) : atLimit ? (
-                            "Лимит исчерпан"
-                          ) : c.phonePromo ? (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                              Выбрать · указать номер
-                            </>
-                          ) : (
-                            <>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                              Выбрать
-                            </>
-                          )}
-                        </span>
-                      </Button>
+                      {!(busyId === c.id && phoneFor === c.id) && (
+                        <Button
+                          variant={isSel ? "secondary" : atLimit ? "ghost" : "soft"}
+                          onClick={() => onSelectClick(c, isSel)}
+                          disabled={pending || atLimit}
+                          loading={busyId === c.id}
+                          fullWidth
+                          className="mt-4"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            {isSel ? (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                                В выборе — убрать
+                              </>
+                            ) : atLimit ? (
+                              "Лимит исчерпан"
+                            ) : c.phonePromo ? (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                Выбрать · указать номер
+                              </>
+                            ) : (
+                              <>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                Выбрать
+                              </>
+                            )}
+                          </span>
+                        </Button>
+                      )}
 
                       {phoneFor === c.id && !isSel && (
                         <div className="mt-3 rounded-lg bg-surface-muted p-3">
@@ -329,18 +359,27 @@ export function FlexSelection({
         );
       })()}
 
-      {/* Панель подтверждения — компактная, всегда в правом нижнем углу ЭКРАНА.
-          Рендерится порталом в <body>: внутри контента родитель с transform
+      {/* Неподвижная панель подтверждения — как корзина, снизу справа на десктопе, над нижним меню
+          на мобильных. Рендерится порталом в <body>: внутри контента родитель с transform
           (.animate-page) создаёт containing block и fixed «падал» вниз страницы (§1). */}
-      {mounted &&
-        windowOpen &&
-        barVisible &&
+      {windowOpen &&
+        mounted &&
         createPortal(
           <div
-            className="fixed right-4 bottom-4 z-50 sm:right-6 sm:bottom-6"
-            style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+            className={cx(
+              "fixed inset-x-3 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 mx-auto max-w-md",
+              "sm:inset-x-auto sm:right-6 sm:bottom-6 sm:mx-0 sm:max-w-none",
+              "transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none",
+              barVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-[160%] opacity-0",
+            )}
           >
-            <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface-strong p-2.5 pl-4 shadow-lg">
+            <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface-strong p-2 pl-3.5 shadow-lg backdrop-blur sm:gap-3 sm:p-2.5 sm:pl-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong sm:h-9 sm:w-9">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+                </svg>
+              </span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-ink" data-numeric>
                   {draftCount} в черновике
@@ -351,8 +390,8 @@ export function FlexSelection({
                 onClick={onSubmit}
                 disabled={draftCount === 0 || pending}
                 loading={submitting}
-                size="lg"
-                className="shrink-0"
+                size="md"
+                className="ml-1 shrink-0 sm:h-12 sm:px-5 sm:text-[0.9375rem]"
               >
                 Подтвердить выбор
               </Button>

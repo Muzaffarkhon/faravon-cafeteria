@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { COUPON_STATUS_LABELS } from "@/lib/coupon";
+import { COUPON_STATUS_LABELS, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
+import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import {
   Badge,
   EmptyState,
@@ -15,7 +16,7 @@ import {
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
-import { CreateCouponButton, IssueCouponButton } from "./_buttons";
+import { CreateCouponButton, IssueCouponButton, DeleteCouponButton } from "./_buttons";
 
 const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   CREATED: "accent",
@@ -98,7 +99,7 @@ export default async function CouponsPage({
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">Купоны</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">Купоны</h1>
       </header>
 
       {/* Одобренные позиции без купона */}
@@ -147,14 +148,7 @@ export default async function CouponsPage({
                 </option>
               ))}
             </Select>
-            <Select name="status" defaultValue={status ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">Все статусы</option>
-              {Object.entries(COUPON_STATUS_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </Select>
+            {hiddenChipInputs(sp, ["status"])}
             <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
               <option value="">Все партнёры</option>
               {partners.map((p) => (
@@ -176,6 +170,21 @@ export default async function CouponsPage({
           </form>
         </div>
 
+        <FilterChips
+          basePath="/coupons"
+          params={sp}
+          groups={[
+            {
+              param: "status",
+              label: "Статус",
+              options: Object.entries(COUPON_STATUS_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            },
+          ]}
+        />
+
         {coupons.length === 0 ? (
           <EmptyState>Купонов по заданным условиям нет.</EmptyState>
         ) : (
@@ -194,15 +203,15 @@ export default async function CouponsPage({
               </thead>
               <tbody>
                 {coupons.map((c) => {
+                  const overdue = isCouponOverdue(c);
+                  const displayStatus = overdue ? "EXPIRED" : c.status;
                   const periodEnded = c.period.status === "CLOSED" || c.period.endDate < now;
-                  const expired = !!c.validUntil && c.validUntil < now;
-                  const showExpired = expired && (c.status === "ISSUED" || c.status === "CREATED");
                   const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
                   return (
                     <tr key={c.id}>
                       <td data-numeric>
                         <div className="font-mono text-sm text-ink">{c.number}</div>
-                        <RowId id={c.id} className="mt-0.5" />
+                        <RowId id={c.id} seq={c.seq} className="mt-0.5" />
                       </td>
                       <td className="text-ink">{c.employee.fullName}</td>
                       <td className="text-ink">
@@ -219,23 +228,22 @@ export default async function CouponsPage({
                         {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
                       </td>
                       <td>
-                        {showExpired ? (
-                          <Badge tone="warning">Просрочен</Badge>
-                        ) : (
-                          <Badge tone={COUPON_STATUS_TONE[c.status] ?? "neutral"}>
-                            {COUPON_STATUS_LABELS[c.status]}
-                          </Badge>
-                        )}
+                        <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
+                          {COUPON_STATUS_LABELS[displayStatus]}
+                        </Badge>
                       </td>
                       <td className="text-right">
-                        {c.status === "CREATED" &&
-                          (phonePromo ? (
-                            <span className="text-xs text-ink-subtle">по номеру телефона</span>
-                          ) : periodEnded || expired ? (
-                            <span className="text-xs text-ink-subtle">период завершён</span>
-                          ) : (
-                            <IssueCouponButton couponId={c.id} />
-                          ))}
+                        <div className="flex items-center justify-end gap-1.5">
+                          {c.status === "CREATED" &&
+                            (phonePromo ? (
+                              <span className="text-xs text-ink-subtle">по номеру телефона</span>
+                            ) : overdue ? (
+                              <span className="text-xs text-ink-subtle">период завершён</span>
+                            ) : (
+                              <IssueCouponButton couponId={c.id} />
+                            ))}
+                          <DeleteCouponButton couponId={c.id} couponNumber={c.number} />
+                        </div>
                       </td>
                     </tr>
                   );

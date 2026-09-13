@@ -5,7 +5,12 @@ generator client {
 
 datasource db {
   provider          = "postgresql"
+  // Приложение ходит через пул Neon (хост с суффиксом `-pooler`, обязательно
+  // с `?pgbouncer=true`) — иначе под нагрузкой Prisma падает с
+  // `prepared statement "s0" already exists`.
   url               = env("DATABASE_URL")
+  // Миграции и introspection — только по прямому подключению (хост без `-pooler`).
+  directUrl         = env("DIRECT_URL")
   // Shadow DB is created from template0 to avoid the postgis image's template1 collation quirk
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
@@ -75,8 +80,8 @@ enum DeliveryMode {
 }
 
 /// Тип баннера на витрине сотрудника.
-/// PARTNER — реклама партнёра (как раньше).
-/// NEWS    — своя новость / анонс (новые льготы, новости компаний) без пометки «Партнёр».
+/// PARTNER — реклама партнёра.
+/// NEWS    — своя новость / анонс компании без пометки «Партнёр».
 enum BannerKind {
   PARTNER
   NEWS
@@ -90,13 +95,26 @@ enum FeedbackStatus {
   CLOSED // закрыто
 }
 
+enum SupportThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum SupportMessageDirection {
+  IN  // от гостя
+  OUT // от C&B
+}
+
 model Employee {
   id           String           @id @default(cuid())
+  seq          Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   fullName     String
   position     String
   department   String
-  phone        String?
+  phone           String?
   phoneNormalized String?        // последние 9 цифр номера — для быстрого поиска при входе через Telegram
+  phoneSecondary  String?
+  phoneSecondaryNormalized String?
   telegramId   String?          @unique
   status       EmploymentStatus @default(ACTIVE)
   terminatedAt DateTime?
@@ -114,10 +132,12 @@ model Employee {
   @@index([fullName])
   @@index([isActive])
   @@index([phoneNormalized])
+  @@index([phoneSecondaryNormalized])
 }
 
 model User {
   id                String    @id @default(cuid())
+  seq               Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   login             String    @unique
   passwordHash      String
   mustChangePassword Boolean  @default(true)
@@ -142,12 +162,13 @@ model User {
   partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
-  auditLogs      AuditLog[]
-  notifications  Notification[]
-  decisions      ApplicationItem[]      @relation("DecidedBy")
-  cardEdits      BenefitCardVersion[]   @relation("CardVersionEditor")
-  templateEdits  NotificationTemplate[] @relation("NotificationTemplateEditor")
-  feedbackHandled Feedback[]            @relation("FeedbackHandler")
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  decisions       ApplicationItem[]      @relation("DecidedBy")
+  cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
+  templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
+  feedbackHandled Feedback[]             @relation("FeedbackHandler")
+  supportReplies  SupportMessage[]
 
   @@index([partnerId])
 }
@@ -193,8 +214,11 @@ model IdentificationCode {
 
 model Partner {
   id            String        @id @default(cuid())
+  seq           Int           @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   name          String
   category      String?
+  address       String? // где получить льготу — показывается сотруднику в карточке («Подробнее»)
+  workingHours  String?
   contactPerson String?
   contacts      String?
   discountType  String?
@@ -306,6 +330,7 @@ model Application {
 
 model ApplicationItem {
   id            String     @id @default(cuid())
+  seq           Int        @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   applicationId String
   card          BenefitCard @relation(fields: [cardId], references: [id])
@@ -350,6 +375,7 @@ model SlaEscalationRule {
 
 model Coupon {
   id              String       @id @default(cuid())
+  seq             Int          @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   number          String       @unique
   item            ApplicationItem @relation(fields: [itemId], references: [id])
   itemId          String       @unique
@@ -375,26 +401,27 @@ model Coupon {
 }
 
 model PartnerBanner {
-  id        String     @id @default(cuid())
-  partner   Partner?   @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerId String?
-  kind      BannerKind @default(PARTNER) // NEWS — своя новость/анонс без пометки «Партнёр»
-  title     String
-  subtitle  String?
-  imageUrl  String?
-  href      String?
-  androidUrl String?   // ссылка на приложение для Android (Google Play или прямой .apk)
-  iosUrl     String?   // ссылка на приложение в App Store
-  isActive  Boolean    @default(true)
-  sortOrder Int        @default(0)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  partner    Partner?   @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId  String?
+  kind       BannerKind @default(PARTNER) // NEWS — своя новость/анонс без пометки «Партнёр»
+  title      String
+  subtitle   String?
+  imageUrl   String?
+  href       String?
+  androidUrl String?    // ссылка на приложение для Android (Google Play или прямой .apk)
+  iosUrl     String?    // ссылка на приложение в App Store
+  isActive   Boolean    @default(true)
+  sortOrder  Int        @default(0)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 model AdvertisingRequest {
   id              String    @id @default(cuid())
+  seq             Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   // Заявку подаёт партнёр (учётка подрядчика, привязанная к партнёру).
   partner         Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   partnerId       String?
@@ -434,6 +461,66 @@ model Feedback {
   @@index([status])
   @@index([employeeId])
   @@index([createdAt])
+}
+
+/// Один Telegram-чат — один тред, переоткрывается при новом сообщении
+/// гостя, а не плодится заново. Заводится, когда бот не смог опознать
+/// человека и тот нажал «Написать администратору».
+model SupportThread {
+  id            String              @id @default(cuid())
+  seq           Int                 @unique @default(autoincrement()) // сквозной номер — для короткого отображения (RowId), тот же приём, что и у остальных сущностей
+  telegramId    String              @unique
+  /// Номер, который человек присылал (если делился контактом) — подсказка
+  /// C&B, кто это, даже если официально не опознан.
+  phone         String?
+  status        SupportThreadStatus @default(OPEN)
+  /// НЕ @updatedAt — обновляем явно при каждом сообщении (в обе стороны),
+  /// а не при любом изменении строки (например, при правке phone).
+  lastMessageAt DateTime            @default(now())
+  createdAt     DateTime            @default(now())
+
+  messages SupportMessage[]
+
+  @@index([status, lastMessageAt])
+}
+
+model SupportMessage {
+  id        String                  @id @default(cuid())
+  thread    SupportThread           @relation(fields: [threadId], references: [id])
+  threadId  String
+  direction SupportMessageDirection
+  body      String
+  /// Кто из C&B ответил — только для OUT.
+  author    User?                   @relation(fields: [authorId], references: [id])
+  authorId  String?
+  /// Прочитано C&B — только для IN, для счётчика непрочитанных.
+  readAt    DateTime?
+  createdAt DateTime                @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+/// Заготовленные быстрые ответы C&B в чате поддержки — админ сам ведёт список,
+/// клик подставляет текст в поле ответа вместо набора с нуля.
+model SupportQuickReply {
+  id        String   @id @default(cuid())
+  seq       Int      @unique @default(autoincrement())
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Частые вопросы для гостя в Telegram-чате поддержки: `question` — подпись
+/// инлайн-кнопки (лимит Telegram ~64 символа), `answer` — шаблонный текст,
+/// который бот отправляет автоматически по нажатию. Кнопки прикрепляются к
+/// каждому сообщению бота в этом чате (см. getFaqKeyboard в support-chat.ts).
+model SupportFaq {
+  id        String   @id @default(cuid())
+  seq       Int      @unique @default(autoincrement())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TextBlock {

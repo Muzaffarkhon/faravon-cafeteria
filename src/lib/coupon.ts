@@ -20,6 +20,35 @@ const normalizeNumber = (n: string) => n.trim().toUpperCase();
 export const isCouponExpired = (validUntil: Date | null, at: Date = new Date()) =>
   !!validUntil && validUntil.getTime() < at.getTime();
 
+/** Период купона прошёл, если статус CLOSED или дата окончания в прошлом. */
+export const isCouponPeriodPassed = (
+  period: { status: string; endDate: Date | string } | null | undefined,
+  at: Date = new Date(),
+) => {
+  if (!period) return false;
+  return period.status === "CLOSED" || new Date(period.endDate).getTime() < at.getTime();
+};
+
+/**
+ * Купон считается просроченным, если:
+ * 1. статус EXPIRED, ИЛИ
+ * 2. не активирован (не USED и не CANCELLED) и истёк срок действия или завершился период.
+ */
+export const isCouponOverdue = (
+  coupon: {
+    status: CouponStatus;
+    validUntil?: Date | string | null;
+    period?: { status: string; endDate: Date | string } | null;
+  },
+  at: Date = new Date(),
+) => {
+  if (coupon.status === "EXPIRED") return true;
+  if (coupon.status === "USED" || coupon.status === "CANCELLED") return false;
+  if (coupon.validUntil && isCouponExpired(new Date(coupon.validUntil), at)) return true;
+  if (coupon.period && isCouponPeriodPassed(coupon.period, at)) return true;
+  return false;
+};
+
 /** Поиск купона по номеру — для экрана подрядчика (§5.8, проверка/гашение). */
 export function lookupCouponByNumber(number: string) {
   return db.coupon.findUnique({
@@ -84,7 +113,7 @@ export async function redeemCouponByNumber(
 ) {
   const coupon = await db.coupon.findUnique({
     where: { number: normalizeNumber(number) },
-    include: { item: { include: { card: true } }, partner: true, period: { select: { name: true } } },
+    include: { item: { include: { card: true } }, partner: true, period: true },
   });
   if (!coupon) throw new Error("Купон с таким номером не найден.");
   if (actorPartnerId && coupon.partnerId !== actorPartnerId) {
@@ -98,8 +127,11 @@ export async function redeemCouponByNumber(
   }
 
   const now = new Date();
-  if (isCouponExpired(coupon.validUntil, now)) {
-    // Просрочку раньше никто не проставлял — фиксируем при обращении.
+  const pastValid = isCouponExpired(coupon.validUntil, now);
+  const periodPassed = isCouponPeriodPassed(coupon.period, now);
+
+  if (pastValid || periodPassed) {
+    // Просрочку фиксируем в базе при обращении
     await db.coupon.updateMany({
       where: { id: coupon.id, status: "ISSUED" },
       data: { status: "EXPIRED" },
@@ -112,6 +144,9 @@ export async function redeemCouponByNumber(
       oldValue: { status: "ISSUED" },
       newValue: { status: "EXPIRED", number: coupon.number },
     });
+    if (periodPassed) {
+      throw new Error(`Период действия купона завершён («${coupon.period?.name}»). Купон просрочен.`);
+    }
     throw new Error(
       `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU")}` : ""}.`,
     );

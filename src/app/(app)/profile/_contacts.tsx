@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Badge, Button, ConfirmDialog, Field, Input } from "@/components/ui";
+import { Badge, Button, Field, Input } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   linkOwnTelegram,
   setOwnTelegramId,
@@ -115,24 +116,24 @@ export function ServiceTelegramLink({ linked }: { linked: boolean }) {
         </form>
       )}
 
-      {confirming && (
-        <ConfirmDialog
-          title="Отвязать Telegram?"
-          message="Уведомления перестанут приходить, пока вы не привяжете аккаунт заново."
-          confirmLabel="Отвязать"
-          pending={unpending}
-          onConfirm={() => {
-            setUnlinkErr(null);
-            startUnlink(async () => {
-              const r = await unlinkOwnTelegramId();
-              if ("error" in r) setUnlinkErr(r.error);
-              else setIsLinked(false);
-              setConfirming(false);
-            });
-          }}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Отвязать Telegram?"
+        message="Уведомления перестанут приходить, пока вы не привяжете аккаунт заново."
+        confirmLabel="Отвязать"
+        tone="danger"
+        busy={unpending}
+        onConfirm={() => {
+          setUnlinkErr(null);
+          startUnlink(async () => {
+            const r = await unlinkOwnTelegramId();
+            if ("error" in r) setUnlinkErr(r.error);
+            else setIsLinked(false);
+            setConfirming(false);
+          });
+        }}
+        onClose={() => setConfirming(false)}
+      />
     </div>
   );
 }
@@ -201,16 +202,16 @@ export function TelegramLink({ linked }: { linked: boolean }) {
         </p>
       )}
 
-      {confirming && (
-        <ConfirmDialog
-          title="Отвязать Telegram?"
-          message="Уведомления и вход через бота перестанут работать, пока вы не привяжете аккаунт заново."
-          confirmLabel="Отвязать"
-          pending={pending}
-          onConfirm={doUnlink}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Отвязать Telegram?"
+        message="Уведомления и вход через бота перестанут работать, пока вы не привяжете аккаунт заново."
+        confirmLabel="Отвязать"
+        tone="danger"
+        busy={pending}
+        onConfirm={doUnlink}
+        onClose={() => setConfirming(false)}
+      />
     </div>
   );
 }

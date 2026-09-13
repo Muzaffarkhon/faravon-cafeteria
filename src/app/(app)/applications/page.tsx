@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
-import { isCouponExpired } from "@/lib/coupon";
+import { isCouponExpired, isCouponOverdue, isCouponPeriodPassed } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { couponQrSvg } from "@/lib/qr";
 import { safeImageSrc } from "@/lib/safe-url";
@@ -56,12 +56,14 @@ export default async function ApplicationsPage() {
   const pending = allItems.filter((i) => i.status === "PENDING").length;
 
   // QR только для действующих (выданных, не просроченных) купонов.
-  const issuedCoupons = allItems
-    .map((i) => i.coupon)
-    .filter(
-      (c): c is NonNullable<typeof c> =>
-        !!c && c.status === "ISSUED" && !isCouponExpired(c.validUntil),
-    );
+  const issuedCoupons = applications.flatMap((app) =>
+    app.items
+      .map((i) => i.coupon)
+      .filter(
+        (c): c is NonNullable<typeof c> =>
+          !!c && c.status === "ISSUED" && !isCouponOverdue({ ...c, period: app.period }),
+      ),
+  );
   const qrByCoupon = new Map(
     await Promise.all(
       issuedCoupons.map(
@@ -80,8 +82,8 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
-        <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
+      <header className="space-y-1.5">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Мои заявки и купоны
         </h1>
         <p className="text-sm text-ink-muted" data-numeric>
@@ -167,15 +169,17 @@ export default async function ApplicationsPage() {
                         const c = item.coupon;
                         const qr = qrByCoupon.get(c.id);
                         const pastValid = isCouponExpired(c.validUntil);
-                        const expired =
-                          c.status === "EXPIRED" ||
-                          ((c.status === "ISSUED" || c.status === "USED") && pastValid);
+                        const periodPassed = isCouponPeriodPassed(app.period);
+                        const overdue = isCouponOverdue({ ...c, period: app.period });
+                        const expired = overdue;
                         const live = c.status === "ISSUED" && !expired;
                         // Активированный купон действует до конца срока, затем «истёк».
-                        const activatedLive = c.status === "USED" && !pastValid;
+                        const activatedLive = c.status === "USED" && !pastValid && !periodPassed;
                         // Пояснение под номером — почему QR есть / нет и что делать.
                         const hint = expired
-                          ? "Срок действия купона истёк."
+                          ? periodPassed
+                            ? "Период завершён. Срок действия купона истёк."
+                            : "Срок действия купона истёк."
                           : activatedLive
                             ? "Купон активирован у партнёра и действует до конца срока."
                             : c.status === "CANCELLED"
@@ -204,7 +208,14 @@ export default async function ApplicationsPage() {
                                     : "min-w-0 space-y-0.5 text-sm text-ink-muted"
                                 }
                               >
-                                <div className="font-semibold">Купон</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">Купон</span>
+                                  {expired && (
+                                    <Badge tone="warning" className="px-1.5 py-0 text-[11px]">
+                                      Просрочен
+                                    </Badge>
+                                  )}
+                                </div>
                                 <div className="font-mono" data-numeric>
                                   № {c.number}
                                 </div>
@@ -227,9 +238,13 @@ export default async function ApplicationsPage() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
-                      {ITEM_STATUS_LABELS[item.status]}
-                    </Badge>
+                    {item.coupon && isCouponOverdue({ ...item.coupon, period: app.period }) ? (
+                      <Badge tone="warning">Просрочен</Badge>
+                    ) : (
+                      <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
+                        {ITEM_STATUS_LABELS[item.status]}
+                      </Badge>
+                    )}
                     {(item.status === "DRAFT" || item.status === "PENDING") && (
                       <CancelItemButton itemId={item.id} />
                     )}

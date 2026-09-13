@@ -11,6 +11,8 @@ import { LiveRefresh } from "./_live-refresh";
 export type NavItem = {
   href: string;
   label: string;
+  /** Подпись для плиток «Кабинета»; в меню шапки не показывается. */
+  desc?: string;
   icon: string; // path(s) для 24×24 stroke-иконки, сегменты через "||"
   badge?: number;
   soon?: boolean;
@@ -43,6 +45,7 @@ const I = {
   profile: "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z||M4 21v-1a8 8 0 0 1 16 0v1",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4||M16 17l5-5-5-5||M21 12H9",
   more: "M4 6h16M4 12h16M4 18h16",
+  admin: "M4 21V8l8-5 8 5v13||M9 21v-6h6v6",
 };
 
 /** «Рабочие» группы идут прямыми вкладками, остальное — в меню «Ещё». */
@@ -54,6 +57,7 @@ export function AppShell({
   displayName,
   selectionStat,
   backdrop,
+  adminHref,
   children,
 }: {
   groups: NavGroup[];
@@ -64,6 +68,8 @@ export function AppShell({
   selectionStat?: { used: number; drafts: number; max: number } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
+  /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
+  adminHref?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -277,6 +283,16 @@ export function AppShell({
                     <Icon path={I.profile} />
                     Профиль
                   </Link>
+                  {adminHref && (
+                    <Link
+                      href={adminHref}
+                      onClick={closeMenus}
+                      className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+                    >
+                      <Icon path={I.admin} />
+                      Админ-панель
+                    </Link>
+                  )}
                   <form action={logout}>
                     <button
                       type="submit"
@@ -304,7 +320,10 @@ export function AppShell({
       </header>
 
       {/* ── Контент ── */}
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 sm:pb-16">
+      {/* Широкие реестры (много колонок) помечают свой корень `data-wide` и
+          получают больше ширины на больших экранах — остальные страницы
+          остаются читаемой колонкой в max-w-6xl. */}
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 has-[[data-wide]]:max-w-[100rem] sm:pb-16">
         <div key={pathname} className="animate-page">
           {children}
         </div>
@@ -398,6 +417,118 @@ export function AppShell({
           </div>
         </div>
       )}
+
+      {/* ── Быстрая прокрутка наверх / вниз ── */}
+      <ScrollNav />
+    </div>
+  );
+}
+
+function ScrollNav() {
+  const [state, setState] = useState({
+    canScrollUp: false,
+    canScrollDown: false,
+    hasScroll: false,
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const el = document.documentElement;
+      const scrollTop = window.scrollY || el.scrollTop || 0;
+      const scrollHeight = el.scrollHeight || 0;
+      const clientHeight = window.innerHeight || el.clientHeight || 0;
+      const hasScroll = scrollHeight > clientHeight + 120;
+      const canScrollUp = scrollTop > 100;
+      const canScrollDown = scrollTop + clientHeight < scrollHeight - 100;
+      setState({ canScrollUp, canScrollDown, hasScroll });
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(update);
+      observer.observe(document.body);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
+
+  if (!state.hasScroll) return null;
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  };
+
+  return (
+    <div
+      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:right-6"
+      role="navigation"
+      aria-label="Быстрая навигация по странице"
+    >
+      <button
+        type="button"
+        onClick={scrollToTop}
+        disabled={!state.canScrollUp}
+        aria-label="Наверх страницы"
+        className={cx(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9",
+          state.canScrollUp
+            ? "text-ink hover:bg-surface-muted active:scale-95"
+            : "cursor-default text-ink-subtle/30 opacity-30",
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
+      <div className="mx-auto h-px w-4 bg-line" />
+      <button
+        type="button"
+        onClick={scrollToBottom}
+        disabled={!state.canScrollDown}
+        aria-label="Вниз страницы"
+        className={cx(
+          "flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9",
+          state.canScrollDown
+            ? "text-ink hover:bg-surface-muted active:scale-95"
+            : "cursor-default text-ink-subtle/30 opacity-30",
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
     </div>
   );
 }

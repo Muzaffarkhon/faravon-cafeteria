@@ -31,7 +31,6 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
   ]);
 
   const cnbText =
-    "📋 Отчёт на начало дня\n" +
     `На согласовании: ${pendingReview}\n` +
     `К выдаче купонов: ${couponsToIssue}\n` +
     `Заявок на рекламу: ${adRequests}\n` +
@@ -73,14 +72,10 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
         waiting = (await taxiRecipientsForPartner(u.partnerId)).length;
         taxiCache.set(u.partnerId, waiting);
       }
-      text =
-        "📋 Отчёт на начало дня\n" +
-        `Одобренных сотрудников ждут промокод: ${waiting}`;
+      text = `Одобренных сотрудников ждут промокод: ${waiting}`;
     } else if (u.partnerId) {
       const toRedeem = await db.coupon.count({ where: { partnerId: u.partnerId, status: "ISSUED" } });
-      text =
-        "📋 Отчёт на начало дня\n" +
-        `Купонов к активации на кассе: ${toRedeem}`;
+      text = `Купонов к активации на кассе: ${toRedeem}`;
     } else {
       skipped++;
       continue;

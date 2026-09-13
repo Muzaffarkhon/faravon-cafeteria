@@ -121,6 +121,49 @@ export function ImageUploadField({
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  async function openEditorFromUrl(url: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Не удалось загрузить изображение.");
+      const blob = await res.blob();
+      const file = new File([blob], "image.webp", { type: blob.type || "image/webp" });
+      openEditor(file);
+    } catch {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setErr("Не удалось инициализировать холст.");
+          setBusy(false);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          setBusy(false);
+          if (blob) {
+            const file = new File([blob], "image.webp", { type: "image/webp" });
+            openEditor(file);
+          } else {
+            setErr("Не удалось обработать изображение.");
+          }
+        }, "image/webp");
+      };
+      img.onerror = () => {
+        setBusy(false);
+        setErr("Не удалось загрузить изображение для редактирования. Загрузите файл с устройства.");
+      };
+      img.src = url;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) return;
     dragRef.current = { x: e.clientX, y: e.clientY };
@@ -286,33 +329,70 @@ export function ImageUploadField({
   return (
     <Field label={label} htmlFor="img-upload-file" error={err ?? undefined}>
       {value && !editFile && (
-        <div className="mb-2">
-          <div
-            className={cx(
-              "relative overflow-hidden rounded-lg border border-line bg-surface-sunken",
-              aspect ? "w-full max-w-[560px]" : "h-16 w-16",
+        <div className="mb-3 space-y-2">
+          {purpose === "card" && aspect ? (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-ink-muted">
+                Фактический вид в карточке:
+              </div>
+              <div className="w-full max-w-[320px] overflow-hidden rounded-[20px] border border-line bg-surface shadow-sm">
+                <div
+                  className="relative w-full overflow-hidden bg-surface-sunken"
+                  style={{ aspectRatio: String(aspect) }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={value} alt="" className="h-full w-full object-cover" />
+                </div>
+                <div className="p-3.5">
+                  <div className="h-3.5 w-3/4 rounded bg-line-subtle" />
+                  <div className="mt-2 h-2.5 w-1/2 rounded bg-line-subtle/60" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cx(
+                "relative overflow-hidden rounded-lg border border-line bg-surface-sunken",
+                aspect ? "w-full max-w-[560px]" : "h-16 w-16",
+              )}
+              style={aspect ? { aspectRatio: String(aspect) } : undefined}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt="" className="h-full w-full object-cover" />
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            {aspect && (
+              <button
+                type="button"
+                onClick={() => openEditorFromUrl(value)}
+                disabled={busy}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Изменить положение
+              </button>
             )}
-            style={aspect ? { aspectRatio: String(aspect) } : undefined}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              disabled={busy}
+              className="text-xs font-medium text-danger hover:underline"
+            >
+              Удалить
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="mt-1 text-xs font-medium text-danger hover:underline"
-          >
-            Удалить
-          </button>
         </div>
       )}
 
       {/* --- редактор кадрирования --- */}
       {editFile && (
         <div className="mb-2 space-y-2">
+          <div className="text-xs font-semibold text-ink-muted">
+            Перетащите изображение для выбора нужного ракурса:
+          </div>
           <div
             ref={boxRef}
-            className="relative w-full max-w-[560px] cursor-grab touch-none overflow-hidden rounded-lg border border-line bg-surface-sunken active:cursor-grabbing"
+            className="relative w-full max-w-[560px] cursor-grab touch-none overflow-hidden rounded-[20px] border-2 border-primary/50 bg-surface-sunken shadow-inner active:cursor-grabbing"
             style={{ aspectRatio: String(aspect ?? 1) }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -335,6 +415,27 @@ export function ImageUploadField({
                 }}
               />
             )}
+
+            {/* Направляющие сетки третей */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3"
+            >
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-r border-white/25" />
+              <div className="border-b border-white/25" />
+              <div className="border-r border-white/25" />
+              <div className="border-r border-white/25" />
+              <div />
+            </div>
+
+            {/* Метка пропорции */}
+            <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+              {aspect === 1.6 ? "Рамка карточки (16:10)" : aspect === 1 ? "Логотип (1:1)" : `Кадрирование ${aspect}:1`}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -350,9 +451,9 @@ export function ImageUploadField({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button type="button" size="sm" onClick={confirmCrop} loading={busy}>
-              Загрузить
+              Применить
             </Button>
             <Button
               type="button"
@@ -364,7 +465,43 @@ export function ImageUploadField({
                 setFocus({ x: 0.5, y: 0.5 });
               }}
             >
-              Уцентрить
+              По центру
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, y: 0 }))}
+            >
+              Сверху
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, y: 1 }))}
+            >
+              Снизу
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, x: 0 }))}
+            >
+              Слева
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setFocus((f) => ({ ...f, x: 1 }))}
+            >
+              Справа
             </Button>
             <Button
               type="button"
@@ -378,7 +515,7 @@ export function ImageUploadField({
           </div>
           {progressBar}
           <p className="text-xs text-ink-muted">
-            Перетащите фото и настройте масштаб, чтобы выбрать видимую часть.
+            Перетаскивайте фото курсором или пальцем и используйте масштаб, чтобы настроить ракурс.
           </p>
         </div>
       )}

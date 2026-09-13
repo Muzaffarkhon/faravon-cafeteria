@@ -5,11 +5,38 @@
  *
  * Тексты берутся из редактируемых шаблонов (модель NotificationTemplate). Если
  * строки нет — используется зашитый шаблон по умолчанию из DEFAULT_TEMPLATES.
+ * Тела шаблонов — HTML для Telegram (parse_mode=HTML): <b>жирный</b>,
+ * <code>моноширинный</code>, перенос строки — обычный \n. Подставляемые
+ * значения ({card}, {employee} и т.п.) экранируются автоматически — в самом
+ * шаблоне писать `&`, `<`, `>` в теге можно свободно, а в тексте, который
+ * может прийти из пользовательских данных (название карточки, ФИО), эти
+ * символы никогда не сломают разметку.
  *
  * Синтаксис шаблона:
- *   {name}          — подстановка значения; пустое, если значения нет
+ *   {name}          — подстановка значения (экранированного); пустое, если значения нет
  *   [[ ... {x} ... ]] — блок удаляется целиком, если {x} внутри пустой
  */
+
+/** Экранирование для Telegram HTML (parse_mode=HTML): только &, <, > значимы. */
+export const escHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/**
+ * Единое сообщение с логином/паролем — при первичной выдаче через бота
+ * (linkByPhone/linkByCode/reissueOtp) и при ручной привязке из чата
+ * поддержки (linkEmployeeToThread) должно выглядеть одинаково, а не как
+ * два разных бота.
+ */
+export function grantMessage(login: string, otp: string, fullName: string): string {
+  const platformUrl = process.env.PLATFORM_URL || "";
+  return (
+    `Здравствуйте, ${escHtml(fullName)}!\n\n` +
+    `🔑 Логин: <code>${escHtml(login)}</code>\n` +
+    `🔒 Одноразовый пароль: <code>${escHtml(otp)}</code>\n\n` +
+    `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
+    (platformUrl ? `Вход: ${platformUrl}/login` : "")
+  );
+}
 
 export const NOTIFICATION_LABELS: Record<string, string> = {
   APPLICATION_SUBMITTED: "Новая заявка на согласование",
@@ -52,55 +79,55 @@ export type NotificationTemplateDef = { label: string; body: string };
 export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   APPLICATION_SUBMITTED: {
     label: NOTIFICATION_LABELS.APPLICATION_SUBMITTED,
-    body: "{employee}[[, {department}]] подал(а) на согласование {count} {countNoun}[[ (период: {period})]]. Откройте раздел «Согласование».",
+    body: "🆕 <b>Новая заявка на согласование</b>\n{employee}[[ · {department}]] — {count} {countNoun}[[\nПериод: {period}]]\n\nОткройте раздел «Согласование».",
   },
   ITEM_APPROVED: {
     label: NOTIFICATION_LABELS.ITEM_APPROVED,
-    body: "Ваша позиция «{card}»[[ (период: {period})]] одобрена согласующим.",
+    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]]",
   },
   ITEM_REJECTED: {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,
-    body: "Ваша позиция «{card}»[[ (период: {period})]] отклонена.[[ Причина: {comment}]]",
+    body: "❌ <b>Позиция отклонена</b>\n«{card}»[[ · {period}]][[\nПричина: {comment}]]",
   },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "Купон[[ № {number}]] по льготе «{card}»[[ (период: {period})]] готов. Предъявите его партнёру.",
+    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует до {validUntil}]]\n\nПредъявите его партнёру.",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
-    body: "Заявка {employee}[[, {department}]] по льготе «{card}» ждёт решения больше {hours} ч (уровень {level}). Откройте раздел «Согласование».",
+    body: "⏰ <b>Заявка ждёт решения</b>\n{employee}[[ · {department}]] — «{card}»\nПрошло более {hours} ч (уровень {level})\n\nОткройте раздел «Согласование».",
   },
   COUPON_CONFIRMED_BY_PROVIDER: {
     label: NOTIFICATION_LABELS.COUPON_CONFIRMED_BY_PROVIDER,
-    body: "Купон[[ № {number}]] по льготе «{card}»[[ (период: {period})]] активирован у партнёра.",
+    body: "🤝 <b>Купон активирован у партнёра</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]]",
   },
   WINDOW_OPEN: {
     label: NOTIFICATION_LABELS.WINDOW_OPEN,
-    body: "Открыто окно выбора льгот[[ на период «{period}»]]. Выберите льготы до {windowEnd}.",
+    body: "🗓️ <b>Открыто окно выбора льгот</b>[[\nПериод: {period}]]\nВыберите льготы до {windowEnd}.",
   },
   WINDOW_CLOSING: {
     label: NOTIFICATION_LABELS.WINDOW_CLOSING,
-    body: "Окно выбора[[ на период «{period}»]] закроется {windowEnd}, а вы ещё не выбрали льготы. Успейте оформить выбор.",
+    body: "⏳ <b>Окно выбора скоро закроется</b>[[\nПериод: {period}]]\nЗакроется {windowEnd}, а вы ещё не выбрали льготы. Успейте оформить выбор.",
   },
   TAXI_REQUEST_APPROVED: {
     label: NOTIFICATION_LABELS.TAXI_REQUEST_APPROVED,
-    body: "Одобрена заявка сотрудника {employee} на поездки[[ («{card}»)]][[ (период: {period})]]. Телефон: {phone}. Заведите промокод в своей системе и отправьте его сотрудникам через раздел «Промокоды».",
+    body: "🚕 <b>Одобрена заявка на поездки</b>\n{employee}[[ · «{card}»]][[ · {period}]]\nТелефон: <code>{phone}</code>\n\nЗаведите промокод в своей системе и отправьте его сотрудникам через раздел «Промокоды».",
   },
   TAXI_APPROVED_EMPLOYEE: {
     label: NOTIFICATION_LABELS.TAXI_APPROVED_EMPLOYEE,
-    body: "Ваша позиция «{card}»[[ (период: {period})]] одобрена. Промокод на поездку придёт в этот чат от партнёра.",
+    body: "✅ <b>Поездка одобрена</b>\n«{card}»[[ · {period}]]\nПромокод на поездку придёт в этот чат от партнёра.",
   },
   TAXI_PROMO_CODE: {
     label: NOTIFICATION_LABELS.TAXI_PROMO_CODE,
-    body: "Ваш промокод на поездку[[ по льготе «{card}»]][[ (период: {period})]]:\n{promo}",
+    body: "🎟️ <b>Промокод на поездку</b>[[\n«{card}»]][[ · {period}]]\n<code>{promo}</code>",
   },
   DAILY_DIGEST: {
     label: NOTIFICATION_LABELS.DAILY_DIGEST,
-    body: "{text}",
+    body: "📊 <b>Отчёт на начало дня</b>\n{text}",
   },
   GROUP_CARRIED_OVER: {
     label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
-    body: "Групповая льгота «{card}» не набрала нужное число участников. Ваш выбор перенесён на следующий период[[ («{period}»)]] — отменить можно с 25-го числа до его начала.",
+    body: "🔁 <b>Групповая льгота перенесена</b>\n«{card}» не набрала нужное число участников[[\nПериод: {period}]]\nВаш выбор перенесён на следующий период — отменить можно с 25-го числа до его начала.",
   },
 };
 
@@ -115,7 +142,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   },
   ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026" },
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде", period: "Сентябрь 2026" },
-  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123", period: "Сентябрь 2026" },
+  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123", period: "Сентябрь 2026", validUntil: "30.10.2026" },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
     department: "Отдел продаж",
@@ -129,7 +156,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000", period: "Сентябрь 2026" },
   TAXI_APPROVED_EMPLOYEE: { card: "Такси на работу", period: "Сентябрь 2026" },
   TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026" },
-  DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1" },
+  DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
 };
 
@@ -138,7 +165,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
   ITEM_APPROVED: ["card", "period"],
   ITEM_REJECTED: ["card", "comment", "period"],
-  COUPON_ISSUED: ["card", "number", "period"],
+  COUPON_ISSUED: ["card", "number", "period", "validUntil"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number", "period"],
   WINDOW_OPEN: ["period", "windowEnd"],
@@ -185,8 +212,10 @@ export function renderTemplate(body: string, vars: Record<string, string>): stri
     return allFilled ? inner : "";
   });
 
-  // 2. Обычные подстановки {x}.
-  out = out.replace(/\{([^}]+)\}/g, (_m, name: string) => value(name));
+  // 2. Обычные подстановки {x} — экранируем: тело шаблона (b/code и т.п.) —
+  // доверенная разметка, а вот значения ({card}, {employee}…) могут содержать
+  // &, < или > (напр. карточка «Спорт & фитнес») и не должны ломать HTML.
+  out = out.replace(/\{([^}]+)\}/g, (_m, name: string) => escHtml(value(name)));
 
   return out.replace(/[ \t]{2,}/g, " ").trim();
 }

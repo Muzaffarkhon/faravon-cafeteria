@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import {
   COUPON_STATUS_LABELS,
-  isCouponExpired,
+  isCouponOverdue,
   lookupCouponByEmployeePhone,
   lookupCouponByNumber,
   redeemCouponByNumber,
@@ -38,7 +38,7 @@ function toCouponView(
   c: NonNullable<Awaited<ReturnType<typeof lookupCouponByNumber>>>,
   actorPartnerId?: string | null,
 ): CouponView {
-  const expired = isCouponExpired(c.validUntil);
+  const expired = isCouponOverdue(c);
   const wrongPartner = !!actorPartnerId && c.partnerId !== actorPartnerId;
   return {
     number: c.number,

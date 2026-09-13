@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
@@ -6,7 +7,9 @@ import { resolveSelectionContext, getApplicationWithItems, groupProgress } from 
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
-import { BannerCarousel } from "./_banner-carousel";
+import { BannerCarousel, type BannerSlide } from "./_banner-carousel";
+import { buildNavGroups } from "./_nav";
+import { computeNavBadges } from "./_badges";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -17,27 +20,36 @@ export default async function OverviewPage() {
 
   if (!session?.employee) {
     const roles = session?.roles ?? [];
-    const links: { href: string; label: string; desc: string }[] = [];
-    if (can(roles, "applications.decide"))
-      links.push({ href: "/review", label: "Согласование заявок", desc: "одобрение и отклонение позиций" });
-    if (can(roles, "coupons.manage"))
-      links.push({ href: "/coupons", label: "Купоны", desc: "формирование и выдача купонов" });
-    if (can(roles, "coupons.confirm"))
-      links.push({ href: "/provider", label: "Касса партнёра", desc: "проверка и активация купонов сотрудников у партнёра" });
-    if (can(roles, "users.manage"))
-      links.push({ href: "/admin/users", label: "Пользователи и роли", desc: "справочник сотрудников, учётные записи, роли, деактивация" });
-    if (can(roles, "access.manage"))
-      links.push({ href: "/admin/access", label: "Доступ сотрудников", desc: "коды идентификации для Telegram-бота, привязка Telegram" });
-    if (can(roles, "cards.manage"))
-      links.push({ href: "/admin/cards", label: "Карточки", desc: "программы признания, витрина заботы, реестр гибких льгот" });
-    if (can(roles, "partners.manage"))
-      links.push({ href: "/admin/partners", label: "Справочник партнёров", desc: "организации-провайдеры льгот" });
-    if (can(roles, "cards.manage"))
-      links.push({ href: "/admin/texts", label: "Текстовые блоки", desc: "«Цель программы» и уведомление о новизне" });
-    if (can(roles, "periods.manage"))
-      links.push({ href: "/admin/periods", label: "Периоды выбора", desc: "окна подачи заявок, лимит, открытие и закрытие" });
-    if (can(roles, "reports.view"))
-      links.push({ href: "/admin/reports", label: "Отчёты и метрики", desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX" });
+    // Плитки строятся из того же списка разделов, что и меню «Ещё» в шапке
+    // (src/app/(app)/_nav.ts) — чтобы раздел нельзя было добавить в одно
+    // место и забыть про другое. Счётчики — из того же computeNavBadges,
+    // что и меню, иначе плитки снова разошлись бы с тем, что видно наверху.
+    const partnerId = session?.user.partnerId ?? null;
+    const [partner, badges] = await Promise.all([
+      partnerId
+        ? db.partner.findUnique({ where: { id: partnerId }, select: { deliveryMode: true } })
+        : Promise.resolve(null),
+      computeNavBadges({ roles, employeeId: null, partnerId }),
+    ]);
+    const allGroups = buildNavGroups({
+      roles,
+      hasEmployee: false,
+      partnerId,
+      isTaxiContractor:
+        can(roles, "promo.broadcast") && !!partnerId && partner?.deliveryMode === "PHONE_PROMO",
+      badges,
+    });
+    const hasAdminAccess = allGroups.some(
+      (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,
+    );
+    // Учётка без карточки сотрудника (C&B, сервисный аккаунт) с доступом в
+    // админку — «Кабинет» ей не нужен вовсе, все инструменты (включая
+    // «Работу») собраны в левом меню /admin. Остаётся только для тех, у
+    // кого есть исключительно «Работа» (подрядчик, согласующий и т.п.).
+    if (hasAdminAccess) redirect("/admin");
+
+    const groups = allGroups.filter((g) => g.id === "work");
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
 
     return (
       <div className="space-y-6">
@@ -48,36 +60,52 @@ export default async function OverviewPage() {
           </p>
         </div>
 
-        {links.length === 0 ? (
+        {total === 0 ? (
           <Card className="p-6">
             <p className="text-sm text-ink-muted">
               Разделы для вашей роли (справочники, отчёты) появятся здесь по мере готовности.
             </p>
           </Card>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {links.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[0.9375rem] font-bold text-ink">{l.label}</div>
-                    <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
-                  </div>
-                  <span
-                    aria-hidden="true"
-                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          groups.map((g) => (
+            <section key={g.id} className="space-y-3">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-subtle">
+                {g.label}
+              </h2>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {g.items.map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="group flex h-full items-start gap-4 rounded-[20px] bg-surface p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[0.9375rem] font-bold text-ink">{l.label}</span>
+                          {!!l.badge && (
+                            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-bold leading-none text-on-brand tabular-nums">
+                              {l.badge > 99 ? "99+" : l.badge}
+                            </span>
+                          )}
+                        </div>
+                        {l.desc && (
+                          <p className="mt-1 text-sm leading-6 text-ink-muted">{l.desc}</p>
+                        )}
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-[transform,background-color,color] duration-200 group-hover:translate-x-0.5 group-hover:bg-primary-soft group-hover:text-primary-strong"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
         )}
       </div>
     );
@@ -128,8 +156,9 @@ export default async function OverviewPage() {
 
   // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
   // «Партнёр») + групповые льготы, не набравшие порог, — с переходом на выбор.
-  const partnerBannerSlides = banners.map((b) => {
-    const cardId = b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
+  const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
+    const isNews = b.kind === "NEWS";
+    const cardId = !isNews && b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
     const cardHref = cardId ? `#card-${cardId}` : undefined;
     const safeHref = safeLinkHref(b.href);
     const androidUrl = safeLinkHref(b.androidUrl);
@@ -139,7 +168,7 @@ export default async function OverviewPage() {
     const linkHref = appHref ?? cardHref ?? safeHref;
     return {
       id: b.id,
-      kind: b.kind === "NEWS" ? ("news" as const) : ("partner" as const),
+      kind: isNews ? ("news" as const) : ("partner" as const),
       title: b.title,
       subtitle: b.subtitle,
       imageUrl: safeImageSrc(b.imageUrl),
@@ -151,26 +180,23 @@ export default async function OverviewPage() {
     };
   });
 
-  const groupBannerSlides =
-    windowOpen && targetPeriod
-      ? groupCards
-          .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
-          .map((c) => {
-            const have = groupCount.get(c.id) ?? 0;
-            return {
-              id: `group-${c.id}`,
-              kind: "group" as const,
-              title: c.title,
-              subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${
-                c.minParticipants - have
-              } — выберите в один клик.`,
-              imageUrl: safeImageSrc(c.imageUrl),
-              linkHref: `#card-${c.id}`,
-              external: false,
-              cta: "Перейти к льготе",
-            };
-          })
-      : [];
+  const groupBannerSlides: BannerSlide[] = groupCards
+    .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+    .map((c) => {
+      const have = groupCount.get(c.id) ?? 0;
+      const remaining = c.minParticipants - have;
+      return {
+        id: `group-${c.id}`,
+        kind: "group",
+        title: c.title,
+        subtitle: `Групповая льгота: выбрали ${have} из ${c.minParticipants}. Нужно ещё ${remaining}${period?.windowOpen ? " — выберите в один клик." : "."}`,
+        imageUrl: safeImageSrc(c.imageUrl),
+        linkHref: `#card-${c.id}`,
+        external: false,
+        cta: period?.windowOpen ? "Перейти к выбору" : "Перейти к льготе",
+        progress: { current: have, min: c.minParticipants },
+      };
+    });
 
   // Групповые льготы — первыми; дальше баннеры. Стартовый слайд карусель
   // выбирает случайно при каждом заходе (§6) — см. BannerCarousel.
@@ -187,10 +213,7 @@ export default async function OverviewPage() {
     <div className="space-y-8">
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
-        <div className="text-xs font-bold uppercase tracking-[0.14em] text-on-brand/70">
-          Витрина заботы
-        </div>
-        <h1 className="mt-1 font-display text-xl font-bold text-on-brand sm:text-2xl">
+        <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
           Здравствуйте, {firstName}
         </h1>
         <p className="mt-1 text-sm text-on-brand/80">{periodLine}</p>
@@ -235,7 +258,7 @@ export default async function OverviewPage() {
                 key={c.id}
                 className="group flex flex-col overflow-hidden rounded-[20px] bg-surface shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="h-[120px] overflow-hidden bg-surface-sunken">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-sunken">
                   {safeImageSrc(c.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -271,7 +294,7 @@ export default async function OverviewPage() {
                 key={c.id}
                 className="group flex flex-col overflow-hidden rounded-[20px] bg-surface shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="h-[140px] overflow-hidden bg-primary-soft">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-primary-soft">
                   {safeImageSrc(c.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -305,9 +328,16 @@ export default async function OverviewPage() {
           cards={flex.map((c) => ({
             id: c.id,
             title: c.title,
+            description: c.description,
             condition: c.condition,
             isActive: c.isActive,
             partner: c.partner?.name ?? null,
+            address: c.partner?.address ?? null,
+            workingHours: c.partner?.workingHours ?? null,
+            discountType: c.partner?.discountType ?? null,
+            terms: c.partner?.terms ?? null,
+            contactPerson: c.partner?.contactPerson ?? null,
+            contacts: c.partner?.contacts ?? null,
             imageUrl: c.imageUrl,
             category: c.category,
             minParticipants: c.minParticipants,

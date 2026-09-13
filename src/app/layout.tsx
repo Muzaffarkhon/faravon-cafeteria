@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { InlineScript } from "@/components/inline-script";
 import { TelegramChrome } from "@/components/telegram-chrome";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import "./globals.css";
@@ -40,8 +41,8 @@ export default function RootLayout({
   return (
     <html lang="ru" className="h-full" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;});})();` }} />
+        <InlineScript html={THEME_INIT} />
+        <InlineScript html={`(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;});})();`} />
         {/* manifest + apple-touch-icon приходят из export const metadata ниже */}
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
