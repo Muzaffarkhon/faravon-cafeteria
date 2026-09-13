@@ -11,7 +11,7 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Em
 WHERE e."id" = t."id";
 ALTER TABLE "Employee" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "Employee" ALTER COLUMN "seq" SET DEFAULT nextval('"Employee_seq_seq"');
-SELECT setval('"Employee_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Employee"), 0));
+SELECT setval('"Employee_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Employee"), 1), (SELECT MAX("seq") FROM "Employee") IS NOT NULL);
 ALTER SEQUENCE "Employee_seq_seq" OWNED BY "Employee"."seq";
 CREATE UNIQUE INDEX "Employee_seq_key" ON "Employee"("seq");
 
@@ -23,7 +23,7 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Us
 WHERE e."id" = t."id";
 ALTER TABLE "User" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "User" ALTER COLUMN "seq" SET DEFAULT nextval('"User_seq_seq"');
-SELECT setval('"User_seq_seq"', COALESCE((SELECT MAX("seq") FROM "User"), 0));
+SELECT setval('"User_seq_seq"', COALESCE((SELECT MAX("seq") FROM "User"), 1), (SELECT MAX("seq") FROM "User") IS NOT NULL);
 ALTER SEQUENCE "User_seq_seq" OWNED BY "User"."seq";
 CREATE UNIQUE INDEX "User_seq_key" ON "User"("seq");
 
@@ -35,7 +35,7 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Pa
 WHERE e."id" = t."id";
 ALTER TABLE "Partner" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "Partner" ALTER COLUMN "seq" SET DEFAULT nextval('"Partner_seq_seq"');
-SELECT setval('"Partner_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Partner"), 0));
+SELECT setval('"Partner_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Partner"), 1), (SELECT MAX("seq") FROM "Partner") IS NOT NULL);
 ALTER SEQUENCE "Partner_seq_seq" OWNED BY "Partner"."seq";
 CREATE UNIQUE INDEX "Partner_seq_key" ON "Partner"("seq");
 
@@ -47,7 +47,7 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Ap
 WHERE e."id" = t."id";
 ALTER TABLE "ApplicationItem" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "ApplicationItem" ALTER COLUMN "seq" SET DEFAULT nextval('"ApplicationItem_seq_seq"');
-SELECT setval('"ApplicationItem_seq_seq"', COALESCE((SELECT MAX("seq") FROM "ApplicationItem"), 0));
+SELECT setval('"ApplicationItem_seq_seq"', COALESCE((SELECT MAX("seq") FROM "ApplicationItem"), 1), (SELECT MAX("seq") FROM "ApplicationItem") IS NOT NULL);
 ALTER SEQUENCE "ApplicationItem_seq_seq" OWNED BY "ApplicationItem"."seq";
 CREATE UNIQUE INDEX "ApplicationItem_seq_key" ON "ApplicationItem"("seq");
 
@@ -59,7 +59,7 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Co
 WHERE e."id" = t."id";
 ALTER TABLE "Coupon" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "Coupon" ALTER COLUMN "seq" SET DEFAULT nextval('"Coupon_seq_seq"');
-SELECT setval('"Coupon_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Coupon"), 0));
+SELECT setval('"Coupon_seq_seq"', COALESCE((SELECT MAX("seq") FROM "Coupon"), 1), (SELECT MAX("seq") FROM "Coupon") IS NOT NULL);
 ALTER SEQUENCE "Coupon_seq_seq" OWNED BY "Coupon"."seq";
 CREATE UNIQUE INDEX "Coupon_seq_key" ON "Coupon"("seq");
 
@@ -71,6 +71,6 @@ FROM (SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt", "id") AS rn FROM "Ad
 WHERE e."id" = t."id";
 ALTER TABLE "AdvertisingRequest" ALTER COLUMN "seq" SET NOT NULL;
 ALTER TABLE "AdvertisingRequest" ALTER COLUMN "seq" SET DEFAULT nextval('"AdvertisingRequest_seq_seq"');
-SELECT setval('"AdvertisingRequest_seq_seq"', COALESCE((SELECT MAX("seq") FROM "AdvertisingRequest"), 0));
+SELECT setval('"AdvertisingRequest_seq_seq"', COALESCE((SELECT MAX("seq") FROM "AdvertisingRequest"), 1), (SELECT MAX("seq") FROM "AdvertisingRequest") IS NOT NULL);
 ALTER SEQUENCE "AdvertisingRequest_seq_seq" OWNED BY "AdvertisingRequest"."seq";
 CREATE UNIQUE INDEX "AdvertisingRequest_seq_key" ON "AdvertisingRequest"("seq");
