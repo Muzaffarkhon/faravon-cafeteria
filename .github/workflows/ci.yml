@@ -30,6 +30,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
       AUTH_SECRET: ci-placeholder-not-a-secret-0000000000000000
       NEXT_TELEMETRY_DISABLED: "1"
 
