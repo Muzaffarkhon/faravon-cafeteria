@@ -34,6 +34,7 @@ export const ICONS = {
   users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
   history: "M3 12a9 9 0 1 0 3-6.7L3 8||M3 3v5h5||M12 8v5l3 2",
   chat: "M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z||M8 9h8||M8 12h5",
+  star: "M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z",
 };
 
 /** Счётчики непрочитанного/несделанного. Плиткам «Кабинета» они не нужны. */
@@ -242,6 +243,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.audit"),
       desc: "история действий: кто, что и когда изменял, согласования, входы",
       icon: ICONS.history,
+    });
+  if (can(roles, "satisfaction.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/satisfaction",
+      label: t("nav.satisfaction"),
+      desc: "опрос удовлетворённости: вкл/выкл, периодичность, оценки и отзывы",
+      icon: ICONS.star,
     });
 
   return groups;

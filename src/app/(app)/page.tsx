@@ -12,6 +12,8 @@ import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { localize } from "@/lib/localize";
+import { isEligibleForSatisfactionSurvey } from "@/lib/satisfaction";
+import { SatisfactionPrompt } from "./_satisfaction-prompt";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -88,7 +90,7 @@ export default async function OverviewPage() {
                           <span className="text-[0.9375rem] font-bold text-ink">{l.label}</span>
                           {!!l.badge && (
                             <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-bold leading-none text-on-brand tabular-nums">
-                              {l.badge > 99 ? "99+" : l.badge}
+                              {l.badge}
                             </span>
                           )}
                         </div>
@@ -116,6 +118,7 @@ export default async function OverviewPage() {
   }
 
   const emp = session.employee;
+  const satisfactionEligible = await isEligibleForSatisfactionSurvey(emp.id);
   const ctx = await resolveSelectionContext();
   // Для показа периода/окна — период с открытым окном; для выбора — целевой
   // (после старта периода выбор переносится на следующий, §2).
@@ -240,6 +243,7 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-8">
+      <SatisfactionPrompt eligible={satisfactionEligible} locale={locale} />
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
         <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
