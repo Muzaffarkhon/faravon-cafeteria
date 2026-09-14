@@ -133,6 +133,95 @@ async function issueCouponImpl(couponId: string) {
   revalidateAll();
 }
 
+/**
+ * Убрать одобренную позицию из очереди «Ожидают формирования купона» — до
+ * того, как купон вообще сформирован (сотрудник ещё ничего не получил).
+ *
+ * Групповая льгота (minParticipants > 1) считает эту позицию в счётчике
+ * набора группы (§ groupApprovedCount), даже пока её купон ещё не создан.
+ * Если без неё группа перестаёт набирать порог:
+ *  - но другим участникам купон по ней уже ВЫДАН (ISSUED/USED) — отменить
+ *    нельзя: задним числом аннулировать чужой уже выданный купон нельзя;
+ *  - а если никому ещё не выдано — купоны других участников, сформированные
+ *    (CREATED), но не выданные, снимаются вместе с этой позицией: без нее
+ *    квоту всё равно не набрать, пусть вернутся в очередь (та же логика, что
+ *    при непробравшемся переносе периода — см. group-rollover.ts).
+ */
+export async function rejectAwaitingItem(itemId: string): Promise<ActionResult> {
+  return runAction(() => rejectAwaitingItemImpl(itemId));
+}
+
+async function rejectAwaitingItemImpl(itemId: string) {
+  const s = await requireSession();
+  assertCan(s.roles, "coupons.manage");
+
+  const item = await db.applicationItem.findUnique({
+    where: { id: itemId },
+    include: {
+      coupon: { select: { id: true } },
+      card: { select: { id: true, title: true, minParticipants: true } },
+      application: { select: { employeeId: true, periodId: true, period: { select: { name: true } } } },
+    },
+  });
+  if (!item) throw new Error("Позиция не найдена.");
+  if (item.coupon) throw new Error("У позиции уже есть купон — удалите его в реестре купонов ниже.");
+  if (item.status !== "APPROVED") {
+    throw new Error("Убрать из очереди можно только одобренную позицию без сформированного купона.");
+  }
+
+  if (item.card.minParticipants > 1) {
+    const count = await groupApprovedCount(item.card.id, item.application.periodId);
+    if (count - 1 < item.card.minParticipants) {
+      const committed = await db.coupon.count({
+        where: {
+          periodId: item.application.periodId,
+          item: { is: { cardId: item.card.id } },
+          status: { in: ["ISSUED", "USED"] },
+        },
+      });
+      if (committed > 0) {
+        throw new Error(
+          `Групповая льгота «${item.card.title}»: без этого участника наберётся ${count - 1} из ${item.card.minParticipants}, а другим сотрудникам купон по этой группе уже выдан — отменить это задним числом нельзя.`,
+        );
+      }
+      const orphaned = await db.coupon.findMany({
+        where: { status: "CREATED", periodId: item.application.periodId, item: { is: { cardId: item.card.id } } },
+        select: { id: true, itemId: true },
+      });
+      if (orphaned.length > 0) {
+        await db.$transaction([
+          db.coupon.updateMany({ where: { id: { in: orphaned.map((c) => c.id) } }, data: { status: "CANCELLED" } }),
+          db.applicationItem.updateMany({
+            where: { id: { in: orphaned.map((c) => c.itemId) } },
+            data: { status: "APPROVED" },
+          }),
+        ]);
+      }
+    }
+  }
+
+  assertTransition(item.status, "REJECTED", "C_AND_B");
+  await db.applicationItem.update({
+    where: { id: itemId },
+    data: { status: "REJECTED", decidedById: s.user.id, decidedAt: new Date() },
+  });
+  await audit({
+    actorId: s.user.id,
+    action: "ITEM_REJECTED",
+    entityType: "ApplicationItem",
+    entityId: itemId,
+    oldValue: { status: "APPROVED" },
+    newValue: { status: "REJECTED", via: "coupons_awaiting" },
+  });
+  await notifyEmployee({
+    employeeId: item.application.employeeId,
+    event: "ITEM_REJECTED",
+    payload: { card: item.card.title, period: item.application.period.name },
+  });
+
+  revalidateAll();
+}
+
 /** Удалить купон (C_AND_B). Связанная позиция возвращается в статус «Одобрено». */
 export async function deleteCoupon(couponId: string): Promise<ActionResult> {
   return runAction(() => deleteCouponImpl(couponId));

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { createCoupon, issueCoupon, deleteCoupon } from "./actions";
+import { createCoupon, issueCoupon, deleteCoupon, rejectAwaitingItem } from "./actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 function ActionButton({
@@ -83,6 +83,74 @@ export function IssueCouponButton({ couponId, locale }: { couponId: string; loca
       errorFallback={t("coupons.error")}
       onRun={() => issueCoupon(couponId)}
     />
+  );
+}
+
+export function RejectAwaitingButton({
+  itemId,
+  cardTitle,
+  locale,
+}: {
+  itemId: string;
+  cardTitle: string;
+  locale: Locale;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleReject = () => {
+    setError(null);
+    start(async () => {
+      try {
+        const r = await rejectAwaitingItem(itemId);
+        if (r?.error) {
+          setError(r.error);
+        } else {
+          setOpen(false);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("coupons.rejectAwaitingError"));
+      }
+    });
+  };
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={pending}
+        onClick={() => setOpen(true)}
+        className="text-danger hover:bg-danger/10 hover:text-danger"
+      >
+        {t("coupons.rejectAwaiting")}
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        title={t("coupons.rejectAwaitingConfirmTitle")}
+        tone="danger"
+        confirmLabel={t("coupons.rejectAwaiting")}
+        busy={pending}
+        message={
+          <div className="space-y-2">
+            <p>
+              {t("coupons.rejectAwaitingConfirmMessage")} <strong className="text-ink">«{cardTitle}»</strong>?
+            </p>
+            <p className="text-xs text-ink-subtle">{t("coupons.rejectAwaitingHint")}</p>
+            {error && (
+              <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={handleReject}
+        onClose={() => !pending && setOpen(false)}
+      />
+    </>
   );
 }
 

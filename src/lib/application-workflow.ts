@@ -29,7 +29,12 @@ const TRANSITIONS: Record<ItemStatus, { to: ItemStatus; by: Actor }[]> = {
     { to: "REJECTED", by: "C_AND_B" },
     { to: "CANCELLED", by: "EMPLOYEE" },
   ],
-  APPROVED: [{ to: "COUPON_CREATED", by: "C_AND_B" }],
+  // REJECTED — «убрать из очереди» одобренную, но ещё не превращённую в купон
+  // позицию (см. rejectAwaitingItem в (app)/coupons/actions.ts).
+  APPROVED: [
+    { to: "COUPON_CREATED", by: "C_AND_B" },
+    { to: "REJECTED", by: "C_AND_B" },
+  ],
   COUPON_CREATED: [{ to: "COUPON_ISSUED", by: "C_AND_B" }],
   COUPON_ISSUED: [],
   REJECTED: [],
