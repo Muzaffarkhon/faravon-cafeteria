@@ -330,7 +330,7 @@ export function ThreadView({
                   }
                 >
                   {m.direction === "OUT" ? (m.author ?? "C&B") : source === "WEB" ? t("support.employee") : t("support.guest")} ·{" "}
-                  {new Date(m.createdAt).toLocaleString("ru-RU")}
+                  {new Date(m.createdAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
                 </p>
               </div>
             </div>

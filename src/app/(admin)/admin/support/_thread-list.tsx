@@ -6,7 +6,7 @@ import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { SUPPORT_CHIP_PARAMS, type ThreadListSearchParams, type ThreadRow } from "./_thread-list-data";
 
-const timeFmt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" });
+const timeFmt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" });
 
 function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || "?";
