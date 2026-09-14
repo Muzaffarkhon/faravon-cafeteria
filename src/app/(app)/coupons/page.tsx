@@ -17,7 +17,7 @@ import {
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
-import { CreateCouponButton, IssueCouponButton, DeleteCouponButton } from "./_buttons";
+import { CreateCouponButton, IssueCouponButton, DeleteCouponButton, RejectAwaitingButton } from "./_buttons";
 
 const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 
@@ -103,7 +103,7 @@ export default async function CouponsPage({
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
-    <div className="space-y-10">
+    <div data-wide className="space-y-10">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("coupons.title")}</h1>
       </header>
@@ -134,7 +134,10 @@ export default async function CouponsPage({
                     {item.application.period.name}
                   </div>
                 </div>
-                <CreateCouponButton itemId={item.id} locale={locale} />
+                <div className="flex items-center gap-1.5">
+                  <CreateCouponButton itemId={item.id} locale={locale} />
+                  <RejectAwaitingButton itemId={item.id} cardTitle={item.card.title} locale={locale} />
+                </div>
               </li>
             ))}
           </ul>

@@ -194,7 +194,7 @@ export default async function AuditPage({
   });
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
           <span className="mb-1 block text-xs text-ink-muted">{t("audit.actionLabel")}</span>

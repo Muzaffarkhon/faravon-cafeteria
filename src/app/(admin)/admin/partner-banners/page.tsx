@@ -90,7 +90,7 @@ export default function Page() {
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <Card className="p-5">
         <div className="text-sm font-semibold text-ink">
           {editing ? t("banners.editTitle") : t("banners.newTitle")}

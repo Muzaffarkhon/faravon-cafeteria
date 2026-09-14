@@ -75,7 +75,7 @@ export default async function AccessPage({
   }
 
   return (
-    <div className="space-y-5">
+    <div data-wide className="space-y-5">
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("access.matrixTitle")}</SectionTitle>
         <p className="text-sm text-ink-muted">

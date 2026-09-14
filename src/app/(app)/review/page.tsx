@@ -122,7 +122,7 @@ export default async function ReviewPage({
   };
 
   return (
-    <div className="space-y-5">
+    <div data-wide className="space-y-5">
       <PageHeader
         title={t("review.title")}
         description={`${t("review.pendingLabel")}: ${totalPending}${

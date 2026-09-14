@@ -67,7 +67,7 @@ export default function Page() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       {items === null ? (
         <Card className="p-6 text-sm text-ink-muted">{t("adReq.loading")}</Card>
       ) : items.length === 0 ? (

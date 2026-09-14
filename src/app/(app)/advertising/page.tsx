@@ -37,7 +37,7 @@ export default async function AdvertisingPage() {
   if (!partner) redirect("/");
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <PageHeader
         title={t("advertising.title")}
         description={`${t("advertising.descriptionPrefix")} «${partner.name}» ${t("advertising.descriptionSuffix")}`}

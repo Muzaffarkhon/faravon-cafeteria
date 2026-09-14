@@ -36,7 +36,7 @@ export default async function TaxiProviderPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <PageHeader
         title={t("providerTaxi.title")}
         description={`«${partner.name}»: ${t("providerTaxi.descriptionSuffix")}`}

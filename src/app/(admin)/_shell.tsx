@@ -248,7 +248,7 @@ export function AdminShell({
                                 collapsed && "absolute ml-5 mt-[-14px]",
                               )}
                             >
-                              {it.badge > 99 ? "99+" : it.badge}
+                              {it.badge}
                             </span>
                           ) : null}
                         </Link>
@@ -335,8 +335,11 @@ export function AdminShell({
           </div>
         </header>
 
-        <main className="relative flex-1 overflow-y-auto p-4 sm:p-6">
-          <div key={pathname} className="animate-page mx-auto w-full max-w-6xl has-[[data-wide]]:max-w-[100rem]">
+        {/* Левое меню и шапка уже отделяют контент от края экрана — сами по
+            себе отступы страницы были избыточны и «резали» широкие таблицы.
+            Минимум 6px слева/справа/снизу, сверху оставлен запас под шапку. */}
+        <main className="relative flex-1 overflow-y-auto px-1.5 pb-1.5 pt-4 sm:pt-6">
+          <div key={pathname} className="animate-page mx-auto w-full max-w-6xl has-[[data-wide]]:max-w-none">
             {children}
           </div>
         </main>

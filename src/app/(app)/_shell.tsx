@@ -157,7 +157,7 @@ export function AppShell({
                         active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
                       )}
                     >
-                      {it.badge > 99 ? "99+" : it.badge}
+                      {it.badge}
                     </span>
                   ) : null}
                 </Link>
@@ -198,7 +198,7 @@ export function AppShell({
                 <span>{t("nav.more")}</span>
                 {moreBadge > 0 && !moreOpen && (
                   <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                    {moreBadge > 99 ? "99+" : moreBadge}
+                    {moreBadge}
                   </span>
                 )}
               </button>
@@ -233,7 +233,7 @@ export function AppShell({
                               <span className="min-w-0 flex-1 truncate">{it.label}</span>
                               {it.badge ? (
                                 <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                                  {it.badge > 99 ? "99+" : it.badge}
+                                  {it.badge}
                                 </span>
                               ) : null}
                             </Link>
@@ -333,9 +333,11 @@ export function AppShell({
 
       {/* ── Контент ── */}
       {/* Широкие реестры (много колонок) помечают свой корень `data-wide` и
-          получают больше ширины на больших экранах — остальные страницы
-          остаются читаемой колонкой в max-w-6xl. */}
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 has-[[data-wide]]:max-w-[100rem] sm:pb-16">
+          получают всю доступную ширину — остальные страницы остаются
+          читаемой колонкой в max-w-6xl. Верхняя навигация уже отделяет
+          контент от края экрана, так что сами отступы страницы — минимум
+          6px по бокам и снизу (сверху — запас под шапку). */}
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-1.5 pb-1.5 pt-5 has-[[data-wide]]:max-w-none">
         <div key={pathname} className="animate-page">
           {children}
         </div>
@@ -417,7 +419,7 @@ export function AppShell({
                         <span className="min-w-0 flex-1 truncate">{it.label}</span>
                         {it.badge ? (
                           <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                            {it.badge > 99 ? "99+" : it.badge}
+                            {it.badge}
                           </span>
                         ) : null}
                       </Link>

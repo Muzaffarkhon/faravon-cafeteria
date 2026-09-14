@@ -51,7 +51,7 @@ export default async function PartnersPage({
   const lastEdits = await lastEditsFor("Partner", partners.map((p) => p.id));
 
   return (
-    <div className="space-y-5">
+    <div data-wide className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-ink-muted">{t("partners.total")}: {partners.length}</span>
         <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
