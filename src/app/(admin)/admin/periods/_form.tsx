@@ -16,9 +16,15 @@ export type PeriodValues = {
   maxSelections: number;
 };
 
+// Душанбе: UTC+5, без перехода на летнее время (см. TZ в actions.ts). Даты
+// хранятся как местная полночь/конец дня Душанбе, пересчитанная в UTC —
+// toISOString() отображал бы их в UTC и «съедал» день (полночь Душанбе —
+// это ещё вечер предыдущих суток по UTC), из-за чего дата сдвигалась на
+// день назад при каждом повторном открытии и сохранении формы.
 function d(v: Date | string | undefined) {
   if (!v) return "";
-  return new Date(v).toISOString().slice(0, 10);
+  const dushanbeMs = new Date(v).getTime() + 5 * 60 * 60 * 1000;
+  return new Date(dushanbeMs).toISOString().slice(0, 10);
 }
 
 export function PeriodForm({
