@@ -107,6 +107,17 @@ export function PetalDrag() {
         if (b.isDragging) continue;
 
         const speedSq = b.vx * b.vx + b.vy * b.vy;
+
+        // Лепестки, которых ещё не коснулись, продолжают дрейфовать сами по себе
+        // через CSS-анимацию — пока где-то идёт активный драг, держим их координаты
+        // актуальными, иначе столкновения считаются по устаревшей позиции (мимо —
+        // или наоборот, «толкает» без визуального касания).
+        if (speedSq === 0 && drag) {
+          const rect = b.el.getBoundingClientRect();
+          b.cx = rect.left + rect.width / 2;
+          b.cy = rect.top + rect.height / 2;
+        }
+
         if (speedSq > 0.005) {
           hasActiveMotion = true;
           b.cx += b.vx;
