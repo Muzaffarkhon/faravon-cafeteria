@@ -32,15 +32,17 @@ export function dushanbeYM(d: Date): { y: number; m: number } {
 
 /**
  * Окно отмены выбора (§6): сотрудник может отменить уже отправленную позицию
- * только с 25-го числа месяца, предшествующего началу периода, и до старта периода.
+ * с начала окна выбора периода (`windowStart`, задаётся админом на странице
+ * периода) и до старта самого периода. Раньше начало было зашито как
+ * фиксированное «25-е число» — не совпадало с реальным окном, если админ
+ * настраивал период на другие даты.
  */
-export function cancelWindow(period: Pick<Period, "startDate">): { start: Date; end: Date } {
-  const { y, m } = dushanbeYM(period.startDate);
-  return { start: dushanbeInstant(y, m - 1, 25), end: period.startDate };
+export function cancelWindow(period: Pick<Period, "startDate" | "windowStart">): { start: Date; end: Date } {
+  return { start: period.windowStart, end: period.startDate };
 }
 
 export function isWithinCancelWindow(
-  period: Pick<Period, "startDate">,
+  period: Pick<Period, "startDate" | "windowStart">,
   now: Date = new Date(),
 ): boolean {
   const w = cancelWindow(period);
