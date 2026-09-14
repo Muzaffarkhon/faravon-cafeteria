@@ -87,10 +87,17 @@ export function AppShell({
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
-  const primary: NavItem[] = groups
-    .filter((g) => PRIMARY_GROUPS.has(g.id))
-    .flatMap((g) => g.items);
+  // «Скоро»-пункты (пока не запущенные разделы, напр. геймификация) не
+  // занимают место в и так тесной строке вкладок — уходят в «Ещё». Иначе при
+  // достаточном числе вкладок такой пункт просто обрезался прокруткой без
+  // всякого намёка, что он там есть.
+  const primaryAll: NavItem[] = groups.filter((g) => PRIMARY_GROUPS.has(g.id)).flatMap((g) => g.items);
+  const primary = primaryAll.filter((it) => !it.soon);
+  const soonItems = primaryAll.filter((it) => it.soon);
   const moreGroups: NavGroup[] = groups.filter((g) => !PRIMARY_GROUPS.has(g.id));
+  if (soonItems.length > 0) {
+    moreGroups.push({ id: "soon", label: t("nav.soon"), items: soonItems });
+  }
   const moreItems = moreGroups.flatMap((g) => g.items);
   const moreActive = moreItems.some((it) => isActive(it.href));
   const moreBadge = moreItems.reduce((n, it) => n + (it.badge ?? 0), 0);
@@ -131,7 +138,10 @@ export function AppShell({
         className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur"
         style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
       >
-        <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2.5 sm:px-4">
+        {/* Без потолка ширины — иначе на широких экранах строка вкладок
+            зажата в 1152px и урезает пункты («Обратная связь» → «Обра»),
+            хотя справа и слева пусто. */}
+        <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
           <Link href="/" className="mr-1 flex shrink-0 items-center gap-2" aria-label="На главную">
             <BrandMark size={26} priority />
             <span className="hidden font-display text-[15px] font-bold text-ink sm:block">

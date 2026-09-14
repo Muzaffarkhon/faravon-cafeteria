@@ -25,6 +25,7 @@ export const DICT = {
     "nav.feedback": "Обратная связь",
     "nav.gamification": "Геймификация",
     "nav.more": "Ещё",
+    "nav.soon": "Скоро",
 
     "nav.work": "Работа",
     "nav.review": "Согласование",
@@ -542,6 +543,7 @@ export const DICT = {
     "satisfaction.thanks": "Спасибо за отзыв!",
 
     "satisfactionAdmin.title": "Опрос удовлетворённости",
+    "satisfactionAdmin.preview": "Предпросмотр",
     "satisfactionAdmin.enabledLabel": "Показывать опрос сотрудникам",
     "satisfactionAdmin.enabledHint": "Появляется после того, как сотрудник погасил купон у партнёра — не чаще периодичности ниже.",
     "satisfactionAdmin.repeatDaysLabel": "Повтор не чаще, чем раз в (дней)",
@@ -1172,6 +1174,7 @@ export const DICT = {
     "nav.feedback": "Алоқаи баргашт",
     "nav.gamification": "Бозисозӣ",
     "nav.more": "Бештар",
+    "nav.soon": "Ба зудӣ",
 
     "nav.work": "Кор",
     "nav.review": "Тасдиқ",
@@ -1689,6 +1692,7 @@ export const DICT = {
     "satisfaction.thanks": "Ташаккур барои фикру мулоҳиза!",
 
     "satisfactionAdmin.title": "Пурсиши қаноатмандӣ",
+    "satisfactionAdmin.preview": "Пешнамоиш",
     "satisfactionAdmin.enabledLabel": "Ба кормандон пурсиш нишон дода шавад",
     "satisfactionAdmin.enabledHint": "Пас аз он ки корманд купонро дар назди шарик истифода бурд пайдо мешавад — на зиёдтар аз даврае, ки поён нишон дода шудааст.",
     "satisfactionAdmin.repeatDaysLabel": "Такрор на зиёдтар аз як бор дар (рӯз)",
@@ -2319,6 +2323,7 @@ export const DICT = {
     "nav.feedback": "Fikr-mulohaza",
     "nav.gamification": "O'yinlashtirish",
     "nav.more": "Yana",
+    "nav.soon": "Tez orada",
 
     "nav.work": "Ish",
     "nav.review": "Tasdiqlash",
@@ -2836,6 +2841,7 @@ export const DICT = {
     "satisfaction.thanks": "Fikringiz uchun rahmat!",
 
     "satisfactionAdmin.title": "Qoniqish so'rovnomasi",
+    "satisfactionAdmin.preview": "Oldindan ko'rish",
     "satisfactionAdmin.enabledLabel": "Xodimlarga so'rovnoma ko'rsatilsin",
     "satisfactionAdmin.enabledHint": "Xodim hamkor oldida kuponni ishlatgandan keyin paydo bo'ladi — pastdagi davriylikdan tez-tez emas.",
     "satisfactionAdmin.repeatDaysLabel": "Qayta so'rash — ko'pi bilan har (kun)da bir marta",
