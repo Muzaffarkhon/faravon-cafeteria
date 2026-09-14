@@ -122,7 +122,7 @@ export default async function ReviewPage({
   };
 
   return (
-    <div data-wide className="space-y-5">
+    <div data-wide className="space-y-3">
       <PageHeader
         title={t("review.title")}
         description={`${t("review.pendingLabel")}: ${totalPending}${
@@ -151,50 +151,44 @@ export default async function ReviewPage({
         ]}
       />
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          {t("review.employeeLabel")}
-          <Input name="q" defaultValue={q} placeholder={t("review.employeeNamePlaceholder")} className="w-44 py-1.5 text-sm" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          {t("review.departmentLabel")}
-          <Select name="dept" defaultValue={dept} className="w-auto py-1.5 text-sm">
-            <option value="">{t("review.all")}</option>
-            {departments.map((d) => (
-              <option key={d.department} value={d.department}>
-                {d.department}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          {t("review.periodLabel")}
-          <Select name="period" defaultValue={period} className="w-auto py-1.5 text-sm">
-            <option value="">{t("review.all")}</option>
-            {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          {t("review.cardLabel")}
-          <Select name="card" defaultValue={card} className="w-auto py-1.5 text-sm">
-            <option value="">{t("review.all")}</option>
-            {cards.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </Select>
-        </label>
+      {/* Одна строка вместо подписи-над-полем на каждый фильтр — то же самое
+          читается через плейсхолдер поля и первый пункт списка («Все ...»),
+          но не растягивает шапку страницы на 2 лишних яруса. */}
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder={`${t("review.employeeLabel")}: ${t("review.employeeNamePlaceholder")}`}
+          className="w-48 py-1.5 text-sm"
+        />
+        <Select name="dept" defaultValue={dept} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allDepartments")}</option>
+          {departments.map((d) => (
+            <option key={d.department} value={d.department}>
+              {d.department}
+            </option>
+          ))}
+        </Select>
+        <Select name="period" defaultValue={period} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allPeriods")}</option>
+          {periods.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </Select>
+        <Select name="card" defaultValue={card} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allCards")}</option>
+          {cards.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </Select>
         {hiddenChipInputs(sp, ["sort", "overdue"])}
-        <button className={buttonClass({ variant: "secondary", size: "sm" }) + " mb-0.5"}>
-          {t("review.apply")}
-        </button>
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("review.apply")}</button>
         {(q || dept || period || card || overdue || sort !== "oldest") && (
-          <a href="/review" className="mb-2 text-xs text-ink-muted hover:text-ink hover:underline">
+          <a href="/review" className="text-xs text-ink-muted hover:text-ink hover:underline">
             {t("review.reset")}
           </a>
         )}
