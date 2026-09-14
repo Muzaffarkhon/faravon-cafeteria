@@ -24,8 +24,10 @@ export type CouponView = {
   condition: string | null;
   partner: string | null;
   period: string;
+  validFrom: string | null;
   validUntil: string | null;
   expired: boolean;
+  notYetValid: boolean;
   redeemable: boolean;
   wrongPartner: boolean;
 };
@@ -43,23 +45,31 @@ function toCouponView(
   actorPartnerId?: string | null,
 ): CouponView {
   const expired = isCouponOverdue(c);
+  // Купон мог быть одобрен и выдан ещё в окне выбора, до начала самого
+  // периода — партнёр не должен успеть погасить его раньше срока
+  // (см. ту же проверку в redeemCouponByNumber).
+  const notYetValid = c.status === "ISSUED" && new Date() < c.period.startDate;
   const wrongPartner = !!actorPartnerId && c.partnerId !== actorPartnerId;
   return {
     number: c.number,
     status: c.status,
     statusLabel:
-      expired && c.status === "ISSUED"
-        ? translate(locale, "provider.statusExpired")
-        : couponStatusLabel(locale, c.status),
+      notYetValid
+        ? translate(locale, "provider.statusNotYetValid")
+        : expired && c.status === "ISSUED"
+          ? translate(locale, "provider.statusExpired")
+          : couponStatusLabel(locale, c.status),
     employee: c.employee.fullName,
     department: c.employee.department,
     card: c.item.card.title,
     condition: c.item.card.condition,
     partner: c.partner?.name ?? c.item.card.partner?.name ?? null,
     period: c.period.name,
+    validFrom: c.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
     validUntil: c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     expired,
-    redeemable: c.status === "ISSUED" && !expired && !wrongPartner,
+    notYetValid,
+    redeemable: c.status === "ISSUED" && !expired && !notYetValid && !wrongPartner,
     wrongPartner,
   };
 }

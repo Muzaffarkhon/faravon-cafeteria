@@ -128,6 +128,11 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
                 {coupon.condition}
               </div>
             )}
+            {coupon.validFrom && coupon.validUntil && (
+              <div className="mt-1.5 text-xs font-medium text-primary-strong/80" data-numeric>
+                {t("provider.validPeriod")}: {coupon.validFrom} – {coupon.validUntil}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -144,7 +149,9 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
             <p className="mb-2 text-sm font-medium text-danger">
               {coupon.wrongPartner
                 ? `${t("provider.wrongPartnerPrefix")} «${coupon.partner ?? t("provider.otherPartner")}» ${t("provider.wrongPartnerSuffix")}`
-                : `${t("provider.statusCantActivatePrefix")} «${coupon.statusLabel}» ${t("provider.statusCantActivateSuffix")}`}
+                : coupon.notYetValid
+                  ? `${t("provider.notYetValidPrefix")} ${coupon.validFrom}.`
+                  : `${t("provider.statusCantActivatePrefix")} «${coupon.statusLabel}» ${t("provider.statusCantActivateSuffix")}`}
             </p>
           )}
           <Button variant="ghost" fullWidth onClick={reset} disabled={pending}>

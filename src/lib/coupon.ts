@@ -133,6 +133,14 @@ export async function redeemCouponByNumber(
   }
 
   const now = new Date();
+  // Купон может быть одобрен и выдан ещё в окне выбора, ДО начала самого
+  // периода (окно открывается заранее) — гасить его партнёру раньше срока
+  // нельзя, даже если он уже ISSUED.
+  if (now.getTime() < coupon.period.startDate.getTime()) {
+    throw new Error(
+      `Купон ещё не действует. Начало действия: ${coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}.`,
+    );
+  }
   const pastValid = isCouponExpired(coupon.validUntil, now);
   const periodPassed = isCouponPeriodPassed(coupon.period, now);
 

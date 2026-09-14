@@ -1063,6 +1063,9 @@ export const DICT = {
     "provider.errors.notFound": "Купон с таким номером не найден.",
     "provider.errors.redeemFailed": "Не удалось активировать купон.",
     "provider.statusExpired": "Просрочен",
+    "provider.statusNotYetValid": "Ещё не действует",
+    "provider.validPeriod": "Действует",
+    "provider.notYetValidPrefix": "Льгота ещё не действует. Начало:",
 
     "providerTaxi.title": "Промокоды на поездки",
     "providerTaxi.descriptionSuffix": "одобренные сотрудники и рассылка промокодов. Наш QR не используется.",
@@ -2148,6 +2151,9 @@ export const DICT = {
     "provider.errors.notFound": "Купон бо чунин рақам ёфт нашуд.",
     "provider.errors.redeemFailed": "Купонро фаъол кардан ноком шуд.",
     "provider.statusExpired": "Мӯҳлаташ гузашт",
+    "provider.statusNotYetValid": "Ҳанӯз амал намекунад",
+    "provider.validPeriod": "Амал мекунад",
+    "provider.notYetValidPrefix": "Имтиёз ҳанӯз амал намекунад. Оғоз:",
 
     "providerTaxi.title": "Промокодҳо барои сафар",
     "providerTaxi.descriptionSuffix": "кормандони тасдиқшуда ва паҳнкунии промокодҳо. QR-и мо истифода намешавад.",
@@ -3233,6 +3239,9 @@ export const DICT = {
     "provider.errors.notFound": "Bunday raqamli kupon topilmadi.",
     "provider.errors.redeemFailed": "Kuponni faollashtirib bo'lmadi.",
     "provider.statusExpired": "Muddati o'tgan",
+    "provider.statusNotYetValid": "Hali amal qilmaydi",
+    "provider.validPeriod": "Amal qiladi",
+    "provider.notYetValidPrefix": "Imtiyoz hali amal qilmaydi. Boshlanishi:",
 
     "providerTaxi.title": "Sayohat uchun promokodlar",
     "providerTaxi.descriptionSuffix": "tasdiqlangan xodimlar va promokodlarni tarqatish. Bizning QR ishlatilmaydi.",
