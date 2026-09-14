@@ -97,7 +97,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует до {validUntil}]]\n\nПредъявите его партнёру.",
+    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует с {validFrom} до {validUntil}]]\n\nПредъявите его партнёру.",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
@@ -148,7 +148,13 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   },
   ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026" },
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде", period: "Сентябрь 2026" },
-  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123", period: "Сентябрь 2026", validUntil: "30.10.2026" },
+  COUPON_ISSUED: {
+    card: "Ковры «Кайраккум»",
+    number: "К-000123",
+    period: "Сентябрь 2026",
+    validFrom: "01.09.2026",
+    validUntil: "30.09.2026",
+  },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
     department: "Отдел продаж",
@@ -171,7 +177,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
   ITEM_APPROVED: ["card", "period"],
   ITEM_REJECTED: ["card", "comment", "period"],
-  COUPON_ISSUED: ["card", "number", "period", "validUntil"],
+  COUPON_ISSUED: ["card", "number", "period", "validFrom", "validUntil"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number", "period"],
   WINDOW_OPEN: ["period", "windowEnd"],

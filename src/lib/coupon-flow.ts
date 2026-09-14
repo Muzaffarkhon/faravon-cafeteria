@@ -72,7 +72,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
     where: { id: couponId },
     include: {
       item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
-      period: { select: { name: true } },
+      period: { select: { name: true, startDate: true } },
     },
   });
   if (!coupon || coupon.status !== "CREATED") return false;
@@ -115,6 +115,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
       card: coupon.item.card.title,
       number: coupon.number,
       period: coupon.period.name,
+      validFrom: coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
       validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     },
     deferFlush: true,
