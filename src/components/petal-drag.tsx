@@ -3,6 +3,15 @@
 import { useEffect } from "react";
 
 /**
+ * Радиус столкновения по форме svg-«листка» (petals.tsx): две дуги R=22 между
+ * (24,4)-(24,44) в вьюбоксе 48×48 — половина ширины листка в этой точке
+ * ≈ 0.267 от полного размера бокса (вдвое меньше, чем половина самого бокса).
+ * Берём коэффициент чуть больше геометрического — для удобства попадания
+ * курсором, но так, чтобы отскок был заметен визуально, а не «в воздухе».
+ */
+const petalRadius = (w: number, h: number) => Math.max(9, Math.min(w, h) * 0.3);
+
+/**
  * PetalDrag — физика столкновений и перетаскивания лепестков мышью.
  *
  * - Лепестки можно перемещать и бросать курсором.
@@ -55,7 +64,7 @@ export function PetalDrag() {
       const [offsetX, offsetY] = readOffset(el);
       return {
         el,
-        radius: Math.max(16, Math.min(rect.width, rect.height) / 2),
+        radius: petalRadius(rect.width, rect.height),
         cx: rect.left + rect.width / 2,
         cy: rect.top + rect.height / 2,
         offsetX,
@@ -88,7 +97,7 @@ export function PetalDrag() {
         if (!b.isDragging && b.vx === 0 && b.vy === 0) {
           const rect = b.el.getBoundingClientRect();
           const [ox, oy] = readOffset(b.el);
-          b.radius = Math.max(16, Math.min(rect.width, rect.height) / 2);
+          b.radius = petalRadius(rect.width, rect.height);
           b.cx = rect.left + rect.width / 2;
           b.cy = rect.top + rect.height / 2;
           b.offsetX = ox;
