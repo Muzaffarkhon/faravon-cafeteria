@@ -123,11 +123,12 @@ model Employee {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  user           User?
-  applications   Application[]
-  coupons        Coupon[]
-  feedback       Feedback[]
-  supportThreads SupportThread[]
+  user                  User?
+  applications          Application[]
+  coupons               Coupon[]
+  feedback              Feedback[]
+  supportThreads        SupportThread[]
+  satisfactionResponses SatisfactionResponse[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -470,6 +471,35 @@ model Feedback {
   @@index([createdAt])
 }
 
+/// Настройки опроса удовлетворённости (§ CSAT) — одна строка-синглтон
+/// (id всегда "default"). Выключатель и периодичность правит C&B на
+/// /admin/satisfaction, без релиза кода.
+model SatisfactionSettings {
+  id         String   @id @default("default")
+  enabled    Boolean  @default(false)
+  /// Не переспрашивать того же сотрудника чаще, чем раз в столько дней
+  /// после его последнего ответа.
+  repeatDays Int      @default(90)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —
+/// необязательный комментарий. Показывается сотруднику после погашения
+/// купона у партнёра (реальный опыт использования льготы), повторно — не
+/// чаще repeatDays (см. SatisfactionSettings, src/lib/satisfaction.ts).
+model SatisfactionResponse {
+  id         String   @id @default(cuid())
+  seq        Int      @unique @default(autoincrement())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([createdAt])
+}
+
 /// Один диалог — один тред, независимо от источника: Telegram-гость (бот не
 /// смог опознать человека) или сотрудник через веб-форму «Обратная связь»
 /// (обе прежде отдельные фичи объединены в один инбокс C&B).
@@ -497,11 +527,17 @@ model SupportThread {
   /// а не при любом изменении строки (например, при правке phone).
   lastMessageAt DateTime @default(now())
   createdAt     DateTime @default(now())
+  /// Архивирован C&B — скрыт из основного списка, но история сохранена
+  /// (тот же приём, что и Employee.archivedAt). Не путать со status=CLOSED:
+  /// закрытый диалог может переоткрыться сам, если гость напишет снова;
+  /// архив — это просто «убрать с глаз», гость может писать и дальше.
+  archivedAt DateTime?
 
   messages SupportMessage[]
 
   @@index([status, lastMessageAt])
   @@index([employeeId])
+  @@index([archivedAt])
 }
 
 enum SupportThreadSource {
