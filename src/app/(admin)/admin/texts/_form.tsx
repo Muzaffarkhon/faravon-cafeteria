@@ -2,17 +2,30 @@
 
 import { useActionState } from "react";
 import { Button, Field, Input, Textarea } from "@/components/ui";
+import { TranslationFields } from "@/components/translation-fields";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { updateTextBlock, type TextFormState } from "./actions";
+
+const TEXT_TRANSLATION_FIELDS = [
+  { name: "title", label: "Заголовок" },
+  { name: "content", label: "Текст", multiline: true },
+];
 
 export function TextBlockForm({
   blockKey,
   title,
   content,
+  translations,
+  locale,
 }: {
   blockKey: string;
   title: string;
   content: string;
+  translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const action = updateTextBlock.bind(null, blockKey);
   const [state, formAction, pending] = useActionState<TextFormState, FormData>(action, {});
 
@@ -23,21 +36,22 @@ export function TextBlockForm({
     >
       <div className="mb-2 font-mono text-xs text-ink-subtle">{blockKey}</div>
       <div className="space-y-3">
-        <Field label="Заголовок" htmlFor={`${blockKey}-title`} required>
+        <Field label={t("texts.titleLabel")} htmlFor={`${blockKey}-title`} required>
           <Input id={`${blockKey}-title`} name="title" defaultValue={title} required />
         </Field>
-        <Field label="Текст" htmlFor={`${blockKey}-content`} required>
+        <Field label={t("texts.contentLabel")} htmlFor={`${blockKey}-content`} required>
           <Textarea id={`${blockKey}-content`} name="content" defaultValue={content} rows={4} required />
         </Field>
+        <TranslationFields fields={TEXT_TRANSLATION_FIELDS} initial={translations} />
       </div>
 
       <div className="mt-3 flex items-center gap-3">
         <Button type="submit" loading={pending}>
-          Сохранить
+          {t("texts.save")}
         </Button>
         {state.ok && (
           <span className="text-sm font-medium text-success-strong" role="status">
-            Сохранено
+            {t("texts.saved")}
           </span>
         )}
         {state.error && (

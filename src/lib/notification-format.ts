@@ -27,10 +27,16 @@ export const escHtml = (s: string) =>
  * поддержки (linkEmployeeToThread) должно выглядеть одинаково, а не как
  * два разных бота.
  */
-export function grantMessage(login: string, otp: string, fullName: string): string {
+export function grantMessage(
+  login: string,
+  otp: string,
+  fullName: string,
+  /** false — диалог уже идёт (чат поддержки), приветствие лишнее. */
+  greet = true,
+): string {
   const platformUrl = process.env.PLATFORM_URL || "";
   return (
-    `Здравствуйте, ${escHtml(fullName)}!\n\n` +
+    (greet ? `Здравствуйте, ${escHtml(fullName)}!\n\n` : "") +
     `🔑 Логин: <code>${escHtml(login)}</code>\n` +
     `🔒 Одноразовый пароль: <code>${escHtml(otp)}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
@@ -91,7 +97,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует до {validUntil}]]\n\nПредъявите его партнёру.",
+    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует с {validFrom} до {validUntil}]]\n\nПредъявите его партнёру.",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
@@ -127,7 +133,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   GROUP_CARRIED_OVER: {
     label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
-    body: "🔁 <b>Групповая льгота перенесена</b>\n«{card}» не набрала нужное число участников[[\nПериод: {period}]]\nВаш выбор перенесён на следующий период — отменить можно с 25-го числа до его начала.",
+    body: "🔁 <b>Групповая льгота перенесена</b>\n«{card}» не набрала нужное число участников[[\nПериод: {period}]]\nВаш выбор перенесён на следующий период — отменить его можно в окне выбора этого периода, до его начала.",
   },
 };
 
@@ -142,7 +148,13 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   },
   ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026" },
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде", period: "Сентябрь 2026" },
-  COUPON_ISSUED: { card: "Ковры «Кайраккум»", number: "К-000123", period: "Сентябрь 2026", validUntil: "30.10.2026" },
+  COUPON_ISSUED: {
+    card: "Ковры «Кайраккум»",
+    number: "К-000123",
+    period: "Сентябрь 2026",
+    validFrom: "01.09.2026",
+    validUntil: "30.09.2026",
+  },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
     department: "Отдел продаж",
@@ -165,7 +177,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
   ITEM_APPROVED: ["card", "period"],
   ITEM_REJECTED: ["card", "comment", "period"],
-  COUPON_ISSUED: ["card", "number", "period", "validUntil"],
+  COUPON_ISSUED: ["card", "number", "period", "validFrom", "validUntil"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number", "period"],
   WINDOW_OPEN: ["period", "windowEnd"],

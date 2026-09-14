@@ -21,10 +21,9 @@ export async function computeNavBadges(opts: {
   const canManageCoupons = can(roles, "coupons.manage");
   const canManageCards = can(roles, "cards.manage");
   const canConfirmCoupons = can(roles, "coupons.confirm");
-  const canManageFeedback = can(roles, "feedback.manage");
-  const canManageSupport = can(roles, "support.manage");
+  const canManageSupport = can(roles, "support.manage") || can(roles, "feedback.manage");
 
-  const [review, coupons, adRequests, myCoupons, partnerCoupons, feedback, support] =
+  const [review, coupons, adRequests, myCoupons, partnerCoupons, support] =
     await Promise.all([
       canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
       canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
@@ -33,7 +32,7 @@ export async function computeNavBadges(opts: {
       canConfirmCoupons && partnerId
         ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
         : 0,
-      canManageFeedback ? db.feedback.count({ where: { status: "NEW" } }) : 0,
+      // Один инбокс на оба источника (Telegram-гости и веб-«Обратная связь»).
       canManageSupport
         ? db.supportThread.count({ where: { messages: { some: { direction: "IN", readAt: null } } } })
         : 0,
@@ -45,7 +44,6 @@ export async function computeNavBadges(opts: {
     adRequests,
     myCoupons,
     partnerCoupons,
-    feedback,
     support,
   };
 }

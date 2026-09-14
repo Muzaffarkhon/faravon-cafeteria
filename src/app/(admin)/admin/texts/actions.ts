@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -24,7 +25,18 @@ export async function updateTextBlock(
   const existing = await db.textBlock.findUnique({ where: { key } });
   if (!existing) return { error: "Блок не найден." };
 
-  await db.textBlock.update({ where: { key }, data: { title, content } });
+  let translations: object | null = null;
+  try {
+    const parsed = JSON.parse(String(formData.get("translations") ?? "{}"));
+    if (parsed && typeof parsed === "object" && Object.keys(parsed).length) translations = parsed;
+  } catch {
+    /* поле пришло в неожиданном виде — просто не сохраняем переводы */
+  }
+
+  await db.textBlock.update({
+    where: { key },
+    data: { title, content, translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue },
+  });
   await audit({
     actorId: s.user.id,
     action: "TEXTBLOCK_UPDATED",

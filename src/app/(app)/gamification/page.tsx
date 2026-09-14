@@ -1,18 +1,20 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n";
 
 export default async function GamificationPage() {
   const session = await getSession();
   if (!session) redirect("/login");
+  const t = await getTranslator();
 
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
         <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
-          Геймификация
+          {t("gamification.title")}
         </h1>
         <span className="rounded-full bg-primary-soft px-3.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-primary-strong">
-          Скоро
+          {t("gamification.soon")}
         </span>
       </header>
 
@@ -24,11 +26,9 @@ export default async function GamificationPage() {
           </svg>
         </span>
         <div className="space-y-1.5">
-          <p className="text-lg font-semibold text-ink">Раздел в разработке</p>
+          <p className="text-lg font-semibold text-ink">{t("gamification.wip")}</p>
           <p className="mx-auto max-w-md text-sm leading-6 text-ink-muted">
-            Здесь появятся баллы за выполнение задач и активность, достижения,
-            рейтинги подразделений и льготы, которые можно получить за
-            накопленные баллы. Следите за обновлениями.
+            {t("gamification.wipText")}
           </p>
         </div>
       </div>

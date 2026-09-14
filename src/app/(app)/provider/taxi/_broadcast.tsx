@@ -2,20 +2,29 @@
 
 import { useActionState } from "react";
 import { Button, Field, Input } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { sendTaxiPromo, type TaxiPromoState } from "./actions";
 
-export function PromoBroadcast({ recipients }: { recipients: number }) {
+export function PromoBroadcast({ recipients, locale }: { recipients: number; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<TaxiPromoState, FormData>(sendTaxiPromo, {});
 
   return (
-    <form action={formAction} className="space-y-3">
-      <Field
-        label="Промокод"
-        htmlFor="promo"
-        hint={`Уйдёт в Telegram ${recipients} сотруднику(ам) моноширинным текстом — удобно копировать.`}
-      >
-        <Input id="promo" name="promo" required autoComplete="off" placeholder="напр. FRV-TAXI-2026" />
-      </Field>
+    <form action={formAction} className="space-y-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field
+          label={t("providerTaxi.promoLabel")}
+          htmlFor="promo"
+          hint={`${t("providerTaxi.promoHintPrefix")} ${recipients} ${t("providerTaxi.promoHintSuffix")}`}
+          className="min-w-56 flex-1"
+        >
+          <Input id="promo" name="promo" required autoComplete="off" placeholder={t("providerTaxi.promoPlaceholder")} />
+        </Field>
+        <Button type="submit" loading={pending} disabled={recipients === 0}>
+          {t("providerTaxi.sendToAll")}
+        </Button>
+      </div>
 
       {state.error && (
         <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
@@ -24,13 +33,9 @@ export function PromoBroadcast({ recipients }: { recipients: number }) {
       )}
       {state.sent != null && (
         <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong" role="status">
-          Промокод отправлен: {state.sent} получатель(ей).
+          {t("providerTaxi.sentPrefix")} {state.sent} {t("providerTaxi.sentSuffix")}
         </p>
       )}
-
-      <Button type="submit" loading={pending} disabled={recipients === 0}>
-        Отправить всем одобренным
-      </Button>
     </form>
   );
 }

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { taxiRecipientsForPartner } from "@/lib/taxi";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
 
 export const dynamic = "force-dynamic";
@@ -23,42 +24,63 @@ export default async function TaxiProviderPage() {
   if (!partner) redirect("/");
   if (partner.deliveryMode !== "PHONE_PROMO") redirect("/provider");
 
+  const locale = await getLocale();
+  const t = await getTranslator();
+
   const recipients = await taxiRecipientsForPartner(partnerId);
+  const stats = {
+    delivered: recipients.filter((r) => r.promoStatus === "DELIVERED").length,
+    blocked: recipients.filter((r) => r.promoStatus === "BLOCKED").length,
+    pending: recipients.filter((r) => r.promoStatus === "PENDING").length,
+    none: recipients.filter((r) => r.promoStatus === "NONE").length,
+  };
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <PageHeader
-        title="Промокоды на поездки"
-        description={`«${partner.name}»: одобренные сотрудники и рассылка промокодов. Наш QR не используется.`}
+        title={t("providerTaxi.title")}
+        description={`«${partner.name}»: ${t("providerTaxi.descriptionSuffix")}`}
         action={
           <Link href="/provider/taxi/export" className={buttonClass({ variant: "secondary", size: "sm" })}>
-            Выгрузить номера (XLSX)
+            {t("providerTaxi.export")}
           </Link>
         }
       />
 
-      <Card className="p-5">
-        <SectionTitle>Рассылка промокода</SectionTitle>
-        <div className="mt-3">
-          <PromoBroadcast recipients={recipients.length} />
+      <Card className="space-y-3 p-4">
+        <PromoBroadcast recipients={recipients.length} locale={locale} />
+        <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-subtle pt-3 text-xs text-ink-muted">
+          <span>
+            {t("providerTaxi.delivered")}: <b className="text-ink">{stats.delivered}</b>
+          </span>
+          <span>
+            {t("providerTaxi.blockedStat")}: <b className="text-ink">{stats.blocked}</b>
+          </span>
+          <span>
+            {t("providerTaxi.pendingStat")}: <b className="text-ink">{stats.pending}</b>
+          </span>
+          <span>
+            {t("providerTaxi.noneStat")}: <b className="text-ink">{stats.none}</b>
+          </span>
         </div>
       </Card>
 
       <section className="space-y-3">
-        <SectionTitle>Одобренные сотрудники ({recipients.length})</SectionTitle>
+        <SectionTitle>{t("providerTaxi.approvedEmployees")} ({recipients.length})</SectionTitle>
         {recipients.length === 0 ? (
-          <EmptyState>Пока нет одобренных заявок на поездки.</EmptyState>
+          <EmptyState>{t("providerTaxi.empty")}</EmptyState>
         ) : (
           <Card>
-            <Table>
+            <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>Сотрудник</th>
-                  <th>Подразделение</th>
-                  <th>Телефон</th>
-                  <th>Льгота</th>
-                  <th>Период</th>
-                  <th>Одобрено</th>
+                  <th>{t("providerTaxi.colEmployee")}</th>
+                  <th>{t("providerTaxi.colDepartment")}</th>
+                  <th>{t("providerTaxi.colPhone")}</th>
+                  <th>{t("providerTaxi.colCard")}</th>
+                  <th>{t("providerTaxi.colPeriod")}</th>
+                  <th>{t("providerTaxi.colApproved")}</th>
+                  <th>{t("providerTaxi.colPromo")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -70,7 +92,7 @@ export default async function TaxiProviderPage() {
                       {r.phone || "—"}
                       {r.customPhone && (
                         <Badge tone="brand" className="ml-2">
-                          указан сотрудником
+                          {t("providerTaxi.setByEmployee")}
                         </Badge>
                       )}
                     </td>
@@ -78,6 +100,16 @@ export default async function TaxiProviderPage() {
                     <td className="text-ink-muted">{r.period}</td>
                     <td data-numeric>
                       {r.approvedAt ? r.approvedAt.toLocaleDateString("ru-RU") : "—"}
+                    </td>
+                    <td>
+                      {r.promoStatus === "DELIVERED" && <Badge tone="success">{t("providerTaxi.delivered")}</Badge>}
+                      {r.promoStatus === "BLOCKED" && (
+                        <span title={t("providerTaxi.blockedHint")}>
+                          <Badge tone="warning">{t("providerTaxi.statusBlocked")}</Badge>
+                        </span>
+                      )}
+                      {r.promoStatus === "PENDING" && <Badge tone="neutral">{t("providerTaxi.statusPending")}</Badge>}
+                      {r.promoStatus === "NONE" && <Badge tone="neutral">{t("providerTaxi.statusNone")}</Badge>}
                     </td>
                   </tr>
                 ))}

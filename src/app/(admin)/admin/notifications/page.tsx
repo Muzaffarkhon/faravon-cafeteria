@@ -3,20 +3,23 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { DEFAULT_TEMPLATES, NOTIFICATION_EVENTS } from "@/lib/notification-format";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { TemplateForm } from "./_form";
-
-const HINTS: Record<string, string> = {
-  APPLICATION_SUBMITTED: "Согласующим — когда сотрудник подал выбор льгот.",
-  ITEM_APPROVED: "Сотруднику — когда согласующий одобрил позицию.",
-  ITEM_REJECTED: "Сотруднику — когда согласующий отклонил позицию.",
-  COUPON_ISSUED: "Сотруднику — когда купон готов (сформирован и выдан).",
-  SLA_ESCALATION: "Ролям из матрицы SLA — когда позиция висит на согласовании дольше срока (раздел «SLA»).",
-};
 
 export default async function NotificationsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "cards.manage")) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
+
+  const HINTS: Record<string, string> = {
+    APPLICATION_SUBMITTED: t("notifications.hintApplicationSubmitted"),
+    ITEM_APPROVED: t("notifications.hintItemApproved"),
+    ITEM_REJECTED: t("notifications.hintItemRejected"),
+    COUPON_ISSUED: t("notifications.hintCouponIssued"),
+    SLA_ESCALATION: t("notifications.hintSlaEscalation"),
+  };
 
   const rows = await db.notificationTemplate.findMany({
     include: { updatedBy: { select: { login: true, employee: { select: { fullName: true } } } } },
@@ -26,9 +29,9 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Шаблоны уведомлений</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">{t("notifications.title")}</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Тексты сообщений в Telegram. Если шаблон не менялся — используется стандартный.
+          {t("notifications.hint")}
         </p>
       </div>
 
@@ -50,6 +53,7 @@ export default async function NotificationsPage() {
                 overridden={overridden}
                 editedBy={overridden ? editedBy : null}
                 editedAt={editedAt}
+                locale={locale}
               />
             </div>
           );

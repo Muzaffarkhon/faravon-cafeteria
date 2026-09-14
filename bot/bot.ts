@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { linkByPhone, linkByCode, reissueOtp, SafeLinkError } from "./link";
+import { linkByPhone, reissueOtp, SafeLinkError } from "./link";
 import { startNotificationLoop } from "./notifications";
 
 // --- минимальная загрузка .env (Prisma грузит свой, но токен бота — здесь) ---
@@ -46,14 +46,10 @@ function send(chatId: number, text: string, extra: Record<string, unknown> = {})
 const WELCOME =
   "👋 Это бот доступа к платформе «Кафетерий льгот».\n\n" +
   "Чтобы получить логин и одноразовый пароль:\n" +
-  "• нажмите «Поделиться контактом» ниже, либо\n" +
-  "• если у вас есть код от администратора — отправьте его командой <code>/code ВАШКОД</code>\n\n" +
-  "Команды бота:\n" +
-  "<code>/start</code> — это сообщение\n" +
-  "<code>/login</code> — новый одноразовый пароль, если уже привязаны\n" +
-  "<code>/code ВАШКОД</code> — войти по коду от администратора\n" +
-  "<code>/id</code> — узнать свой Telegram ID\n" +
-  "<code>/help</code> — список команд";
+  "• нажмите «Поделиться контактом» ниже";
+
+const UNSUPPORTED_CONTENT =
+  "⚠️ Бот принимает только текстовые сообщения. Пожалуйста, воспользуйтесь кнопкой «Поделиться контактом» или напишите текстом.";
 
 const CONTACT_KEYBOARD = {
   reply_markup: {
@@ -81,6 +77,36 @@ interface TgMessage {
   from?: { id: number };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
+  photo?: unknown;
+  document?: unknown;
+  video?: unknown;
+  video_note?: unknown;
+  audio?: unknown;
+  voice?: unknown;
+  sticker?: unknown;
+  animation?: unknown;
+  location?: unknown;
+  venue?: unknown;
+  poll?: unknown;
+}
+
+// Разрешены только текст и «Поделиться контактом» — любые файлы/медиа от
+// пользователя отклоняются без обработки (снижает поверхность атаки через
+// вложения). Не касается исходящих сообщений бота (например, QR-кода).
+function hasDisallowedContent(msg: TgMessage): boolean {
+  return !!(
+    msg.photo ||
+    msg.document ||
+    msg.video ||
+    msg.video_note ||
+    msg.audio ||
+    msg.voice ||
+    msg.sticker ||
+    msg.animation ||
+    msg.location ||
+    msg.venue ||
+    msg.poll
+  );
 }
 
 async function handle(msg: TgMessage) {
@@ -90,6 +116,11 @@ async function handle(msg: TgMessage) {
   const telegramId = String(fromId);
 
   try {
+    if (hasDisallowedContent(msg)) {
+      await send(chatId, UNSUPPORTED_CONTENT);
+      return;
+    }
+
     if (msg.contact) {
       // Принимаем номер только если это подтверждённо собственный контакт
       // отправителя (иначе — захват аккаунта по чужому номеру из справочника).
@@ -97,7 +128,7 @@ async function handle(msg: TgMessage) {
         await send(
           chatId,
           "Нажмите кнопку «📱 Поделиться контактом» — она передаёт ваш собственный номер. " +
-            "Если номер не привязан к Telegram, получите код у администратора: <code>/code ВАШКОД</code>.",
+            "Если номер не привязан к Telegram, обратитесь к администратору.",
         );
         return;
       }
@@ -119,17 +150,6 @@ async function handle(msg: TgMessage) {
         `Ваш Telegram ID: <code>${telegramId}</code>\n` +
           "Передайте его администратору для привязки уведомлений к учётной записи.",
       );
-      return;
-    }
-
-    if (text.startsWith("/code")) {
-      const code = text.replace(/^\/code@?\S*/, "").trim();
-      if (!code) {
-        await send(chatId, "Укажите код: <code>/code ВАШКОД</code>");
-        return;
-      }
-      const g = await linkByCode(code, telegramId);
-      await send(chatId, grantMessage(g.login, g.otp, g.fullName));
       return;
     }
 

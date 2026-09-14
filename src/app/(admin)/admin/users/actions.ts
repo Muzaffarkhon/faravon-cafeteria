@@ -940,7 +940,10 @@ function isForeignKeyError(e: unknown): boolean {
  * истории (заявки, купоны, обращения): её положено хранить, а не стирать.
  * Записи аудита остаются — там actorId обнуляется внешним ключом.
  */
-export async function deleteEmployee(employeeId: string): Promise<DeleteResult> {
+export async function deleteEmployee(
+  employeeId: string,
+  opts?: { cascade?: boolean },
+): Promise<DeleteResult> {
   const s = await requireSession();
   assertCan(s.roles, "users.manage");
 
@@ -957,9 +960,9 @@ export async function deleteEmployee(employeeId: string): Promise<DeleteResult> 
   const [applications, coupons, feedback] = await Promise.all([
     db.application.count({ where: { employeeId } }),
     db.coupon.count({ where: { employeeId } }),
-    db.feedback.count({ where: { employeeId, status: { not: "CLOSED" } } }),
+    db.supportThread.count({ where: { employeeId, source: "WEB", status: { not: "CLOSED" } } }),
   ]);
-  if (applications || coupons || feedback) {
+  if ((applications || coupons || feedback) && !opts?.cascade) {
     const parts = [
       applications > 0 && `заявк(и): ${applications}`,
       coupons > 0 && `купон(ы): ${coupons}`,
@@ -973,6 +976,16 @@ export async function deleteEmployee(employeeId: string): Promise<DeleteResult> 
 
   try {
     await db.$transaction(async (tx) => {
+      if (opts?.cascade) {
+        // Каскад: сотрудник отвязывается от всей своей истории, а не только
+        // от закрытых обращений — купоны удаляются первыми, иначе заявки не
+        // удалить (Coupon.itemId ссылается на ApplicationItem без каскада).
+        await tx.coupon.deleteMany({ where: { employeeId } });
+        await tx.application.deleteMany({ where: { employeeId } }); // тянет ApplicationItem (onDelete: Cascade)
+        await tx.feedback.deleteMany({ where: { employeeId } });
+        await tx.supportMessage.deleteMany({ where: { thread: { employeeId } } });
+        await tx.supportThread.deleteMany({ where: { employeeId } });
+      }
       if (emp.user) {
         await tx.notification.deleteMany({ where: { userId: emp.user.id } });
         await tx.user.delete({ where: { id: emp.user.id } });
@@ -980,7 +993,7 @@ export async function deleteEmployee(employeeId: string): Promise<DeleteResult> 
       // Коды идентификации от администратора ссылаются на сотрудника обычным полем, без
       // внешнего ключа — база их не подчистит, убираем сами.
       await tx.identificationCode.deleteMany({ where: { employeeId } });
-      await tx.feedback.deleteMany({ where: { employeeId } }); // здесь остались только закрытые
+      await tx.feedback.deleteMany({ where: { employeeId } }); // здесь остались только закрытые (или уже пусто после каскада)
       await tx.employee.delete({ where: { id: employeeId } });
     });
   } catch (e) {
@@ -995,7 +1008,11 @@ export async function deleteEmployee(employeeId: string): Promise<DeleteResult> 
     action: "EMPLOYEE_DELETED",
     entityType: "Employee",
     entityId: employeeId,
-    oldValue: { fullName: emp.fullName, login: emp.user?.login ?? null },
+    oldValue: {
+      fullName: emp.fullName,
+      login: emp.user?.login ?? null,
+      ...(opts?.cascade ? { cascade: true, applications, coupons, feedback } : {}),
+    },
   });
 
   revalidatePath("/admin/users");

@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Button, Card, Input, Textarea } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { createFaq, deleteFaq, updateFaq } from "./actions";
 
-type Faq = { id: string; question: string; answer: string };
+type Faq = { id: string; question: string; answer: string; lastEdit?: string };
 
-function FaqRow({ faq }: { faq: Faq }) {
+function FaqRow({ faq, locale }: { faq: Faq; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState(false);
   const [question, setQuestion] = useState(faq.question);
@@ -23,7 +26,7 @@ function FaqRow({ faq }: { faq: Faq }) {
   }
 
   function remove() {
-    if (!confirm("Удалить этот вопрос?")) return;
+    if (!confirm(t("faq.deleteConfirm"))) return;
     start(async () => {
       await deleteFaq(faq.id);
     });
@@ -41,7 +44,7 @@ function FaqRow({ faq }: { faq: Faq }) {
         )}
         <div className="flex gap-2">
           <Button size="sm" onClick={save} loading={pending} disabled={!question.trim() || !answer.trim()}>
-            Сохранить
+            {t("faq.save")}
           </Button>
           <Button
             size="sm"
@@ -53,7 +56,7 @@ function FaqRow({ faq }: { faq: Faq }) {
               setEditing(false);
             }}
           >
-            Отмена
+            {t("faq.cancel")}
           </Button>
         </div>
       </div>
@@ -65,20 +68,26 @@ function FaqRow({ faq }: { faq: Faq }) {
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink">{faq.question}</p>
         <p className="mt-0.5 whitespace-pre-line text-xs text-ink-muted">{faq.answer}</p>
+        {faq.lastEdit && (
+          <p className="mt-1 text-xs text-ink-subtle" data-numeric>
+            {t("faq.editedLabel")}: {faq.lastEdit}
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 gap-2">
         <Button size="sm" variant="secondary" disabled={pending} onClick={() => setEditing(true)}>
-          Изменить
+          {t("faq.edit")}
         </Button>
         <Button size="sm" variant="danger" disabled={pending} onClick={remove}>
-          Удалить
+          {t("faq.delete")}
         </Button>
       </div>
     </div>
   );
 }
 
-export function FaqManager({ faqs }: { faqs: Faq[] }) {
+export function FaqManager({ faqs, locale }: { faqs: Faq[]; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -102,7 +111,7 @@ export function FaqManager({ faqs }: { faqs: Faq[] }) {
         <Input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Вопрос — подпись кнопки в Telegram (до 64 символов)…"
+          placeholder={t("faq.questionPlaceholder")}
           disabled={pending}
           maxLength={64}
         />
@@ -110,7 +119,7 @@ export function FaqManager({ faqs }: { faqs: Faq[] }) {
           rows={2}
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Ответ, который бот пришлёт автоматически…"
+          placeholder={t("faq.answerPlaceholder")}
           disabled={pending}
         />
         {err && (
@@ -119,16 +128,16 @@ export function FaqManager({ faqs }: { faqs: Faq[] }) {
           </p>
         )}
         <Button onClick={add} loading={pending} disabled={!question.trim() || !answer.trim()}>
-          Добавить
+          {t("faq.add")}
         </Button>
       </Card>
 
       {faqs.length === 0 ? (
-        <p className="text-sm text-ink-muted">Частых вопросов пока нет.</p>
+        <p className="text-sm text-ink-muted">{t("faq.empty")}</p>
       ) : (
         <div className="space-y-2">
           {faqs.map((f) => (
-            <FaqRow key={f.id} faq={f} />
+            <FaqRow key={f.id} faq={f} locale={locale} />
           ))}
         </div>
       )}

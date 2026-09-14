@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { SectionTitle } from "@/components/ui";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { updateCard } from "../actions";
-import { CardForm } from "../_form";
+import { CardForm, type CardValues } from "../_form";
 import { CardHistory, type CardVersionRow } from "../_history";
 
 export default async function EditCardPage({
@@ -16,8 +17,10 @@ export default async function EditCardPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "cards.manage")) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
 
-  const [card, partners, allPartners, versions] = await Promise.all([
+  const [card, partners, allPartners, categoryRows, versions] = await Promise.all([
     db.benefitCard.findUnique({ where: { id } }),
     db.partner.findMany({
       where: { status: { not: "ARCHIVED" } },
@@ -25,6 +28,11 @@ export default async function EditCardPage({
       orderBy: { name: "asc" },
     }),
     db.partner.findMany({ select: { id: true, name: true } }),
+    db.benefitCard.findMany({
+      where: { category: { not: null } },
+      select: { category: true },
+      distinct: ["category"],
+    }),
     db.benefitCardVersion.findMany({
       where: { cardId: id },
       orderBy: { version: "desc" },
@@ -35,6 +43,7 @@ export default async function EditCardPage({
   ]);
   if (!card) notFound();
 
+  const categories = categoryRows.map((c) => c.category!).sort();
   const action = updateCard.bind(null, id);
   const partnerNames = Object.fromEntries(allPartners.map((p) => [p.id, p.name]));
   const historyRows: CardVersionRow[] = versions.map((v) => ({
@@ -59,12 +68,19 @@ export default async function EditCardPage({
   return (
     <div className="space-y-8">
       <div className="space-y-5">
-        <h1 className="font-display text-2xl font-bold text-ink">Карточка: {card.title}</h1>
-        <CardForm action={action} partners={partners} initial={card} submitLabel="Сохранить" />
+        <h1 className="font-display text-2xl font-bold text-ink">{t("cards.editTitlePrefix")} {card.title}</h1>
+        <CardForm
+          action={action}
+          partners={partners}
+          categories={categories}
+          initial={{ ...card, translations: card.translations as CardValues["translations"] }}
+          submitLabel={t("cards.save")}
+          locale={locale}
+        />
       </div>
 
       <section className="space-y-3">
-        <SectionTitle>История изменений</SectionTitle>
+        <SectionTitle>{t("cards.history")}</SectionTitle>
         <CardHistory versions={historyRows} partnerNames={partnerNames} />
       </section>
     </div>

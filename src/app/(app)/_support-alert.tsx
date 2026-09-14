@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 // Опрашиваем так же часто, как SSE опрашивает БД для персонала (см.
 // STAFF_POLL_MS в api/stream/route.ts) — это тот же по духу «рабочий»
@@ -59,6 +60,7 @@ function buildAlertFavicon(baseHref: string): Promise<string | null> {
  * отдельный лёгкий поллинг (см. `/api/support/unread-count`).
  */
 export function SupportAlert() {
+  const router = useRouter();
   const lastCount = useRef<number | null>(null);
   const blinkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const originalTitle = useRef("");
@@ -147,6 +149,10 @@ export function SupportAlert() {
         if (lastCount.current !== null && count > lastCount.current) {
           beep();
           if (!document.hasFocus() || document.visibilityState === "hidden") startBlink();
+          // Счётчики и списки (таблица «Поддержка», бейджи в меню) рендерятся
+          // на сервере — без этого админ слышит сигнал, но видит старые цифры,
+          // пока сам не обновит страницу.
+          router.refresh();
         }
         lastCount.current = count;
       } catch {
@@ -171,7 +177,7 @@ export function SupportAlert() {
       document.removeEventListener("visibilitychange", onFocus);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [router]);
 
   return null;
 }

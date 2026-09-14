@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button, Field, Input, cx } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CouponView } from "./actions";
 import { CouponScanner } from "./_scanner";
 
@@ -29,7 +31,8 @@ function ResultIcon({ tone }: { tone: "success" | "neutral" }) {
   );
 }
 
-export function ProviderConfirm() {
+export function ProviderConfirm({ locale }: { locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   // ── Основной сценарий: касса партнёра, поиск по телефону ──
   const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -111,18 +114,23 @@ export function ProviderConfirm() {
     return (
       <div className="mx-auto max-w-sm">
         <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
-          <ResultIcon tone="success" />
+          <ResultIcon tone={coupon.redeemable ? "success" : "neutral"} />
           <div className="font-display text-[17px] font-bold text-ink">{coupon.employee}</div>
           <div className="mt-1 text-sm text-ink-muted">{coupon.department}</div>
 
           <div className="my-5 rounded-2xl bg-primary-soft p-4">
             <div className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary-strong">
-              Действующая льгота
+              {t("provider.activeBenefit")}
             </div>
             <div className="mt-1.5 text-[16px] font-bold text-ink">{coupon.card}</div>
             {coupon.condition && (
               <div className="mt-1 font-display text-[22px] font-bold text-primary">
                 {coupon.condition}
+              </div>
+            )}
+            {coupon.validFrom && coupon.validUntil && (
+              <div className="mt-1.5 text-xs font-medium text-primary-strong/80" data-numeric>
+                {t("provider.validPeriod")}: {coupon.validFrom} – {coupon.validUntil}
               </div>
             )}
           </div>
@@ -135,17 +143,19 @@ export function ProviderConfirm() {
 
           {coupon.redeemable ? (
             <Button fullWidth size="lg" loading={pending} onClick={onActivate} className="mb-2">
-              Активировать скидку
+              {t("provider.activate")}
             </Button>
           ) : (
             <p className="mb-2 text-sm font-medium text-danger">
               {coupon.wrongPartner
-                ? `Купон партнёра «${coupon.partner ?? "другого партнёра"}» — вы активируете только свои купоны.`
-                : `Купон в статусе «${coupon.statusLabel}» — активировать нельзя.`}
+                ? `${t("provider.wrongPartnerPrefix")} «${coupon.partner ?? t("provider.otherPartner")}» ${t("provider.wrongPartnerSuffix")}`
+                : coupon.notYetValid
+                  ? `${t("provider.notYetValidPrefix")} ${coupon.validFrom}.`
+                  : `${t("provider.statusCantActivatePrefix")} «${coupon.statusLabel}» ${t("provider.statusCantActivateSuffix")}`}
             </p>
           )}
           <Button variant="ghost" fullWidth onClick={reset} disabled={pending}>
-            Следующий клиент
+            {t("provider.nextClient")}
           </Button>
         </div>
       </div>
@@ -160,14 +170,14 @@ export function ProviderConfirm() {
           <div className="mb-2 text-[40px] font-bold" aria-hidden="true">
             ✓
           </div>
-          <div className="font-display text-[17px] font-bold">Скидка применена</div>
-          <div className="mt-1 text-sm text-on-brand/85">Купон отмечен как использованный</div>
+          <div className="font-display text-[17px] font-bold">{t("provider.discountApplied")}</div>
+          <div className="mt-1 text-sm text-on-brand/85">{t("provider.couponUsed")}</div>
           <button
             type="button"
             onClick={reset}
             className="mt-5 w-full rounded-[14px] bg-on-brand py-3.5 text-sm font-bold text-success-strong transition-colors hover:bg-on-brand/90"
           >
-            Следующий клиент
+            {t("provider.nextClient")}
           </button>
         </div>
       </div>
@@ -181,15 +191,13 @@ export function ProviderConfirm() {
         <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
           <ResultIcon tone="neutral" />
           <div className="font-display text-[17px] font-bold text-ink">
-            {phase === "no_benefit" ? `${notFoundName} — нет действующей льготы` : "Сотрудник не найден"}
+            {phase === "no_benefit" ? `${notFoundName} — ${t("provider.noBenefitSuffix")}` : t("provider.employeeNotFound")}
           </div>
           <p className="mt-1.5 text-sm leading-6 text-ink-muted">
-            {phase === "no_benefit"
-              ? "У сотрудника нет выданного купона у вашего партнёра."
-              : "Проверьте номер телефона или попросите клиента показать QR купона."}
+            {phase === "no_benefit" ? t("provider.noBenefitHint") : t("provider.notFoundHint")}
           </p>
           <Button fullWidth className="mt-5" onClick={reset}>
-            Попробовать снова
+            {t("provider.tryAgain")}
           </Button>
         </div>
       </div>
@@ -205,7 +213,7 @@ export function ProviderConfirm() {
             htmlFor="cashier-phone"
             className="mb-2 block text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted"
           >
-            Номер телефона клиента
+            {t("provider.clientPhone")}
           </label>
           <Input
             id="cashier-phone"
@@ -217,13 +225,13 @@ export function ProviderConfirm() {
             className="mb-3.5 rounded-[14px] py-4 text-center text-xl font-bold"
           />
           <Button type="submit" fullWidth size="lg" loading={pending}>
-            Проверить
+            {t("provider.check")}
           </Button>
         </form>
 
         <div className="my-4 flex items-center gap-2.5">
           <span className="h-px flex-1 bg-line" />
-          <span className="text-xs text-ink-subtle">или</span>
+          <span className="text-xs text-ink-subtle">{t("provider.or")}</span>
           <span className="h-px flex-1 bg-line" />
         </div>
 
@@ -236,21 +244,20 @@ export function ProviderConfirm() {
             setManualError(null);
           }}
         >
-          Сканировать QR / ввести номер купона
+          {t("provider.scanOrEnter")}
         </Button>
       </div>
 
       {!manualOpen && (
         <p className="text-center text-xs leading-6 text-ink-subtle">
-          Работает, даже если сотрудник не знает про программу — кассир вводит номер телефона,
-          система сама находит льготу.
+          {t("provider.phoneHint")}
         </p>
       )}
 
       {manualOpen && (
         <div className="space-y-4 rounded-[18px] bg-surface p-5 shadow-sm">
           {/* Камера включается сразу; ручной ввод появляется, если QR не считался. */}
-          <CouponScanner onScan={onScan} autoStart onFallback={() => setShowManual(true)} />
+          <CouponScanner onScan={onScan} autoStart onFallback={() => setShowManual(true)} locale={locale} />
 
           {!showManual && (
             <button
@@ -258,13 +265,13 @@ export function ProviderConfirm() {
               onClick={() => setShowManual(true)}
               className="mx-auto block text-sm font-medium text-primary-strong underline underline-offset-2"
             >
-              QR не считывается — ввести номер вручную
+              {t("provider.qrNotReading")}
             </button>
           )}
 
           {showManual && (
             <form onSubmit={onManualSubmit}>
-              <Field label="Номер купона" htmlFor="coupon-number" hint="Формат FRV-YYYYMM-XXXXXX.">
+              <Field label={t("provider.couponNumberLabel")} htmlFor="coupon-number" hint={t("provider.couponNumberHint")}>
                 <div className="flex gap-2">
                   <Input
                     id="coupon-number"
@@ -278,7 +285,7 @@ export function ProviderConfirm() {
                     autoFocus
                   />
                   <Button type="submit" loading={pending} className="shrink-0">
-                    Найти
+                    {t("provider.find")}
                   </Button>
                 </div>
               </Field>

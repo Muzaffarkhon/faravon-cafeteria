@@ -5,6 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import type { Locale } from "@/lib/i18n/shared";
+import { translate } from "@/lib/i18n/dict";
 import { logout } from "./actions";
 import { LiveRefresh } from "./_live-refresh";
 
@@ -58,6 +62,7 @@ export function AppShell({
   selectionStat,
   backdrop,
   adminHref,
+  locale,
   children,
 }: {
   groups: NavGroup[];
@@ -70,8 +75,10 @@ export function AppShell({
   backdrop?: React.ReactNode;
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
   adminHref?: string;
+  locale?: Locale;
   children: React.ReactNode;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale ?? "ru", key);
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -80,10 +87,17 @@ export function AppShell({
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
-  const primary: NavItem[] = groups
-    .filter((g) => PRIMARY_GROUPS.has(g.id))
-    .flatMap((g) => g.items);
+  // «Скоро»-пункты (пока не запущенные разделы, напр. геймификация) не
+  // занимают место в и так тесной строке вкладок — уходят в «Ещё». Иначе при
+  // достаточном числе вкладок такой пункт просто обрезался прокруткой без
+  // всякого намёка, что он там есть.
+  const primaryAll: NavItem[] = groups.filter((g) => PRIMARY_GROUPS.has(g.id)).flatMap((g) => g.items);
+  const primary = primaryAll.filter((it) => !it.soon);
+  const soonItems = primaryAll.filter((it) => it.soon);
   const moreGroups: NavGroup[] = groups.filter((g) => !PRIMARY_GROUPS.has(g.id));
+  if (soonItems.length > 0) {
+    moreGroups.push({ id: "soon", label: t("nav.soon"), items: soonItems });
+  }
   const moreItems = moreGroups.flatMap((g) => g.items);
   const moreActive = moreItems.some((it) => isActive(it.href));
   const moreBadge = moreItems.reduce((n, it) => n + (it.badge ?? 0), 0);
@@ -124,7 +138,10 @@ export function AppShell({
         className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur"
         style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
       >
-        <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2.5 sm:px-4">
+        {/* Без потолка ширины — иначе на широких экранах строка вкладок
+            зажата в 1152px и урезает пункты («Обратная связь» → «Обра»),
+            хотя справа и слева пусто. */}
+        <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
           <Link href="/" className="mr-1 flex shrink-0 items-center gap-2" aria-label="На главную">
             <BrandMark size={26} priority />
             <span className="hidden font-display text-[15px] font-bold text-ink sm:block">
@@ -150,7 +167,7 @@ export function AppShell({
                         active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
                       )}
                     >
-                      {it.badge > 99 ? "99+" : it.badge}
+                      {it.badge}
                     </span>
                   ) : null}
                 </Link>
@@ -163,13 +180,13 @@ export function AppShell({
             <div className="flex shrink-0 items-center gap-1.5" aria-label="Выбор льгот">
               <span className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong">
                 <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong/70 md:inline">
-                  Выбрано
+                  {t("shell.selected")}
                 </span>
                 {selectionStat.used}/{selectionStat.max}
               </span>
               <span className="rounded-[10px] bg-surface-muted px-2 py-1.5 text-[13px] font-bold tabular-nums text-ink">
                 <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted md:inline">
-                  Черновики
+                  {t("shell.drafts")}
                 </span>
                 {selectionStat.drafts}
               </span>
@@ -188,10 +205,10 @@ export function AppShell({
                 className={pill(moreActive || moreOpen)}
               >
                 <Icon path={I.more} />
-                <span>Ещё</span>
+                <span>{t("nav.more")}</span>
                 {moreBadge > 0 && !moreOpen && (
                   <span className="ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                    {moreBadge > 99 ? "99+" : moreBadge}
+                    {moreBadge}
                   </span>
                 )}
               </button>
@@ -226,7 +243,7 @@ export function AppShell({
                               <span className="min-w-0 flex-1 truncate">{it.label}</span>
                               {it.badge ? (
                                 <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                                  {it.badge > 99 ? "99+" : it.badge}
+                                  {it.badge}
                                 </span>
                               ) : null}
                             </Link>
@@ -242,6 +259,8 @@ export function AppShell({
 
           {/* Профиль */}
           <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
+            <ThemeToggle compact className="hidden sm:flex" />
+            <LanguageSwitcher locale={locale ?? "ru"} />
             {displayName && (
               <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
                 {displayName}
@@ -275,13 +294,16 @@ export function AppShell({
                     <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
                     {roleLabel}
                   </div>
+                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 sm:hidden">
+                    <ThemeToggle compact />
+                  </div>
                   <Link
                     href="/profile"
                     onClick={closeMenus}
                     className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                   >
                     <Icon path={I.profile} />
-                    Профиль
+                    {t("shell.profile")}
                   </Link>
                   {adminHref && (
                     <Link
@@ -290,7 +312,7 @@ export function AppShell({
                       className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                     >
                       <Icon path={I.admin} />
-                      Админ-панель
+                      {t("shell.adminPanel")}
                     </Link>
                   )}
                   <form action={logout}>
@@ -299,7 +321,7 @@ export function AppShell({
                       className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       <Icon path={I.logout} />
-                      Выйти
+                      {t("shell.logout")}
                     </button>
                   </form>
                 </div>
@@ -321,9 +343,11 @@ export function AppShell({
 
       {/* ── Контент ── */}
       {/* Широкие реестры (много колонок) помечают свой корень `data-wide` и
-          получают больше ширины на больших экранах — остальные страницы
-          остаются читаемой колонкой в max-w-6xl. */}
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 has-[[data-wide]]:max-w-[100rem] sm:pb-16">
+          получают всю доступную ширину — остальные страницы остаются
+          читаемой колонкой в max-w-6xl. Верхняя навигация уже отделяет
+          контент от края экрана, так что сами отступы страницы — минимум
+          6px по бокам и снизу (сверху — запас под шапку). */}
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-1.5 pb-1.5 pt-5 has-[[data-wide]]:max-w-none">
         <div key={pathname} className="animate-page">
           {children}
         </div>
@@ -364,7 +388,7 @@ export function AppShell({
             )}
           >
             <Icon path={I.more} className="h-5 w-5" />
-            <span>Ещё</span>
+            <span>{t("nav.more")}</span>
             {moreBadge > 0 && <span className="absolute right-[28%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />}
           </button>
         )}
@@ -405,7 +429,7 @@ export function AppShell({
                         <span className="min-w-0 flex-1 truncate">{it.label}</span>
                         {it.badge ? (
                           <span className="inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-xs font-bold leading-none text-on-brand tabular-nums">
-                            {it.badge > 99 ? "99+" : it.badge}
+                            {it.badge}
                           </span>
                         ) : null}
                       </Link>
@@ -472,7 +496,9 @@ function ScrollNav() {
 
   return (
     <div
-      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:right-6"
+      // Слева, а не справа — справа снизу иногда всплывает панель подтверждения выбора
+      // (flex-selection.tsx), и обе плавающие кнопки садились в один угол одна на другую.
+      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:left-6"
       role="navigation"
       aria-label="Быстрая навигация по странице"
     >

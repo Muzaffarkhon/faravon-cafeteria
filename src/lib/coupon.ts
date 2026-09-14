@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
 import { normalizePhone } from "@/lib/phone";
+import { translate, type TKey } from "./i18n/dict";
+import type { Locale } from "./i18n/shared";
 import type { CouponStatus } from "@prisma/client";
 
 export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
@@ -13,6 +15,10 @@ export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
   EXPIRED: "Просрочен",
   CANCELLED: "Аннулирован",
 };
+
+export function couponStatusLabel(locale: Locale, status: CouponStatus): string {
+  return translate(locale, `status.coupon.${status}` as TKey);
+}
 
 const normalizeNumber = (n: string) => n.trim().toUpperCase();
 
@@ -127,6 +133,14 @@ export async function redeemCouponByNumber(
   }
 
   const now = new Date();
+  // Купон может быть одобрен и выдан ещё в окне выбора, ДО начала самого
+  // периода (окно открывается заранее) — гасить его партнёру раньше срока
+  // нельзя, даже если он уже ISSUED.
+  if (now.getTime() < coupon.period.startDate.getTime()) {
+    throw new Error(
+      `Купон ещё не действует. Начало действия: ${coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}.`,
+    );
+  }
   const pastValid = isCouponExpired(coupon.validUntil, now);
   const periodPassed = isCouponPeriodPassed(coupon.period, now);
 
@@ -148,7 +162,7 @@ export async function redeemCouponByNumber(
       throw new Error(`Период действия купона завершён («${coupon.period?.name}»). Купон просрочен.`);
     }
     throw new Error(
-      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU")}` : ""}.`,
+      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}` : ""}.`,
     );
   }
 

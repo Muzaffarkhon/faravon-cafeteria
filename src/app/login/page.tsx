@@ -1,14 +1,10 @@
-"use client";
-
-import { Suspense } from "react";
-import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
-import { Button, Field, Input, buttonClass, cx } from "@/components/ui";
-import { loginAction, type LoginState } from "./actions";
-
-const initial: LoginState = {};
+import { buttonClass, cx } from "@/components/ui";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getLocale, getTranslator } from "@/lib/i18n";
+import { LoginForm } from "./_login-form";
 
 // Логин бота (@BotFather) — та же ссылка, что открывается по кнопке
 // «Поделиться контактом» внутри самого Telegram. `?start=support` заводит
@@ -16,115 +12,112 @@ const initial: LoginState = {};
 // не нужно самому искать бота и нажимать кнопку внутри переписки.
 const BOT_URL = "https://t.me/cafeteria_farovon_bot";
 
-const microLabel = (text: string) => (
-  <span className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-    {text}
-  </span>
-);
-
-function LoginForm() {
-  const params = useSearchParams();
-  const next = params.get("next") ?? "/";
-  const [state, formAction, pending] = useActionState(loginAction, initial);
-
+function TelegramIcon({ className }: { className?: string }) {
   return (
-    <form action={formAction} className="space-y-4">
-      <input type="hidden" name="next" value={next} />
-      {/* honeypot: скрыт от людей, заполняют боты (§5.1) */}
-      <input
-        type="text"
-        name="company"
-        tabIndex={-1}
-        autoComplete="off"
-        aria-hidden="true"
-        className="absolute left-[-9999px] h-0 w-0 opacity-0"
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M21.05 3.35 2.9 10.4c-1.22.48-1.21 1.15-.22 1.45l4.65 1.45 1.8 5.47c.22.6.4.85.87.85.34 0 .53-.15.77-.37l1.85-1.8 3.87 2.86c.71.4 1.22.19 1.4-.66l2.55-12.03c.27-1.16-.37-1.7-1.24-1.27Z"
+        fill="currentColor"
       />
-      <Field label={microLabel("Логин")} htmlFor="login">
-        <Input
-          id="login"
-          name="login"
-          autoComplete="username"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-        />
-      </Field>
-      <Field label={microLabel("Пароль")} htmlFor="password" error={state.error}>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-      </Field>
-
-      <Button type="submit" loading={pending} fullWidth size="lg">
-        Войти
-      </Button>
-    </form>
+    </svg>
   );
 }
 
-export default function LoginPage() {
+function HelpIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M9.6 9.3a2.4 2.4 0 1 1 3.6 2.08c-.7.42-1.2.8-1.2 1.62"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.3" r="0.15" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+export default async function LoginPage() {
+  const locale = await getLocale();
+  const t = await getTranslator();
+
   return (
     <main
-      className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4"
+      className="petal-field relative flex min-h-dvh flex-col overflow-hidden p-4"
       style={{ paddingTop: "max(1rem, var(--tg-top))" }}
     >
       <PetalDrift />
 
-      <div className="relative z-10 w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
-        {/* Красная шапка */}
-        <div className="bg-primary px-7 pb-8 pt-10 text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
-            <BrandMark size={40} priority />
-          </span>
-          <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
-            Кафетерий льгот
-          </h1>
-          <p className="mt-1.5 text-sm text-on-brand/80">Ваши льготы. Просто.</p>
+      {/* Переключатели темы/языка — отдельной строкой-шапкой в углу окна, как
+          на остальных страницах, а не внутри самой карточки входа (там они
+          были лишним элементом формы). Отдельная строка вместо абсолютного
+          позиционирования — чтобы на узких экранах карточка не могла
+          наехать на них сверху. */}
+      <div className="relative z-20 flex justify-end">
+        <div className="flex items-center gap-2">
+          <ThemeToggle compact />
+          <LanguageSwitcher locale={locale} />
         </div>
+      </div>
 
-        {/* Белое тело */}
-        <div className="bg-surface p-7">
-          <Suspense fallback={<div className="h-[13.5rem]" />}>
-            <LoginForm />
-          </Suspense>
-
-          <div className="my-5 flex items-center gap-2.5">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-xs text-ink-subtle">как получить доступ</span>
-            <span className="h-px flex-1 bg-line" />
+      <div className="relative z-10 flex flex-1 items-center justify-center">
+        <div className="w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
+          {/* Красная шапка */}
+          <div className="bg-primary px-7 pb-8 pt-10 text-center">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
+              <BrandMark size={40} priority />
+            </span>
+            <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
+              {t("login.title")}
+            </h1>
+            <p className="mt-1.5 text-sm text-on-brand/80">{t("login.tagline")}</p>
           </div>
 
-          <p className="text-center text-xs leading-relaxed text-ink-subtle">
-            Логин и одноразовый пароль сотрудник получает в Telegram-боте.
-            {process.env.NODE_ENV !== "production" && (
-              <>
-                <br />
-                Демо: c_and_b / contractor / ivanov · пароль Password1
-              </>
-            )}
-          </p>
+          {/* Белое тело */}
+          <div className="bg-surface p-7">
+            <LoginForm
+              loginLabel={t("login.loginLabel")}
+              passwordLabel={t("login.passwordLabel")}
+              submitLabel={t("login.submit")}
+            />
 
-          <a
-            href={BOT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cx(buttonClass({ variant: "primary", size: "sm" }), "mt-3 w-full")}
-          >
-            Открыть бота Farovon Cafeteria
-          </a>
+            <div className="my-5 flex items-center gap-2.5">
+              <span className="h-px flex-1 bg-line" />
+              <span className="text-xs text-ink-subtle">{t("login.accessHint")}</span>
+              <span className="h-px flex-1 bg-line" />
+            </div>
 
-          <a
-            href={`${BOT_URL}?start=support`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-2 w-full")}
-          >
-            Не получается войти? Написать администратору
-          </a>
+            <p className="text-center text-xs leading-relaxed text-ink-subtle">
+              {t("login.helpText")}
+              {process.env.NODE_ENV !== "production" && (
+                <>
+                  <br />
+                  Демо: c_and_b / contractor / ivanov · пароль Password1
+                </>
+              )}
+            </p>
+
+            <a
+              href={BOT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx(buttonClass({ variant: "soft", size: "sm" }), "mt-3 w-full gap-1.5")}
+            >
+              <TelegramIcon className="h-3.5 w-3.5 shrink-0" />
+              {t("login.openBot")}
+            </a>
+
+            <a
+              href={`${BOT_URL}?start=support`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx(buttonClass({ variant: "ghost", size: "sm" }), "mt-1 w-full gap-1.5")}
+            >
+              <HelpIcon className="h-3.5 w-3.5 shrink-0" />
+              {t("login.cantLogin")}
+            </a>
+          </div>
         </div>
       </div>
     </main>

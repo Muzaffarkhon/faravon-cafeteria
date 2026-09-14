@@ -2,9 +2,12 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { Button, Field, Input } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { submitAdvertisingRequest, type AdRequestState } from "./actions";
 
-export function AdvertisingForm({ partnerName }: { partnerName: string }) {
+export function AdvertisingForm({ partnerName, locale }: { partnerName: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<AdRequestState, FormData>(
     submitAdvertisingRequest,
     {},
@@ -17,15 +20,15 @@ export function AdvertisingForm({ partnerName }: { partnerName: string }) {
 
   return (
     <form ref={formRef} action={formAction} className="max-w-lg space-y-4">
-      <Field label="Партнёр" htmlFor="company">
+      <Field label={t("advertising.form.partner")} htmlFor="company">
         <Input id="company" value={partnerName} readOnly className="bg-surface-muted" />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Контактное лицо" htmlFor="contactName">
+        <Field label={t("advertising.form.contactName")} htmlFor="contactName">
           <Input id="contactName" name="contactName" autoComplete="name" required />
         </Field>
-        <Field label="Телефон" htmlFor="contactPhone">
+        <Field label={t("advertising.form.contactPhone")} htmlFor="contactPhone">
           <Input
             id="contactPhone"
             name="contactPhone"
@@ -37,11 +40,11 @@ export function AdvertisingForm({ partnerName }: { partnerName: string }) {
         </Field>
       </div>
 
-      <Field label="Продукт / услуга" htmlFor="productName">
+      <Field label={t("advertising.form.productName")} htmlFor="productName">
         <Input id="productName" name="productName" required />
       </Field>
 
-      <Field label="Описание" htmlFor="productDescription" hint="Что рекламируем, какие условия для сотрудников.">
+      <Field label={t("advertising.form.description")} htmlFor="productDescription" hint={t("advertising.form.descriptionHint")}>
         <textarea
           id="productDescription"
           name="productDescription"
@@ -53,13 +56,13 @@ export function AdvertisingForm({ partnerName }: { partnerName: string }) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
-          label="Ссылка на приложение · Android"
+          label={t("advertising.form.androidLabel")}
           htmlFor="androidUrl"
-          hint="Google Play или прямая ссылка на .apk. Необязательно."
+          hint={t("advertising.form.androidHint")}
         >
           <Input id="androidUrl" name="androidUrl" type="url" inputMode="url" placeholder="https://play.google.com/store/apps/details?id=…" />
         </Field>
-        <Field label="Ссылка на приложение · iOS" htmlFor="iosUrl" hint="App Store. Необязательно.">
+        <Field label={t("advertising.form.iosLabel")} htmlFor="iosUrl" hint={t("advertising.form.iosHint")}>
           <Input id="iosUrl" name="iosUrl" type="url" inputMode="url" placeholder="https://apps.apple.com/app/id…" />
         </Field>
       </div>
@@ -71,12 +74,12 @@ export function AdvertisingForm({ partnerName }: { partnerName: string }) {
       )}
       {state.ok && (
         <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong" role="status">
-          Заявка отправлена. C&B рассмотрит её и свяжется с вами.
+          {t("advertising.form.sent")}
         </p>
       )}
 
       <Button type="submit" loading={pending}>
-        Отправить заявку
+        {t("advertising.form.submit")}
       </Button>
     </form>
   );

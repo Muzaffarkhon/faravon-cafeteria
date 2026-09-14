@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { ProviderConfirm } from "./_confirm";
 
 export default async function ProviderPage() {
@@ -20,20 +21,23 @@ export default async function ProviderPage() {
     redirect("/provider/taxi");
   }
 
+  const locale = await getLocale();
+  const t = await getTranslator();
+
   return (
     <div className="space-y-6">
       <header className="space-y-1.5 text-center">
         <h1 className="font-display text-2xl font-bold text-ink sm:text-[1.5625rem]">
-          Проверка льготы у партнёра
+          {t("provider.title")}
         </h1>
-        <p className="mx-auto max-w-sm text-sm text-ink-muted">
-          {partner
-            ? `Сотруднику не нужно входить в систему — достаточно номера телефона. Вы активируете купоны партнёра «${partner.name}».`
-            : "Сотруднику не нужно входить в систему — достаточно номера его телефона."}
-        </p>
+        {partner && (
+          <p className="mx-auto max-w-sm text-sm text-ink-muted">
+            {t("provider.activatingFor")} «{partner.name}».
+          </p>
+        )}
       </header>
 
-      <ProviderConfirm />
+      <ProviderConfirm locale={locale} />
     </div>
   );
 }

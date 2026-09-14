@@ -1,15 +1,10 @@
-"use client";
-
-import { useActionState } from "react";
 import { BrandMark } from "@/components/brand";
 import { PetalDrift } from "@/components/petals";
-import { Button, Field, Input } from "@/components/ui";
-import { changePasswordAction, type ChangeState } from "./actions";
+import { getTranslator } from "@/lib/i18n";
+import { ChangePasswordForm } from "./_form";
 
-const initial: ChangeState = {};
-
-export default function ChangePasswordPage() {
-  const [state, formAction, pending] = useActionState(changePasswordAction, initial);
+export default async function ChangePasswordPage() {
+  const t = await getTranslator();
   return (
     <main
       className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4"
@@ -21,23 +16,18 @@ export default function ChangePasswordPage() {
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
             <BrandMark size={40} priority />
           </span>
-          <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">Смена пароля</h1>
+          <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">{t("changePassword.title")}</h1>
           <p className="mt-1.5 text-sm text-on-brand/80">
-            При первом входе необходимо задать постоянный пароль.
+            {t("changePassword.hint")}
           </p>
         </div>
         <div className="bg-surface p-7">
-          <form action={formAction} className="space-y-4">
-            <Field label="Новый пароль" htmlFor="password" hint="Минимум 8 символов, буквы и цифры.">
-              <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
-            </Field>
-            <Field label="Повторите пароль" htmlFor="confirm" error={state.error}>
-              <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
-            </Field>
-            <Button type="submit" loading={pending} fullWidth size="lg">
-              Сохранить
-            </Button>
-          </form>
+          <ChangePasswordForm
+            newPasswordLabel={t("changePassword.newPassword")}
+            newPasswordHint={t("changePassword.newPasswordHint")}
+            repeatPasswordLabel={t("changePassword.repeatPassword")}
+            saveLabel={t("changePassword.save")}
+          />
         </div>
       </div>
     </main>

@@ -3,17 +3,22 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { setPeriodStatus, deletePeriod, resetFlowData } from "./actions";
 
 export function PeriodActions({
   id,
   status,
   name,
+  locale,
 }: {
   id: string;
   status: string;
   name: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -27,7 +32,7 @@ export function PeriodActions({
         if (r?.error) setError(r.error);
         else onSuccess?.();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+        setError(e instanceof Error ? e.message : t("periods.error"));
       }
     });
   }
@@ -42,7 +47,7 @@ export function PeriodActions({
             disabled={pending}
             onClick={() => execute(() => setPeriodStatus(id, "OPEN"))}
           >
-            Открыть
+            {t("periods.open")}
           </Button>
         )}
         {status === "OPEN" && (
@@ -52,7 +57,7 @@ export function PeriodActions({
             disabled={pending}
             onClick={() => setConfirmClose(true)}
           >
-            Закрыть
+            {t("periods.close")}
           </Button>
         )}
         {(status === "DRAFT" || status === "CLOSED") && (
@@ -63,7 +68,7 @@ export function PeriodActions({
             onClick={() => setConfirmDel(true)}
             className="text-danger hover:bg-danger/10 hover:text-danger"
           >
-            Удалить
+            {t("periods.delete")}
           </Button>
         )}
       </div>
@@ -76,26 +81,26 @@ export function PeriodActions({
 
       <ConfirmDialog
         open={confirmClose}
-        title="Закрыть период?"
+        title={t("periods.closeConfirmTitle")}
         tone="primary"
-        confirmLabel="Закрыть период"
+        confirmLabel={t("periods.closePeriod")}
         busy={pending}
-        message={`Закрыть период «${name}»? Подача и изменение заявок станут недоступны.`}
+        message={`${t("periods.closeConfirmMessagePrefix")}${name}${t("periods.closeConfirmMessageSuffix")}`}
         onConfirm={() => execute(() => setPeriodStatus(id, "CLOSED"), () => setConfirmClose(false))}
         onClose={() => !pending && setConfirmClose(false)}
       />
 
       <ConfirmDialog
         open={confirmDel}
-        title="Удалить период?"
+        title={t("periods.deleteConfirmTitle")}
         tone="danger"
-        confirmLabel="Удалить"
+        confirmLabel={t("periods.delete")}
         busy={pending}
         message={
           <div className="space-y-1.5">
-            <p>Вы уверены, что хотите удалить период «<strong>{name}</strong>»?</p>
+            <p>{t("periods.deleteConfirmMessagePrefix")}<strong>{name}</strong>{t("periods.deleteConfirmMessageSuffix")}</p>
             <p className="text-xs text-ink-subtle">
-              Период и связанные с ним заявки/купоны будут удалены.
+              {t("periods.deleteConfirmHint")}
             </p>
           </div>
         }
@@ -106,7 +111,8 @@ export function PeriodActions({
   );
 }
 
-export function ResetFlowButton() {
+export function ResetFlowButton({ periodId, name, locale }: { periodId: string; name: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -115,11 +121,11 @@ export function ResetFlowButton() {
     setError(null);
     start(async () => {
       try {
-        const r = await resetFlowData();
+        const r = await resetFlowData(periodId);
         if (r?.error) setError(r.error);
         else setOpen(false);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка сброса данных");
+        setError(e instanceof Error ? e.message : t("periods.resetError"));
       }
     });
   };
@@ -133,22 +139,22 @@ export function ResetFlowButton() {
         onClick={() => setOpen(true)}
         className="text-danger hover:bg-danger/10 hover:text-danger"
       >
-        Очистить тестовые заявки и купоны
+        {t("periods.clearTestData")}
       </Button>
 
       <ConfirmDialog
         open={open}
-        title="Сбросить заявки и купоны?"
+        title={t("periods.resetConfirmTitle")}
         tone="danger"
-        confirmLabel="Очистить всё"
+        confirmLabel={t("periods.resetConfirmLabel")}
         busy={pending}
         message={
           <div className="space-y-2">
             <p>
-              Будут безвозвратно удалены все поданные заявки сотрудников, позиции и купоны.
+              {t("periods.resetConfirmMessagePrefix")}<strong>{name}</strong>{t("periods.resetConfirmMessageSuffix")}
             </p>
             <p className="text-xs text-ink-subtle">
-              Все настройки карточек льгот, баннеры, партнёры и пользователи останутся нетронутыми.
+              {t("periods.resetConfirmMessage2")}
             </p>
             {error && (
               <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">

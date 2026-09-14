@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "./ui";
 
 type Tone = "primary" | "danger" | "success";
@@ -51,7 +52,11 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  return (
+  // Портал в <body> — иначе диалог остаётся потомком строки таблицы/карточки,
+  // и если у родителя есть transform/filter (напр. hover-эффект), fixed-диалог
+  // окажется зажат в его контексте наложения и может уехать под шапку (см. тот
+  // же приём в card-details.tsx / flex-selection.tsx).
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/40 p-5"
       role="presentation"
@@ -91,6 +96,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

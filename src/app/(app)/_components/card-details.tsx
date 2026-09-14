@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 export type CardDetails = {
   title: string;
@@ -20,7 +22,8 @@ export type CardDetails = {
 /** Кнопка «Подробнее» на карточке льготы — модалка с полной информацией:
  * что это, у какого партнёра, на каких условиях и как связаться, если
  * возникнут вопросы «куда ехать / от кого / что делать». */
-export function CardDetailsButton({ card }: { card: CardDetails }) {
+export function CardDetailsButton({ card, locale }: { card: CardDetails; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +66,7 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 16v-4M12 8h.01" />
         </svg>
-        Подробнее
+        {t("cardDetails.more")}
       </button>
 
       {open &&
@@ -108,7 +111,7 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
                 {(card.address || card.workingHours) && (
                   <div className="rounded-xl bg-surface-muted p-3">
                     <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-                      Куда идти
+                      {t("cardDetails.whereToGo")}
                     </p>
                     <div className="mt-1.5 space-y-1.5 text-sm leading-6 text-ink">
                       {card.address && (
@@ -136,7 +139,7 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
                 {(card.condition || card.discountType || card.terms) && (
                   <div className="rounded-xl bg-surface-muted p-3">
                     <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-                      Условия скидки
+                      {t("cardDetails.discountConditions")}
                     </p>
                     <div className="mt-1.5 space-y-1.5 text-sm leading-6 text-ink">
                       {card.discountType && <p className="font-semibold">{card.discountType}</p>}
@@ -149,7 +152,7 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
                 {(card.contactPerson || card.contacts) && (
                   <div className="rounded-xl bg-surface-muted p-3">
                     <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
-                      Если возникнут вопросы
+                      {t("cardDetails.ifQuestions")}
                     </p>
                     <div className="mt-1.5 space-y-1 text-sm leading-6 text-ink">
                       {card.contactPerson && <p>{card.contactPerson}</p>}
@@ -160,7 +163,7 @@ export function CardDetailsButton({ card }: { card: CardDetails }) {
               </div>
 
               <Button variant="secondary" fullWidth className="mt-5" onClick={() => setOpen(false)}>
-                Понятно
+                {t("cardDetails.gotIt")}
               </Button>
             </div>
           </div>,

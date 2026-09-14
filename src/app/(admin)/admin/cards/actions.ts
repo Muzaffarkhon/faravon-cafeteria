@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
-import type { Block, CardStatus } from "@prisma/client";
+import { Prisma, type Block, type CardStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -48,6 +48,14 @@ function parse(formData: FormData) {
   const minRaw = Number.parseInt(String(formData.get("minParticipants") ?? "1"), 10);
   const partnerId = block === "FLEX" ? str("partnerId") : null;
 
+  let translations: object | null = null;
+  try {
+    const parsed = JSON.parse(String(formData.get("translations") ?? "{}"));
+    if (parsed && typeof parsed === "object" && Object.keys(parsed).length) translations = parsed;
+  } catch {
+    /* поле пришло в неожиданном виде — просто не сохраняем переводы */
+  }
+
   return {
     block,
     title,
@@ -60,6 +68,7 @@ function parse(formData: FormData) {
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
     minParticipants: Number.isFinite(minRaw) && minRaw > 1 ? minRaw : 1,
     partnerId,
+    translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };
 }
 

@@ -16,6 +16,7 @@ import {
   resolveSelectionContext,
   isWithinCancelWindow,
 } from "@/lib/selection";
+import { submitSatisfactionResponse } from "@/lib/satisfaction";
 
 async function employeeContext() {
   const s = await requireSession();
@@ -156,26 +157,43 @@ export async function cancelItem(itemId: string): Promise<ActionResult> {
 }
 
 async function cancelItemImpl(itemId: string) {
-  const { session, employee, period } = await employeeContext();
+  const s = await requireSession();
+  assertCan(s.roles, "application.select");
+  if (!s.employee) throw new Error("Доступно только сотрудникам.");
+
+  // Не через employeeContext(): она требует, чтобы окно выбора НОВЫХ льгот
+  // было открыто сейчас, а окно отмены уже отправленной позиции — обычно
+  // позже (действует до старта периода, часто уже после закрытия окна
+  // выбора). Проверяем период именно этой позиции, а не «текущий».
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
-    include: { application: true },
+    include: { application: { include: { period: true } } },
   });
-  if (!item || item.application.employeeId !== employee.id || item.application.periodId !== period.id) {
+  if (!item || item.application.employeeId !== s.employee.id) {
     throw new Error("Позиция не найдена.");
   }
   // §6: уже отправленную позицию можно отменить только в окне отмены —
-  // с 25-го числа до начала периода. Черновик убирается кнопкой «убрать» в любой момент.
-  if (item.status === "PENDING" && !isWithinCancelWindow(period)) {
+  // с начала окна выбора периода до его старта. Черновик убирается кнопкой
+  // «убрать» в любой момент.
+  if (item.status === "PENDING" && !isWithinCancelWindow(item.application.period)) {
     throw new Error(
-      "Отменить отправленный выбор можно только с 25-го числа и до начала периода.",
+      "Отменить отправленный выбор можно только в окне выбора этого периода — до его начала.",
     );
   }
   assertTransition(item.status, "CANCELLED", "EMPLOYEE");
   await db.applicationItem.update({ where: { id: itemId }, data: { status: "CANCELLED" } });
-  await audit({ actorId: session.user.id, action: "ITEM_CANCELLED", entityType: "ApplicationItem", entityId: itemId });
+  await audit({ actorId: s.user.id, action: "ITEM_CANCELLED", entityType: "ApplicationItem", entityId: itemId });
   revalidatePath("/", "layout");
   revalidatePath("/applications");
+}
+
+export async function submitSatisfaction(rating: number, comment: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    if (!s.employee) throw new Error("Доступно только сотрудникам.");
+    await submitSatisfactionResponse(s.employee.id, rating, comment);
+    revalidatePath("/", "layout");
+  });
 }
 
 export async function logout() {

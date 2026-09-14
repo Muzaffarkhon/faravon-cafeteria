@@ -4,6 +4,8 @@ import { useActionState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { Button, Field, Input } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/rbac";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { deleteSlaRule, saveSlaRule, type SlaRuleFormState } from "./actions";
 import { ESCALATABLE_ROLES } from "./roles";
 
@@ -13,9 +15,11 @@ export type SlaRuleValues = {
   afterHours: number;
   notifyRoles: Role[];
   active: boolean;
+  lastEdit?: string;
 };
 
-export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
+export function SlaRuleForm({ rule, locale }: { rule?: SlaRuleValues; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const action = saveSlaRule.bind(null, rule?.id ?? null);
   const [state, formAction, pending] = useActionState<SlaRuleFormState, FormData>(action, {});
   const [removing, startRemove] = useTransition();
@@ -24,9 +28,16 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
   return (
     <form action={formAction} className="rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-primary-strong">
-          {rule ? `Уровень ${rule.level}` : "Новый уровень"}
-        </span>
+        <div className="flex items-baseline gap-2.5">
+          <span className="text-sm font-semibold text-primary-strong">
+            {rule ? `${t("sla.levelPrefix")} ${rule.level}` : t("sla.newLevel")}
+          </span>
+          {rule?.lastEdit && (
+            <span className="text-xs text-ink-subtle" data-numeric>
+              {t("sla.editedLabel")}: {rule.lastEdit}
+            </span>
+          )}
+        </div>
         {rule && (
           <button
             type="button"
@@ -34,13 +45,13 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
             onClick={() => startRemove(() => deleteSlaRule(rule.id))}
             className="text-xs font-medium text-ink-muted hover:text-danger hover:underline disabled:opacity-50"
           >
-            Удалить уровень
+            {t("sla.deleteLevel")}
           </button>
         )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
-        <Field label="Через сколько часов" htmlFor={`h-${rule?.id ?? "new"}`} required>
+        <Field label={t("sla.afterHours")} htmlFor={`h-${rule?.id ?? "new"}`} required>
           <Input
             id={`h-${rule?.id ?? "new"}`}
             name="afterHours"
@@ -52,7 +63,7 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
         </Field>
 
         <fieldset>
-          <legend className="mb-1 block text-sm font-medium text-ink">Кому слать</legend>
+          <legend className="mb-1 block text-sm font-medium text-ink">{t("sla.notifyWhom")}</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5">
             {ESCALATABLE_ROLES.map((r) => (
               <label key={r} className="flex items-center gap-2 text-sm text-ink">
@@ -76,16 +87,16 @@ export function SlaRuleForm({ rule }: { rule?: SlaRuleValues }) {
           defaultChecked={rule?.active ?? true}
           className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
         />
-        Уровень включён
+        {t("sla.levelEnabled")}
       </label>
 
       <div className="mt-3 flex items-center gap-3">
         <Button type="submit" loading={pending}>
-          Сохранить
+          {t("sla.save")}
         </Button>
         {state.ok && (
           <span className="text-sm font-medium text-success-strong" role="status">
-            Сохранено
+            {t("sla.saved")}
           </span>
         )}
         {state.error && (

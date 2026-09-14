@@ -1,5 +1,28 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { sendTelegram } from "@/lib/notification-delivery";
+
+/**
+ * Уведомление C&B в Telegram о том, что диалог поддержки требует внимания —
+ * ТОЛЬКО для двух случаев: совсем новый диалог и диалог, который был закрыт
+ * и его переоткрыли. Обычные реплики в уже открытый диалог по-прежнему не
+ * шлют Telegram-пуш (заваливало бы бота на каждое сообщение) — админ видит
+ * их звуком и миганием заголовка вкладки, см. `_support-alert.tsx`.
+ */
+export async function notifySupportAdmins(text: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
+  const admins = await db.user.findMany({
+    where: { isActive: true, roles: { has: "C_AND_B" }, telegramId: { not: null } },
+    select: { telegramId: true },
+  });
+  await Promise.all(admins.map((a) => sendTelegram(token, a.telegramId!, text)));
+}
+
+const NEW_THREAD_TEXT =
+  "🆕 <b>Новое обращение в поддержку</b>\nОткройте раздел «Обращения», чтобы ответить.";
+const REOPENED_THREAD_TEXT =
+  "🔔 <b>Диалог поддержки снова открыт</b>\nГость написал в ранее закрытый чат.";
 
 /**
  * Заводит или переоткрывает тред поддержки для этого Telegram-чата.
@@ -7,11 +30,14 @@ import { db } from "@/lib/db";
  * реального сообщения гостя.
  */
 export async function openOrReopenThread(telegramId: string): Promise<void> {
+  const existing = await db.supportThread.findUnique({ where: { telegramId }, select: { status: true } });
   await db.supportThread.upsert({
     where: { telegramId },
     create: { telegramId, status: "OPEN" },
     update: { status: "OPEN" },
   });
+  if (!existing) await notifySupportAdmins(NEW_THREAD_TEXT);
+  else if (existing.status === "CLOSED") await notifySupportAdmins(REOPENED_THREAD_TEXT);
 }
 
 /**
@@ -19,15 +45,11 @@ export async function openOrReopenThread(telegramId: string): Promise<void> {
  * ранее был закрыт — тогда переоткрывает). Возвращает `false`, если треда
  * нет вовсе — тогда вызывающий код должен обработать сообщение как обычно
  * (например, показать WELCOME), а не как реплику в чате.
- *
- * C&B узнаёт о новом сообщении не через Telegram (это заваливало бы их же
- * бота на каждую реплику гостя), а через звук и мигание заголовка вкладки
- * прямо в интерфейсе — см. `_support-alert.tsx`, опрашивает счётчик
- * непрочитанных отдельно от этой функции.
  */
 export async function appendGuestMessage(telegramId: string, body: string): Promise<boolean> {
   const thread = await db.supportThread.findUnique({ where: { telegramId } });
   if (!thread) return false;
+  const wasClosed = thread.status === "CLOSED";
 
   await db.$transaction([
     db.supportMessage.create({ data: { threadId: thread.id, direction: "IN", body } }),
@@ -37,6 +59,7 @@ export async function appendGuestMessage(telegramId: string, body: string): Prom
     }),
   ]);
 
+  if (wasClosed) await notifySupportAdmins(REOPENED_THREAD_TEXT);
   return true;
 }
 

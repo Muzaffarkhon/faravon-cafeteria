@@ -3,17 +3,20 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { Button, Field, buttonClass } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { importEmployees, type ImportState } from "../actions";
 
-export function ImportForm() {
+export function ImportForm({ locale }: { locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<ImportState, FormData>(importEmployees, {});
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <Field
-        label="Файл .xlsx"
+        label={t("users.imp.fileLabel")}
         htmlFor="file"
-        hint="Первый лист. Обязательные столбцы: «Табельный номер», «ФИО». Столбцы находятся по заголовкам — порядок не важен."
+        hint={t("users.imp.fileHint")}
       >
         <input
           id="file"
@@ -33,9 +36,9 @@ export function ImportForm() {
           className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
         />
         <span>
-          Автоматически создавать учётные записи (логины) для сотрудников
+          {t("users.imp.createAccounts")}
           <span className="block text-xs text-ink-muted">
-            Генерирует уникальный логин из ФИО (например, ivanov.i) и открывает сотруднику вход на платформу.
+            {t("users.imp.createAccountsHint")}
           </span>
         </span>
       </label>
@@ -43,10 +46,9 @@ export function ImportForm() {
       <label className="flex items-start gap-2 text-sm text-ink">
         <input type="checkbox" name="deactivateAbsent" className="mt-0.5 h-4 w-4 accent-[var(--primary)]" />
         <span>
-          Деактивировать сотрудников, которых нет в файле
+          {t("users.imp.deactivateAbsent")}
           <span className="block text-xs text-ink-muted">
-            Отсутствующий в источнике сотрудник теряет доступ. Их учётные записи
-            тоже отключаются. История сохраняется.
+            {t("users.imp.deactivateAbsentHint")}
           </span>
         </span>
       </label>
@@ -59,9 +61,9 @@ export function ImportForm() {
           className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
         />
         <span>
-          Только проверить (не изменять базу)
+          {t("users.imp.dryRun")}
           <span className="block text-xs text-ink-muted">
-            Рекомендуется прогнать сначала с этой галочкой, затем снять её и импортировать.
+            {t("users.imp.dryRunHint")}
           </span>
         </span>
       </label>
@@ -75,22 +77,22 @@ export function ImportForm() {
       {state.ok && (
         <div className="space-y-2 rounded-md border border-line bg-surface px-4 py-3 text-sm">
           <p className="font-medium text-success-strong">
-            {state.dryRun ? "Проверка (без изменений)" : "Импорт завершён."}
+            {state.dryRun ? t("users.imp.checkResult") : t("users.imp.importDone")}
           </p>
           <ul className="text-ink-muted">
-            <li>{state.dryRun ? "Будет добавлено сотрудников" : "Добавлено сотрудников"}: {state.created ?? 0}</li>
-            <li>{state.dryRun ? "Будет создано логинов (учёток)" : "Создано логинов (учёток)"}: {state.usersCreated ?? state.created ?? 0}</li>
-            <li>{state.dryRun ? "Будет обновлено" : "Обновлено"}: {state.updated ?? 0}</li>
+            <li>{state.dryRun ? t("users.imp.willAdd") : t("users.imp.added")}: {state.created ?? 0}</li>
+            <li>{state.dryRun ? t("users.imp.willCreateLogins") : t("users.imp.createdLogins")}: {state.usersCreated ?? state.created ?? 0}</li>
+            <li>{state.dryRun ? t("users.imp.willUpdate") : t("users.imp.updated")}: {state.updated ?? 0}</li>
             {(state.deactivated ?? 0) > 0 && (
               <li className="text-warning-strong">
-                {state.dryRun ? "Будет деактивировано" : "Деактивировано"}: {state.deactivated}
+                {state.dryRun ? t("users.imp.willDeactivate") : t("users.imp.deactivated")}: {state.deactivated}
               </li>
             )}
           </ul>
           {state.deactivateList && state.deactivateList.length > 0 && (
             <details className="pt-1" open={state.dryRun}>
               <summary className="cursor-pointer text-warning-strong">
-                Кого затронет деактивация ({state.deactivateList.length})
+                {t("users.imp.affectedByDeactivation")} ({state.deactivateList.length})
               </summary>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-ink-muted">
                 {state.deactivateList.map((n, i) => (
@@ -102,7 +104,7 @@ export function ImportForm() {
           {state.rowErrors && state.rowErrors.length > 0 && (
             <details className="pt-1">
               <summary className="cursor-pointer text-warning-strong">
-                Пропущено строк: {state.rowErrors.length}
+                {t("users.imp.skippedRows")} {state.rowErrors.length}
               </summary>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-ink-muted">
                 {state.rowErrors.map((e, i) => (
@@ -113,7 +115,7 @@ export function ImportForm() {
           )}
           {state.dryRun && (
             <p className="pt-1 text-xs text-ink-muted">
-              Снимите галочку «Только проверить» и нажмите «Импортировать», чтобы применить.
+              {t("users.imp.dryRunHint2")}
             </p>
           )}
         </div>
@@ -121,10 +123,10 @@ export function ImportForm() {
 
       <div className="flex gap-3">
         <Button type="submit" disabled={pending}>
-          {pending ? "Обработка…" : "Импортировать"}
+          {pending ? t("users.imp.processing") : t("users.imp.import")}
         </Button>
         <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
-          {state.ok && !state.dryRun ? "К списку" : "Отмена"}
+          {state.ok && !state.dryRun ? t("users.imp.toList") : t("users.imp.cancel")}
         </Link>
       </div>
     </form>

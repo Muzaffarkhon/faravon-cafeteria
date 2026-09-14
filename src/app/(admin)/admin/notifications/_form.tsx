@@ -8,6 +8,8 @@ import {
   TEMPLATE_SAMPLE_VARS,
   renderTemplate,
 } from "@/lib/notification-format";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import {
   resetNotificationTemplate,
   updateNotificationTemplate,
@@ -21,6 +23,7 @@ export function TemplateForm({
   overridden,
   editedBy,
   editedAt,
+  locale,
 }: {
   event: string;
   label: string;
@@ -28,7 +31,9 @@ export function TemplateForm({
   overridden: boolean;
   editedBy?: string | null;
   editedAt?: string | null;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const action = updateNotificationTemplate.bind(null, event);
   const [state, formAction, pending] = useActionState<TemplateFormState, FormData>(action, {});
   const [draft, setDraft] = useState(body);
@@ -44,11 +49,11 @@ export function TemplateForm({
         <span className="font-mono text-xs text-ink-subtle">{event}</span>
         {overridden ? (
           <span className="rounded bg-primary-soft px-1.5 py-0.5 text-xs font-medium text-primary-strong">
-            изменён
+            {t("notifications.changed")}
           </span>
         ) : (
           <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs text-ink-subtle">
-            по умолчанию
+            {t("notifications.default")}
           </span>
         )}
         {overridden && editedAt && (
@@ -60,27 +65,27 @@ export function TemplateForm({
       </div>
 
       <div className="space-y-3">
-        <Field label="Название" htmlFor={`${event}-label`} required>
+        <Field label={t("notifications.nameLabel")} htmlFor={`${event}-label`} required>
           <Input id={`${event}-label`} name="label" defaultValue={label} required />
         </Field>
 
         <Field
-          label="Текст уведомления"
+          label={t("notifications.bodyLabel")}
           htmlFor={`${event}-body`}
           required
           hint={
             <>
-              Плейсхолдеры:{" "}
+              {t("notifications.placeholders")}{" "}
               {placeholders.map((p, i) => (
                 <span key={p}>
                   {i > 0 && ", "}
                   <code className="rounded bg-surface-muted px-1">{`{${p}}`}</code>
                 </span>
               ))}
-              . Блок <code className="rounded bg-surface-muted px-1">[[ … ]]</code> исчезает, если
-              плейсхолдер внутри пустой. Поддерживаются теги Telegram:{" "}
-              <code className="rounded bg-surface-muted px-1">{"<b>жирный</b>"}</code>,{" "}
-              <code className="rounded bg-surface-muted px-1">{"<code>моноширинный</code>"}</code>.
+              . {t("notifications.blockHint1")} <code className="rounded bg-surface-muted px-1">[[ … ]]</code>{" "}
+              {t("notifications.blockHint2")}{" "}
+              <code className="rounded bg-surface-muted px-1">{`<b>${t("notifications.boldExample")}</b>`}</code>,{" "}
+              <code className="rounded bg-surface-muted px-1">{`<code>${t("notifications.monoExample")}</code>`}</code>.
             </>
           }
         >
@@ -96,7 +101,7 @@ export function TemplateForm({
 
         <div className="rounded-lg bg-surface-muted px-3 py-2 text-sm">
           <div className="mb-0.5 text-xs font-medium text-ink-subtle">
-            Пример (как в Telegram)
+            {t("notifications.previewTitle")}
           </div>
           {preview ? (
             <div className="whitespace-pre-line text-ink" dangerouslySetInnerHTML={{ __html: preview }} />
@@ -108,7 +113,7 @@ export function TemplateForm({
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button type="submit" loading={pending}>
-          Сохранить
+          {t("notifications.save")}
         </Button>
         {overridden && (
           <button
@@ -122,12 +127,12 @@ export function TemplateForm({
             }
             className="text-sm font-medium text-ink-muted hover:text-danger hover:underline"
           >
-            Сбросить к стандартному
+            {t("notifications.resetToDefault")}
           </button>
         )}
         {state.ok && (
           <span className="text-sm font-medium text-success-strong" role="status">
-            Сохранено
+            {t("notifications.saved")}
           </span>
         )}
         {state.error && (

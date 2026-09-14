@@ -6,6 +6,8 @@ import { isSvgSafe, sanitizeSvg } from "@/lib/svg-sanitize";
 import { isOptimizableRaster, optimizeImageFile } from "@/lib/image-optimize";
 import { renderCroppedFile, type CropRect } from "@/lib/image-crop";
 import { guardedUpload } from "@/lib/blob-upload";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 const MAX_BYTES = 2 * 1024 * 1024; // §5.12: 2 МБ — лимит на итоговый файл
@@ -54,8 +56,9 @@ export function ImageUploadField({
   onChange,
   purpose,
   aspect,
-  label = "Изображение",
+  label,
   hint,
+  locale,
 }: {
   value: string;
   onChange: (url: string) => void;
@@ -63,7 +66,10 @@ export function ImageUploadField({
   aspect?: number;
   label?: string;
   hint?: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const resolvedLabel = label ?? t("imageUpload.default");
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<"process" | "upload" | null>(null);
   const [pct, setPct] = useState(0);
@@ -126,7 +132,7 @@ export function ImageUploadField({
     setBusy(true);
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Не удалось загрузить изображение.");
+      if (!res.ok) throw new Error(t("imageUpload.loadFailed"));
       const blob = await res.blob();
       const file = new File([blob], "image.webp", { type: blob.type || "image/webp" });
       openEditor(file);
@@ -139,7 +145,7 @@ export function ImageUploadField({
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          setErr("Не удалось инициализировать холст.");
+          setErr(t("imageUpload.canvasFailed"));
           setBusy(false);
           return;
         }
@@ -150,13 +156,13 @@ export function ImageUploadField({
             const file = new File([blob], "image.webp", { type: "image/webp" });
             openEditor(file);
           } else {
-            setErr("Не удалось обработать изображение.");
+            setErr(t("imageUpload.processFailed"));
           }
         }, "image/webp");
       };
       img.onerror = () => {
         setBusy(false);
-        setErr("Не удалось загрузить изображение для редактирования. Загрузите файл с устройства.");
+        setErr(t("imageUpload.editLoadFailed"));
       };
       img.src = url;
     } finally {
@@ -190,9 +196,7 @@ export function ImageUploadField({
 
   async function doUpload(payload: File | Blob, name: string, contentType: string) {
     if (payload.size > MAX_BYTES) {
-      setErr(
-        "Не удалось ужать до 2 МБ — уменьшите изображение или загрузите менее детализированное.",
-      );
+      setErr(t("imageUpload.shrinkFailed"));
       return false;
     }
     setStage("upload");
@@ -231,12 +235,12 @@ export function ImageUploadField({
         targetBytes: MAX_BYTES,
       });
       if (!out) {
-        setErr("Не удалось обработать изображение. Попробуйте другой файл.");
+        setErr(t("imageUpload.processOtherFile"));
         return;
       }
       if (await doUpload(out.file, out.file.name, out.file.type)) closeEditor();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Не удалось загрузить файл.");
+      setErr(e instanceof Error ? e.message : t("imageUpload.uploadFailed"));
     } finally {
       setBusy(false);
       setStage(null);
@@ -248,11 +252,11 @@ export function ImageUploadField({
     setErr(null);
     const isSvg = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
     if (!file.type.startsWith("image/") && !isSvg) {
-      setErr("Нужен файл изображения: PNG, JPEG, WebP или SVG.");
+      setErr(t("imageUpload.needImageFile"));
       return;
     }
     if (file.size > MAX_SOURCE_BYTES) {
-      setErr("Файл больше 25 МБ — это слишком тяжёлый исходник.");
+      setErr(t("imageUpload.tooLarge"));
       return;
     }
 
@@ -268,7 +272,7 @@ export function ImageUploadField({
       if (isSvg) {
         const clean = sanitizeSvg(await file.text());
         if (!isSvgSafe(clean)) {
-          setErr("SVG содержит потенциально опасные элементы. Загрузите PNG/JPEG.");
+          setErr(t("imageUpload.svgUnsafe"));
           return;
         }
         await doUpload(
@@ -286,7 +290,7 @@ export function ImageUploadField({
         await doUpload(file, file.name, file.type);
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Не удалось загрузить файл.");
+      setErr(e instanceof Error ? e.message : t("imageUpload.uploadFailed"));
     } finally {
       setBusy(false);
       setStage(null);
@@ -309,10 +313,10 @@ export function ImageUploadField({
       </div>
       <span className="shrink-0 text-right text-xs tabular-nums text-ink-muted">
         {stage === "process"
-          ? "Обработка…"
+          ? t("imageUpload.processing")
           : pct > 0
-            ? `Загрузка ${pct}%`
-            : "Загрузка…"}
+            ? `${t("imageUpload.uploadingPct")} ${pct}%`
+            : t("imageUpload.uploading")}
       </span>
       {stage === "upload" && (
         <button
@@ -320,20 +324,20 @@ export function ImageUploadField({
           onClick={() => cancelRef.current?.()}
           className="shrink-0 text-xs font-medium text-danger hover:underline"
         >
-          Отмена
+          {t("imageUpload.cancel")}
         </button>
       )}
     </div>
   ) : null;
 
   return (
-    <Field label={label} htmlFor="img-upload-file" error={err ?? undefined}>
+    <Field label={resolvedLabel} htmlFor="img-upload-file" error={err ?? undefined}>
       {value && !editFile && (
         <div className="mb-3 space-y-2">
           {purpose === "card" && aspect ? (
             <div>
               <div className="mb-1.5 text-xs font-semibold text-ink-muted">
-                Фактический вид в карточке:
+                {t("imageUpload.actualCardView")}
               </div>
               <div className="w-full max-w-[320px] overflow-hidden rounded-[20px] border border-line bg-surface shadow-sm">
                 <div
@@ -369,7 +373,7 @@ export function ImageUploadField({
                 disabled={busy}
                 className="text-xs font-medium text-primary hover:underline"
               >
-                Изменить положение
+                {t("imageUpload.changePosition")}
               </button>
             )}
             <button
@@ -378,7 +382,7 @@ export function ImageUploadField({
               disabled={busy}
               className="text-xs font-medium text-danger hover:underline"
             >
-              Удалить
+              {t("imageUpload.delete")}
             </button>
           </div>
         </div>
@@ -388,7 +392,7 @@ export function ImageUploadField({
       {editFile && (
         <div className="mb-2 space-y-2">
           <div className="text-xs font-semibold text-ink-muted">
-            Перетащите изображение для выбора нужного ракурса:
+            {t("imageUpload.dragHint")}
           </div>
           <div
             ref={boxRef}
@@ -434,12 +438,12 @@ export function ImageUploadField({
 
             {/* Метка пропорции */}
             <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
-              {aspect === 1.6 ? "Рамка карточки (16:10)" : aspect === 1 ? "Логотип (1:1)" : `Кадрирование ${aspect}:1`}
+              {aspect === 1.6 ? t("imageUpload.cardFrame") : aspect === 1 ? t("imageUpload.logoFrame") : `${t("imageUpload.cropFrame")} ${aspect}:1`}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-ink-muted">Масштаб</span>
+            <span className="text-xs text-ink-muted">{t("imageUpload.scale")}</span>
             <input
               type="range"
               min={MIN_ZOOM}
@@ -453,7 +457,7 @@ export function ImageUploadField({
 
           <div className="flex flex-wrap items-center gap-1.5">
             <Button type="button" size="sm" onClick={confirmCrop} loading={busy}>
-              Применить
+              {t("imageUpload.apply")}
             </Button>
             <Button
               type="button"
@@ -465,7 +469,7 @@ export function ImageUploadField({
                 setFocus({ x: 0.5, y: 0.5 });
               }}
             >
-              По центру
+              {t("imageUpload.center")}
             </Button>
             <Button
               type="button"
@@ -474,7 +478,7 @@ export function ImageUploadField({
               disabled={busy}
               onClick={() => setFocus((f) => ({ ...f, y: 0 }))}
             >
-              Сверху
+              {t("imageUpload.top")}
             </Button>
             <Button
               type="button"
@@ -483,7 +487,7 @@ export function ImageUploadField({
               disabled={busy}
               onClick={() => setFocus((f) => ({ ...f, y: 1 }))}
             >
-              Снизу
+              {t("imageUpload.bottom")}
             </Button>
             <Button
               type="button"
@@ -492,7 +496,7 @@ export function ImageUploadField({
               disabled={busy}
               onClick={() => setFocus((f) => ({ ...f, x: 0 }))}
             >
-              Слева
+              {t("imageUpload.left")}
             </Button>
             <Button
               type="button"
@@ -501,7 +505,7 @@ export function ImageUploadField({
               disabled={busy}
               onClick={() => setFocus((f) => ({ ...f, x: 1 }))}
             >
-              Справа
+              {t("imageUpload.right")}
             </Button>
             <Button
               type="button"
@@ -510,12 +514,12 @@ export function ImageUploadField({
               onClick={closeEditor}
               disabled={busy}
             >
-              Отмена
+              {t("imageUpload.cancel")}
             </Button>
           </div>
           {progressBar}
           <p className="text-xs text-ink-muted">
-            Перетаскивайте фото курсором или пальцем и используйте масштаб, чтобы настроить ракурс.
+            {t("imageUpload.dragHint2")}
           </p>
         </div>
       )}
@@ -545,7 +549,7 @@ export function ImageUploadField({
               onClick={() => setManual((v) => !v)}
               className="text-xs font-medium text-primary hover:underline"
             >
-              {manual ? "скрыть ссылку" : "указать ссылку"}
+              {manual ? t("imageUpload.hideLink") : t("imageUpload.specifyLink")}
             </button>
           </div>
 
@@ -562,7 +566,7 @@ export function ImageUploadField({
           )}
 
           <p className="mt-1 text-xs text-ink-muted">
-            {hint ?? "PNG, JPEG, WebP или SVG. Фото сжимается автоматически."}
+            {hint ?? t("imageUpload.defaultHint")}
           </p>
         </>
       )}

@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, EmptyState, Table, type BadgeTone } from "@/components/ui";
+import { useClientLocale } from "@/lib/i18n/use-client-locale";
+import { translate } from "@/lib/i18n/dict";
 
 type Req = {
   id: string;
@@ -21,13 +23,15 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   APPROVED: "success",
   REJECTED: "brand",
 };
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: "На рассмотрении",
-  APPROVED: "Одобрена",
-  REJECTED: "Отклонена",
-};
 
 export default function Page() {
+  const locale = useClientLocale();
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const STATUS_LABEL: Record<string, string> = {
+    PENDING: t("adReq.statusPending"),
+    APPROVED: t("adReq.statusApproved"),
+    REJECTED: t("adReq.statusRejected"),
+  };
   const router = useRouter();
   const [items, setItems] = useState<Req[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -48,7 +52,7 @@ export default function Page() {
       const res = await fetch("/api/advertising/admin", { method: "POST", body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        alert(data?.error ?? "Не удалось изменить статус заявки.");
+        alert(data?.error ?? t("adReq.statusChangeFailed"));
         return;
       }
       setItems((s) => (s ?? []).map((it) => (it.id === id ? { ...it, status } : it)));
@@ -63,21 +67,21 @@ export default function Page() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       {items === null ? (
-        <Card className="p-6 text-sm text-ink-muted">Загрузка…</Card>
+        <Card className="p-6 text-sm text-ink-muted">{t("adReq.loading")}</Card>
       ) : items.length === 0 ? (
-        <EmptyState>Заявок пока нет.</EmptyState>
+        <EmptyState>{t("adReq.empty")}</EmptyState>
       ) : (
         <Card>
           <Table>
             <thead>
               <tr>
-                <th>Компания / контакт</th>
-                <th>Продукт</th>
-                <th>Приложение</th>
-                <th>Статус</th>
-                <th>Подана</th>
+                <th>{t("adReq.colCompany")}</th>
+                <th>{t("adReq.colProduct")}</th>
+                <th>{t("adReq.colApp")}</th>
+                <th>{t("adReq.colStatus")}</th>
+                <th>{t("adReq.colSubmitted")}</th>
                 <th />
               </tr>
             </thead>
@@ -127,7 +131,7 @@ export default function Page() {
                         disabled={r.status === "APPROVED"}
                         onClick={() => updateStatus(r.id, "APPROVED")}
                       >
-                        Одобрить
+                        {t("adReq.approve")}
                       </Button>
                       <Button
                         variant="danger"
@@ -135,7 +139,7 @@ export default function Page() {
                         disabled={busyId === r.id || r.status === "REJECTED" || r.status === "APPROVED"}
                         onClick={() => updateStatus(r.id, "REJECTED")}
                       >
-                        Отклонить
+                        {t("adReq.reject")}
                       </Button>
                     </div>
                   </td>

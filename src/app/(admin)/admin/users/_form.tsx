@@ -6,6 +6,8 @@ import type { Role } from "@prisma/client";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { loginFromFullName } from "@/lib/translit";
 import { Button, Field, Input, buttonClass } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import type { EmployeeFormState } from "./actions";
 import { ALL_ROLES } from "./roles";
 import { OtpModal } from "./_otp-modal";
@@ -24,13 +26,16 @@ export function EmployeeForm({
   initial,
   submitLabel,
   withAccount = false,
+  locale,
 }: {
   action: (s: EmployeeFormState, fd: FormData) => Promise<EmployeeFormState>;
   initial?: Partial<EmployeeValues>;
   submitLabel: string;
   /** показать блок «создать учётную запись» (только на странице создания) */
   withAccount?: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
   const [makeAccount, setMakeAccount] = useState(withAccount);
   const [fullName, setFullName] = useState(initial?.fullName ?? "");
@@ -45,17 +50,17 @@ export function EmployeeForm({
     return (
       <div className="max-w-xl space-y-4">
         {state.otp && !otpSeen && (
-          <OtpModal otp={state.otp} login={state.login} onClose={() => setOtpSeen(true)} />
+          <OtpModal otp={state.otp} login={state.login} onClose={() => setOtpSeen(true)} locale={locale} />
         )}
         <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong">
-          Сотрудник добавлен{state.login ? ` · учётная запись «${state.login}»` : ""}.
+          {t("users.form.createdPrefix")}{state.login ? ` ${t("users.form.createdAccountSuffix")} «${state.login}»` : ""}.
         </p>
         <div className="flex gap-3">
           <Link href={`/admin/users/${state.createdId}`} className={buttonClass()}>
-            Открыть карточку
+            {t("users.form.openCard")}
           </Link>
           <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
-            К списку
+            {t("users.form.toList")}
           </Link>
         </div>
       </div>
@@ -69,10 +74,10 @@ export function EmployeeForm({
           className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong"
           role="status"
         >
-          Изменения сохранены.
+          {t("users.form.changesSaved")}
         </p>
       )}
-      <Field label="ФИО" htmlFor="fullName" required hint="Фамилия Имя Отчество. Допускаются таджикские буквы (ғ ӣ қ ӯ ҳ ҷ).">
+      <Field label={t("users.form.fullName")} htmlFor="fullName" required hint={t("users.form.fullNameHint")}>
         <Input
           id="fullName"
           name="fullName"
@@ -84,10 +89,10 @@ export function EmployeeForm({
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Должность" htmlFor="position" required>
+        <Field label={t("users.form.position")} htmlFor="position" required>
           <Input id="position" name="position" defaultValue={initial?.position ?? ""} required />
         </Field>
-        <Field label="Подразделение" htmlFor="department" required>
+        <Field label={t("users.form.department")} htmlFor="department" required>
           <Input
             id="department"
             name="department"
@@ -98,7 +103,7 @@ export function EmployeeForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Основной телефон" htmlFor="phone" hint="Для идентификации в Telegram-боте.">
+        <Field label={t("users.form.primaryPhone")} htmlFor="phone" hint={t("users.form.primaryPhoneHint")}>
           <Input
             id="phone"
             name="phone"
@@ -110,7 +115,7 @@ export function EmployeeForm({
           />
         </Field>
 
-        <Field label="Дополнительный телефон" htmlFor="phoneSecondary" hint="Альтернативный номер для поиска.">
+        <Field label={t("users.form.secondaryPhone")} htmlFor="phoneSecondary" hint={t("users.form.secondaryPhoneHint")}>
           <Input
             id="phoneSecondary"
             name="phoneSecondary"
@@ -124,9 +129,9 @@ export function EmployeeForm({
       </div>
 
       <Field
-        label="Telegram ID"
+        label={t("users.form.telegramId")}
         htmlFor="telegramId"
-        hint="Обычно привязывается ботом. Можно указать вручную по whitelist."
+        hint={t("users.form.telegramIdHint")}
       >
         <Input id="telegramId" name="telegramId" defaultValue={initial?.telegramId ?? ""} inputMode="numeric" autoComplete="off" />
       </Field>
@@ -141,15 +146,15 @@ export function EmployeeForm({
               onChange={(e) => setMakeAccount(e.target.checked)}
               className="h-4 w-4 accent-[var(--primary)]"
             />
-            Сразу создать учётную запись для входа
+            {t("users.form.createAccountNow")}
           </label>
 
           {makeAccount && (
             <div className="space-y-4 pt-1">
               <Field
-                label="Логин"
+                label={t("users.form.loginLabel")}
                 htmlFor="login"
-                hint="Сгенерирован из ФИО, можно поправить. Латиница, цифры, «.», «-», «_»."
+                hint={t("users.form.loginGenHint")}
               >
                 <div className="flex gap-2">
                   <Input
@@ -174,14 +179,14 @@ export function EmployeeForm({
                         setLogin("");
                       }}
                     >
-                      Из ФИО
+                      {t("users.form.fromFullName")}
                     </Button>
                   )}
                 </div>
               </Field>
-              <RolePicker defaultRoles={["EMPLOYEE"]} allowedRoles={["EMPLOYEE", "C_AND_B"]} />
+              <RolePicker defaultRoles={["EMPLOYEE"]} allowedRoles={["EMPLOYEE", "C_AND_B"]} locale={locale} />
               <p className="text-xs text-ink-muted">
-                Одноразовый пароль покажется в окне сразу после сохранения.
+                {t("users.form.otpHint")}
               </p>
             </div>
           )}
@@ -202,7 +207,7 @@ export function EmployeeForm({
           {submitLabel}
         </Button>
         <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
-          Отмена
+          {t("users.form.cancel")}
         </Link>
       </div>
     </form>
@@ -213,11 +218,14 @@ export function RolePicker({
   defaultRoles,
   allowedRoles = ALL_ROLES,
   name = "roles",
+  locale,
 }: {
   defaultRoles: Role[];
   allowedRoles?: Role[];
   name?: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [selected, setSelected] = useState<Role[]>(() =>
     defaultRoles.filter((r) => allowedRoles.includes(r)),
   );
@@ -236,7 +244,7 @@ export function RolePicker({
 
   return (
     <fieldset className="space-y-1.5">
-      <legend className="text-sm font-medium text-ink">Роли</legend>
+      <legend className="text-sm font-medium text-ink">{t("users.form.roles")}</legend>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {allowedRoles.map((r) => (
           <label key={r} className="flex items-center gap-2 text-sm text-ink cursor-pointer">

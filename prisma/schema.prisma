@@ -123,10 +123,12 @@ model Employee {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  user         User?
-  applications Application[]
-  coupons      Coupon[]
-  feedback     Feedback[]
+  user                  User?
+  applications          Application[]
+  coupons               Coupon[]
+  feedback              Feedback[]
+  supportThreads        SupportThread[]
+  satisfactionResponses SatisfactionResponse[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -226,6 +228,10 @@ model Partner {
   contractStart DateTime?
   contractEnd   DateTime?
   responsible   String?
+  /// Переводы полей витрины на другие языки интерфейса (§i18n):
+  /// { tg?: { name?, discountType?, terms? }, uz?: { ... } }. Отсутствующее
+  /// поле/язык — на экране остаётся русский текст.
+  translations  Json?
   status        PartnerStatus @default(ACTIVE)
   deliveryMode  DeliveryMode  @default(QR) // PHONE_PROMO — подрядчик со своей системой (такси): без QR, по номеру телефона
   logoUrl       String?
@@ -247,6 +253,8 @@ model BenefitCard {
   condition   String?
   imageUrl    String?
   category    String?
+  /// Переводы { tg?: { title?, description?, condition? }, uz?: { ... } } — см. Partner.translations.
+  translations Json?
   isActive    Boolean    @default(true) // false => метка «скоро»
   status      CardStatus @default(PUBLISHED)
   sortOrder   Int        @default(0)
@@ -463,25 +471,78 @@ model Feedback {
   @@index([createdAt])
 }
 
-/// Один Telegram-чат — один тред, переоткрывается при новом сообщении
-/// гостя, а не плодится заново. Заводится, когда бот не смог опознать
-/// человека и тот нажал «Написать администратору».
+/// Настройки опроса удовлетворённости (§ CSAT) — одна строка-синглтон
+/// (id всегда "default"). Выключатель и периодичность правит C&B на
+/// /admin/satisfaction, без релиза кода.
+model SatisfactionSettings {
+  id         String   @id @default("default")
+  enabled    Boolean  @default(false)
+  /// Не переспрашивать того же сотрудника чаще, чем раз в столько дней
+  /// после его последнего ответа.
+  repeatDays Int      @default(90)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —
+/// необязательный комментарий. Показывается сотруднику после погашения
+/// купона у партнёра (реальный опыт использования льготы), повторно — не
+/// чаще repeatDays (см. SatisfactionSettings, src/lib/satisfaction.ts).
+model SatisfactionResponse {
+  id         String   @id @default(cuid())
+  seq        Int      @unique @default(autoincrement())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([createdAt])
+}
+
+/// Один диалог — один тред, независимо от источника: Telegram-гость (бот не
+/// смог опознать человека) или сотрудник через веб-форму «Обратная связь»
+/// (обе прежде отдельные фичи объединены в один инбокс C&B).
 model SupportThread {
-  id            String              @id @default(cuid())
-  seq           Int                 @unique @default(autoincrement()) // сквозной номер — для короткого отображения (RowId), тот же приём, что и у остальных сущностей
-  telegramId    String              @unique
+  id     String              @id @default(cuid())
+  seq    Int                 @unique @default(autoincrement()) // сквозной номер — для короткого отображения (RowId), тот же приём, что и у остальных сущностей
+  source SupportThreadSource @default(TELEGRAM)
+
+  /// TELEGRAM: уникальный chat id гостя. WEB: не используется.
+  telegramId String? @unique
   /// Номер, который человек присылал (если делился контактом) — подсказка
-  /// C&B, кто это, даже если официально не опознан.
-  phone         String?
-  status        SupportThreadStatus @default(OPEN)
+  /// C&B, кто это, даже если официально не опознан. TELEGRAM-происхождение.
+  phone String?
+
+  /// WEB: сотрудник, открывший обращение через сайт (уже вошёл в систему —
+  /// личность известна сразу, в отличие от Telegram-гостя).
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  employeeId String?
+  /// WEB: тема из фиксированного списка (см. FEEDBACK_TOPICS) — выбором, а не
+  /// свободным текстом, чтобы обращения можно было группировать.
+  topic String?
+
+  status SupportThreadStatus @default(OPEN)
   /// НЕ @updatedAt — обновляем явно при каждом сообщении (в обе стороны),
   /// а не при любом изменении строки (например, при правке phone).
-  lastMessageAt DateTime            @default(now())
-  createdAt     DateTime            @default(now())
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  /// Архивирован C&B — скрыт из основного списка, но история сохранена
+  /// (тот же приём, что и Employee.archivedAt). Не путать со status=CLOSED:
+  /// закрытый диалог может переоткрыться сам, если гость напишет снова;
+  /// архив — это просто «убрать с глаз», гость может писать и дальше.
+  archivedAt DateTime?
 
   messages SupportMessage[]
 
   @@index([status, lastMessageAt])
+  @@index([employeeId])
+  @@index([archivedAt])
+}
+
+enum SupportThreadSource {
+  TELEGRAM
+  WEB
 }
 
 model SupportMessage {
@@ -527,6 +588,8 @@ model TextBlock {
   key       String   @id // GOAL | NOVELTY_NOTICE
   title     String
   content   String
+  /// Переводы { tg?: { title?, content? }, uz?: { ... } } — см. Partner.translations.
+  translations Json?
   updatedAt DateTime @updatedAt
 }
 
@@ -553,6 +616,7 @@ model Notification {
   sentAt      DateTime  @default(now())
   readAt      DateTime?
   deliveredAt DateTime? // выставляется Telegram-ботом после отправки сообщения (§5.10)
+  blockedAt   DateTime? // сотрудник заблокировал бота (Telegram 403) — доставка не удастся, ретраить бессмысленно
 
   @@index([userId])
   @@index([deliveredAt])

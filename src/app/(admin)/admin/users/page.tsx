@@ -4,9 +4,11 @@ import type { EmploymentStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
-import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
+import { employmentStatusLabel } from "@/lib/labels";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { Badge, Card, Input, Table, RowId, buttonClass, cx } from "@/components/ui";
+import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
@@ -16,7 +18,7 @@ import { ALL_ROLES } from "./roles";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-const EMPLOYMENT_STATUSES = Object.keys(EMPLOYMENT_STATUS_LABELS) as EmploymentStatus[];
+const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["ACTIVE", "PROBATION", "TERMINATED"];
 
 export default async function UsersPage({
   searchParams,
@@ -34,6 +36,8 @@ export default async function UsersPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "users.manage")) redirect("/");
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const sp = await searchParams;
   const archiveView = sp.view === "archive";
@@ -103,6 +107,7 @@ export default async function UsersPage({
 
   const pages = Math.max(1, Math.ceil(empTotal / PAGE_SIZE));
   const rowsOnPage = employees.length + serviceUsers.length;
+  const lastEdits = await lastEditsFor("Employee", employees.map((e) => e.id));
 
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
@@ -120,7 +125,7 @@ export default async function UsersPage({
           href={archiveView ? "/admin/users" : "/admin/users?view=archive"}
           className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
         >
-          {archiveView ? "К активным" : `Архив${archivedCount ? ` (${archivedCount})` : ""}`}
+          {archiveView ? t("users.toActive") : `${t("users.archive")}${archivedCount ? ` (${archivedCount})` : ""}`}
         </Link>
         {!archiveView && (
           <>
@@ -128,27 +133,27 @@ export default async function UsersPage({
               href="/admin/users/export"
               download
               className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
-              title="Скачать реестр сотрудников с логинами в формате Excel"
+              title={t("users.exportExcelHint")}
             >
-              Экспорт в Excel
+              {t("users.exportExcel")}
             </a>
             <Link
               href="/admin/users/import"
               className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
             >
-              Импорт из Excel
+              {t("users.importExcel")}
             </Link>
             <Link
               href="/admin/users/new"
               className={cx(buttonClass({ size: "sm" }), "shrink-0")}
             >
-              Добавить
+              {t("users.add")}
             </Link>
           </>
         )}
       </div>
 
-      {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} />}
+      {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} locale={locale} />}
 
       <FilterChips
         basePath="/admin/users"
@@ -156,32 +161,32 @@ export default async function UsersPage({
         groups={[
           {
             param: "role",
-            label: "Роль",
+            label: t("users.roleLabel"),
             options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
           },
           {
             param: "acc",
-            label: "Учётка",
+            label: t("users.accountLabel"),
             options: [
-              { value: "active", label: "активна" },
-              { value: "off", label: "отключена" },
-              { value: "none", label: "нет входа" },
+              { value: "active", label: t("users.accountActive") },
+              { value: "off", label: t("users.accountOff") },
+              { value: "none", label: t("users.accountNone") },
             ],
           },
           {
             param: "emp",
-            label: "Работа",
+            label: t("users.workLabel"),
             options: EMPLOYMENT_STATUSES.map((s) => ({
               value: s,
-              label: EMPLOYMENT_STATUS_LABELS[s],
+              label: employmentStatusLabel(locale, s),
             })),
           },
           {
             param: "tg",
-            label: "Telegram",
+            label: t("users.telegramLabel"),
             options: [
-              { value: "yes", label: "привязан" },
-              { value: "no", label: "нет" },
+              { value: "yes", label: t("users.telegramLinked") },
+              { value: "no", label: t("users.telegramNone") },
             ],
           },
         ]}
@@ -193,22 +198,22 @@ export default async function UsersPage({
         <Input
           name="q"
           defaultValue={q}
-          placeholder="Поиск: ФИО, логин, подразделение"
+          placeholder={t("users.searchPlaceholder")}
           className="w-64 py-1.5 text-sm"
         />
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>Найти</button>
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("users.find")}</button>
         {q && (
           <Link
             href={archiveView ? "/admin/users?view=archive" : "/admin/users"}
             className="text-xs text-ink-muted hover:text-ink hover:underline"
           >
-            сбросить
+            {t("users.reset")}
           </Link>
         )}
         <span className="ml-auto text-sm text-ink-muted">
           {archiveView
-            ? `Архив: ${empTotal}`
-            : `Сотрудников: ${empTotal}${q ? " (по фильтру)" : ""}`}
+            ? `${t("users.archiveCount")} ${empTotal}`
+            : `${t("users.employeesCount")} ${empTotal}${q ? ` ${t("users.byFilter")}` : ""}`}
         </span>
       </form>
 
@@ -216,13 +221,15 @@ export default async function UsersPage({
         <Table stickyHeader>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Тип</th>
-              <th>Учётная запись</th>
-              <th>ФИО</th>
-              <th>Подразделение / партнёр</th>
-              <th>Статус</th>
-              <th className="text-right">Действия</th>
+              <th>{t("users.colId")}</th>
+              <th>{t("users.colType")}</th>
+              <th>{t("users.colAccount")}</th>
+              <th>{t("users.colFullName")}</th>
+              <th>{t("users.colPhone")}</th>
+              <th>{t("users.colDeptPartner")}</th>
+              <th>{t("users.colStatus")}</th>
+              <th>{t("users.colLastEdit")}</th>
+              <th className="text-right">{t("users.colActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -232,7 +239,7 @@ export default async function UsersPage({
                   <RowId id={e.id} seq={e.seq} />
                 </td>
                 <td>
-                  <Badge tone="brand">Сотрудник</Badge>
+                  <Badge tone="brand">{t("users.employee")}</Badge>
                 </td>
                 <td>
                   {e.user ? (
@@ -243,26 +250,30 @@ export default async function UsersPage({
                       </span>
                       {!e.user.isActive && (
                         <Badge tone="muted" className="ml-2">
-                          вход отключён
+                          {t("users.loginDisabled")}
                         </Badge>
                       )}
                     </span>
                   ) : (
-                    <Badge tone="warning">нет входа</Badge>
+                    <Badge tone="warning">{t("users.noLogin")}</Badge>
                   )}
                 </td>
                 <td className="font-medium text-ink">{e.fullName}</td>
+                <td className="text-ink-muted">{e.phone ?? "—"}</td>
                 <td>{e.department}</td>
                 <td>
                   {e.archivedAt ? (
                     <Badge tone="muted">
-                      в архиве {new Intl.DateTimeFormat("ru-RU").format(e.archivedAt)}
+                      {t("users.archivedOn")} {new Intl.DateTimeFormat("ru-RU").format(e.archivedAt)}
                     </Badge>
                   ) : e.isActive ? (
-                    <Badge tone="success">{EMPLOYMENT_STATUS_LABELS[e.status]}</Badge>
+                    <Badge tone="success">{employmentStatusLabel(locale, e.status)}</Badge>
                   ) : (
-                    <Badge tone="muted">{EMPLOYMENT_STATUS_LABELS[e.status]}</Badge>
+                    <Badge tone="muted">{employmentStatusLabel(locale, e.status)}</Badge>
                   )}
+                </td>
+                <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
+                  {formatLastEdit(lastEdits.get(e.id), e.updatedAt)}
                 </td>
                 <td>
                   <div className="flex items-center justify-end gap-2">
@@ -270,14 +281,15 @@ export default async function UsersPage({
                       href={`/admin/users/${e.id}`}
                       className={buttonClass({ variant: "secondary", size: "sm" })}
                     >
-                      Открыть
+                      {t("users.open")}
                     </Link>
-                    <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} />
+                    <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} locale={locale} />
                     <RowContextMenu
                       kind="employee"
                       id={e.id}
                       name={e.fullName}
                       archived={!!e.archivedAt}
+                      locale={locale}
                     />
                   </div>
                 </td>
@@ -298,13 +310,14 @@ export default async function UsersPage({
                   telegramId: u.telegramId,
                 }}
                 partners={partners}
+                locale={locale}
               />
             ))}
 
             {rowsOnPage === 0 && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-ink-muted">
-                  {q ? "Ничего не найдено." : archiveView ? "Архив пуст." : "Записей пока нет."}
+                <td colSpan={9} className="py-6 text-center text-ink-muted">
+                  {q ? t("users.nothingFound") : archiveView ? t("users.archiveEmpty") : t("users.noRecordsYet")}
                 </td>
               </tr>
             )}
@@ -315,7 +328,7 @@ export default async function UsersPage({
       {pages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-ink-muted">
-            Стр. {page} из {pages}
+            {t("users.pagePrefix")} {page} {t("users.pageOf")} {pages}
           </span>
           <div className="flex gap-2">
             {page > 1 && (
@@ -323,7 +336,7 @@ export default async function UsersPage({
                 href={pageHref(page - 1)}
                 className={buttonClass({ variant: "secondary", size: "sm" })}
               >
-                Назад
+                {t("users.back")}
               </Link>
             )}
             {page < pages && (
@@ -331,7 +344,7 @@ export default async function UsersPage({
                 href={pageHref(page + 1)}
                 className={buttonClass({ variant: "secondary", size: "sm" })}
               >
-                Вперёд
+                {t("users.next")}
               </Link>
             )}
           </div>

@@ -6,6 +6,7 @@ import { can } from "@/lib/rbac";
 import { EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
 import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
+import { getLocale, getTranslator } from "@/lib/i18n";
 import { ReviewTable, type ReviewRow } from "./_table";
 
 const PAGE_SIZE = 25;
@@ -29,6 +30,9 @@ export default async function ReviewPage({
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "applications.decide")) redirect("/");
+
+  const locale = await getLocale();
+  const t = await getTranslator();
 
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
@@ -118,11 +122,11 @@ export default async function ReviewPage({
   };
 
   return (
-    <div className="space-y-5">
+    <div data-wide className="space-y-3">
       <PageHeader
-        title="Согласование заявок"
-        description={`Позиций на рассмотрении: ${totalPending}${
-          total !== totalPending ? ` · по фильтру: ${total}` : ""
+        title={t("review.title")}
+        description={`${t("review.pendingLabel")}: ${totalPending}${
+          total !== totalPending ? ` · ${t("review.byFilter")}: ${total}` : ""
         }`}
       />
 
@@ -132,84 +136,76 @@ export default async function ReviewPage({
         groups={[
           {
             param: "overdue",
-            label: "SLA",
-            options: [{ value: "1", label: "только просроченные" }],
+            label: t("review.slaLabel"),
+            options: [{ value: "1", label: t("review.overdueOnly") }],
           },
           {
             param: "sort",
-            label: "Порядок",
+            label: t("review.orderLabel"),
             options: [
-              { value: "oldest", label: "сначала старые" },
-              { value: "newest", label: "сначала новые" },
-              { value: "employee", label: "по сотруднику" },
+              { value: "oldest", label: t("review.sortOldest") },
+              { value: "newest", label: t("review.sortNewest") },
+              { value: "employee", label: t("review.sortByEmployee") },
             ],
           },
         ]}
       />
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Сотрудник
-          <Input name="q" defaultValue={q} placeholder="ФИО" className="w-44 py-1.5 text-sm" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Подразделение
-          <Select name="dept" defaultValue={dept} className="w-auto py-1.5 text-sm">
-            <option value="">Все</option>
-            {departments.map((d) => (
-              <option key={d.department} value={d.department}>
-                {d.department}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Период
-          <Select name="period" defaultValue={period} className="w-auto py-1.5 text-sm">
-            <option value="">Все</option>
-            {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Льгота
-          <Select name="card" defaultValue={card} className="w-auto py-1.5 text-sm">
-            <option value="">Все</option>
-            {cards.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </Select>
-        </label>
+      {/* Одна строка вместо подписи-над-полем на каждый фильтр — то же самое
+          читается через плейсхолдер поля и первый пункт списка («Все ...»),
+          но не растягивает шапку страницы на 2 лишних яруса. */}
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder={`${t("review.employeeLabel")}: ${t("review.employeeNamePlaceholder")}`}
+          className="w-48 py-1.5 text-sm"
+        />
+        <Select name="dept" defaultValue={dept} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allDepartments")}</option>
+          {departments.map((d) => (
+            <option key={d.department} value={d.department}>
+              {d.department}
+            </option>
+          ))}
+        </Select>
+        <Select name="period" defaultValue={period} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allPeriods")}</option>
+          {periods.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </Select>
+        <Select name="card" defaultValue={card} className="w-auto py-1.5 text-sm">
+          <option value="">{t("review.allCards")}</option>
+          {cards.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </Select>
         {hiddenChipInputs(sp, ["sort", "overdue"])}
-        <button className={buttonClass({ variant: "secondary", size: "sm" }) + " mb-0.5"}>
-          Применить
-        </button>
+        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("review.apply")}</button>
         {(q || dept || period || card || overdue || sort !== "oldest") && (
-          <a href="/review" className="mb-2 text-xs text-ink-muted hover:text-ink hover:underline">
-            сбросить
+          <a href="/review" className="text-xs text-ink-muted hover:text-ink hover:underline">
+            {t("review.reset")}
           </a>
         )}
       </form>
 
       {rows.length === 0 ? (
         <EmptyState>
-          {totalPending === 0
-            ? "Нет позиций, ожидающих решения."
-            : "По заданным фильтрам ничего не найдено."}
+          {totalPending === 0 ? t("review.emptyNoPending") : t("review.emptyNoMatch")}
         </EmptyState>
       ) : (
         <>
-          <ReviewTable rows={rows} />
+          <ReviewTable rows={rows} locale={locale} />
 
           {pages > 1 && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-ink-muted">
-                Стр. {page} из {pages}
+                {t("review.pagePrefix")} {page} {t("review.pageOf")} {pages}
               </span>
               <div className="flex gap-2">
                 {page > 1 && (
@@ -217,7 +213,7 @@ export default async function ReviewPage({
                     href={pageHref(page - 1)}
                     className={buttonClass({ variant: "secondary", size: "sm" })}
                   >
-                    Назад
+                    {t("review.back")}
                   </a>
                 )}
                 {page < pages && (
@@ -225,7 +221,7 @@ export default async function ReviewPage({
                     href={pageHref(page + 1)}
                     className={buttonClass({ variant: "secondary", size: "sm" })}
                   >
-                    Вперёд
+                    {t("review.next")}
                   </a>
                 )}
               </div>

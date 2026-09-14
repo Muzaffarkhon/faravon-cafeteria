@@ -3,9 +3,12 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { revokeOtherSessions } from "./actions";
 
-export function RevokeSessionsButton() {
+export function RevokeSessionsButton({ locale }: { locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [done, setDone] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -18,18 +21,18 @@ export function RevokeSessionsButton() {
         disabled={pending || done}
         onClick={() => setConfirming(true)}
       >
-        {pending ? "Завершение…" : "Выйти со всех других устройств"}
+        {pending ? t("profile.finishing") : t("profile.logoutOtherDevices")}
       </Button>
       {done && (
         <span className="text-xs font-medium text-success-strong">
-          Другие сессии завершены.
+          {t("profile.otherSessionsClosed")}
         </span>
       )}
       <ConfirmDialog
         open={confirming}
-        title="Завершить другие сессии?"
-        message="Вход на всех других устройствах будет завершён немедленно."
-        confirmLabel="Завершить"
+        title={t("profile.closeSessionsConfirmTitle")}
+        message={t("profile.closeSessionsConfirmMessage")}
+        confirmLabel={t("profile.finish")}
         busy={pending}
         onConfirm={() => {
           start(async () => {

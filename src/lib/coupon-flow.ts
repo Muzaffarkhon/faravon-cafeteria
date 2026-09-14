@@ -31,8 +31,7 @@ export async function formCouponForItem(itemId: string, actorId: string) {
   assertTransition(item.status, "COUPON_CREATED", "C_AND_B");
 
   const number = await generateCouponNumber(item.application.period.startDate);
-  const validUntil = new Date(item.application.period.endDate);
-  validUntil.setUTCDate(validUntil.getUTCDate() + 30);
+  const validUntil = item.application.period.endDate;
 
   const [coupon] = await db.$transaction([
     db.coupon.create({
@@ -73,7 +72,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
     where: { id: couponId },
     include: {
       item: { include: { card: { include: { partner: { select: { deliveryMode: true } } } } } },
-      period: { select: { name: true } },
+      period: { select: { name: true, startDate: true } },
     },
   });
   if (!coupon || coupon.status !== "CREATED") return false;
@@ -116,7 +115,8 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
       card: coupon.item.card.title,
       number: coupon.number,
       period: coupon.period.name,
-      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU") : null,
+      validFrom: coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
+      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     },
     deferFlush: true,
   });

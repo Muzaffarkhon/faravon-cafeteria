@@ -3,7 +3,9 @@
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
-import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
+import { itemStatusLabel } from "@/lib/application-workflow";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import { toggleSelection, submitSelection } from "../actions";
 import { CardDetailsButton } from "./card-details";
 
@@ -40,6 +42,7 @@ export function FlexSelection({
   windowOpen,
   hasSubmittable,
   defaultPhone,
+  locale,
 }: {
   cards: Card[];
   selectedIds: string[];
@@ -48,7 +51,9 @@ export function FlexSelection({
   windowOpen: boolean;
   hasSubmittable: boolean;
   defaultPhone: string;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -91,7 +96,7 @@ export function FlexSelection({
         if (r?.error) setError(r.error);
         else setPhoneFor(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+        setError(e instanceof Error ? e.message : t("flex.error"));
       } finally {
         setBusyId(null);
       }
@@ -117,7 +122,7 @@ export function FlexSelection({
         const r = await submitSelection();
         if (r?.error) setError(r.error);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка");
+        setError(e instanceof Error ? e.message : t("flex.error"));
       } finally {
         setBusyId(null);
       }
@@ -180,10 +185,10 @@ export function FlexSelection({
                   </svg>
                 </span>
                 <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
-                  {!c.isActive && <Badge tone="neutral">скоро</Badge>}
+                  {!c.isActive && <Badge tone="neutral">{t("flex.soon")}</Badge>}
                   {c.minParticipants > 1 && (
                     <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur">
-                      Групповая
+                      {t("flex.groupBadge")}
                     </span>
                   )}
                 </div>
@@ -210,6 +215,7 @@ export function FlexSelection({
                     contactPerson: c.contactPerson,
                     contacts: c.contacts,
                   }}
+                  locale={locale}
                 />
 
               {c.minParticipants > 1 &&
@@ -219,7 +225,7 @@ export function FlexSelection({
                     <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-50/50 p-2.5 dark:bg-amber-950/20">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className={done ? "text-success-strong" : "text-amber-800 dark:text-amber-300"}>
-                          {done ? "Групповая скидка активна" : "Групповая льгота"}
+                          {done ? t("flex.groupDiscountActive") : t("flex.groupBenefit")}
                         </span>
                         <span className="tabular-nums text-ink" data-numeric>
                           {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}
@@ -238,7 +244,7 @@ export function FlexSelection({
                       </div>
                       {!done && (
                         <p className="mt-1 text-xs text-ink-subtle">
-                          Скидка заработает, когда льготу выберут {c.minParticipants} сотрудников.
+                          {t("flex.groupWillActivatePrefix")} {c.minParticipants} {t("flex.groupWillActivateSuffix")}
                         </p>
                       )}
                     </div>
@@ -249,10 +255,10 @@ export function FlexSelection({
                   {windowOpen && c.isActive && c.lockedStatus ? (
                     <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
                       {c.lockedStatus === "REJECTED"
-                        ? "Отклонено в этом периоде — выберите другую льготу."
+                        ? t("flex.rejectedThisPeriod")
                         : c.lockedStatus === "CANCELLED"
-                          ? "Отменено — выберите другую льготу."
-                          : `Уже выбрано в этом периоде · ${ITEM_STATUS_LABELS[c.lockedStatus as keyof typeof ITEM_STATUS_LABELS] ?? c.lockedStatus}`}
+                          ? t("flex.cancelledThisPeriod")
+                          : `${t("flex.alreadySelected")} · ${itemStatusLabel(locale, c.lockedStatus as Parameters<typeof itemStatusLabel>[1])}`}
                     </p>
                   ) : windowOpen && c.isActive ? (
                     <>
@@ -269,19 +275,19 @@ export function FlexSelection({
                             {isSel ? (
                               <>
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                                В выборе — убрать
+                                {t("flex.removeFromSelection")}
                               </>
                             ) : atLimit ? (
-                              "Лимит исчерпан"
+                              t("flex.limitReached")
                             ) : c.phonePromo ? (
                               <>
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                                Выбрать · указать номер
+                                {t("flex.selectSpecifyNumber")}
                               </>
                             ) : (
                               <>
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                                Выбрать
+                                {t("flex.select")}
                               </>
                             )}
                           </span>
@@ -294,7 +300,7 @@ export function FlexSelection({
                             htmlFor={`phone-${c.id}`}
                             className="text-sm font-medium text-ink-muted"
                           >
-                            Номер для промокода на поездку
+                            {t("flex.tripPromoNumberLabel")}
                           </label>
                           <input
                             id={`phone-${c.id}`}
@@ -306,7 +312,7 @@ export function FlexSelection({
                             className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
                           />
                           <p className="mt-1 text-xs text-ink-subtle">
-                            По умолчанию — номер из профиля. Промокод придёт на указанный номер.
+                            {t("flex.tripPromoHint")}
                           </p>
                           <Button
                             onClick={() => onToggle(c.id, phoneValue.trim())}
@@ -316,7 +322,7 @@ export function FlexSelection({
                             fullWidth
                             className="mt-2"
                           >
-                            Подтвердить номер и выбрать
+                            {t("flex.confirmNumberAndSelect")}
                           </Button>
                         </div>
                       )}
@@ -348,7 +354,7 @@ export function FlexSelection({
             {keys.map((key) => (
               <div key={key || "_"} className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                  {key || "Другое"}
+                  {key || t("flex.other")}
                 </h4>
                 <ul className="grid gap-4 sm:grid-cols-2">{groups.get(key)!.map(renderCard)}</ul>
               </div>
@@ -382,9 +388,9 @@ export function FlexSelection({
               </span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-ink" data-numeric>
-                  {draftCount} в черновике
+                  {draftCount} {t("flex.draftCount")}
                 </div>
-                <div className="text-xs text-ink-muted">Готово к согласованию</div>
+                <div className="text-xs text-ink-muted">{t("flex.readyForApproval")}</div>
               </div>
               <Button
                 onClick={onSubmit}
@@ -393,7 +399,7 @@ export function FlexSelection({
                 size="md"
                 className="ml-1 shrink-0 sm:h-12 sm:px-5 sm:text-[0.9375rem]"
               >
-                Подтвердить выбор
+                {t("flex.confirmSelection")}
               </Button>
             </div>
           </div>,

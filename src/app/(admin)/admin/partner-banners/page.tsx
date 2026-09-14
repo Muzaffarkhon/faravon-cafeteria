@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Badge, Button, Card, EmptyState, Field, Input, Table } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
+import { useClientLocale } from "@/lib/i18n/use-client-locale";
+import { translate } from "@/lib/i18n/dict";
 
 const BANNER_ASPECT = 4.5; // совпадает с рамкой карусели на широком экране
 
@@ -22,6 +24,8 @@ type Banner = {
 };
 
 export default function Page() {
+  const locale = useClientLocale();
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [banners, setBanners] = useState<Banner[] | null>(null);
   const [form, setForm] = useState<Partial<Banner>>({ isActive: true, kind: "PARTNER" });
   const [saving, setSaving] = useState(false);
@@ -86,30 +90,30 @@ export default function Page() {
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <Card className="p-5">
         <div className="text-sm font-semibold text-ink">
-          {editing ? "Редактирование баннера" : "Новый баннер"}
+          {editing ? t("banners.editTitle") : t("banners.newTitle")}
         </div>
         <form onSubmit={save} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Заголовок" htmlFor="b-title" required>
+          <Field label={t("banners.titleLabel")} htmlFor="b-title" required>
             <Input id="b-title" value={form.title ?? ""} onChange={set("title")} required />
           </Field>
-          <Field label="Тип баннера" htmlFor="b-kind">
+          <Field label={t("banners.kindLabel")} htmlFor="b-kind">
             <select
               id="b-kind"
               value={form.kind ?? "PARTNER"}
               onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as Banner["kind"] }))}
               className="w-full rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary"
             >
-              <option value="PARTNER">Партнёр (реклама)</option>
-              <option value="NEWS">Своя новость / анонс</option>
+              <option value="PARTNER">{t("banners.kindPartner")}</option>
+              <option value="NEWS">{t("banners.kindNews")}</option>
             </select>
           </Field>
           <Field
-            label="ID партнёра"
+            label={t("banners.partnerIdLabel")}
             htmlFor="b-partner"
-            hint={form.kind === "NEWS" ? "Для новостей компании не требуется." : undefined}
+            hint={form.kind === "NEWS" ? t("banners.partnerIdHintNews") : undefined}
           >
             <Input
               id="b-partner"
@@ -117,10 +121,10 @@ export default function Page() {
               onChange={set("partnerId")}
               autoComplete="off"
               disabled={form.kind === "NEWS"}
-              placeholder={form.kind === "NEWS" ? "Не требуется" : ""}
+              placeholder={form.kind === "NEWS" ? t("banners.partnerIdPlaceholderNews") : ""}
             />
           </Field>
-          <Field label="Подзаголовок" htmlFor="b-subtitle" className="sm:col-span-2">
+          <Field label={t("banners.subtitleLabel")} htmlFor="b-subtitle" className="sm:col-span-2">
             <Input id="b-subtitle" value={form.subtitle ?? ""} onChange={set("subtitle")} />
           </Field>
           <div className="sm:col-span-2">
@@ -129,17 +133,18 @@ export default function Page() {
               onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
               purpose="banner"
               aspect={BANNER_ASPECT}
-              label="Изображение баннера"
-              hint="Загрузите фото и скадрируйте под баннер, либо вставьте ссылку."
+              label={t("banners.imageLabel")}
+              hint={t("banners.imageHint")}
+              locale={locale}
             />
           </div>
-          <Field label="Ссылка" htmlFor="b-href" hint="Куда ведёт клик по баннеру, если ссылки на приложение не заданы.">
+          <Field label={t("banners.linkLabel")} htmlFor="b-href" hint={t("banners.linkHint")}>
             <Input id="b-href" inputMode="url" value={form.href ?? ""} onChange={set("href")} />
           </Field>
-          <Field label="Приложение · Android" htmlFor="b-android" hint="Google Play или .apk. Клик по баннеру на Android ведёт сюда.">
+          <Field label={t("banners.androidLabel")} htmlFor="b-android" hint={t("banners.androidHint")}>
             <Input id="b-android" inputMode="url" value={form.androidUrl ?? ""} onChange={set("androidUrl")} placeholder="https://play.google.com/…" />
           </Field>
-          <Field label="Приложение · iOS" htmlFor="b-ios" hint="App Store. Клик по баннеру на iPhone/iPad ведёт сюда.">
+          <Field label={t("banners.iosLabel")} htmlFor="b-ios" hint={t("banners.iosHint")}>
             <Input id="b-ios" inputMode="url" value={form.iosUrl ?? ""} onChange={set("iosUrl")} placeholder="https://apps.apple.com/…" />
           </Field>
           <label className="flex items-center gap-2 text-sm text-ink">
@@ -149,15 +154,15 @@ export default function Page() {
               onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
               className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
             />
-            Активен
+            {t("banners.active")}
           </label>
           <div className="flex items-center gap-2 sm:col-span-2">
             <Button type="submit" loading={saving}>
-              {editing ? "Сохранить" : "Добавить"}
+              {editing ? t("banners.save") : t("banners.add")}
             </Button>
             {editing && (
               <Button type="button" variant="ghost" onClick={() => setForm({ isActive: true, kind: "PARTNER" })}>
-                Отмена
+                {t("banners.cancel")}
               </Button>
             )}
           </div>
@@ -165,18 +170,18 @@ export default function Page() {
       </Card>
 
       {banners === null ? (
-        <Card className="p-6 text-sm text-ink-muted">Загрузка…</Card>
+        <Card className="p-6 text-sm text-ink-muted">{t("banners.loading")}</Card>
       ) : banners.length === 0 ? (
-        <EmptyState>Баннеров пока нет.</EmptyState>
+        <EmptyState>{t("banners.empty")}</EmptyState>
       ) : (
         <Card>
           <Table>
             <thead>
               <tr>
-                <th>Заголовок</th>
-                <th>Тип</th>
-                <th>Партнёр</th>
-                <th>Статус</th>
+                <th>{t("banners.colTitle")}</th>
+                <th>{t("banners.colType")}</th>
+                <th>{t("banners.colPartner")}</th>
+                <th>{t("banners.colStatus")}</th>
                 <th />
               </tr>
             </thead>
@@ -186,22 +191,22 @@ export default function Page() {
                   <td className="font-medium text-ink">{b.title}</td>
                   <td>
                     <Badge tone={b.kind === "NEWS" ? "brand" : "neutral"}>
-                      {b.kind === "NEWS" ? "Новость" : "Партнёр"}
+                      {b.kind === "NEWS" ? t("banners.news") : t("banners.partner")}
                     </Badge>
                   </td>
                   <td className="text-ink-muted">{b.kind === "NEWS" ? "—" : (b.partnerId ?? "—")}</td>
                   <td>
                     <Badge tone={b.isActive ? "success" : "neutral"}>
-                      {b.isActive ? "Активен" : "Выключен"}
+                      {b.isActive ? t("banners.active") : t("banners.disabled")}
                     </Badge>
                   </td>
                   <td>
                     <div className="flex justify-end gap-2">
                       <Button variant="secondary" size="sm" onClick={() => setForm({ ...b })}>
-                        Изменить
+                        {t("banners.edit")}
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => setRemoveId(b.id)}>
-                        Удалить
+                        {t("banners.delete")}
                       </Button>
                     </div>
                   </td>
@@ -214,11 +219,11 @@ export default function Page() {
 
       <ConfirmDialog
         open={!!removeId}
-        title="Удалить баннер?"
+        title={t("banners.deleteConfirmTitle")}
         message={
-          removeTarget ? <>«{removeTarget.title}» будет удалён безвозвратно.</> : undefined
+          removeTarget ? <>«{removeTarget.title}» {t("banners.deleteConfirmMessage")}</> : undefined
         }
-        confirmLabel="Удалить"
+        confirmLabel={t("banners.delete")}
         tone="danger"
         busy={removing}
         onConfirm={() => removeId && remove(removeId)}

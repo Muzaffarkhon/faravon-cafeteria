@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cx } from "@/components/ui";
+import { translate } from "@/lib/i18n/dict";
+import type { Locale } from "@/lib/i18n/shared";
 import {
   deleteEmployee,
   deleteServiceAccount,
@@ -27,18 +30,23 @@ export function RowContextMenu({
   id,
   name,
   archived = false,
+  locale,
 }: {
   kind: Kind;
   id: string;
   name: string;
   archived?: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const anchor = useRef<HTMLSpanElement>(null);
   const rowRef = useRef<HTMLTableRowElement | null>(null);
-  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState<{ x: number; y: number; openUp: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [blocked, setBlocked] = useState<DeleteResult["blocked"] | null>(null);
+  const [cascadeArmed, setCascadeArmed] = useState(false);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -47,10 +55,12 @@ export function RowContextMenu({
     rowRef.current = row;
     const onMenu = (e: MouseEvent) => {
       e.preventDefault();
-      // Меню не должно уезжать за нижний/правый край окна.
+      // Для нижних строк открываем меню вверх от курсора, а не вниз — иначе
+      // оно упирается в нижний край экрана и часть пунктов не помещается.
       setAt({
         x: Math.min(e.clientX, window.innerWidth - 200),
-        y: Math.min(e.clientY, window.innerHeight - 160),
+        y: e.clientY,
+        openUp: e.clientY > window.innerHeight * 0.65,
       });
     };
     row.addEventListener("contextmenu", onMenu);
@@ -120,23 +130,47 @@ export function RowContextMenu({
     });
   }
 
+  /** Каскад: отвязать и стереть заявки/купоны/обращения вместе с сотрудником. */
+  function removeCascade() {
+    if (!cascadeArmed) {
+      setCascadeArmed(true);
+      return;
+    }
+    setErr(null);
+    start(async () => {
+      const r = await deleteEmployee(id, { cascade: true });
+      if (r.error) {
+        setErr(r.error);
+        return;
+      }
+      setConfirming(false);
+      setCascadeArmed(false);
+    });
+  }
+
   return (
     <span ref={anchor} className="contents">
-      {at && (
+      {at &&
+        createPortal(
         <div
+          ref={menuRef}
           role="menu"
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
-          style={{ top: at.y, left: at.x }}
+          style={
+            at.openUp
+              ? { bottom: window.innerHeight - at.y, left: at.x }
+              : { top: at.y, left: at.x }
+          }
           className="fixed z-[80] w-[190px] overflow-hidden rounded-[12px] border border-line bg-surface py-1 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
         >
           {kind === "employee" && (
             <>
               <Link href={`/admin/users/${id}`} role="menuitem" className={ITEM_CLASS}>
-                Открыть карточку
+                {t("users.menu.openCard")}
               </Link>
               <button type="button" role="menuitem" className={ITEM_CLASS} onClick={archive}>
-                {archived ? "Вернуть из архива" : "В архив"}
+                {archived ? t("users.arch.returnFromArchive") : t("users.arch.toArchive")}
               </button>
             </>
           )}
@@ -151,18 +185,18 @@ export function RowContextMenu({
               setConfirming(true);
             }}
           >
-            Удалить безвозвратно…
+            {t("users.menu.deleteForever")}
           </button>
-        </div>
-      )}
+        </div>,
+        document.body,
+        )}
 
       <ConfirmDialog
         open={confirming}
-        title="Удалить безвозвратно?"
+        title={t("users.menu.deleteConfirmTitle")}
         message={
           <>
-            <b className="text-ink">{name}</b> и учётная запись будут стёрты без возможности
-            восстановления. Если нужно просто убрать из списка — используйте архив.
+            <b className="text-ink">{name}</b> {t("users.menu.deleteConfirmMessage")}
             {err && (
               <>
                 <span className="mt-2 block font-medium text-danger" role="alert">
@@ -170,10 +204,10 @@ export function RowContextMenu({
                 </span>
                 {(blocked?.feedback ?? 0) > 0 && (
                   <Link
-                    href={`/admin/feedback?emp=${id}`}
+                    href="/admin/support"
                     className="mt-1.5 block font-semibold text-primary hover:underline"
                   >
-                    Перейти к обращениям сотрудника →
+                    {t("users.menu.goToFeedback")}
                   </Link>
                 )}
                 {kind === "employee" && !archived && blocked && (
@@ -183,20 +217,33 @@ export function RowContextMenu({
                     onClick={archiveFromDialog}
                     className="mt-2 w-full rounded-[10px] border-2 border-line bg-surface px-3 py-2 text-[13px] font-bold text-ink transition hover:bg-surface-muted disabled:opacity-60"
                   >
-                    Перевести в архив
+                    {t("users.menu.moveToArchive")}
+                  </button>
+                )}
+                {kind === "employee" && blocked && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={removeCascade}
+                    className="mt-1.5 w-full rounded-[10px] border-2 border-danger bg-surface px-3 py-2 text-[13px] font-bold text-danger transition hover:bg-danger-soft disabled:opacity-60"
+                  >
+                    {cascadeArmed
+                      ? t("users.menu.cascadeConfirm")
+                      : t("users.menu.cascadeDelete")}
                   </button>
                 )}
               </>
             )}
           </>
         }
-        confirmLabel="Удалить"
+        confirmLabel={t("users.menu.delete")}
         tone="danger"
         busy={pending}
         onConfirm={remove}
         onClose={() => {
           setConfirming(false);
           setBlocked(null);
+          setCascadeArmed(false);
         }}
       />
 
