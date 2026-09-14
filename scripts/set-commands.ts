@@ -38,9 +38,8 @@ async function call(method: string, body?: Record<string, unknown>) {
 
 // Описания — то, что видит человек в списке под полем ввода при наборе «/».
 const COMMANDS = [
-  { command: "start", description: "Приветствие и список команд" },
+  { command: "start", description: "Приветствие" },
   { command: "login", description: "Новый одноразовый пароль (если уже привязаны)" },
-  { command: "code", description: "Войти по коду от администратора: /code ВАШКОД" },
   { command: "id", description: "Узнать свой Telegram ID" },
   { command: "help", description: "Список команд" },
 ];

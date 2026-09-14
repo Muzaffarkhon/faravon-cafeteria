@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { linkByPhone, linkByCode, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
+import { linkByPhone, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
 import { formatTajikPhone } from "@/lib/phone";
 import { grantMessage } from "@/lib/notification-format";
@@ -28,15 +28,10 @@ function send(chatId: number, text: string, extra: Record<string, unknown> = {})
 const WELCOME =
   "👋 Это бот доступа к платформе «Кафетерий льгот».\n\n" +
   "Чтобы получить логин и одноразовый пароль:\n" +
-  "• нажмите «Поделиться контактом» ниже, либо\n" +
-  "• если у вас есть код от администратора — отправьте его командой <code>/code ВАШКОД</code>\n\n" +
-  "Команды бота:\n" +
-  "<code>/start</code> — это сообщение\n" +
-  "<code>/login</code> — новый одноразовый пароль, если уже привязаны\n" +
-  "<code>/code ВАШКОД</code> — войти по коду от администратора\n" +
-  "<code>/id</code> — узнать свой Telegram ID\n" +
-  "<code>/help</code> — список команд\n\n" +
-  "Не получается войти? Отправьте <code>/start support</code> — напишите администратору прямо здесь.";
+  "• нажмите «Поделиться контактом» ниже";
+
+const UNSUPPORTED_CONTENT =
+  "⚠️ Бот принимает только текстовые сообщения. Пожалуйста, воспользуйтесь кнопкой «Поделиться контактом» или напишите текстом.";
 
 const SUPPORT_OPENED =
   "Опишите ваш вопрос — администратор увидит его и ответит здесь же, в этом чате.";
@@ -57,6 +52,36 @@ interface TgMessage {
   from?: { id: number };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
+  photo?: unknown;
+  document?: unknown;
+  video?: unknown;
+  video_note?: unknown;
+  audio?: unknown;
+  voice?: unknown;
+  sticker?: unknown;
+  animation?: unknown;
+  location?: unknown;
+  venue?: unknown;
+  poll?: unknown;
+}
+
+// Разрешены только текст и «Поделиться контактом» — любые файлы/медиа от
+// пользователя отклоняются без обработки (снижает поверхность атаки через
+// вложения). Не касается исходящих сообщений бота (например, QR-кода).
+function hasDisallowedContent(msg: TgMessage): boolean {
+  return !!(
+    msg.photo ||
+    msg.document ||
+    msg.video ||
+    msg.video_note ||
+    msg.audio ||
+    msg.voice ||
+    msg.sticker ||
+    msg.animation ||
+    msg.location ||
+    msg.venue ||
+    msg.poll
+  );
 }
 
 interface TgCallbackQuery {
@@ -95,6 +120,11 @@ async function handle(msg: TgMessage) {
   const telegramId = String(fromId);
 
   try {
+    if (hasDisallowedContent(msg)) {
+      await send(chatId, UNSUPPORTED_CONTENT);
+      return;
+    }
+
     if (msg.contact) {
       // Принимаем номер, ТОЛЬКО если это подтверждённо собственный контакт
       // отправителя (user_id совпадает с from.id). Отсутствие user_id = номер
@@ -104,7 +134,7 @@ async function handle(msg: TgMessage) {
         await send(
           chatId,
           "Нажмите кнопку «📱 Поделиться контактом» — она передаёт ваш собственный номер. " +
-            "Если номер не привязан к Telegram, получите код у администратора и отправьте <code>/code ВАШКОД</code>.",
+            "Если номер не привязан к Telegram, обратитесь к администратору.",
         );
         return;
       }
@@ -153,16 +183,6 @@ async function handle(msg: TgMessage) {
       );
       return;
     }
-    if (text.startsWith("/code")) {
-      const code = text.replace(/^\/code@?\S*/, "").trim();
-      if (!code) {
-        await send(chatId, "Укажите код: <code>/code ВАШКОД</code>");
-        return;
-      }
-      const g = await linkByCode(code, telegramId);
-      await send(chatId, grantMessage(g.login, g.otp, g.fullName));
-      return;
-    }
     if (text === "/login") {
       const g = await reissueOtp(telegramId);
       await send(chatId, grantMessage(g.login, g.otp, g.fullName));
@@ -171,7 +191,7 @@ async function handle(msg: TgMessage) {
 
     // Обычное сообщение (не команда) — если для этого чата уже открыт
     // (или раньше был) тред поддержки, это реплика в чат, а не непонятый
-    // ввод. Команды (/code, /login и т.п.) до этой точки не доходят —
+    // ввод. Команды (/login и т.п.) до этой точки не доходят —
     // они обработаны выше и возвращаются раньше.
     // C&B узнаёт о новом сообщении не через Telegram-пуш (это заваливало бы
     // их же бота на каждую реплику гостя), а через звук и мигание заголовка
