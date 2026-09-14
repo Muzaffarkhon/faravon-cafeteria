@@ -196,35 +196,36 @@ export async function deletePeriod(id: string): Promise<ActionResult> {
   });
 }
 
-/** Сброс тестовых данных флоу (заявки, позиции, купоны) — сохраняет льготы, баннеры, пользователей и партнёров. */
-export async function resetFlowData(): Promise<ActionResult> {
+/**
+ * Сброс тестовых данных ОДНОГО периода (заявки, позиции, купоны) — сохраняет
+ * льготы, баннеры, пользователей, партнёров и данные остальных периодов.
+ * Раньше чистило все периоды разом — единственная кнопка на странице без
+ * привязки к конкретному периоду, что стирало и боевые данные заодно.
+ */
+export async function resetFlowData(periodId: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "periods.manage");
 
-    const [c1, c2, c3, c4] = await db.$transaction([
-      db.coupon.deleteMany({}),
-      db.applicationItem.deleteMany({}),
-      db.application.deleteMany({}),
-      db.notification.deleteMany({
-        where: {
-          event: {
-            in: ["APPLICATION_SUBMITTED", "ITEM_APPROVED", "ITEM_REJECTED", "COUPON_CREATED", "COUPON_ISSUED"],
-          },
-        },
-      }),
+    const period = await db.period.findUnique({ where: { id: periodId } });
+    if (!period) throw new Error("Период не найден.");
+
+    const [c1, c2, c3] = await db.$transaction([
+      db.coupon.deleteMany({ where: { periodId } }),
+      db.applicationItem.deleteMany({ where: { application: { periodId } } }),
+      db.application.deleteMany({ where: { periodId } }),
     ]);
 
     await audit({
       actorId: s.user.id,
       action: "FLOW_RESET_BY_ADMIN",
-      entityType: "System",
-      entityId: "flow",
+      entityType: "Period",
+      entityId: periodId,
       newValue: {
+        periodName: period.name,
         deletedCoupons: c1.count,
         deletedItems: c2.count,
         deletedApps: c3.count,
-        deletedNotifications: c4.count,
       },
     });
 
@@ -233,7 +234,7 @@ export async function resetFlowData(): Promise<ActionResult> {
     revalidatePath("/applications");
     revalidatePath("/");
     return {
-      notice: `Очистка выполнена: удалено купонов ${c1.count}, позиций ${c2.count}, заявок ${c3.count}, уведомлений ${c4.count}. Все настройки карточек, баннеров и партнёров сохранены.`,
+      notice: `Очистка периода «${period.name}» выполнена: удалено купонов ${c1.count}, позиций ${c2.count}, заявок ${c3.count}. Другие периоды и настройки не затронуты.`,
     };
   });
 }

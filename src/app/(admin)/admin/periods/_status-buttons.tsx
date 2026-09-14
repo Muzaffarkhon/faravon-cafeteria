@@ -111,7 +111,7 @@ export function PeriodActions({
   );
 }
 
-export function ResetFlowButton({ locale }: { locale: Locale }) {
+export function ResetFlowButton({ periodId, name, locale }: { periodId: string; name: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -121,7 +121,7 @@ export function ResetFlowButton({ locale }: { locale: Locale }) {
     setError(null);
     start(async () => {
       try {
-        const r = await resetFlowData();
+        const r = await resetFlowData(periodId);
         if (r?.error) setError(r.error);
         else setOpen(false);
       } catch (e) {
@@ -151,7 +151,7 @@ export function ResetFlowButton({ locale }: { locale: Locale }) {
         message={
           <div className="space-y-2">
             <p>
-              {t("periods.resetConfirmMessage1")}
+              {t("periods.resetConfirmMessagePrefix")}<strong>{name}</strong>{t("periods.resetConfirmMessageSuffix")}
             </p>
             <p className="text-xs text-ink-subtle">
               {t("periods.resetConfirmMessage2")}

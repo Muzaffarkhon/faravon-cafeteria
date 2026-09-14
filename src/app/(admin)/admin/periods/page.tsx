@@ -34,12 +34,9 @@ export default async function PeriodsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-ink-muted">{t("periods.total")}: {periods.length}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <ResetFlowButton locale={locale} />
-          <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
-            {t("periods.addPeriod")}
-          </Link>
-        </div>
+        <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
+          {t("periods.addPeriod")}
+        </Link>
       </div>
 
       <ul className="space-y-3">
@@ -72,6 +69,7 @@ export default async function PeriodsPage() {
                   {t("periods.edit")}
                 </Link>
               )}
+              <ResetFlowButton periodId={p.id} name={p.name} locale={locale} />
               <PeriodActions id={p.id} status={p.status} name={p.name} locale={locale} />
             </div>
           </li>
