@@ -88,6 +88,80 @@ export async function closeThread(threadId: string): Promise<ActionResult> {
   });
 }
 
+/** Архивировать диалог — убрать из основного списка, история сохраняется. */
+export async function archiveThread(threadId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+
+    await db.supportThread.update({ where: { id: threadId }, data: { archivedAt: new Date() } });
+    await audit({
+      actorId: s.user.id,
+      action: "SUPPORT_THREAD_ARCHIVED",
+      entityType: "SupportThread",
+      entityId: threadId,
+    });
+    revalidateAll(threadId);
+  });
+}
+
+/** Вернуть архивированный диалог обратно в основной список. */
+export async function unarchiveThread(threadId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+
+    await db.supportThread.update({ where: { id: threadId }, data: { archivedAt: null } });
+    await audit({
+      actorId: s.user.id,
+      action: "SUPPORT_THREAD_UNARCHIVED",
+      entityType: "SupportThread",
+      entityId: threadId,
+    });
+    revalidateAll(threadId);
+  });
+}
+
+/**
+ * Безвозвратно удалить диалог и всю переписку в нём. Основные данные
+ * (ФИО/детали гостя не хранятся в самом треде) и краткая сводка остаются в
+ * журнале аудита, сама переписка — нет. Для «убрать с глаз, но сохранить
+ * историю» используйте архивирование, а не удаление.
+ */
+export async function deleteThread(threadId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+
+    const thread = await db.supportThread.findUnique({
+      where: { id: threadId },
+      include: {
+        employee: { select: { fullName: true } },
+        _count: { select: { messages: true } },
+      },
+    });
+    if (!thread) throw new Error("Диалог не найден.");
+
+    await db.$transaction([
+      db.supportMessage.deleteMany({ where: { threadId } }),
+      db.supportThread.delete({ where: { id: threadId } }),
+    ]);
+
+    await audit({
+      actorId: s.user.id,
+      action: "SUPPORT_THREAD_DELETED",
+      entityType: "SupportThread",
+      entityId: threadId,
+      oldValue: {
+        source: thread.source,
+        who: thread.employee?.fullName ?? thread.phone ?? `guest#${thread.seq}`,
+        messagesCount: thread._count.messages,
+      },
+    });
+    revalidatePath("/admin/support");
+  });
+}
+
 /** Отметить входящие сообщения прочитанными (вызывается при открытии диалога). */
 export async function markThreadRead(threadId: string): Promise<void> {
   const s = await requireSession();

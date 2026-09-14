@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { FEEDBACK_TOPICS } from "@/lib/feedback";
+import { notifySupportAdmins } from "@/lib/support-chat";
+import { escHtml } from "@/lib/notification-format";
 
 export type FeedbackState = { ok?: boolean; error?: string };
 
@@ -43,6 +45,9 @@ export async function submitFeedback(
     entityId: thread.id,
     newValue: { topic },
   });
+  await notifySupportAdmins(
+    `🆕 <b>Новое обращение в поддержку</b>\n${escHtml(session.employee.fullName)} · ${escHtml(topic)}\nОткройте раздел «Обращения», чтобы ответить.`,
+  );
 
   revalidatePath("/feedback");
   return { ok: true };
