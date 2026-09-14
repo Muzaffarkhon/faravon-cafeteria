@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button, Field, Input } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
 import { loginAction, type LoginState } from "./actions";
 
 const initial: LoginState = {};
@@ -50,10 +51,9 @@ function LoginFormInner({
         />
       </Field>
       <Field label={microLabel(passwordLabel)} htmlFor="password" error={state.error}>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
         />

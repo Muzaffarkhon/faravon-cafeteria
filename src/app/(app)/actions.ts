@@ -68,8 +68,14 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
     phone = raw;
   }
 
-  const app = await getOrCreateApplication(employee.id, period.id);
-  const withItems = await getApplicationWithItems(employee.id, period.id);
+  // Заявка почти всегда уже существует (кроме самого первого выбора за период) —
+  // один запрос вместо upsert+findUnique экономит лишний round-trip к БД.
+  let withItems = await getApplicationWithItems(employee.id, period.id);
+  if (!withItems) {
+    await getOrCreateApplication(employee.id, period.id);
+    withItems = await getApplicationWithItems(employee.id, period.id);
+  }
+  const app = withItems!;
   const existing = withItems?.items.find((i) => i.cardId === cardId);
 
   if (existing && existing.status === "DRAFT") {

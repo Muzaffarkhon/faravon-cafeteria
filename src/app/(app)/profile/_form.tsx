@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useRef, useEffect } from "react";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { changeOwnPassword, type ProfilePwState } from "./actions";
@@ -18,13 +19,13 @@ export function ChangePasswordForm({ locale }: { locale: Locale }) {
   return (
     <form ref={formRef} action={formAction} className="mt-5 max-w-sm space-y-4">
       <Field label={t("profile.currentPassword")} htmlFor="current">
-        <Input id="current" name="current" type="password" autoComplete="current-password" required />
+        <PasswordInput id="current" name="current" autoComplete="current-password" required />
       </Field>
       <Field label={t("profile.newPassword")} htmlFor="password" hint={t("profile.newPasswordHint")}>
-        <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} required />
       </Field>
       <Field label={t("profile.repeatPassword")} htmlFor="confirm" error={state.error}>
-        <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" required />
       </Field>
 
       {state.ok && <p className="text-sm font-medium text-success-strong" role="status">{t("profile.passwordChanged")}</p>}
