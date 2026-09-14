@@ -241,7 +241,7 @@ export default async function ApplicationsPage() {
                                 {groupDone && c.validUntil && (live || c.status === "CREATED") && (
                                   <div className={live ? "text-success-strong/80" : ""} data-numeric>
                                     {t("applications.periodShort")}: {app.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })} –{" "}
-                                    {c.validUntil.toLocaleDateString("ru-RU")}
+                                    {c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}
                                   </div>
                                 )}
                                 {hint && (

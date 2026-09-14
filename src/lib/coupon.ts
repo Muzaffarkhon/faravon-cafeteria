@@ -154,7 +154,7 @@ export async function redeemCouponByNumber(
       throw new Error(`Период действия купона завершён («${coupon.period?.name}»). Купон просрочен.`);
     }
     throw new Error(
-      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU")}` : ""}.`,
+      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}` : ""}.`,
     );
   }
 

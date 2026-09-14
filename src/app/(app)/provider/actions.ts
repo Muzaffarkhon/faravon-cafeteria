@@ -57,7 +57,7 @@ function toCouponView(
     condition: c.item.card.condition,
     partner: c.partner?.name ?? c.item.card.partner?.name ?? null,
     period: c.period.name,
-    validUntil: c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : null,
+    validUntil: c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     expired,
     redeemable: c.status === "ISSUED" && !expired && !wrongPartner,
     wrongPartner,

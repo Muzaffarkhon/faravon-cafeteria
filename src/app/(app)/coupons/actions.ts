@@ -126,7 +126,7 @@ async function issueCouponImpl(couponId: string) {
       card: coupon.item.card.title,
       number: coupon.number,
       period: coupon.period.name,
-      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU") : null,
+      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     },
   });
 

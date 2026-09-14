@@ -231,7 +231,7 @@ export default async function CouponsPage({
                         )}
                       </td>
                       <td data-numeric>
-                        {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU") : "—"}
+                        {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : "—"}
                       </td>
                       <td>
                         <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
