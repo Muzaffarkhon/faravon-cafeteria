@@ -44,71 +44,80 @@ export default async function LoginPage() {
 
   return (
     <main
-      className="petal-field relative grid min-h-dvh place-items-center overflow-hidden p-4"
+      className="petal-field relative flex min-h-dvh flex-col overflow-hidden p-4"
       style={{ paddingTop: "max(1rem, var(--tg-top))" }}
     >
       <PetalDrift />
 
-      <div className="relative z-10 w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
-        {/* Красная шапка */}
-        <div className="bg-primary px-7 pb-8 pt-10 text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
-            <BrandMark size={40} priority />
-          </span>
-          <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
-            {t("login.title")}
-          </h1>
-          <p className="mt-1.5 text-sm text-on-brand/80">{t("login.tagline")}</p>
+      {/* Переключатели темы/языка — отдельной строкой-шапкой в углу окна, как
+          на остальных страницах, а не внутри самой карточки входа (там они
+          были лишним элементом формы). Отдельная строка вместо абсолютного
+          позиционирования — чтобы на узких экранах карточка не могла
+          наехать на них сверху. */}
+      <div className="relative z-20 flex justify-end">
+        <div className="flex items-center gap-2">
+          <ThemeToggle compact />
+          <LanguageSwitcher locale={locale} />
         </div>
+      </div>
 
-        {/* Белое тело */}
-        <div className="bg-surface p-7">
-          <div className="mb-4 flex justify-center gap-2">
-            <ThemeToggle compact />
-            <LanguageSwitcher locale={locale} />
+      <div className="relative z-10 flex flex-1 items-center justify-center">
+        <div className="w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
+          {/* Красная шапка */}
+          <div className="bg-primary px-7 pb-8 pt-10 text-center">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
+              <BrandMark size={40} priority />
+            </span>
+            <h1 className="mt-4 font-display text-2xl font-bold text-on-brand">
+              {t("login.title")}
+            </h1>
+            <p className="mt-1.5 text-sm text-on-brand/80">{t("login.tagline")}</p>
           </div>
 
-          <LoginForm
-            loginLabel={t("login.loginLabel")}
-            passwordLabel={t("login.passwordLabel")}
-            submitLabel={t("login.submit")}
-          />
+          {/* Белое тело */}
+          <div className="bg-surface p-7">
+            <LoginForm
+              loginLabel={t("login.loginLabel")}
+              passwordLabel={t("login.passwordLabel")}
+              submitLabel={t("login.submit")}
+            />
 
-          <div className="my-5 flex items-center gap-2.5">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-xs text-ink-subtle">{t("login.accessHint")}</span>
-            <span className="h-px flex-1 bg-line" />
+            <div className="my-5 flex items-center gap-2.5">
+              <span className="h-px flex-1 bg-line" />
+              <span className="text-xs text-ink-subtle">{t("login.accessHint")}</span>
+              <span className="h-px flex-1 bg-line" />
+            </div>
+
+            <p className="text-center text-xs leading-relaxed text-ink-subtle">
+              {t("login.helpText")}
+              {process.env.NODE_ENV !== "production" && (
+                <>
+                  <br />
+                  Демо: c_and_b / contractor / ivanov · пароль Password1
+                </>
+              )}
+            </p>
+
+            <a
+              href={BOT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx(buttonClass({ variant: "soft", size: "sm" }), "mt-3 w-full gap-1.5")}
+            >
+              <TelegramIcon className="h-3.5 w-3.5 shrink-0" />
+              {t("login.openBot")}
+            </a>
+
+            <a
+              href={`${BOT_URL}?start=support`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx(buttonClass({ variant: "ghost", size: "sm" }), "mt-1 w-full gap-1.5")}
+            >
+              <HelpIcon className="h-3.5 w-3.5 shrink-0" />
+              {t("login.cantLogin")}
+            </a>
           </div>
-
-          <p className="text-center text-xs leading-relaxed text-ink-subtle">
-            {t("login.helpText")}
-            {process.env.NODE_ENV !== "production" && (
-              <>
-                <br />
-                Демо: c_and_b / contractor / ivanov · пароль Password1
-              </>
-            )}
-          </p>
-
-          <a
-            href={BOT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cx(buttonClass({ variant: "soft", size: "sm" }), "mt-3 w-full gap-1.5")}
-          >
-            <TelegramIcon className="h-3.5 w-3.5 shrink-0" />
-            {t("login.openBot")}
-          </a>
-
-          <a
-            href={`${BOT_URL}?start=support`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cx(buttonClass({ variant: "ghost", size: "sm" }), "mt-1 w-full gap-1.5")}
-          >
-            <HelpIcon className="h-3.5 w-3.5 shrink-0" />
-            {t("login.cantLogin")}
-          </a>
         </div>
       </div>
     </main>
