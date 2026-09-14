@@ -234,7 +234,7 @@ export default async function OverviewPage() {
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period
     ? period.windowOpen
-      ? `${t("home.windowOpenUntil")} ${period.windowEnd.toLocaleDateString("ru-RU")}`
+      ? `${t("home.windowOpenUntil")} ${period.windowEnd.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}`
       : t("home.windowClosed")
     : t("home.periodNotOpen");
 

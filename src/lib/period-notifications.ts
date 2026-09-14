@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 const DAY = 24 * 60 * 60 * 1000;
 const CLOSING_LEAD_DAYS = 3; // §5.10: напоминание за 3 дня до конца окна
 
-const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
+// См. комментарий в admin/periods/page.tsx — без timeZone дата в уведомлении
+// сотруднику уходит на день раньше реального конца окна выбора.
+const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" });
 
 /**
  * Оконные уведомления (§5.10): «окно выбора открыто» — всем сотрудникам в день

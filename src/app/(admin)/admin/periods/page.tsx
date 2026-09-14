@@ -15,7 +15,11 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   CLOSED: "neutral",
 };
 
-const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
+// Даты периода хранятся в UTC, пересчитанные из местной полночи/конца дня
+// Душанбе (+05:00, см. TZ в actions.ts). toLocaleDateString() без timeZone
+// берёт часовой пояс сервера (на Vercel — UTC), из-за чего список показывал
+// дату на день раньше сохранённой.
+const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" });
 
 export default async function PeriodsPage() {
   const session = await getSession();
