@@ -17,9 +17,22 @@ const LOW_RATING_MAX = 3;
  * дня (localStorage, только удобство, не источник истины), а отправленный
  * ответ убирает опрос до следующего цикла — это уже решает сервер.
  */
-export function SatisfactionPrompt({ eligible, locale }: { eligible: boolean; locale: Locale }) {
+export function SatisfactionPrompt({
+  eligible,
+  locale,
+  preview = false,
+  onClosePreview,
+}: {
+  eligible: boolean;
+  locale: Locale;
+  /** true — показать сразу, минуя право/localStorage, и не писать ответ в базу
+   *  (кнопка «Предпросмотр» в /admin/satisfaction — увидеть текст без реальной
+   *  выдачи купона и включённой настройки). */
+  preview?: boolean;
+  onClosePreview?: () => void;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(preview);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -28,7 +41,7 @@ export function SatisfactionPrompt({ eligible, locale }: { eligible: boolean; lo
   const [pending, start] = useTransition();
 
   useEffect(() => {
-    if (!eligible) return;
+    if (preview || !eligible) return;
     try {
       const today = new Date().toISOString().slice(0, 10);
       if (localStorage.getItem(DISMISS_KEY) === today) return;
@@ -37,19 +50,32 @@ export function SatisfactionPrompt({ eligible, locale }: { eligible: boolean; lo
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
-  }, [eligible]);
+  }, [eligible, preview]);
 
   function dismiss() {
-    try {
-      localStorage.setItem(DISMISS_KEY, new Date().toISOString().slice(0, 10));
-    } catch {
-      /* не критично */
+    if (!preview) {
+      try {
+        localStorage.setItem(DISMISS_KEY, new Date().toISOString().slice(0, 10));
+      } catch {
+        /* не критично */
+      }
     }
     setOpen(false);
+    onClosePreview?.();
   }
 
   function submit() {
     if (!rating) return;
+    if (preview) {
+      // Предпросмотр не пишет в базу — иначе тестовые оценки админа попадали
+      // бы в реальную статистику на этой же странице.
+      setDone(true);
+      setTimeout(() => {
+        setOpen(false);
+        onClosePreview?.();
+      }, 1600);
+      return;
+    }
     setError(null);
     start(async () => {
       const r = await submitSatisfaction(rating, comment);

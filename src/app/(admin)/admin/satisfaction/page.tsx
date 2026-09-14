@@ -6,6 +6,7 @@ import { getSatisfactionSettings } from "@/lib/satisfaction";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SatisfactionSettingsForm } from "./_settings-form";
+import { SatisfactionPreviewButton } from "./_preview-button";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,9 @@ export default async function SatisfactionPage() {
 
   return (
     <div data-wide className="space-y-6">
-      <header>
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("satisfactionAdmin.title")}</h1>
+        <SatisfactionPreviewButton locale={locale} />
       </header>
 
       <SatisfactionSettingsForm enabled={settings.enabled} repeatDays={settings.repeatDays} locale={locale} />
