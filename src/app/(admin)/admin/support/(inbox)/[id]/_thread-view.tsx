@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button, Input, Textarea } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
@@ -19,7 +17,7 @@ import {
 } from "../../actions";
 import type { EmployeeMatch } from "../../actions";
 
-type Msg = {
+export type Msg = {
   id: string;
   direction: "IN" | "OUT";
   body: string;
@@ -27,7 +25,7 @@ type Msg = {
   author: string | null;
 };
 
-type QuickReply = { id: string; text: string };
+export type QuickReply = { id: string; text: string };
 
 function EmployeeLinkPanel({
   threadId,
@@ -160,6 +158,8 @@ export function ThreadView({
   quickReplies,
   backHref,
   locale,
+  onChanged,
+  onBack,
 }: {
   threadId: string;
   status: "OPEN" | "CLOSED";
@@ -175,9 +175,12 @@ export function ThreadView({
   /** Ссылка «‹ Назад к списку» — виден только на мобильном (там панели не рядом). */
   backHref: string;
   locale: Locale;
+  /** Вызывается после действий, меняющих диалог (ответ/закрытие/архив) — живая панель перезагружает его данные. */
+  onChanged?: () => void;
+  /** Вернуться к списку диалогов — локальный переход без навигации Next.js (см. `_support-inbox-client.tsx`). */
+  onBack: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -192,6 +195,7 @@ export function ThreadView({
   function toggleArchive() {
     startArchive(async () => {
       await (archived ? unarchiveThread(threadId) : archiveThread(threadId));
+      onChanged?.();
     });
   }
 
@@ -203,7 +207,7 @@ export function ThreadView({
         setDeleteError(r.error);
         return;
       }
-      router.push(backHref);
+      onBack();
     });
   }
 
@@ -234,7 +238,10 @@ export function ThreadView({
     start(async () => {
       const r = await replyToThread(threadId, text);
       if (r.error) setErr(r.error);
-      else setText("");
+      else {
+        setText("");
+        onChanged?.();
+      }
     });
   }
 
@@ -243,13 +250,18 @@ export function ThreadView({
       <div className="shrink-0 space-y-2 border-b border-line bg-surface px-4 py-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-2">
-            <Link
+            <a
               href={backHref}
               aria-label={t("support.backToList")}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                onBack();
+              }}
               className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted sm:hidden"
             >
               ‹
-            </Link>
+            </a>
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-ink">{identityTitle}</h1>
               <p className="truncate text-xs text-ink-muted">{identitySubtitle}</p>
@@ -261,7 +273,7 @@ export function ThreadView({
                 variant="danger"
                 size="sm"
                 disabled={pending}
-                onClick={() => start(async () => { await closeThread(threadId); })}
+                onClick={() => start(async () => { await closeThread(threadId); onChanged?.(); })}
               >
                 {t("support.closeDialog")}
               </Button>

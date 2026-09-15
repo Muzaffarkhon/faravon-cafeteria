@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge, buttonClass, cx, inputClass } from "@/components/ui";
 import { FilterChips } from "@/components/filter-chips";
 import { FilterDropdown } from "./_filter-dropdown";
@@ -22,23 +22,30 @@ function initials(name: string): string {
 
 /**
  * Боковая панель диалогов — живёт в общем layout (`(inbox)/layout.tsx`) и
- * поэтому НЕ перемонтируется при переходе между `/admin/support` и
- * `/admin/support/<id>`: список остаётся на месте, меняется только правая
- * панель — переход между чатами бесшовный, как в мессенджере, а не как
- * переход на отдельную страницу.
+ * поэтому НЕ перемонтируется при переходе между диалогами: список остаётся
+ * на месте, меняется только правая панель — переход между чатами бесшовный,
+ * как в мессенджере. Какой диалог открыт, ей сообщает `SupportInboxClient`
+ * через `activeId`/`onSelect` (обычные React-пропы, без навигации Next.js —
+ * см. комментарий в `_support-inbox-client.tsx`), а не через `usePathname()`.
  *
  * Сама опрашивает `/api/support/threads` (раз в POLL_MS + сразу при смене
  * фильтров/адреса) вместо серверного рендера — серверные layout'ы Next.js
  * не получают searchParams, а фильтры живут именно в них.
  */
-export function ThreadListLive({ locale }: { locale: Locale }) {
+export function ThreadListLive({
+  locale,
+  activeId,
+  onSelect,
+}: {
+  locale: Locale;
+  activeId: string | undefined;
+  onSelect: (id: string) => void;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const sp = Object.fromEntries(searchParams.entries());
-  const activeId = pathname === "/admin/support" ? undefined : pathname.split("/").pop();
   const q = (sp.q ?? "").trim();
   const status = sp.status;
   const activeFilterCount = [
@@ -82,10 +89,10 @@ export function ThreadListLive({ locale }: { locale: Locale }) {
     return () => clearInterval(id);
   }, [load]);
 
-  const basePath = activeId ? `/admin/support/${activeId}` : "/admin/support";
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) if (v) qs.set(k, v);
-  const queryString = qs.toString() ? `?${qs.toString()}` : "";
+  // Выбранный диалог живёт в хэше адреса (`#<id>`), не в пути — см.
+  // `_support-inbox-client.tsx`. `basePath` поэтому всегда один и тот же:
+  // фильтры/поиск не зависят от того, какой чат сейчас открыт.
+  const basePath = "/admin/support";
 
   const clearHref = () => {
     const p = new URLSearchParams();
@@ -195,9 +202,14 @@ export function ThreadListLive({ locale }: { locale: Locale }) {
               ? `${r.lastMessage.direction === "OUT" ? `${t("support.youPrefix")} ` : ""}${r.lastMessage.body}`
               : "—";
             return (
-              <Link
+              <a
                 key={r.id}
-                href={`/admin/support/${r.id}${queryString}`}
+                href={`#${r.id}`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  onSelect(r.id);
+                }}
                 className={cx(
                   "flex items-start gap-2.5 border-b border-line-subtle px-3 py-2.5 transition-colors",
                   active ? "bg-primary-soft" : "hover:bg-surface-sunken",
@@ -250,7 +262,7 @@ export function ThreadListLive({ locale }: { locale: Locale }) {
                     </div>
                   )}
                 </div>
-              </Link>
+              </a>
             );
           })
         )}
