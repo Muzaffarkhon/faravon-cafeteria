@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Card, EmptyState, Table } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
@@ -202,8 +203,18 @@ export default async function AuditPage({
     { key: "createdAt", label: "Дата", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const q = (sp.q ?? "").trim();
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {
+    ...(q
+      ? {
+          OR: [
+            { actor: { is: { login: { contains: q, mode: "insensitive" } } } },
+            { entityId: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
   if (smartValues.action?.v) where.action = smartValues.action.v;
   if (smartValues.entityType?.v) where.entityType = smartValues.entityType.v;
   const entityIdF = stringFilter(smartValues.entityId);
@@ -222,13 +233,16 @@ export default async function AuditPage({
 
   return (
     <div data-wide className="space-y-6">
-      <SmartFilterButton
-        basePath="/admin/audit"
-        params={sp}
-        fields={SMART_FIELDS}
-        extraParamKeys={[]}
-        presets={[{ id: "all", label: "Все записи", values: null }]}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <QuickSearch basePath="/admin/audit" sp={sp} placeholder="Кто, ID объекта…" />
+        <SmartFilterButton
+          basePath="/admin/audit"
+          params={sp}
+          fields={SMART_FIELDS}
+          extraParamKeys={[]}
+          presets={[{ id: "all", label: "Все записи", values: null }]}
+        />
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState>{t("audit.empty")}</EmptyState>

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
 import { Badge, Card, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
@@ -133,6 +134,7 @@ export default async function AccessPage({
       <SectionTitle className="text-lg">{t("access.identificationTitle")}</SectionTitle>
 
       <div className="flex flex-wrap items-center gap-2">
+        <QuickSearch basePath="/admin/access" sp={sp} placeholder={t("access.searchPlaceholder")} />
         <SmartFilterButton
           basePath="/admin/access"
           params={sp}

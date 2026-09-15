@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { employmentStatusLabel } from "@/lib/labels";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { Badge, Card, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
@@ -208,6 +209,12 @@ export default async function UsersPage({
       {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} locale={locale} />}
 
       <div className="flex flex-wrap items-center gap-2">
+        <QuickSearch
+          basePath="/admin/users"
+          sp={sp}
+          placeholder={t("users.searchPlaceholder")}
+          preserveKeys={archiveView ? ["view"] : []}
+        />
         <SmartFilterButton
           basePath={archiveView ? "/admin/users" : "/admin/users"}
           params={sp}

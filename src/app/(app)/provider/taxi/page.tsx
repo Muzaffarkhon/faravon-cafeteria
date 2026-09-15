@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { taxiRecipientsForPartner } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -62,6 +63,17 @@ export default async function TaxiProviderPage({
   if (periodF) smartFilters.push({ application: { is: { period: { is: { name: periodF } } } } });
   const approvedAtF = dateFilter(smartValues.approvedAt);
   if (approvedAtF) smartFilters.push({ decidedAt: approvedAtF });
+  const q = (sp.q ?? "").trim();
+  if (q) {
+    smartFilters.push({
+      OR: [
+        { application: { is: { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } } } },
+        { application: { is: { employee: { is: { department: { contains: q, mode: "insensitive" } } } } } },
+        { card: { is: { title: { contains: q, mode: "insensitive" } } } },
+        { contactPhone: { contains: q, mode: "insensitive" } },
+      ],
+    });
+  }
 
   const recipients = await taxiRecipientsForPartner(partnerId, smartFilters);
   const stats = {
@@ -78,6 +90,7 @@ export default async function TaxiProviderPage({
         description={`«${partner.name}»: ${t("providerTaxi.descriptionSuffix")}`}
         action={
           <div className="flex items-center gap-2">
+            <QuickSearch basePath="/provider/taxi" sp={sp} placeholder="Сотрудник, льгота…" />
             <SmartFilterButton
               basePath="/provider/taxi"
               params={sp}

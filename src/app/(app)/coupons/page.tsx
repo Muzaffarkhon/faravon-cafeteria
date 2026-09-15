@@ -7,6 +7,7 @@ import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import {
   Badge,
@@ -92,6 +93,17 @@ export default async function CouponsPage({
   if (partnerNameF) smartFilters.push({ partner: { is: { name: partnerNameF } } });
   const validUntilF = dateFilter(smartValues.validUntil);
   if (validUntilF) smartFilters.push({ validUntil: validUntilF });
+  const q = (sp.q ?? "").trim();
+  if (q) {
+    smartFilters.push({
+      OR: [
+        { number: { contains: q, mode: "insensitive" } },
+        { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } },
+        { item: { is: { card: { is: { title: { contains: q, mode: "insensitive" } } } } } },
+        { partner: { is: { name: { contains: q, mode: "insensitive" } } } },
+      ],
+    });
+  }
 
   const filters = { periodId, status, partnerId, extraWhere: smartFilters };
   const [awaiting, awaitingTotal, coupons, couponsTotal] = await Promise.all([
@@ -171,6 +183,7 @@ export default async function CouponsPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="text-lg" count={couponsTotal}>{t("coupons.registryTitle")}</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
+            <QuickSearch basePath="/coupons" sp={sp} placeholder="Номер, сотрудник, льгота, партнёр…" />
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
               {t("coupons.exportXlsx")}
             </a>

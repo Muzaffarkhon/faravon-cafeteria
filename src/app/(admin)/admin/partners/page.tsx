@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { partnerStatusLabel } from "@/lib/labels";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { Badge, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
@@ -61,9 +62,19 @@ export default async function PartnersPage({
   const categoryF = stringFilter(smartValues.category);
   const discountF = stringFilter(smartValues.discountType);
   const contractorLoginF = stringFilter(smartValues.contractorLogin);
+  const q = (sp.q ?? "").trim();
 
   const partners = await db.partner.findMany({
     where: {
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { category: { contains: q, mode: "insensitive" } },
+              { discountType: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
       ...(status ? { status } : {}),
       ...(mode ? { deliveryMode: mode } : {}),
       ...(nameF ? { name: nameF } : {}),
@@ -87,6 +98,7 @@ export default async function PartnersPage({
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-ink-muted">{t("partners.total")}: {partners.length}</span>
         <div className="flex items-center gap-2">
+          <QuickSearch basePath="/admin/partners" sp={sp} placeholder="Название, категория…" />
           <SmartFilterButton
             basePath="/admin/partners"
             params={sp}

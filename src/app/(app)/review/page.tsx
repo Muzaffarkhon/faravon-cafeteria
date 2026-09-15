@@ -6,6 +6,7 @@ import { can } from "@/lib/rbac";
 import { EmptyState, PageHeader, buttonClass } from "@/components/ui";
 import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ReviewTable, type ReviewRow } from "./_table";
@@ -109,12 +110,21 @@ export default async function ReviewPage({
   const submittedAtF = dateFilter(smartValues.submittedAt);
   if (submittedAtF) smartFilters.push({ submittedAt: submittedAtF });
 
+  const q = (sp.q ?? "").trim();
   const where: Prisma.ApplicationItemWhereInput = { status: "PENDING" };
   if (Object.keys(appFilter).length) where.application = { is: appFilter };
   if (card) where.cardId = card;
   const slaCutoff = businessDaysAgo(SLA_DAYS);
   if (overdue) where.submittedAt = { lt: slaCutoff };
   if (smartFilters.length) where.AND = smartFilters;
+  if (q) {
+    where.OR = [
+      { application: { is: { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } } } },
+      { application: { is: { employee: { is: { department: { contains: q, mode: "insensitive" } } } } } },
+      { card: { is: { title: { contains: q, mode: "insensitive" } } } },
+      { card: { is: { partner: { is: { name: { contains: q, mode: "insensitive" } } } } } },
+    ];
+  }
 
   const orderBy: Prisma.ApplicationItemOrderByWithRelationInput =
     sort === "newest"
@@ -154,7 +164,7 @@ export default async function ReviewPage({
     overdue: !!it.submittedAt && isSlaBreached(it.submittedAt, SLA_DAYS),
   }));
 
-  const hasFilters = Object.keys(sp).some((k) => k.startsWith("sf_"));
+  const hasFilters = !!q || Object.keys(sp).some((k) => k.startsWith("sf_"));
 
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
@@ -174,6 +184,7 @@ export default async function ReviewPage({
       />
 
       <div className="flex items-center gap-2">
+        <QuickSearch basePath="/review" sp={sp} placeholder="Сотрудник, льгота, партнёр…" />
         <SmartFilterButton
           basePath="/review"
           params={sp}
