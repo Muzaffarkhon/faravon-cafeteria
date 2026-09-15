@@ -118,6 +118,7 @@ export default async function ReviewPage({
     seq: it.seq,
     employee: it.application.employee.fullName,
     department: it.application.employee.department,
+    phone: it.application.employee.phone,
     card: it.card.title,
     partner: it.card.partner?.name ?? null,
     condition: it.card.condition,

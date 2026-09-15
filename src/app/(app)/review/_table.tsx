@@ -12,6 +12,7 @@ export type ReviewRow = {
   seq: number;
   employee: string;
   department: string;
+  phone: string | null;
   card: string;
   partner: string | null;
   condition: string | null;
@@ -173,6 +174,7 @@ export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Local
                 <td>
                   <div className="font-medium text-ink">{r.employee}</div>
                   <div className="text-xs text-ink-subtle">{r.department}</div>
+                  {r.phone && <div className="text-xs text-ink-subtle">{r.phone}</div>}
                 </td>
                 <td>
                   <div className="text-ink">{r.card}</div>
