@@ -147,7 +147,7 @@ export default async function ReportBuilderPage({
           <BarChartCard
             title={`${DIMENSION_LABELS[dimension]} · ${MEASURE_LABELS[measure]}`}
             unit={`итого: ${total}`}
-            rows={rows.slice(0, 20)}
+            rows={rows.slice(0, 20).map((r) => ({ label: r.label, n: r.value }))}
           />
 
           <Card className="overflow-hidden">

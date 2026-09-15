@@ -88,13 +88,12 @@ export function SmartFilterButton({
     return out;
   }, [fields, params]);
 
-  useEffect(() => {
-    if (open) {
-      setDraft(initial);
-      setQ(params.q ?? "");
-      setSaved(loadSaved(key));
-    }
-  }, [open, initial, params.q, key]);
+  const openModal = () => {
+    setDraft(initial);
+    setQ(params.q ?? "");
+    setSaved(loadSaved(key));
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -105,14 +104,9 @@ export function SmartFilterButton({
 
   const activeCount = Object.keys(initial).length;
 
-  const rowsFor = (values: Draft | null) => {
+  const navigate = (values: Draft, qValue: string) => {
     const p = new URLSearchParams();
     for (const k of extraParamKeys) if (params[k]) p.set(k, params[k]!);
-    return p;
-  };
-
-  const navigate = (values: Draft, qValue: string) => {
-    const p = rowsFor(values);
     if (qValue.trim()) p.set("q", qValue.trim());
     for (const f of fields) {
       const fv = values[f.key];
@@ -164,7 +158,7 @@ export function SmartFilterButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openModal}
         className={cx(buttonClass({ variant: activeCount ? "soft" : "secondary", size: "sm" }))}
       >
         Фильтры{activeCount ? ` (${activeCount})` : ""}
