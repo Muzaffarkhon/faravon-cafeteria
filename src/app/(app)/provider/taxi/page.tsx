@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Table, buttonClass } from "@/components/ui";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { taxiRecipientsForPartner } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
 
 export const dynamic = "force-dynamic";
 
-export default async function TaxiProviderPage() {
+export default async function TaxiProviderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | undefined }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "promo.broadcast")) redirect("/");
@@ -27,7 +34,36 @@ export default async function TaxiProviderPage() {
   const locale = await getLocale();
   const t = await getTranslator();
 
-  const recipients = await taxiRecipientsForPartner(partnerId);
+  const sp = await searchParams;
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "employee", label: "Сотрудник", type: "text" },
+    { key: "department", label: "Подразделение", type: "text" },
+    { key: "phone", label: "Телефон", type: "text" },
+    { key: "card", label: "Льгота", type: "text" },
+    { key: "period", label: "Период", type: "text" },
+    { key: "approvedAt", label: "Дата одобрения", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
+  const employeeF = stringFilter(smartValues.employee);
+  if (employeeF) smartFilters.push({ application: { is: { employee: { is: { fullName: employeeF } } } } });
+  const departmentF = stringFilter(smartValues.department);
+  if (departmentF) smartFilters.push({ application: { is: { employee: { is: { department: departmentF } } } } });
+  const phoneF = stringFilter(smartValues.phone);
+  // Показанный телефон — contactPhone (указан сотрудником) либо телефон из профиля (см. lib/taxi.ts).
+  if (phoneF) {
+    smartFilters.push({
+      OR: [{ contactPhone: phoneF }, { application: { is: { employee: { is: { phone: phoneF } } } } }],
+    });
+  }
+  const cardF = stringFilter(smartValues.card);
+  if (cardF) smartFilters.push({ card: { is: { title: cardF } } });
+  const periodF = stringFilter(smartValues.period);
+  if (periodF) smartFilters.push({ application: { is: { period: { is: { name: periodF } } } } });
+  const approvedAtF = dateFilter(smartValues.approvedAt);
+  if (approvedAtF) smartFilters.push({ decidedAt: approvedAtF });
+
+  const recipients = await taxiRecipientsForPartner(partnerId, smartFilters);
   const stats = {
     delivered: recipients.filter((r) => r.promoStatus === "DELIVERED").length,
     blocked: recipients.filter((r) => r.promoStatus === "BLOCKED").length,
@@ -41,9 +77,18 @@ export default async function TaxiProviderPage() {
         title={t("providerTaxi.title")}
         description={`«${partner.name}»: ${t("providerTaxi.descriptionSuffix")}`}
         action={
-          <Link href="/provider/taxi/export" className={buttonClass({ variant: "secondary", size: "sm" })}>
-            {t("providerTaxi.export")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <SmartFilterButton
+              basePath="/provider/taxi"
+              params={sp}
+              fields={SMART_FIELDS}
+              extraParamKeys={[]}
+              presets={[{ id: "all", label: "Все записи", values: null }]}
+            />
+            <Link href="/provider/taxi/export" className={buttonClass({ variant: "secondary", size: "sm" })}>
+              {t("providerTaxi.export")}
+            </Link>
+          </div>
         }
       />
 

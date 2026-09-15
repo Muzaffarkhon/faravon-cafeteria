@@ -6,6 +6,8 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { partnerStatusLabel } from "@/lib/labels";
 import { FilterChips } from "@/components/filter-chips";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { Badge, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -22,7 +24,7 @@ const STATUS_TONE: Record<string, BadgeTone> = {
 export default async function PartnersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; mode?: string }>;
+  searchParams: Promise<{ status?: string; mode?: string; [key: string]: string | undefined }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -34,10 +36,26 @@ export default async function PartnersPage({
   const status = PARTNER_STATUSES.find((s) => s === sp.status);
   const mode = (["QR", "PHONE_PROMO"] as const).find((m) => m === sp.mode);
 
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "name", label: "Название", type: "text" },
+    { key: "category", label: "Категория", type: "text" },
+    { key: "discountType", label: "Скидка", type: "text" },
+    { key: "contractorLogin", label: "Логин учётки контрагента", type: "text" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const nameF = stringFilter(smartValues.name);
+  const categoryF = stringFilter(smartValues.category);
+  const discountF = stringFilter(smartValues.discountType);
+  const contractorLoginF = stringFilter(smartValues.contractorLogin);
+
   const partners = await db.partner.findMany({
     where: {
       ...(status ? { status } : {}),
       ...(mode ? { deliveryMode: mode } : {}),
+      ...(nameF ? { name: nameF } : {}),
+      ...(categoryF ? { category: categoryF } : {}),
+      ...(discountF ? { discountType: discountF } : {}),
+      ...(contractorLoginF ? { serviceUsers: { some: { login: contractorLoginF } } } : {}),
     },
     include: {
       _count: { select: { cards: true } },
@@ -54,9 +72,18 @@ export default async function PartnersPage({
     <div data-wide className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-ink-muted">{t("partners.total")}: {partners.length}</span>
-        <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
-          {t("partners.addPartner")}
-        </Link>
+        <div className="flex items-center gap-2">
+          <SmartFilterButton
+            basePath="/admin/partners"
+            params={sp}
+            fields={SMART_FIELDS}
+            extraParamKeys={["status", "mode"]}
+            presets={[{ id: "all", label: "Все записи", values: null }]}
+          />
+          <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
+            {t("partners.addPartner")}
+          </Link>
+        </div>
       </div>
 
       <FilterChips

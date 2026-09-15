@@ -3,11 +3,6 @@
 // PWA (Progressive Web App): добавление на домашний экран (Android / iOS / PC)
 // ═══════════════════════════════════════════════════════════
 (function initPWA(){
-  // Очищаем старую блокировку на 7 дней, если она осталась в браузере
-  try {
-    localStorage.removeItem('faravon_pwa_dismissed');
-  } catch (e) {}
-
   // 1. Всегда сразу регистрируем Service Worker
   if ('serviceWorker' in navigator) {
     var regSW = function(){
@@ -34,10 +29,11 @@
   if (isStandalone || isTelegram || alreadyInstalled) return;
 
   var deferredPrompt = window.__pwaPrompt || null;
+  var DISMISS_DAYS = 14;
 
   function dismiss(){
     try {
-      sessionStorage.setItem('faravon_pwa_closed', '1');
+      localStorage.setItem('faravon_pwa_dismissed', String(Date.now()));
     } catch (e) {}
     var b = document.getElementById('pwaInstallBanner');
     if(b) b.remove();
@@ -53,12 +49,12 @@
     dismiss();
   });
 
-  // Проверяем, не закрывал ли пользователь в текущей сессии
-  var isDismissed = false;
+  // Проверяем, не закрывал ли пользователь баннер за последние DISMISS_DAYS дней
+  var dismissedAt = null;
   try {
-    isDismissed = sessionStorage.getItem('faravon_pwa_closed') === '1';
+    dismissedAt = localStorage.getItem('faravon_pwa_dismissed');
   } catch (e) {}
-  if (isDismissed) return;
+  if (dismissedAt && (Date.now() - parseInt(dismissedAt, 10)) < DISMISS_DAYS * 86400000) return;
 
   function showBanner(type){
     if(document.getElementById('pwaInstallBanner')) return;

@@ -6,6 +6,8 @@ import { can } from "@/lib/rbac";
 import { EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
 import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ReviewTable, type ReviewRow } from "./_table";
 
@@ -20,6 +22,7 @@ type SP = {
   sort?: string;
   overdue?: string;
   page?: string;
+  [key: string]: string | undefined;
 };
 
 export default async function ReviewPage({
@@ -54,11 +57,29 @@ export default async function ReviewPage({
     };
   }
 
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "phone", label: "Телефон сотрудника", type: "text" },
+    { key: "partner", label: "Партнёр", type: "text" },
+    { key: "condition", label: "Условие льготы", type: "text" },
+    { key: "submittedAt", label: "Дата подачи", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
+  const phoneF = stringFilter(smartValues.phone);
+  if (phoneF) smartFilters.push({ application: { is: { employee: { is: { phone: phoneF } } } } });
+  const partnerF = stringFilter(smartValues.partner);
+  if (partnerF) smartFilters.push({ card: { is: { partner: { is: { name: partnerF } } } } });
+  const conditionF = stringFilter(smartValues.condition);
+  if (conditionF) smartFilters.push({ card: { is: { condition: conditionF } } });
+  const submittedAtF = dateFilter(smartValues.submittedAt);
+  if (submittedAtF) smartFilters.push({ submittedAt: submittedAtF });
+
   const where: Prisma.ApplicationItemWhereInput = { status: "PENDING" };
   if (Object.keys(appFilter).length) where.application = { is: appFilter };
   if (card) where.cardId = card;
   const slaCutoff = businessDaysAgo(SLA_DAYS);
   if (overdue) where.submittedAt = { lt: slaCutoff };
+  if (smartFilters.length) where.AND = smartFilters;
 
   const orderBy: Prisma.ApplicationItemOrderByWithRelationInput =
     sort === "newest"
@@ -100,6 +121,7 @@ export default async function ReviewPage({
     seq: it.seq,
     employee: it.application.employee.fullName,
     department: it.application.employee.department,
+    phone: it.application.employee.phone,
     card: it.card.title,
     partner: it.card.partner?.name ?? null,
     condition: it.card.condition,
@@ -185,9 +207,16 @@ export default async function ReviewPage({
             </option>
           ))}
         </Select>
-        {hiddenChipInputs(sp, ["sort", "overdue"])}
+        {hiddenChipInputs(sp, ["sort", "overdue", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
         <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("review.apply")}</button>
-        {(q || dept || period || card || overdue || sort !== "oldest") && (
+        <SmartFilterButton
+          basePath="/review"
+          params={sp}
+          fields={SMART_FIELDS}
+          extraParamKeys={["q", "dept", "period", "card", "sort", "overdue"]}
+          presets={[{ id: "all", label: "Все записи", values: null }]}
+        />
+        {(q || dept || period || card || overdue || sort !== "oldest" || Object.keys(sp).some((k) => k.startsWith("sf_"))) && (
           <a href="/review" className="text-xs text-ink-muted hover:text-ink hover:underline">
             {t("review.reset")}
           </a>

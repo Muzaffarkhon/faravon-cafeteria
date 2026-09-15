@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
 import { Badge, Card, Input, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -17,7 +19,7 @@ const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
 export default async function AccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; [key: string]: string | undefined }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -29,15 +31,59 @@ export default async function AccessPage({
   const q = (sp.q ?? "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  const where: Prisma.EmployeeWhereInput = q
-    ? {
-        OR: [
-          { fullName: { contains: q, mode: "insensitive" } },
-          { department: { contains: q, mode: "insensitive" } },
-          { phone: { contains: q } },
-        ],
-      }
-    : {};
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "fullName", label: "ФИО", type: "text" },
+    { key: "department", label: "Подразделение", type: "text" },
+    { key: "phone", label: "Телефон", type: "text" },
+    {
+      key: "telegram",
+      label: "Telegram",
+      type: "select",
+      options: [
+        { value: "yes", label: t("access.linked") },
+        { value: "no", label: t("access.notLinkedShort") },
+      ],
+    },
+    {
+      key: "account",
+      label: "Учётка",
+      type: "select",
+      options: [
+        { value: "none", label: "без учётки" },
+        { value: "neverLoggedIn", label: "есть учётка, но не входил" },
+        { value: "loggedIn", label: "входил" },
+      ],
+    },
+    { key: "lastLogin", label: "Последний вход", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const smartFilters: Prisma.EmployeeWhereInput[] = [];
+  const fullNameF = stringFilter(smartValues.fullName);
+  if (fullNameF) smartFilters.push({ fullName: fullNameF });
+  const deptF = stringFilter(smartValues.department);
+  if (deptF) smartFilters.push({ department: deptF });
+  const phoneF = stringFilter(smartValues.phone);
+  if (phoneF) smartFilters.push({ phone: phoneF });
+  if (smartValues.telegram?.v === "yes") smartFilters.push({ telegramId: { not: null } });
+  if (smartValues.telegram?.v === "no") smartFilters.push({ telegramId: null });
+  if (smartValues.account?.v === "none") smartFilters.push({ user: null });
+  if (smartValues.account?.v === "neverLoggedIn") smartFilters.push({ user: { is: { lastLoginAt: null } } });
+  if (smartValues.account?.v === "loggedIn") smartFilters.push({ user: { is: { lastLoginAt: { not: null } } } });
+  const lastLoginF = dateFilter(smartValues.lastLogin);
+  if (lastLoginF) smartFilters.push({ user: { is: { lastLoginAt: lastLoginF } } });
+
+  const where: Prisma.EmployeeWhereInput = {
+    ...(q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: "insensitive" } },
+            { department: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q } },
+          ],
+        }
+      : {}),
+    ...(smartFilters.length ? { AND: smartFilters } : {}),
+  };
 
   const [empTotal, employees, activeCodes, permRows] = await Promise.all([
     db.employee.count({ where }),
@@ -94,7 +140,14 @@ export default async function AccessPage({
           className="w-64 py-1.5 text-sm"
         />
         <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("access.find")}</button>
-        {q && (
+        <SmartFilterButton
+          basePath="/admin/access"
+          params={sp}
+          fields={SMART_FIELDS}
+          extraParamKeys={[]}
+          presets={[{ id: "all", label: "Все записи", values: null }]}
+        />
+        {(q || Object.keys(sp).some((k) => k.startsWith("sf_"))) && (
           <Link href="/admin/access" className="text-xs text-ink-muted hover:text-ink hover:underline">
             {t("access.reset")}
           </Link>

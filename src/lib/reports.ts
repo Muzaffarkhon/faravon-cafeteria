@@ -119,6 +119,16 @@ export async function computeReport(periodId: string) {
     .map(([department, v]) => ({ department, employees: v.employees.size, items: v.items }))
     .sort((a, b) => b.items - a.items);
 
+  // Динамика подачи заявок по дням периода — для линейного графика.
+  const byDay = new Map<string, number>();
+  for (const i of submitted) {
+    const day = i.submittedAt!.toISOString().slice(0, 10);
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+  }
+  const dailySubmissions = [...byDay.entries()]
+    .map(([day, n]) => ({ day, n }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+
   return {
     period,
     kpis: {
@@ -147,6 +157,7 @@ export async function computeReport(periodId: string) {
     topApprovals,
     rejectionsByReason,
     byDepartment,
+    dailySubmissions,
   };
 }
 
