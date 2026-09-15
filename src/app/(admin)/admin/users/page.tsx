@@ -30,7 +30,6 @@ export default async function UsersPage({
     q?: string;
     page?: string;
     role?: string;
-    acc?: string;
     emp?: string;
     tg?: string;
     [key: string]: string | undefined;
@@ -49,7 +48,6 @@ export default async function UsersPage({
 
   // Чипы быстрых фильтров. Значения из адреса, проверенные по списку допустимых.
   const role = ALL_ROLES.find((r) => r === sp.role);
-  const acc = (["active", "off", "none"] as const).find((v) => v === sp.acc);
   const empStatus = EMPLOYMENT_STATUSES.find((s) => s === sp.emp);
   const tg = (["yes", "no"] as const).find((v) => v === sp.tg);
 
@@ -59,15 +57,32 @@ export default async function UsersPage({
     { key: "login", label: "Логин", type: "text" },
     { key: "department", label: "Подразделение", type: "text" },
     { key: "phone", label: "Телефон", type: "text" },
+    {
+      key: "account",
+      label: "Учётка",
+      type: "select",
+      options: [
+        { value: "active", label: "активна" },
+        { value: "off", label: "отключена" },
+        { value: "none", label: "без учётки" },
+        { value: "neverLoggedIn", label: "есть учётка, но не входил" },
+      ],
+    },
     { key: "lastLogin", label: "Последний вход", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  // "acc" объединяет старые чипы (active/off/none) и новое состояние из
+  // умного фильтра (neverLoggedIn) — единая точка правды для статуса учётки.
+  const acc = (["active", "off", "none", "neverLoggedIn"] as const).find(
+    (v) => v === smartValues.account?.v,
+  );
 
   const empFilters: Prisma.EmployeeWhereInput[] = [];
   if (role) empFilters.push({ user: { is: { roles: { has: role } } } });
   if (acc === "active") empFilters.push({ user: { is: { isActive: true } } });
   if (acc === "off") empFilters.push({ user: { is: { isActive: false } } });
   if (acc === "none") empFilters.push({ user: null });
+  if (acc === "neverLoggedIn") empFilters.push({ user: { is: { lastLoginAt: null } } });
   if (empStatus) empFilters.push({ status: empStatus });
   if (tg) empFilters.push({ telegramId: tg === "yes" ? { not: null } : null });
   const fullNameF = stringFilter(smartValues.fullName);
@@ -119,6 +134,7 @@ export default async function UsersPage({
             ...(role ? { roles: { has: role } } : {}),
             ...(acc === "active" ? { isActive: true } : {}),
             ...(acc === "off" ? { isActive: false } : {}),
+            ...(acc === "neverLoggedIn" ? { lastLoginAt: null } : {}),
             ...(tg ? { telegramId: tg === "yes" ? { not: null } : null } : {}),
           },
           orderBy: { login: "asc" },
@@ -189,15 +205,6 @@ export default async function UsersPage({
             options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
           },
           {
-            param: "acc",
-            label: t("users.accountLabel"),
-            options: [
-              { value: "active", label: t("users.accountActive") },
-              { value: "off", label: t("users.accountOff") },
-              { value: "none", label: t("users.accountNone") },
-            ],
-          },
-          {
             param: "emp",
             label: t("users.workLabel"),
             options: EMPLOYMENT_STATUSES.map((s) => ({
@@ -218,7 +225,7 @@ export default async function UsersPage({
 
       <form method="get" className="flex flex-wrap items-center gap-2">
         {archiveView && <input type="hidden" name="view" value="archive" />}
-        {hiddenChipInputs(sp, ["role", "acc", "emp", "tg", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
+        {hiddenChipInputs(sp, ["role", "emp", "tg", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
         <Input
           name="q"
           defaultValue={q}
@@ -230,7 +237,7 @@ export default async function UsersPage({
           basePath={archiveView ? "/admin/users" : "/admin/users"}
           params={sp}
           fields={SMART_FIELDS}
-          extraParamKeys={["view", "role", "acc", "emp", "tg"]}
+          extraParamKeys={["view", "role", "emp", "tg"]}
           presets={[{ id: "all", label: "Все записи", values: null }]}
         />
         {(q || Object.keys(sp).some((k) => k.startsWith("sf_"))) && (

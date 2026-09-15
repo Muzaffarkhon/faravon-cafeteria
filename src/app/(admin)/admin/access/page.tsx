@@ -44,6 +44,16 @@ export default async function AccessPage({
         { value: "no", label: t("access.notLinkedShort") },
       ],
     },
+    {
+      key: "account",
+      label: "Учётка",
+      type: "select",
+      options: [
+        { value: "none", label: "без учётки" },
+        { value: "neverLoggedIn", label: "есть учётка, но не входил" },
+        { value: "loggedIn", label: "входил" },
+      ],
+    },
     { key: "lastLogin", label: "Последний вход", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
@@ -56,6 +66,9 @@ export default async function AccessPage({
   if (phoneF) smartFilters.push({ phone: phoneF });
   if (smartValues.telegram?.v === "yes") smartFilters.push({ telegramId: { not: null } });
   if (smartValues.telegram?.v === "no") smartFilters.push({ telegramId: null });
+  if (smartValues.account?.v === "none") smartFilters.push({ user: null });
+  if (smartValues.account?.v === "neverLoggedIn") smartFilters.push({ user: { is: { lastLoginAt: null } } });
+  if (smartValues.account?.v === "loggedIn") smartFilters.push({ user: { is: { lastLoginAt: { not: null } } } });
   const lastLoginF = dateFilter(smartValues.lastLogin);
   if (lastLoginF) smartFilters.push({ user: { is: { lastLoginAt: lastLoginF } } });
 
