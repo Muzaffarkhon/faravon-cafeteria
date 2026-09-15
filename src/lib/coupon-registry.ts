@@ -1,12 +1,14 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { CouponStatus } from "@prisma/client";
+import type { CouponStatus, Prisma } from "@prisma/client";
 
 export type CouponFilters = {
   periodId?: string;
   status?: CouponStatus;
   partnerId?: string;
   employeeQuery?: string; // ФИО
+  /** доп. условия «умного фильтра» (см. components/smart-filter.tsx), AND'ятся с остальными */
+  extraWhere?: Prisma.CouponWhereInput[];
   /** пагинация: если не задана — возвращаются все (для экспорта) */
   page?: number;
   pageSize?: number;
@@ -22,6 +24,7 @@ function couponWhere(f: CouponFilters) {
     ...(f.status ? { status: f.status } : {}),
     ...(f.partnerId ? { partnerId: f.partnerId } : {}),
     ...(q ? { employee: { fullName: { contains: q, mode: "insensitive" as const } } } : {}),
+    ...(f.extraWhere?.length ? { AND: f.extraWhere } : {}),
   };
 }
 

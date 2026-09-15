@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { flushTelegram } from "@/lib/notify";
@@ -27,13 +28,20 @@ export type TaxiRecipient = {
   promoStatus: "NONE" | "DELIVERED" | "BLOCKED" | "PENDING";
 };
 
-/** Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах. */
-export async function taxiRecipientsForPartner(partnerId: string): Promise<TaxiRecipient[]> {
+/**
+ * Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах.
+ * `extraWhere` — доп. условия «умного фильтра» (см. components/smart-filter.tsx), AND'ятся с остальными.
+ */
+export async function taxiRecipientsForPartner(
+  partnerId: string,
+  extraWhere: Prisma.ApplicationItemWhereInput[] = [],
+): Promise<TaxiRecipient[]> {
   const items = await db.applicationItem.findMany({
     where: {
       status: { in: [...ACTIVE_TAXI_STATUSES] },
       card: { is: { partnerId, partner: { is: { deliveryMode: "PHONE_PROMO" } } } },
       application: { is: { period: { is: { status: { not: "CLOSED" } } } } },
+      ...(extraWhere.length ? { AND: extraWhere } : {}),
     },
     include: {
       card: { select: { title: true } },

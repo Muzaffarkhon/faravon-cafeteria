@@ -325,6 +325,7 @@ export function ServiceAccountRow({
     partnerId: string | null;
     partnerName: string | null;
     telegramId: string | null;
+    lastLoginAt: Date | null;
   };
   partners: PartnerOption[];
   locale: Locale;
@@ -382,6 +383,11 @@ export function ServiceAccountRow({
             <Badge tone="muted">{t("users.acc.disabled")}</Badge>
           )}
         </td>
+        <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
+          {user.lastLoginAt
+            ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(user.lastLoginAt)
+            : "—"}
+        </td>
         <td className="text-ink-muted">—</td>
         <td>
           <div className="flex items-center justify-end gap-2">
@@ -432,7 +438,7 @@ export function ServiceAccountRow({
       </tr>
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={9} className="px-4 pb-3">
+          <td colSpan={10} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}

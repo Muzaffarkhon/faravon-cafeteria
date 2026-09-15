@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PERIOD_STATUS_LABELS } from "@/lib/labels";
 import { computeReport, listReportPeriods, type Report } from "@/lib/reports";
+import { BarChartCard, LineChartCard } from "@/components/charts";
 import { Card, EmptyState, Select, buttonClass, cx } from "@/components/ui";
 import { getTranslator } from "@/lib/i18n";
 
@@ -129,6 +130,9 @@ export default async function ReportsPage({
         <a href={exportBase} className={buttonClass({ size: "sm" })}>
           {t("reports.exportXlsx")}
         </a>
+        <Link href="/admin/reports/builder" className={buttonClass({ variant: "secondary", size: "sm" })}>
+          Конструктор отчётов
+        </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -184,25 +188,38 @@ export default async function ReportsPage({
         />
       </div>
 
+      <LineChartCard
+        title="Динамика подачи заявок"
+        unit="заявок/день"
+        rows={report.dailySubmissions.map((r) => ({ label: r.day.slice(5), n: r.n }))}
+      />
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <BarList
+        <BarChartCard
           title={t("reports.topSelections")}
           unit={t("reports.selectionsUnit")}
-          rows={report.topSelections.map((r) => ({ label: r.title, n: r.n }))}
-          noDataLabel={t("reports.noData")}
+          rows={report.topSelections.slice(0, 8).map((r) => ({ label: r.title, n: r.n }))}
         />
-        <BarList
+        <BarChartCard
           title={t("reports.topApprovals")}
           unit={t("reports.approvedUnit")}
-          rows={report.topApprovals.map((r) => ({ label: r.title, n: r.n }))}
-          noDataLabel={t("reports.noData")}
+          rows={report.topApprovals.slice(0, 8).map((r) => ({ label: r.title, n: r.n }))}
+          color="var(--success)"
         />
-        <BarList
+        <BarChartCard
+          title={t("reports.byDepartment")}
+          unit={t("reports.itemsUnit")}
+          rows={report.byDepartment.slice(0, 8).map((r) => ({ label: r.department, n: r.items }))}
+        />
+        <BarChartCard
           title={t("reports.rejectionsByReason")}
           unit={t("reports.countUnit")}
-          rows={report.rejectionsByReason.map((r) => ({ label: r.reason, n: r.n }))}
-          noDataLabel={t("reports.noData")}
+          rows={report.rejectionsByReason.slice(0, 8).map((r) => ({ label: r.reason, n: r.n }))}
+          color="var(--warning)"
         />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <BarList
           title={t("reports.byDepartment")}
           unit={t("reports.itemsUnit")}

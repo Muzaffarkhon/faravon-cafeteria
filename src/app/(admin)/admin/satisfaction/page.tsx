@@ -5,6 +5,8 @@ import { can } from "@/lib/rbac";
 import { getSatisfactionSettings } from "@/lib/satisfaction";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { SatisfactionSettingsForm } from "./_settings-form";
 import { SatisfactionPreviewButton } from "./_preview-button";
 
@@ -20,16 +22,38 @@ const RATING_TONE: Record<number, BadgeTone> = {
 
 const RESPONSES_LIMIT = 100;
 
-export default async function SatisfactionPage() {
+export default async function SatisfactionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | undefined }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!can(session.roles, "satisfaction.manage")) redirect("/");
   const locale = await getLocale();
   const t = await getTranslator();
 
+  const sp = await searchParams;
+
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "employee", label: "Сотрудник", type: "text" },
+    { key: "comment", label: "Комментарий", type: "text" },
+    { key: "createdAt", label: "Дата", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const smartFilters: Record<string, unknown>[] = [];
+  const employeeF = stringFilter(smartValues.employee);
+  if (employeeF) smartFilters.push({ employee: { is: { fullName: employeeF } } });
+  const commentF = stringFilter(smartValues.comment);
+  if (commentF) smartFilters.push({ comment: commentF });
+  const createdF = dateFilter(smartValues.createdAt);
+  if (createdF) smartFilters.push({ createdAt: createdF });
+  const where = smartFilters.length ? { AND: smartFilters } : {};
+
   const [settings, responses, total, byRating] = await Promise.all([
     getSatisfactionSettings(),
     db.satisfactionResponse.findMany({
+      where,
       include: { employee: { select: { fullName: true, department: true } } },
       orderBy: { createdAt: "desc" },
       take: RESPONSES_LIMIT,
@@ -85,9 +109,18 @@ export default async function SatisfactionPage() {
       </section>
 
       <section className="space-y-3">
-        <SectionTitle className="text-lg" count={total}>
-          {t("satisfactionAdmin.responsesTitle")}
-        </SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SectionTitle className="text-lg" count={total}>
+            {t("satisfactionAdmin.responsesTitle")}
+          </SectionTitle>
+          <SmartFilterButton
+            basePath="/admin/satisfaction"
+            params={sp}
+            fields={SMART_FIELDS}
+            extraParamKeys={[]}
+            presets={[{ id: "all", label: "Все записи", values: null }]}
+          />
+        </div>
         {responses.length === 0 ? (
           <EmptyState>{t("satisfactionAdmin.empty")}</EmptyState>
         ) : (

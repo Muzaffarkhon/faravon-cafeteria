@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Card, EmptyState, Input, Select, Table, buttonClass } from "@/components/ui";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
 import { FEEDBACK_STATUS_LABEL } from "@/lib/feedback";
@@ -173,7 +175,12 @@ function humanDiff(v: unknown): string[] {
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ action?: string; entityType?: string; q?: string }>;
+  searchParams: Promise<{
+    action?: string;
+    entityType?: string;
+    q?: string;
+    [key: string]: string | undefined;
+  }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -181,10 +188,21 @@ export default async function AuditPage({
 
   const t = await getTranslator();
   const sp = await searchParams;
+
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "actor", label: "Кто", type: "text" },
+    { key: "createdAt", label: "Дата", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+
   const where: Record<string, unknown> = {};
   if (sp.action) where.action = sp.action;
   if (sp.entityType) where.entityType = sp.entityType;
   if (sp.q) where.entityId = sp.q.trim();
+  const actorF = stringFilter(smartValues.actor);
+  if (actorF) where.actor = { is: { login: actorF } };
+  const createdF = dateFilter(smartValues.createdAt);
+  if (createdF) where.createdAt = createdF;
 
   const rows = await db.auditLog.findMany({
     where,
@@ -223,6 +241,13 @@ export default async function AuditPage({
           <Input name="q" defaultValue={sp.q ?? ""} placeholder="cuid…" className="w-56 py-1.5 text-sm font-mono" />
         </label>
         <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("audit.show")}</button>
+        <SmartFilterButton
+          basePath="/admin/audit"
+          params={sp}
+          fields={SMART_FIELDS}
+          extraParamKeys={["action", "entityType", "q"]}
+          presets={[{ id: "all", label: "Все записи", values: null }]}
+        />
       </form>
 
       {rows.length === 0 ? (

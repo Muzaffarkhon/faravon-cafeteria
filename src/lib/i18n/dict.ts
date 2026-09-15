@@ -629,6 +629,7 @@ export const DICT = {
     "users.colPhone": "Телефон",
     "users.colDeptPartner": "Подразделение / партнёр",
     "users.colStatus": "Статус",
+    "users.colLastLogin": "Последний вход",
     "users.colLastEdit": "Последнее изменение",
     "users.colActions": "Действия",
     "users.employee": "Сотрудник",

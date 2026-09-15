@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -7,6 +8,8 @@ import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/c
 import { periodStatusLabel } from "@/lib/labels";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
+import { SmartFilterButton } from "@/components/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import {
   Badge,
   EmptyState,
@@ -38,6 +41,7 @@ export default async function CouponsPage({
     partner?: string;
     emp?: string;
     page?: string;
+    [key: string]: string | undefined;
   }>;
 }) {
   const session = await getSession();
@@ -66,7 +70,18 @@ export default async function CouponsPage({
     NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
   };
 
-  const filters = { periodId, status, partnerId, employeeQuery: emp || undefined };
+  const SMART_FIELDS: SmartFilterField[] = [
+    { key: "number", label: "Номер купона", type: "text" },
+    { key: "validUntil", label: "Действует до", type: "date" },
+  ];
+  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const smartFilters: Prisma.CouponWhereInput[] = [];
+  const numberF = stringFilter(smartValues.number);
+  if (numberF) smartFilters.push({ number: numberF });
+  const validUntilF = dateFilter(smartValues.validUntil);
+  if (validUntilF) smartFilters.push({ validUntil: validUntilF });
+
+  const filters = { periodId, status, partnerId, employeeQuery: emp || undefined, extraWhere: smartFilters };
   const [awaiting, awaitingTotal, coupons, couponsTotal, periods, partners] = await Promise.all([
     db.applicationItem.findMany({
       where: awaitingWhere,
@@ -157,7 +172,7 @@ export default async function CouponsPage({
                 </option>
               ))}
             </Select>
-            {hiddenChipInputs(sp, ["status"])}
+            {hiddenChipInputs(sp, ["status", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
             <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
               <option value="">{t("coupons.allPartners")}</option>
               {partners.map((p) => (
@@ -176,6 +191,13 @@ export default async function CouponsPage({
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
               {t("coupons.exportXlsx")}
             </a>
+            <SmartFilterButton
+              basePath="/coupons"
+              params={sp}
+              fields={SMART_FIELDS}
+              extraParamKeys={["period", "status", "partner", "emp"]}
+              presets={[{ id: "all", label: "Все записи", values: null }]}
+            />
           </form>
         </div>
 
