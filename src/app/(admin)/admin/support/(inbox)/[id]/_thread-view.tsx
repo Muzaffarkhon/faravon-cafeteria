@@ -16,8 +16,8 @@ import {
   archiveThread,
   unarchiveThread,
   deleteThread,
-} from "../actions";
-import type { EmployeeMatch } from "../actions";
+} from "../../actions";
+import type { EmployeeMatch } from "../../actions";
 
 type Msg = {
   id: string;

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { AdvertisingForm } from "./_form";
@@ -58,12 +59,21 @@ export default async function AdvertisingPage({
   if (smartValues.status?.v) smartFilters.push({ status: smartValues.status.v });
   const submittedF = dateFilter(smartValues.submittedAt);
   if (submittedF) smartFilters.push({ submittedAt: submittedF });
+  const q = (sp.q ?? "").trim();
 
   const [partner, requests] = await Promise.all([
     db.partner.findUnique({ where: { id: session.user.partnerId }, select: { name: true } }),
     db.advertisingRequest.findMany({
       where: {
         partnerId: session.user.partnerId,
+        ...(q
+          ? {
+              OR: [
+                { productName: { contains: q, mode: "insensitive" } },
+                { productDescription: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
         ...(smartFilters.length ? { AND: smartFilters } : {}),
       },
       orderBy: { submittedAt: "desc" },
@@ -90,6 +100,7 @@ export default async function AdvertisingPage({
           <SectionTitle className="text-lg" count={requests.length}>
             {t("advertising.myRequests")}
           </SectionTitle>
+          <QuickSearch basePath="/advertising" sp={sp} placeholder="Продукт, описание…" />
           <SmartFilterButton
             basePath="/advertising"
             params={sp}

@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { Card, EmptyState, Input, Select, Table, buttonClass } from "@/components/ui";
+import { Card, EmptyState, Table } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
@@ -175,12 +176,7 @@ function humanDiff(v: unknown): string[] {
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    action?: string;
-    entityType?: string;
-    q?: string;
-    [key: string]: string | undefined;
-  }>;
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -191,14 +187,38 @@ export default async function AuditPage({
 
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "actor", label: "Кто", type: "text" },
+    {
+      key: "action",
+      label: t("audit.actionLabel"),
+      type: "select",
+      options: Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
+    },
+    {
+      key: "entityType",
+      label: t("audit.entityTypeLabel"),
+      type: "select",
+      options: Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
+    },
+    { key: "entityId", label: t("audit.entityIdLabel"), type: "text" },
     { key: "createdAt", label: "Дата", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const q = (sp.q ?? "").trim();
 
-  const where: Record<string, unknown> = {};
-  if (sp.action) where.action = sp.action;
-  if (sp.entityType) where.entityType = sp.entityType;
-  if (sp.q) where.entityId = sp.q.trim();
+  const where: Record<string, unknown> = {
+    ...(q
+      ? {
+          OR: [
+            { actor: { is: { login: { contains: q, mode: "insensitive" } } } },
+            { entityId: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+  if (smartValues.action?.v) where.action = smartValues.action.v;
+  if (smartValues.entityType?.v) where.entityType = smartValues.entityType.v;
+  const entityIdF = stringFilter(smartValues.entityId);
+  if (entityIdF) where.entityId = entityIdF;
   const actorF = stringFilter(smartValues.actor);
   if (actorF) where.actor = { is: { login: actorF } };
   const createdF = dateFilter(smartValues.createdAt);
@@ -213,42 +233,16 @@ export default async function AuditPage({
 
   return (
     <div data-wide className="space-y-6">
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-ink-muted">{t("audit.actionLabel")}</span>
-          <Select name="action" defaultValue={sp.action ?? ""} className="w-56 py-1.5 text-sm">
-            <option value="">{t("audit.all")}</option>
-            {Object.entries(ACTION_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-ink-muted">{t("audit.entityTypeLabel")}</span>
-          <Select name="entityType" defaultValue={sp.entityType ?? ""} className="w-48 py-1.5 text-sm">
-            <option value="">{t("audit.all")}</option>
-            {Object.entries(ENTITY_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-ink-muted">{t("audit.entityIdLabel")}</span>
-          <Input name="q" defaultValue={sp.q ?? ""} placeholder="cuid…" className="w-56 py-1.5 text-sm font-mono" />
-        </label>
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("audit.show")}</button>
+      <div className="flex flex-wrap items-center gap-2">
+        <QuickSearch basePath="/admin/audit" sp={sp} placeholder="Кто, ID объекта…" />
         <SmartFilterButton
           basePath="/admin/audit"
           params={sp}
           fields={SMART_FIELDS}
-          extraParamKeys={["action", "entityType", "q"]}
+          extraParamKeys={[]}
           presets={[{ id: "all", label: "Все записи", values: null }]}
         />
-      </form>
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState>{t("audit.empty")}</EmptyState>

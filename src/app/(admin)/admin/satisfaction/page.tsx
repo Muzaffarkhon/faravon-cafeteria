@@ -6,6 +6,7 @@ import { getSatisfactionSettings } from "@/lib/satisfaction";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, numberFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { SatisfactionSettingsForm } from "./_settings-form";
 import { SatisfactionPreviewButton } from "./_preview-button";
@@ -54,7 +55,18 @@ export default async function SatisfactionPage({
   if (commentF) smartFilters.push({ comment: commentF });
   const createdF = dateFilter(smartValues.createdAt);
   if (createdF) smartFilters.push({ createdAt: createdF });
-  const where = smartFilters.length ? { AND: smartFilters } : {};
+  const q = (sp.q ?? "").trim();
+  const where = {
+    ...(q
+      ? {
+          OR: [
+            { employee: { is: { fullName: { contains: q, mode: "insensitive" as const } } } },
+            { comment: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(smartFilters.length ? { AND: smartFilters } : {}),
+  };
 
   const [settings, responses, total, byRating] = await Promise.all([
     getSatisfactionSettings(),
@@ -119,6 +131,7 @@ export default async function SatisfactionPage({
           <SectionTitle className="text-lg" count={total}>
             {t("satisfactionAdmin.responsesTitle")}
           </SectionTitle>
+          <QuickSearch basePath="/admin/satisfaction" sp={sp} placeholder="Сотрудник, комментарий…" />
           <SmartFilterButton
             basePath="/admin/satisfaction"
             params={sp}

@@ -5,17 +5,15 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
-import { periodStatusLabel } from "@/lib/labels";
 import { getLocale, getTranslator } from "@/lib/i18n";
-import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { SmartFilterButton } from "@/components/smart-filter";
+import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import {
   Badge,
   EmptyState,
   RowId,
   SectionTitle,
-  Select,
   Table,
   buttonClass,
   type BadgeTone,
@@ -35,14 +33,7 @@ const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
 export default async function CouponsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    period?: string;
-    status?: string;
-    partner?: string;
-    emp?: string;
-    page?: string;
-    [key: string]: string | undefined;
-  }>;
+  searchParams: Promise<{ page?: string; [key: string]: string | undefined }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -52,10 +43,6 @@ export default async function CouponsPage({
   const t = await getTranslator();
 
   const sp = await searchParams;
-  const periodId = sp.period || undefined;
-  const status = sp.status && isCouponStatus(sp.status) ? sp.status : undefined;
-  const partnerId = sp.partner || undefined;
-  const emp = (sp.emp || "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const PAGE_SIZE = 50;
   const AWAITING_CAP = 200;
@@ -70,25 +57,56 @@ export default async function CouponsPage({
     NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
   };
 
+  const [periods, partners] = await Promise.all([
+    db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
+    db.partner.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
+
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "number", label: "Номер купона", type: "text" },
+    { key: "employee", label: t("coupons.colEmployee"), type: "text" },
     { key: "card", label: "Льгота", type: "text" },
     { key: "partnerName", label: "Партнёр", type: "text" },
     { key: "validUntil", label: "Действует до", type: "date" },
+    { key: "period", label: t("coupons.colPeriod"), type: "select", options: periods.map((p) => ({ value: p.id, label: p.name })) },
+    { key: "partner", label: t("coupons.allPartners"), type: "select", options: partners.map((p) => ({ value: p.id, label: p.name })) },
+    {
+      key: "status",
+      label: t("coupons.statusLabel"),
+      type: "select",
+      options: COUPON_STATUSES.map((value) => ({ value, label: couponStatusLabel(locale, value) })),
+    },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const periodId = smartValues.period?.v;
+  const status = smartValues.status?.v && isCouponStatus(smartValues.status.v) ? smartValues.status.v : undefined;
+  const partnerId = smartValues.partner?.v;
+
   const smartFilters: Prisma.CouponWhereInput[] = [];
   const numberF = stringFilter(smartValues.number);
   if (numberF) smartFilters.push({ number: numberF });
+  const employeeF = stringFilter(smartValues.employee);
+  if (employeeF) smartFilters.push({ employee: { is: { fullName: employeeF } } });
   const cardF = stringFilter(smartValues.card);
   if (cardF) smartFilters.push({ item: { is: { card: { is: { title: cardF } } } } });
   const partnerNameF = stringFilter(smartValues.partnerName);
   if (partnerNameF) smartFilters.push({ partner: { is: { name: partnerNameF } } });
   const validUntilF = dateFilter(smartValues.validUntil);
   if (validUntilF) smartFilters.push({ validUntil: validUntilF });
+  const q = (sp.q ?? "").trim();
+  if (q) {
+    smartFilters.push({
+      OR: [
+        { number: { contains: q, mode: "insensitive" } },
+        { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } },
+        { item: { is: { card: { is: { title: { contains: q, mode: "insensitive" } } } } } },
+        { partner: { is: { name: { contains: q, mode: "insensitive" } } } },
+      ],
+    });
+  }
 
-  const filters = { periodId, status, partnerId, employeeQuery: emp || undefined, extraWhere: smartFilters };
-  const [awaiting, awaitingTotal, coupons, couponsTotal, periods, partners] = await Promise.all([
+  const filters = { periodId, status, partnerId, extraWhere: smartFilters };
+  const [awaiting, awaitingTotal, coupons, couponsTotal] = await Promise.all([
     db.applicationItem.findMany({
       where: awaitingWhere,
       include: {
@@ -101,16 +119,11 @@ export default async function CouponsPage({
     db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
-    db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
-    db.partner.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const pages = Math.max(1, Math.ceil(couponsTotal / PAGE_SIZE));
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
-    if (periodId) p.set("period", periodId);
-    if (status) p.set("status", status);
-    if (partnerId) p.set("partner", partnerId);
-    if (emp) p.set("emp", emp);
+    for (const [k, v] of Object.entries(sp)) if (v && k !== "page") p.set(k, v);
     if (n > 1) p.set("page", String(n));
     const str = p.toString();
     return str ? `/coupons?${str}` : "/coupons";
@@ -120,7 +133,7 @@ export default async function CouponsPage({
   if (periodId) exportQuery.set("period", periodId);
   if (status) exportQuery.set("status", status);
   if (partnerId) exportQuery.set("partner", partnerId);
-  if (emp) exportQuery.set("emp", emp);
+  if (smartValues.employee?.v) exportQuery.set("emp", smartValues.employee.v);
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
@@ -169,31 +182,8 @@ export default async function CouponsPage({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="text-lg" count={couponsTotal}>{t("coupons.registryTitle")}</SectionTitle>
-          <form method="get" className="flex flex-wrap items-center gap-2">
-            <Select name="period" defaultValue={periodId ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">{t("coupons.allPeriods")}</option>
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — {periodStatusLabel(locale, p.status)}
-                </option>
-              ))}
-            </Select>
-            {hiddenChipInputs(sp, ["status", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
-            <Select name="partner" defaultValue={partnerId ?? ""} className="w-auto py-1.5 text-sm">
-              <option value="">{t("coupons.allPartners")}</option>
-              {partners.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
-            <input
-              name="emp"
-              defaultValue={emp}
-              placeholder={t("coupons.employeeNamePlaceholder")}
-              className="w-40 rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink shadow-xs outline-none"
-            />
-            <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("coupons.show")}</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <QuickSearch basePath="/coupons" sp={sp} placeholder="Номер, сотрудник, льгота, партнёр…" />
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
               {t("coupons.exportXlsx")}
             </a>
@@ -201,26 +191,11 @@ export default async function CouponsPage({
               basePath="/coupons"
               params={sp}
               fields={SMART_FIELDS}
-              extraParamKeys={["period", "status", "partner", "emp"]}
+              extraParamKeys={[]}
               presets={[{ id: "all", label: "Все записи", values: null }]}
             />
-          </form>
+          </div>
         </div>
-
-        <FilterChips
-          basePath="/coupons"
-          params={sp}
-          groups={[
-            {
-              param: "status",
-              label: t("coupons.statusLabel"),
-              options: COUPON_STATUSES.map((value) => ({
-                value,
-                label: couponStatusLabel(locale, value),
-              })),
-            },
-          ]}
-        />
 
         {coupons.length === 0 ? (
           <EmptyState>{t("coupons.empty")}</EmptyState>
