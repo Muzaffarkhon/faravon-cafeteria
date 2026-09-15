@@ -1,36 +1,9 @@
 import "server-only";
-import type { Prisma, SupportThreadStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { SUPPORT_STATUSES, type ThreadListSearchParams, type ThreadRow } from "./_thread-list-shared";
 
-export const SUPPORT_STATUSES: SupportThreadStatus[] = ["OPEN", "CLOSED"];
-export const SUPPORT_CHIP_PARAMS = ["status", "reply", "login", "unread", "archived"];
-
-export type ThreadListSearchParams = {
-  q?: string;
-  status?: string;
-  reply?: string;
-  login?: string;
-  unread?: string;
-  archived?: string;
-};
-
-export type ThreadRow = {
-  id: string;
-  seq: number;
-  source: "TELEGRAM" | "WEB";
-  status: SupportThreadStatus;
-  telegramId: string | null;
-  employeeFullName: string | null;
-  phone: string | null;
-  topic: string | null;
-  lastMessage: { direction: "IN" | "OUT"; body: string } | null;
-  lastMessageAt: Date;
-  unread: number;
-  pendingReply: boolean;
-  loginMissing: boolean;
-  matchedInMessageOnly: boolean;
-  archived: boolean;
-};
+export { SUPPORT_STATUSES, SUPPORT_CHIP_PARAMS, type ThreadListSearchParams, type ThreadRow } from "./_thread-list-shared";
 
 /**
  * Общая выборка и фильтрация диалогов поддержки — используется и списком

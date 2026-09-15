@@ -1,14 +1,10 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
-import { can } from "@/lib/rbac";
 import { extractPhoneFromText } from "@/lib/phone";
 import { getLocale, getTranslator } from "@/lib/i18n";
-import { fetchThreadRows, type ThreadListSearchParams } from "../_thread-list-data";
-import { ThreadList } from "../_thread-list";
-import { SupportSplitShell } from "../_split-shell";
+import type { ThreadListSearchParams } from "../../_thread-list-data";
 import { ThreadView } from "./_thread-view";
-import { findEmployeeForLink } from "../actions";
+import { findEmployeeForLink } from "../../actions";
 
 /**
  * Номер телефона `SupportThread.phone` заполняется, только если гость
@@ -28,6 +24,10 @@ function detectGuestPhone(messages: { direction: "IN" | "OUT"; body: string }[])
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Раскладка (боковая панель со списком диалогов) — в `../layout.tsx`,
+ * авторизация тоже проверена там; здесь только содержимое открытого диалога.
+ */
 export default async function SupportThreadPage({
   params,
   searchParams,
@@ -35,27 +35,21 @@ export default async function SupportThreadPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<ThreadListSearchParams>;
 }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  if (!can(session.roles, "support.manage") && !can(session.roles, "feedback.manage")) redirect("/");
   const locale = await getLocale();
   const t = await getTranslator();
 
   const { id } = await params;
   const sp = await searchParams;
-  const [thread, { rows }] = await Promise.all([
-    db.supportThread.findUnique({
-      where: { id },
-      include: {
-        employee: { select: { id: true, fullName: true, position: true, department: true } },
-        messages: {
-          orderBy: { createdAt: "asc" },
-          include: { author: { select: { login: true, employee: { select: { fullName: true } } } } },
-        },
+  const thread = await db.supportThread.findUnique({
+    where: { id },
+    include: {
+      employee: { select: { id: true, fullName: true, position: true, department: true } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { login: true, employee: { select: { fullName: true } } } } },
       },
-    }),
-    fetchThreadRows(sp),
-  ]);
+    },
+  });
   if (!thread) notFound();
 
   const qs = new URLSearchParams();
@@ -79,32 +73,22 @@ export default async function SupportThreadPage({
     quickReplies: quickReplies.map((r) => ({ id: r.id, text: r.text })),
   };
 
-  const sidebar = <ThreadList rows={rows} activeId={thread.id} basePath={`/admin/support/${id}`} sp={sp} locale={locale} />;
-
   if (thread.source === "WEB") {
     // Веб-обращение — личность сразу известна, кнопки привязки сотрудника не нужны.
     return (
-      <div data-wide>
-        <SupportSplitShell
-          showSidebarOnMobile={false}
-          sidebar={sidebar}
-          content={
-            <ThreadView
-              {...baseView}
-              identityTitle={thread.employee?.fullName ?? t("support.employee")}
-              identitySubtitle={
-                thread.employee
-                  ? `${thread.employee.position} · ${thread.employee.department}${thread.topic ? ` · ${thread.topic}` : ""}`
-                  : (thread.topic ?? "")
-              }
-              guestPhone={null}
-              alreadyLinked
-              initialMatches={[]}
-              locale={locale}
-            />
-          }
-        />
-      </div>
+      <ThreadView
+        {...baseView}
+        identityTitle={thread.employee?.fullName ?? t("support.employee")}
+        identitySubtitle={
+          thread.employee
+            ? `${thread.employee.position} · ${thread.employee.department}${thread.topic ? ` · ${thread.topic}` : ""}`
+            : (thread.topic ?? "")
+        }
+        guestPhone={null}
+        alreadyLinked
+        initialMatches={[]}
+        locale={locale}
+      />
     );
   }
 
@@ -129,22 +113,14 @@ export default async function SupportThreadPage({
       : t("support.phoneUnknown");
 
   return (
-    <div data-wide>
-      <SupportSplitShell
-        showSidebarOnMobile={false}
-        sidebar={sidebar}
-        content={
-          <ThreadView
-            {...baseView}
-            identityTitle={identityTitle}
-            identitySubtitle={identitySubtitle}
-            guestPhone={guestPhone}
-            alreadyLinked={!!linkedEmployee}
-            initialMatches={initialMatches}
-            locale={locale}
-          />
-        }
-      />
-    </div>
+    <ThreadView
+      {...baseView}
+      identityTitle={identityTitle}
+      identitySubtitle={identitySubtitle}
+      guestPhone={guestPhone}
+      alreadyLinked={!!linkedEmployee}
+      initialMatches={initialMatches}
+      locale={locale}
+    />
   );
 }

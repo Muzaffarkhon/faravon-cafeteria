@@ -1,38 +1,44 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Badge, Input, buttonClass, cx } from "@/components/ui";
-import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Badge, buttonClass, cx, inputClass } from "@/components/ui";
+import { FilterChips } from "@/components/filter-chips";
 import { FilterDropdown } from "./_filter-dropdown";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { SUPPORT_CHIP_PARAMS, type ThreadListSearchParams, type ThreadRow } from "./_thread-list-data";
+import { SUPPORT_CHIP_PARAMS, type ThreadRow } from "./_thread-list-shared";
+
+/** `ThreadRow` после JSON — даты приезжают строками, не объектами `Date`. */
+type ThreadRowJSON = Omit<ThreadRow, "lastMessageAt"> & { lastMessageAt: string };
 
 const timeFmt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" });
+const POLL_MS = 8_000;
 
 function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || "?";
 }
 
 /**
- * Боковая панель диалогов — как в обычном мессенджере: поиск и фильтры сверху,
- * прокручиваемый список чатов снизу, активный подсвечен. Общая для страницы
- * списка (/admin/support, без выбранного чата) и страницы диалога
- * (/admin/support/[id], activeId задан) — обе используют один и тот же набор
- * данных и фильтров из адреса.
+ * Боковая панель диалогов — живёт в общем layout (`(inbox)/layout.tsx`) и
+ * поэтому НЕ перемонтируется при переходе между `/admin/support` и
+ * `/admin/support/<id>`: список остаётся на месте, меняется только правая
+ * панель — переход между чатами бесшовный, как в мессенджере, а не как
+ * переход на отдельную страницу.
+ *
+ * Сама опрашивает `/api/support/threads` (раз в POLL_MS + сразу при смене
+ * фильтров/адреса) вместо серверного рендера — серверные layout'ы Next.js
+ * не получают searchParams, а фильтры живут именно в них.
  */
-export function ThreadList({
-  rows,
-  activeId,
-  basePath,
-  sp,
-  locale,
-}: {
-  rows: ThreadRow[];
-  activeId?: string;
-  basePath: string;
-  sp: ThreadListSearchParams;
-  locale: Locale;
-}) {
+export function ThreadListLive({ locale }: { locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const sp = Object.fromEntries(searchParams.entries());
+  const activeId = pathname === "/admin/support" ? undefined : pathname.split("/").pop();
   const q = (sp.q ?? "").trim();
   const status = sp.status;
   const activeFilterCount = [
@@ -44,6 +50,39 @@ export function ThreadList({
   ].filter(Boolean).length;
   const hasFilters = !!(q || activeFilterCount > 0);
 
+  // Поле поиска — неконтролируемое (`defaultValue` + `key={q}`), значение
+  // читаем из инпута прямо при сабмите: так при переходе на другой адрес
+  // (другой q из URL) оно само переинициализируется через remount по key,
+  // без стейта/эффекта, который бы его туда зеркалил.
+  const qInputRef = useRef<HTMLInputElement>(null);
+
+  const [rows, setRows] = useState<ThreadRowJSON[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const searchKey = searchParams.toString();
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/support/threads?${searchKey}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const data = (await r.json()) as { rows: ThreadRowJSON[] };
+      setRows(data.rows);
+      setLoaded(true);
+    } catch {
+      // сеть подвела — подхватим на следующем опросе
+    }
+  }, [searchKey]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- подгружает список с сервера (внешний источник), а не зеркалирует проп/стейт
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const id = setInterval(load, POLL_MS);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const basePath = activeId ? `/admin/support/${activeId}` : "/admin/support";
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (v) qs.set(k, v);
   const queryString = qs.toString() ? `?${qs.toString()}` : "";
@@ -70,14 +109,26 @@ export function ThreadList({
           </Link>
         </div>
 
-        <form method="get" action={basePath} className="space-y-2">
-          {hiddenChipInputs(sp, SUPPORT_CHIP_PARAMS)}
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const value = qInputRef.current?.value.trim() ?? "";
+            const p = new URLSearchParams(sp);
+            if (value) p.set("q", value);
+            else p.delete("q");
+            const s = p.toString();
+            router.push(s ? `${basePath}?${s}` : basePath);
+          }}
+        >
           <div className="flex gap-1.5">
-            <Input
+            <input
+              key={q}
+              ref={qInputRef}
               name="q"
               defaultValue={q}
               placeholder={t("support.listSearchPlaceholder")}
-              className="py-1.5 text-sm"
+              className={inputClass("py-1.5 text-sm")}
             />
             <button className={buttonClass({ variant: "secondary", size: "sm", className: "shrink-0" })}>
               {t("support.find")}
@@ -131,7 +182,7 @@ export function ThreadList({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {rows.length === 0 ? (
+        {!loaded ? null : rows.length === 0 ? (
           <p className="p-4 text-center text-sm text-ink-muted">
             {hasFilters ? t("support.nothingFound") : t("support.empty")}
           </p>
@@ -165,7 +216,7 @@ export function ThreadList({
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-ink">{who}</span>
                     <span className="shrink-0 text-[11px] text-ink-subtle" data-numeric>
-                      {timeFmt.format(r.lastMessageAt)}
+                      {timeFmt.format(new Date(r.lastMessageAt))}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
