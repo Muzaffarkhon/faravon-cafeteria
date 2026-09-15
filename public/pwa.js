@@ -30,8 +30,14 @@
 
   var deferredPrompt = window.__pwaPrompt || null;
   var DISMISS_DAYS = 14;
+  // Закрыли баннер — не показываем повторно до конца вкладки, даже если
+  // браузер зачем-то пришлёт 'beforeinstallprompt' ещё раз в этой же сессии
+  // (Chrome умеет это делать без перезагрузки страницы, например после
+  // смены состояния вовлечённости пользователя).
+  var dismissedThisSession = false;
 
   function dismiss(){
+    dismissedThisSession = true;
     try {
       localStorage.setItem('faravon_pwa_dismissed', String(Date.now()));
     } catch (e) {}
@@ -57,7 +63,7 @@
   if (dismissedAt && (Date.now() - parseInt(dismissedAt, 10)) < DISMISS_DAYS * 86400000) return;
 
   function showBanner(type){
-    if(document.getElementById('pwaInstallBanner')) return;
+    if(dismissedThisSession || document.getElementById('pwaInstallBanner')) return;
     var host = document.createElement('div');
     host.id = 'pwaInstallBanner';
     host.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:440px;margin:0 auto;z-index:9999;background:var(--surface,#ffffff);border:1px solid var(--line,#e2e8f0);box-shadow:0 12px 36px rgba(0,0,0,0.22);border-radius:14px;padding:12px 14px;font-family:inherit;display:flex;flex-direction:column;gap:10px;animation:pwaFadeIn .25s ease-out;';

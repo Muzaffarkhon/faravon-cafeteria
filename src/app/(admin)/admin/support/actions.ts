@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -14,11 +13,6 @@ import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 import { getFaqKeyboard } from "@/lib/support-chat";
-
-function revalidateAll(threadId: string) {
-  revalidatePath("/admin/support");
-  revalidatePath(`/admin/support/${threadId}`);
-}
 
 /** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. */
 export async function replyToThread(threadId: string, body: string): Promise<ActionResult> {
@@ -65,8 +59,6 @@ export async function replyToThread(threadId: string, body: string): Promise<Act
       entityType: "SupportThread",
       entityId: threadId,
     });
-
-    revalidateAll(threadId);
   });
 }
 
@@ -83,8 +75,6 @@ export async function closeThread(threadId: string): Promise<ActionResult> {
       entityType: "SupportThread",
       entityId: threadId,
     });
-
-    revalidateAll(threadId);
   });
 }
 
@@ -101,7 +91,6 @@ export async function archiveThread(threadId: string): Promise<ActionResult> {
       entityType: "SupportThread",
       entityId: threadId,
     });
-    revalidateAll(threadId);
   });
 }
 
@@ -118,7 +107,6 @@ export async function unarchiveThread(threadId: string): Promise<ActionResult> {
       entityType: "SupportThread",
       entityId: threadId,
     });
-    revalidateAll(threadId);
   });
 }
 
@@ -158,7 +146,6 @@ export async function deleteThread(threadId: string): Promise<ActionResult> {
         messagesCount: thread._count.messages,
       },
     });
-    revalidatePath("/admin/support");
   });
 }
 
@@ -171,7 +158,6 @@ export async function markThreadRead(threadId: string): Promise<void> {
     where: { threadId, direction: "IN", readAt: null },
     data: { readAt: new Date() },
   });
-  revalidatePath("/admin/support");
 }
 
 export type EmployeeMatch = {
@@ -328,6 +314,5 @@ export async function linkEmployeeToThread(
     newValue: { via: "support_chat", threadId },
   });
 
-  revalidateAll(threadId);
   return { ok: true, login: user.login, otp };
 }
