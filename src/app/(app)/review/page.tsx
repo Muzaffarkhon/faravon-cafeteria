@@ -3,9 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { EmptyState, Input, PageHeader, Select, buttonClass } from "@/components/ui";
+import { EmptyState, PageHeader, buttonClass } from "@/components/ui";
 import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
-import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -14,16 +13,7 @@ import { ReviewTable, type ReviewRow } from "./_table";
 const PAGE_SIZE = 25;
 const SLA_DAYS = 5; // §5.12: рабочих дней
 
-type SP = {
-  q?: string;
-  dept?: string;
-  period?: string;
-  card?: string;
-  sort?: string;
-  overdue?: string;
-  page?: string;
-  [key: string]: string | undefined;
-};
+type SP = { page?: string; [key: string]: string | undefined };
 
 export default async function ReviewPage({
   searchParams,
@@ -38,32 +28,77 @@ export default async function ReviewPage({
   const t = await getTranslator();
 
   const sp = await searchParams;
-  const q = (sp.q ?? "").trim();
-  const dept = sp.dept ?? "";
-  const period = sp.period ?? "";
-  const card = sp.card ?? "";
-  const sort = sp.sort === "newest" || sp.sort === "employee" ? sp.sort : "oldest";
-  const overdue = sp.overdue === "1";
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  const appFilter: Prisma.ApplicationWhereInput = {};
-  if (period) appFilter.periodId = period;
-  if (dept || q) {
-    appFilter.employee = {
-      is: {
-        ...(dept ? { department: dept } : {}),
-        ...(q ? { fullName: { contains: q, mode: "insensitive" } } : {}),
-      },
-    };
-  }
+  const [periods, departments, cards] = await Promise.all([
+    db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true } }),
+    db.employee.findMany({
+      distinct: ["department"],
+      select: { department: true },
+      orderBy: { department: "asc" },
+    }),
+    db.benefitCard.findMany({
+      where: { block: "FLEX" },
+      select: { id: true, title: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
 
+  // Единый умный фильтр — заменяет прежнюю строку из отдельных полей/чипов
+  // (ФИО, подразделение, период, льгота, порядок, SLA): один видимый контрол
+  // «Фильтры», всё остальное — внутри его панели.
   const SMART_FIELDS: SmartFilterField[] = [
+    { key: "employee", label: "ФИО сотрудника", type: "text" },
+    {
+      key: "department",
+      label: "Подразделение",
+      type: "select",
+      options: departments.map((d) => ({ value: d.department, label: d.department })),
+    },
+    { key: "period", label: "Период", type: "select", options: periods.map((p) => ({ value: p.id, label: p.name })) },
+    { key: "card", label: "Льгота", type: "select", options: cards.map((c) => ({ value: c.id, label: c.title })) },
+    {
+      key: "sort",
+      label: "Порядок",
+      type: "select",
+      options: [
+        { value: "oldest", label: t("review.sortOldest") },
+        { value: "newest", label: t("review.sortNewest") },
+        { value: "employee", label: t("review.sortByEmployee") },
+      ],
+    },
+    {
+      key: "overdue",
+      label: t("review.slaLabel"),
+      type: "select",
+      options: [{ value: "1", label: t("review.overdueOnly") }],
+    },
     { key: "phone", label: "Телефон сотрудника", type: "text" },
     { key: "partner", label: "Партнёр", type: "text" },
     { key: "condition", label: "Условие льготы", type: "text" },
     { key: "submittedAt", label: "Дата подачи", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+
+  const dept = smartValues.department?.v ?? "";
+  const period = smartValues.period?.v ?? "";
+  const card = smartValues.card?.v ?? "";
+  const sortRaw = smartValues.sort?.v;
+  const sort = sortRaw === "newest" || sortRaw === "employee" ? sortRaw : "oldest";
+  const overdue = smartValues.overdue?.v === "1";
+
+  const nameF = stringFilter(smartValues.employee);
+  const appFilter: Prisma.ApplicationWhereInput = {};
+  if (period) appFilter.periodId = period;
+  if (dept || nameF) {
+    appFilter.employee = {
+      is: {
+        ...(dept ? { department: dept } : {}),
+        ...(nameF ? { fullName: nameF } : {}),
+      },
+    };
+  }
+
   const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
   const phoneF = stringFilter(smartValues.phone);
   if (phoneF) smartFilters.push({ application: { is: { employee: { is: { phone: phoneF } } } } });
@@ -88,7 +123,7 @@ export default async function ReviewPage({
         ? { application: { employee: { fullName: "asc" } } }
         : { submittedAt: "asc" };
 
-  const [total, totalPending, items, periods, departments, cards] = await Promise.all([
+  const [total, totalPending, items] = await Promise.all([
     db.applicationItem.count({ where }),
     db.applicationItem.count({ where: { status: "PENDING" } }),
     db.applicationItem.findMany({
@@ -100,17 +135,6 @@ export default async function ReviewPage({
       orderBy,
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-    }),
-    db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true } }),
-    db.employee.findMany({
-      distinct: ["department"],
-      select: { department: true },
-      orderBy: { department: "asc" },
-    }),
-    db.benefitCard.findMany({
-      where: { block: "FLEX" },
-      select: { id: true, title: true },
-      orderBy: { sortOrder: "asc" },
     }),
   ]);
 
@@ -130,14 +154,11 @@ export default async function ReviewPage({
     overdue: !!it.submittedAt && isSlaBreached(it.submittedAt, SLA_DAYS),
   }));
 
+  const hasFilters = Object.keys(sp).some((k) => k.startsWith("sf_"));
+
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
-    if (q) p.set("q", q);
-    if (dept) p.set("dept", dept);
-    if (period) p.set("period", period);
-    if (card) p.set("card", card);
-    if (sort !== "oldest") p.set("sort", sort);
-    if (overdue) p.set("overdue", "1");
+    for (const [k, v] of Object.entries(sp)) if (v && k !== "page") p.set(k, v);
     if (n > 1) p.set("page", String(n));
     const s = p.toString();
     return s ? `/review?${s}` : "/review";
@@ -152,76 +173,20 @@ export default async function ReviewPage({
         }`}
       />
 
-      <FilterChips
-        basePath="/review"
-        params={sp}
-        groups={[
-          {
-            param: "overdue",
-            label: t("review.slaLabel"),
-            options: [{ value: "1", label: t("review.overdueOnly") }],
-          },
-          {
-            param: "sort",
-            label: t("review.orderLabel"),
-            options: [
-              { value: "oldest", label: t("review.sortOldest") },
-              { value: "newest", label: t("review.sortNewest") },
-              { value: "employee", label: t("review.sortByEmployee") },
-            ],
-          },
-        ]}
-      />
-
-      {/* Одна строка вместо подписи-над-полем на каждый фильтр — то же самое
-          читается через плейсхолдер поля и первый пункт списка («Все ...»),
-          но не растягивает шапку страницы на 2 лишних яруса. */}
-      <form method="get" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="q"
-          defaultValue={q}
-          placeholder={`${t("review.employeeLabel")}: ${t("review.employeeNamePlaceholder")}`}
-          className="w-48 py-1.5 text-sm"
-        />
-        <Select name="dept" defaultValue={dept} className="w-auto py-1.5 text-sm">
-          <option value="">{t("review.allDepartments")}</option>
-          {departments.map((d) => (
-            <option key={d.department} value={d.department}>
-              {d.department}
-            </option>
-          ))}
-        </Select>
-        <Select name="period" defaultValue={period} className="w-auto py-1.5 text-sm">
-          <option value="">{t("review.allPeriods")}</option>
-          {periods.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
-        <Select name="card" defaultValue={card} className="w-auto py-1.5 text-sm">
-          <option value="">{t("review.allCards")}</option>
-          {cards.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </Select>
-        {hiddenChipInputs(sp, ["sort", "overdue", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("review.apply")}</button>
+      <div className="flex items-center gap-2">
         <SmartFilterButton
           basePath="/review"
           params={sp}
           fields={SMART_FIELDS}
-          extraParamKeys={["q", "dept", "period", "card", "sort", "overdue"]}
+          extraParamKeys={[]}
           presets={[{ id: "all", label: "Все записи", values: null }]}
         />
-        {(q || dept || period || card || overdue || sort !== "oldest" || Object.keys(sp).some((k) => k.startsWith("sf_"))) && (
+        {hasFilters && (
           <a href="/review" className="text-xs text-ink-muted hover:text-ink hover:underline">
             {t("review.reset")}
           </a>
         )}
-      </form>
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState>
