@@ -5,10 +5,9 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { employmentStatusLabel } from "@/lib/labels";
-import { FilterChips, hiddenChipInputs } from "@/components/filter-chips";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
-import { Badge, Card, Input, Table, RowId, buttonClass, cx } from "@/components/ui";
+import { Badge, Card, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ServiceAccountRow } from "./_account";
@@ -29,9 +28,6 @@ export default async function UsersPage({
     view?: string;
     q?: string;
     page?: string;
-    role?: string;
-    emp?: string;
-    tg?: string;
     [key: string]: string | undefined;
   }>;
 }) {
@@ -46,17 +42,15 @@ export default async function UsersPage({
   const q = (sp.q ?? "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  // Чипы быстрых фильтров. Значения из адреса, проверенные по списку допустимых.
-  const role = ALL_ROLES.find((r) => r === sp.role);
-  const empStatus = EMPLOYMENT_STATUSES.find((s) => s === sp.emp);
-  const tg = (["yes", "no"] as const).find((v) => v === sp.tg);
-
-  // Умный фильтр — поля таблицы сотрудников (см. components/smart-filter.tsx).
+  // Умный фильтр — единственный видимый контрол над таблицей: все прежние
+  // чипы (роль/статус работы/Telegram) и учётка теперь его select-поля (см.
+  // components/smart-filter.tsx).
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "fullName", label: "ФИО", type: "text" },
     { key: "login", label: "Логин", type: "text" },
     { key: "department", label: "Подразделение", type: "text" },
     { key: "phone", label: "Телефон", type: "text" },
+    { key: "role", label: t("users.roleLabel"), type: "select", options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })) },
     {
       key: "account",
       label: "Учётка",
@@ -69,8 +63,26 @@ export default async function UsersPage({
       ],
     },
     { key: "lastLogin", label: "Последний вход", type: "date" },
+    {
+      key: "emp",
+      label: t("users.workLabel"),
+      type: "select",
+      options: EMPLOYMENT_STATUSES.map((s) => ({ value: s, label: employmentStatusLabel(locale, s) })),
+    },
+    {
+      key: "tg",
+      label: t("users.telegramLabel"),
+      type: "select",
+      options: [
+        { value: "yes", label: t("users.telegramLinked") },
+        { value: "no", label: t("users.telegramNone") },
+      ],
+    },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const role = ALL_ROLES.find((r) => r === smartValues.role?.v);
+  const empStatus = EMPLOYMENT_STATUSES.find((s) => s === smartValues.emp?.v);
+  const tg = (["yes", "no"] as const).find((v) => v === smartValues.tg?.v);
   // "acc" объединяет старые чипы (active/off/none) и новое состояние из
   // умного фильтра (neverLoggedIn) — единая точка правды для статуса учётки.
   const acc = (["active", "off", "none", "neverLoggedIn"] as const).find(
@@ -195,49 +207,12 @@ export default async function UsersPage({
 
       {!archiveView && <GenerateMissingAccountsBanner missingCount={missingAccountsCount} locale={locale} />}
 
-      <FilterChips
-        basePath="/admin/users"
-        params={sp}
-        groups={[
-          {
-            param: "role",
-            label: t("users.roleLabel"),
-            options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
-          },
-          {
-            param: "emp",
-            label: t("users.workLabel"),
-            options: EMPLOYMENT_STATUSES.map((s) => ({
-              value: s,
-              label: employmentStatusLabel(locale, s),
-            })),
-          },
-          {
-            param: "tg",
-            label: t("users.telegramLabel"),
-            options: [
-              { value: "yes", label: t("users.telegramLinked") },
-              { value: "no", label: t("users.telegramNone") },
-            ],
-          },
-        ]}
-      />
-
-      <form method="get" className="flex flex-wrap items-center gap-2">
-        {archiveView && <input type="hidden" name="view" value="archive" />}
-        {hiddenChipInputs(sp, ["role", "emp", "tg", ...Object.keys(sp).filter((k) => k.startsWith("sf_"))])}
-        <Input
-          name="q"
-          defaultValue={q}
-          placeholder={t("users.searchPlaceholder")}
-          className="w-64 py-1.5 text-sm"
-        />
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("users.find")}</button>
+      <div className="flex flex-wrap items-center gap-2">
         <SmartFilterButton
           basePath={archiveView ? "/admin/users" : "/admin/users"}
           params={sp}
           fields={SMART_FIELDS}
-          extraParamKeys={["view", "role", "emp", "tg"]}
+          extraParamKeys={["view"]}
           presets={[{ id: "all", label: "Все записи", values: null }]}
         />
         {(q || Object.keys(sp).some((k) => k.startsWith("sf_"))) && (
@@ -253,7 +228,7 @@ export default async function UsersPage({
             ? `${t("users.archiveCount")} ${empTotal}`
             : `${t("users.employeesCount")} ${empTotal}${q ? ` ${t("users.byFilter")}` : ""}`}
         </span>
-      </form>
+      </div>
 
       <Card className="overflow-hidden">
         <Table stickyHeader>

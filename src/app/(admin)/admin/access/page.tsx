@@ -4,7 +4,7 @@ import type { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
-import { Badge, Card, Input, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
+import { Badge, Card, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { AccessRowActions } from "./_row-actions";
@@ -132,14 +132,7 @@ export default async function AccessPage({
 
       <SectionTitle className="text-lg">{t("access.identificationTitle")}</SectionTitle>
 
-      <form method="get" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="q"
-          defaultValue={q}
-          placeholder={t("access.searchPlaceholder")}
-          className="w-64 py-1.5 text-sm"
-        />
-        <button className={buttonClass({ variant: "secondary", size: "sm" })}>{t("access.find")}</button>
+      <div className="flex flex-wrap items-center gap-2">
         <SmartFilterButton
           basePath="/admin/access"
           params={sp}
@@ -156,7 +149,7 @@ export default async function AccessPage({
           {t("access.employeesCount")}: {empTotal}
           {q ? ` ${t("access.byFilter")}` : ""}
         </span>
-      </form>
+      </div>
 
       <Card className="overflow-hidden">
         <Table stickyHeader>

@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { partnerStatusLabel } from "@/lib/labels";
-import { FilterChips } from "@/components/filter-chips";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { parseSmartFilterParams, stringFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { Badge, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
@@ -33,16 +32,31 @@ export default async function PartnersPage({
   const t = await getTranslator();
 
   const sp = await searchParams;
-  const status = PARTNER_STATUSES.find((s) => s === sp.status);
-  const mode = (["QR", "PHONE_PROMO"] as const).find((m) => m === sp.mode);
 
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "name", label: "Название", type: "text" },
     { key: "category", label: "Категория", type: "text" },
     { key: "discountType", label: "Скидка", type: "text" },
     { key: "contractorLogin", label: "Логин учётки контрагента", type: "text" },
+    {
+      key: "status",
+      label: t("partners.statusLabel"),
+      type: "select",
+      options: PARTNER_STATUSES.map((s) => ({ value: s, label: partnerStatusLabel(locale, s) })),
+    },
+    {
+      key: "mode",
+      label: t("partners.deliveryLabel"),
+      type: "select",
+      options: [
+        { value: "QR", label: t("partners.byQr") },
+        { value: "PHONE_PROMO", label: t("partners.byPhone") },
+      ],
+    },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const status = PARTNER_STATUSES.find((s) => s === smartValues.status?.v);
+  const mode = (["QR", "PHONE_PROMO"] as const).find((m) => m === smartValues.mode?.v);
   const nameF = stringFilter(smartValues.name);
   const categoryF = stringFilter(smartValues.category);
   const discountF = stringFilter(smartValues.discountType);
@@ -77,7 +91,7 @@ export default async function PartnersPage({
             basePath="/admin/partners"
             params={sp}
             fields={SMART_FIELDS}
-            extraParamKeys={["status", "mode"]}
+            extraParamKeys={[]}
             presets={[{ id: "all", label: "Все записи", values: null }]}
           />
           <Link href="/admin/partners/new" className={buttonClass({ size: "sm" })}>
@@ -85,26 +99,6 @@ export default async function PartnersPage({
           </Link>
         </div>
       </div>
-
-      <FilterChips
-        basePath="/admin/partners"
-        params={sp}
-        groups={[
-          {
-            param: "status",
-            label: t("partners.statusLabel"),
-            options: PARTNER_STATUSES.map((s) => ({ value: s, label: partnerStatusLabel(locale, s) })),
-          },
-          {
-            param: "mode",
-            label: t("partners.deliveryLabel"),
-            options: [
-              { value: "QR", label: t("partners.byQr") },
-              { value: "PHONE_PROMO", label: t("partners.byPhone") },
-            ],
-          },
-        ]}
-      />
 
       <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
         <Table stickyHeader>
