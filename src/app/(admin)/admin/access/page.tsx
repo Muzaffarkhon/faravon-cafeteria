@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { ALL_PERMISSIONS, DEFAULT_PERMISSIONS, can, type Permission } from "@/lib/rbac";
 import { Badge, Card, Input, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
-import { parseSmartFilterParams, stringFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { AccessRowActions } from "./_row-actions";
 import { MatrixForm } from "./_matrix-form";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -35,6 +35,16 @@ export default async function AccessPage({
     { key: "fullName", label: "ФИО", type: "text" },
     { key: "department", label: "Подразделение", type: "text" },
     { key: "phone", label: "Телефон", type: "text" },
+    {
+      key: "telegram",
+      label: "Telegram",
+      type: "select",
+      options: [
+        { value: "yes", label: t("access.linked") },
+        { value: "no", label: t("access.notLinkedShort") },
+      ],
+    },
+    { key: "lastLogin", label: "Последний вход", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
   const smartFilters: Prisma.EmployeeWhereInput[] = [];
@@ -44,6 +54,10 @@ export default async function AccessPage({
   if (deptF) smartFilters.push({ department: deptF });
   const phoneF = stringFilter(smartValues.phone);
   if (phoneF) smartFilters.push({ phone: phoneF });
+  if (smartValues.telegram?.v === "yes") smartFilters.push({ telegramId: { not: null } });
+  if (smartValues.telegram?.v === "no") smartFilters.push({ telegramId: null });
+  const lastLoginF = dateFilter(smartValues.lastLogin);
+  if (lastLoginF) smartFilters.push({ user: { is: { lastLoginAt: lastLoginF } } });
 
   const where: Prisma.EmployeeWhereInput = {
     ...(q

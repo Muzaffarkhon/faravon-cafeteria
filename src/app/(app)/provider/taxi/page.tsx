@@ -38,6 +38,9 @@ export default async function TaxiProviderPage({
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "employee", label: "Сотрудник", type: "text" },
     { key: "department", label: "Подразделение", type: "text" },
+    { key: "phone", label: "Телефон", type: "text" },
+    { key: "card", label: "Льгота", type: "text" },
+    { key: "period", label: "Период", type: "text" },
     { key: "approvedAt", label: "Дата одобрения", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
@@ -46,6 +49,17 @@ export default async function TaxiProviderPage({
   if (employeeF) smartFilters.push({ application: { is: { employee: { is: { fullName: employeeF } } } } });
   const departmentF = stringFilter(smartValues.department);
   if (departmentF) smartFilters.push({ application: { is: { employee: { is: { department: departmentF } } } } });
+  const phoneF = stringFilter(smartValues.phone);
+  // Показанный телефон — contactPhone (указан сотрудником) либо телефон из профиля (см. lib/taxi.ts).
+  if (phoneF) {
+    smartFilters.push({
+      OR: [{ contactPhone: phoneF }, { application: { is: { employee: { is: { phone: phoneF } } } } }],
+    });
+  }
+  const cardF = stringFilter(smartValues.card);
+  if (cardF) smartFilters.push({ card: { is: { title: cardF } } });
+  const periodF = stringFilter(smartValues.period);
+  if (periodF) smartFilters.push({ application: { is: { period: { is: { name: periodF } } } } });
   const approvedAtF = dateFilter(smartValues.approvedAt);
   if (approvedAtF) smartFilters.push({ decidedAt: approvedAtF });
 

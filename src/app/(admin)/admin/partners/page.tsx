@@ -39,10 +39,14 @@ export default async function PartnersPage({
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "name", label: "Название", type: "text" },
     { key: "category", label: "Категория", type: "text" },
+    { key: "discountType", label: "Скидка", type: "text" },
+    { key: "contractorLogin", label: "Логин учётки контрагента", type: "text" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
   const nameF = stringFilter(smartValues.name);
   const categoryF = stringFilter(smartValues.category);
+  const discountF = stringFilter(smartValues.discountType);
+  const contractorLoginF = stringFilter(smartValues.contractorLogin);
 
   const partners = await db.partner.findMany({
     where: {
@@ -50,6 +54,8 @@ export default async function PartnersPage({
       ...(mode ? { deliveryMode: mode } : {}),
       ...(nameF ? { name: nameF } : {}),
       ...(categoryF ? { category: categoryF } : {}),
+      ...(discountF ? { discountType: discountF } : {}),
+      ...(contractorLoginF ? { serviceUsers: { some: { login: contractorLoginF } } } : {}),
     },
     include: {
       _count: { select: { cards: true } },

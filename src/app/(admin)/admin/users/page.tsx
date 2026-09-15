@@ -56,6 +56,7 @@ export default async function UsersPage({
   // Умный фильтр — поля таблицы сотрудников (см. components/smart-filter.tsx).
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "fullName", label: "ФИО", type: "text" },
+    { key: "login", label: "Логин", type: "text" },
     { key: "department", label: "Подразделение", type: "text" },
     { key: "phone", label: "Телефон", type: "text" },
     { key: "lastLogin", label: "Последний вход", type: "date" },
@@ -71,6 +72,8 @@ export default async function UsersPage({
   if (tg) empFilters.push({ telegramId: tg === "yes" ? { not: null } : null });
   const fullNameF = stringFilter(smartValues.fullName);
   if (fullNameF) empFilters.push({ fullName: fullNameF });
+  const loginF = stringFilter(smartValues.login);
+  if (loginF) empFilters.push({ user: { is: { login: loginF } } });
   const deptF = stringFilter(smartValues.department);
   if (deptF) empFilters.push({ department: deptF });
   const phoneF = stringFilter(smartValues.phone);
@@ -112,6 +115,7 @@ export default async function UsersPage({
           where: {
             employeeId: null,
             ...(q ? { login: { contains: q, mode: "insensitive" } } : {}),
+            ...(loginF ? { login: loginF } : {}),
             ...(role ? { roles: { has: role } } : {}),
             ...(acc === "active" ? { isActive: true } : {}),
             ...(acc === "off" ? { isActive: false } : {}),

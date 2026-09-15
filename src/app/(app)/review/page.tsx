@@ -59,6 +59,7 @@ export default async function ReviewPage({
 
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "phone", label: "Телефон сотрудника", type: "text" },
+    { key: "partner", label: "Партнёр", type: "text" },
     { key: "condition", label: "Условие льготы", type: "text" },
     { key: "submittedAt", label: "Дата подачи", type: "date" },
   ];
@@ -66,6 +67,8 @@ export default async function ReviewPage({
   const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
   const phoneF = stringFilter(smartValues.phone);
   if (phoneF) smartFilters.push({ application: { is: { employee: { is: { phone: phoneF } } } } });
+  const partnerF = stringFilter(smartValues.partner);
+  if (partnerF) smartFilters.push({ card: { is: { partner: { is: { name: partnerF } } } } });
   const conditionF = stringFilter(smartValues.condition);
   if (conditionF) smartFilters.push({ card: { is: { condition: conditionF } } });
   const submittedAtF = dateFilter(smartValues.submittedAt);

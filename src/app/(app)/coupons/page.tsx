@@ -72,12 +72,18 @@ export default async function CouponsPage({
 
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "number", label: "Номер купона", type: "text" },
+    { key: "card", label: "Льгота", type: "text" },
+    { key: "partnerName", label: "Партнёр", type: "text" },
     { key: "validUntil", label: "Действует до", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
   const smartFilters: Prisma.CouponWhereInput[] = [];
   const numberF = stringFilter(smartValues.number);
   if (numberF) smartFilters.push({ number: numberF });
+  const cardF = stringFilter(smartValues.card);
+  if (cardF) smartFilters.push({ item: { is: { card: { is: { title: cardF } } } } });
+  const partnerNameF = stringFilter(smartValues.partnerName);
+  if (partnerNameF) smartFilters.push({ partner: { is: { name: partnerNameF } } });
   const validUntilF = dateFilter(smartValues.validUntil);
   if (validUntilF) smartFilters.push({ validUntil: validUntilF });
 

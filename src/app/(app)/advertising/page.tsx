@@ -37,6 +37,16 @@ export default async function AdvertisingPage({
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "productName", label: "Продукт", type: "text" },
     { key: "productDescription", label: "Описание", type: "text" },
+    {
+      key: "status",
+      label: "Статус",
+      type: "select",
+      options: [
+        { value: "PENDING", label: STATUS_LABEL.PENDING },
+        { value: "APPROVED", label: STATUS_LABEL.APPROVED },
+        { value: "REJECTED", label: STATUS_LABEL.REJECTED },
+      ],
+    },
     { key: "submittedAt", label: "Дата подачи", type: "date" },
   ];
   const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
@@ -45,6 +55,7 @@ export default async function AdvertisingPage({
   if (productNameF) smartFilters.push({ productName: productNameF });
   const productDescriptionF = stringFilter(smartValues.productDescription);
   if (productDescriptionF) smartFilters.push({ productDescription: productDescriptionF });
+  if (smartValues.status?.v) smartFilters.push({ status: smartValues.status.v });
   const submittedF = dateFilter(smartValues.submittedAt);
   if (submittedF) smartFilters.push({ submittedAt: submittedF });
 

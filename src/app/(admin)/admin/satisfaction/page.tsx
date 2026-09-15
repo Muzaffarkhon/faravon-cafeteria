@@ -6,7 +6,7 @@ import { getSatisfactionSettings } from "@/lib/satisfaction";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { parseSmartFilterParams, stringFilter, numberFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { SatisfactionSettingsForm } from "./_settings-form";
 import { SatisfactionPreviewButton } from "./_preview-button";
 
@@ -37,6 +37,8 @@ export default async function SatisfactionPage({
 
   const SMART_FIELDS: SmartFilterField[] = [
     { key: "employee", label: "Сотрудник", type: "text" },
+    { key: "department", label: "Подразделение", type: "text" },
+    { key: "rating", label: "Оценка", type: "number" },
     { key: "comment", label: "Комментарий", type: "text" },
     { key: "createdAt", label: "Дата", type: "date" },
   ];
@@ -44,6 +46,10 @@ export default async function SatisfactionPage({
   const smartFilters: Record<string, unknown>[] = [];
   const employeeF = stringFilter(smartValues.employee);
   if (employeeF) smartFilters.push({ employee: { is: { fullName: employeeF } } });
+  const departmentF = stringFilter(smartValues.department);
+  if (departmentF) smartFilters.push({ employee: { is: { department: departmentF } } });
+  const ratingF = numberFilter(smartValues.rating);
+  if (ratingF) smartFilters.push({ rating: ratingF });
   const commentF = stringFilter(smartValues.comment);
   if (commentF) smartFilters.push({ comment: commentF });
   const createdF = dateFilter(smartValues.createdAt);
