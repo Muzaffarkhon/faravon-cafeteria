@@ -239,28 +239,29 @@ export function ThreadListLive({
                       </Badge>
                     )}
                   </div>
-                  {(r.status === "CLOSED" || r.loginMissing || r.matchedInMessageOnly || r.archived) && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      {r.status === "CLOSED" && (
-                        <Badge tone="muted" className="text-[10px]">
-                          {t("support.closed")}
-                        </Badge>
-                      )}
-                      {r.archived && (
-                        <Badge tone="muted" className="text-[10px]">
-                          {t("support.badgeArchived")}
-                        </Badge>
-                      )}
-                      {r.loginMissing && (
-                        <Badge tone="accent" className="text-[10px]">
-                          {t("support.badgeLoginMissing")}
-                        </Badge>
-                      )}
-                      {r.matchedInMessageOnly && (
-                        <span className="text-[10px] text-primary-strong">{t("support.matchedInChat")}</span>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <Badge tone={r.source === "WEB" ? "accent" : "neutral"} className="text-[10px]">
+                      {r.source === "WEB" ? t("support.sourceFeedback") : t("support.sourceTelegram")}
+                    </Badge>
+                    {r.status === "CLOSED" && (
+                      <Badge tone="muted" className="text-[10px]">
+                        {t("support.closed")}
+                      </Badge>
+                    )}
+                    {r.archived && (
+                      <Badge tone="muted" className="text-[10px]">
+                        {t("support.badgeArchived")}
+                      </Badge>
+                    )}
+                    {r.loginMissing && (
+                      <Badge tone="accent" className="text-[10px]">
+                        {t("support.badgeLoginMissing")}
+                      </Badge>
+                    )}
+                    {r.matchedInMessageOnly && (
+                      <span className="text-[10px] text-primary-strong">{t("support.matchedInChat")}</span>
+                    )}
+                  </div>
                 </div>
               </a>
             );
