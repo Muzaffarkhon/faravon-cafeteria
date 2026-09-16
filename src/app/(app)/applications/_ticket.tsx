@@ -153,7 +153,7 @@ export function CouponTicket({
   contactSupportLabel: string;
 }) {
   return (
-    <li className="flex flex-col overflow-visible rounded-[20px] bg-surface shadow-md">
+    <li className="flex max-w-md flex-col overflow-visible rounded-[20px] bg-surface shadow-md">
       <TicketPhoto card={card} partner={partner} tag={card.condition} />
       <Perforation />
       <div className="px-5 pb-5 pt-4">
@@ -229,7 +229,7 @@ export function TaxiTicket({
   contactSupportLabel: string;
 }) {
   return (
-    <li className="flex flex-col overflow-visible rounded-[20px] bg-surface shadow-md">
+    <li className="flex max-w-md flex-col overflow-visible rounded-[20px] bg-surface shadow-md">
       <TicketPhoto card={card} partner={partner} tag={promoBadgeLabel} />
       <Perforation />
       <div className="px-5 pb-5 pt-4">
