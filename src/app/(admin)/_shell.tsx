@@ -137,7 +137,7 @@ export function AdminShell({
   }, [pathname]);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-canvas text-ink">
+    <div className="flex min-h-dvh items-start bg-canvas text-ink">
       {/* Мобильный хедер с гамбургером — сама навигация вне потока (drawer). */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
         <button
@@ -165,7 +165,11 @@ export function AdminShell({
       <aside
         className={cx(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 ease-in-out",
-          "md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
+          // На десктопе колонка больше не держит высоту экрана насильно — только
+          // sticky top-0 и растяжение по высоте строки (см. self-stretch на
+          // родителе-flex): короткие страницы больше не тянут сайдбар на весь
+          // экран с пустым «хвостом» после короткого контента.
+          "md:h-auto md:self-stretch md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "md:w-16" : "md:w-64",
           !hydrated && "md:transition-none",
@@ -274,7 +278,7 @@ export function AdminShell({
       </aside>
 
       {/* ── Правая колонка: закреплённая шапка + прокручиваемый контент ── */}
-      <div className="flex flex-1 flex-col overflow-hidden pt-14 md:pt-0">
+      <div className="flex flex-1 flex-col pt-14 md:pt-0">
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
           <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
 
@@ -338,7 +342,7 @@ export function AdminShell({
         {/* Левое меню и шапка уже отделяют контент от края экрана — сами по
             себе отступы страницы были избыточны и «резали» широкие таблицы.
             Минимум 6px слева/справа/снизу, сверху оставлен запас под шапку. */}
-        <main className="relative flex-1 overflow-y-auto px-1.5 pb-1.5 pt-4 sm:pt-6">
+        <main className="relative px-1.5 pb-1.5 pt-4 sm:pt-6">
           <div key={pathname} className="animate-page mx-auto w-full max-w-6xl has-[[data-wide]]:max-w-none">
             {children}
           </div>
