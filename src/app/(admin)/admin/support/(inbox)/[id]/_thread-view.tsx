@@ -444,6 +444,13 @@ export function ThreadView({
               rows={2}
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter — отправить, Shift+Enter — перенос строки (как в мессенджерах).
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!pending && text.trim()) send();
+                }
+              }}
               placeholder={t("support.replyPlaceholder")}
               disabled={pending}
             />
