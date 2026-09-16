@@ -56,7 +56,7 @@ function TicketPhoto({ card, partner, tag }: { card: TicketCard; partner: Ticket
     <div className="relative h-32 shrink-0 overflow-hidden rounded-t-[20px] bg-surface-sunken">
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+        <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
       ) : (
         <div className="h-full w-full bg-[repeating-linear-gradient(135deg,var(--sand-200)_0_10px,var(--sand-100)_10px_20px)]" />
       )}
