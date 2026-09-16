@@ -53,7 +53,7 @@ function PhoneIcon() {
 function TicketPhoto({ card, partner, tag }: { card: TicketCard; partner: TicketPartner; tag?: string | null }) {
   const src = safeImageSrc(card.imageUrl);
   return (
-    <div className="relative h-32 shrink-0 overflow-hidden rounded-t-[20px] bg-surface-sunken">
+    <div className="relative aspect-[1.6/1] shrink-0 overflow-hidden rounded-t-[20px] bg-surface-sunken">
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
