@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
+import { taxiRegistryRows, type PromoStatus } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
@@ -28,6 +29,21 @@ const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   USED: "neutral",
   EXPIRED: "warning",
   CANCELLED: "muted",
+};
+
+// PHONE_PROMO (такси) не формирует Coupon — у промокода свой статус
+// доставки, не совпадающий с жизненным циклом купона (см. lib/taxi.ts).
+const TAXI_STATUS_TONE: Record<PromoStatus, BadgeTone> = {
+  NONE: "neutral",
+  PENDING: "neutral",
+  DELIVERED: "success",
+  BLOCKED: "warning",
+};
+const TAXI_STATUS_KEY: Record<PromoStatus, "applications.taxiStatusNone" | "applications.taxiStatusPending" | "applications.taxiStatusDelivered" | "applications.taxiStatusBlocked"> = {
+  NONE: "applications.taxiStatusNone",
+  PENDING: "applications.taxiStatusPending",
+  DELIVERED: "applications.taxiStatusDelivered",
+  BLOCKED: "applications.taxiStatusBlocked",
 };
 
 export default async function CouponsPage({
@@ -106,7 +122,13 @@ export default async function CouponsPage({
   }
 
   const filters = { periodId, status, partnerId, extraWhere: smartFilters };
-  const [awaiting, awaitingTotal, coupons, couponsTotal] = await Promise.all([
+  // Купон/QR для PHONE_PROMO (такси) принципиально не формируется — у этих
+  // позиций нет статуса/номера купона, поэтому фильтры, завязанные именно на
+  // купон (статус, номер, срок действия, льгота, партнёр по названию), для
+  // них не применимы. Показываем такси-строки только когда активны только
+  // совместимые фильтры (период/партнёр/сотрудник/быстрый поиск).
+  const taxiFiltersCompatible = !status && !numberF && !validUntilF && !cardF && !partnerNameF;
+  const [awaiting, awaitingTotal, coupons, couponsTotal, taxiRowsRaw] = await Promise.all([
     db.applicationItem.findMany({
       where: awaitingWhere,
       include: {
@@ -119,7 +141,18 @@ export default async function CouponsPage({
     db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
+    taxiFiltersCompatible
+      ? taxiRegistryRows({ periodId, partnerId, employeeQuery: smartValues.employee?.v?.trim() || undefined })
+      : Promise.resolve([]),
   ]);
+  const qLower = q.toLowerCase();
+  const taxiRows = taxiRowsRaw
+    .filter((r) => {
+      if (!qLower) return true;
+      const hay = `${r.employee} ${r.cardTitle} ${r.partnerName ?? ""}`.toLowerCase();
+      return hay.includes(qLower);
+    })
+    .slice(0, AWAITING_CAP);
   const pages = Math.max(1, Math.ceil(couponsTotal / PAGE_SIZE));
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
@@ -181,7 +214,7 @@ export default async function CouponsPage({
       {/* Реестр купонов */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle className="text-lg" count={couponsTotal}>{t("coupons.registryTitle")}</SectionTitle>
+          <SectionTitle className="text-lg" count={couponsTotal + taxiRows.length}>{t("coupons.registryTitle")}</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
             <QuickSearch basePath="/coupons" sp={sp} placeholder="Номер, сотрудник, льгота, партнёр…" />
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
@@ -197,7 +230,7 @@ export default async function CouponsPage({
           </div>
         </div>
 
-        {coupons.length === 0 ? (
+        {coupons.length === 0 && taxiRows.length === 0 ? (
           <EmptyState>{t("coupons.empty")}</EmptyState>
         ) : (
           <div className="overflow-hidden rounded-[18px] bg-surface shadow-sm">
@@ -214,6 +247,38 @@ export default async function CouponsPage({
                 </tr>
               </thead>
               <tbody>
+                {/* PHONE_PROMO (такси) не заводит Coupon — показываем только на 1-й
+                    странице, отдельно от пагинации по реальным купонам (см. выше). */}
+                {page === 1 &&
+                  taxiRows.map((r) => {
+                    const periodEnded = r.periodStatus === "CLOSED" || r.periodEndDate < now;
+                    return (
+                      <tr key={`taxi-${r.itemId}`}>
+                        <td data-numeric>
+                          <div className="font-mono text-sm text-ink">{r.promo ?? "—"}</div>
+                          <RowId id={r.itemId} seq={r.seq} className="mt-0.5" />
+                        </td>
+                        <td className="text-ink">{r.employee}</td>
+                        <td className="text-ink">
+                          {r.cardTitle}
+                          <span className="text-ink-subtle"> · {r.partnerName ?? "—"}</span>
+                        </td>
+                        <td>
+                          {r.periodName}
+                          {periodEnded && (
+                            <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
+                          )}
+                        </td>
+                        <td data-numeric>{r.periodEndDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}</td>
+                        <td>
+                          <Badge tone={TAXI_STATUS_TONE[r.promoStatus]}>{t(TAXI_STATUS_KEY[r.promoStatus])}</Badge>
+                        </td>
+                        <td className="text-right">
+                          <span className="text-xs text-ink-subtle">{t("coupons.byPhone")}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 {coupons.map((c) => {
                   const overdue = isCouponOverdue(c);
                   const displayStatus = overdue ? "EXPIRED" : c.status;

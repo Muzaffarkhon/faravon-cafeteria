@@ -38,6 +38,35 @@ export type TaxiRecipient = {
 };
 
 /**
+ * Последнее уведомление TAXI_PROMO_CODE по каждой позиции (itemId) среди
+ * заданных сотрудников. Статус промокода считаем по конкретной позиции, а
+ * не по всей истории сотрудника — иначе новое одобрение в новом периоде
+ * наследует «доставлено» от промокода, отправленного в прошлом периоде.
+ */
+async function latestTaxiPromoByItem(employeeIds: string[]) {
+  const users = employeeIds.length
+    ? await db.user.findMany({
+        where: { employeeId: { in: employeeIds } },
+        select: { id: true },
+      })
+    : [];
+  const userIds = users.map((u) => u.id);
+  const notifications = userIds.length
+    ? await db.notification.findMany({
+        where: { userId: { in: userIds }, event: "TAXI_PROMO_CODE" },
+        orderBy: { sentAt: "desc" },
+        select: { payload: true, deliveredAt: true, blockedAt: true, sentAt: true },
+      })
+    : [];
+  const latestByItem = new Map<string, (typeof notifications)[number]>();
+  for (const n of notifications) {
+    const itemId = (n.payload as { itemId?: string } | null)?.itemId;
+    if (itemId && !latestByItem.has(itemId)) latestByItem.set(itemId, n);
+  }
+  return latestByItem;
+}
+
+/**
  * Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах.
  * `extraWhere` — доп. условия «умного фильтра» (см. components/smart-filter.tsx), AND'ятся с остальными.
  */
@@ -64,29 +93,8 @@ export async function taxiRecipientsForPartner(
     orderBy: { decidedAt: "desc" },
   });
 
-  // Статус промокода считаем по конкретной позиции (itemId), а не по всей
-  // истории сотрудника — иначе новое одобрение в новом периоде наследует
-  // «доставлено» от промокода, отправленного в прошлом периоде.
   const employeeIds = [...new Set(items.map((i) => i.application.employee.id))];
-  const users = employeeIds.length
-    ? await db.user.findMany({
-        where: { employeeId: { in: employeeIds } },
-        select: { employeeId: true, id: true },
-      })
-    : [];
-  const userIds = users.map((u) => u.id);
-  const notifications = userIds.length
-    ? await db.notification.findMany({
-        where: { userId: { in: userIds }, event: "TAXI_PROMO_CODE" },
-        orderBy: { sentAt: "desc" },
-        select: { payload: true, deliveredAt: true, blockedAt: true },
-      })
-    : [];
-  const latestByItem = new Map<string, (typeof notifications)[number]>();
-  for (const n of notifications) {
-    const itemId = (n.payload as { itemId?: string } | null)?.itemId;
-    if (itemId && !latestByItem.has(itemId)) latestByItem.set(itemId, n);
-  }
+  const latestByItem = await latestTaxiPromoByItem(employeeIds);
 
   return items.map((i) => {
     const custom = (i.contactPhone ?? "").trim();
@@ -103,6 +111,79 @@ export async function taxiRecipientsForPartner(
       period: i.application.period.name,
       approvedAt: i.decidedAt,
       promoStatus,
+    };
+  });
+}
+
+export type TaxiRegistryRow = {
+  itemId: string;
+  seq: number;
+  employee: string;
+  cardTitle: string;
+  partnerName: string | null;
+  periodName: string;
+  periodStatus: string;
+  periodEndDate: Date;
+  decidedAt: Date | null;
+  promo: string | null;
+  promoStatus: PromoStatus;
+};
+
+/**
+ * Позиции по PHONE_PROMO-льготам (такси) для общего реестра купонов
+ * C&B (`/coupons`) — для них не формируется Coupon (§ coupon-flow.ts:
+ * «купон/QR не формируются», подрядчик рассылает промокод сам), поэтому
+ * без этой функции они нигде не были видны C&B-админу, хотя фактически
+ * являются выданной сотруднику льготой.
+ */
+export async function taxiRegistryRows(filters: {
+  periodId?: string;
+  partnerId?: string;
+  employeeQuery?: string;
+}): Promise<TaxiRegistryRow[]> {
+  const items = await db.applicationItem.findMany({
+    where: {
+      status: { in: [...ACTIVE_TAXI_STATUSES] },
+      card: {
+        is: {
+          partner: { is: { deliveryMode: "PHONE_PROMO" } },
+          ...(filters.partnerId ? { partnerId: filters.partnerId } : {}),
+        },
+      },
+      ...(filters.periodId ? { application: { is: { periodId: filters.periodId } } } : {}),
+      ...(filters.employeeQuery
+        ? { application: { is: { employee: { is: { fullName: { contains: filters.employeeQuery, mode: "insensitive" } } } } } }
+        : {}),
+    },
+    include: {
+      card: { select: { title: true, partner: { select: { name: true } } } },
+      application: {
+        include: {
+          employee: { select: { id: true, fullName: true } },
+          period: { select: { name: true, status: true, endDate: true } },
+        },
+      },
+    },
+    orderBy: { decidedAt: "desc" },
+  });
+
+  const employeeIds = [...new Set(items.map((i) => i.application.employee.id))];
+  const latestByItem = await latestTaxiPromoByItem(employeeIds);
+
+  return items.map((i) => {
+    const n = latestByItem.get(i.id);
+    return {
+      itemId: i.id,
+      seq: i.seq,
+      employee: i.application.employee.fullName,
+      cardTitle: i.card.title,
+      partnerName: i.card.partner?.name ?? null,
+      periodName: i.application.period.name,
+      periodStatus: i.application.period.status,
+      periodEndDate: i.application.period.endDate,
+      decidedAt: i.decidedAt,
+      promo: (n?.payload as { promo?: string } | null)?.promo ?? null,
+      promoStatus: promoStatusOf(n),
     };
   });
 }
