@@ -171,6 +171,7 @@ model User {
   templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
   feedbackHandled Feedback[]             @relation("FeedbackHandler")
   supportReplies  SupportMessage[]
+  reportPresets   ReportPreset[]
 
   @@index([partnerId])
 }
@@ -597,6 +598,20 @@ model TextBlock {
 /// Notification.event. В `body` — плейсхолдеры вида {employee}, {card}; блок
 /// [[ ... {x} ... ]] выкидывается целиком, если {x} пустой. Если строки нет —
 /// приложение берёт зашитый шаблон по умолчанию (DEFAULT_TEMPLATES).
+/// Сохранённый срез «Конструктора отчётов» (§ «Отчёты») — именованная
+/// комбинация группировки/измерения-колонки/фильтров, чтобы не настраивать
+/// её заново. `config` — searchParams конструктора как есть (dimension,
+/// columnDimension, measure, periodId, dateFrom, dateTo, status, cardQuery,
+/// departmentQuery, topN); собирается ссылкой в builder/page.tsx.
+model ReportPreset {
+  id          String   @id @default(cuid())
+  name        String
+  config      Json
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime @default(now())
+}
+
 model NotificationTemplate {
   event       String   @id
   label       String
