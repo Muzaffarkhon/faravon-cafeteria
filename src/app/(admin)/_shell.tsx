@@ -145,7 +145,7 @@ export function AdminShell({
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Открыть меню"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-surface-muted"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-ink hover:bg-surface-muted"
         >
           <Icon path={I.menu} />
         </button>
@@ -188,7 +188,7 @@ export function AdminShell({
             type="button"
             onClick={() => setMobileOpen(false)}
             aria-label="Закрыть меню"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted md:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted md:hidden"
           >
             <Icon path={I.close} />
           </button>
@@ -343,7 +343,7 @@ export function AdminShell({
               aria-label="Меню профиля"
               aria-expanded={profileOpen}
               className={cx(
-                "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
+                "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
                 profileOpen ? "bg-primary text-on-brand" : "bg-surface text-ink hover:bg-surface-muted",
               )}
             >
