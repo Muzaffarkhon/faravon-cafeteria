@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -19,7 +20,7 @@ import {
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
-import { CreateCouponButton, IssueCouponButton, DeleteCouponButton, RejectAwaitingButton } from "./_buttons";
+import { IssueCouponButton, DeleteCouponButton } from "./_buttons";
 
 const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 
@@ -64,14 +65,6 @@ export default async function CouponsPage({
   const AWAITING_CAP = 200;
 
   const now = new Date();
-  // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
-  // работающий по номеру телефона (промокод рассылает подрядчик).
-  const awaitingWhere = {
-    status: "APPROVED" as const,
-    coupon: null,
-    application: { is: { period: { is: { status: { not: "CLOSED" as const }, endDate: { gte: now } } } } },
-    NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
-  };
 
   const [periods, partners] = await Promise.all([
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } }),
@@ -128,16 +121,17 @@ export default async function CouponsPage({
   // них не применимы. Показываем такси-строки только когда активны только
   // совместимые фильтры (период/партнёр/сотрудник/быстрый поиск).
   const taxiFiltersCompatible = !status && !numberF && !validUntilF && !cardF && !partnerNameF;
-  const [awaiting, awaitingTotal, coupons, couponsTotal, taxiRowsRaw] = await Promise.all([
-    db.applicationItem.findMany({
-      where: awaitingWhere,
-      include: {
-        card: { include: { partner: true } },
-        application: { include: { employee: true, period: true } },
-      },
-      orderBy: { decidedAt: "asc" },
-      take: AWAITING_CAP,
-    }),
+  // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
+  // работающий по номеру телефона (промокод рассылает подрядчик). Сама
+  // очередь формирования купонов вынесена на отдельную страницу
+  // (/coupons/awaiting) — здесь только счётчик для ссылки на неё.
+  const awaitingWhere = {
+    status: "APPROVED" as const,
+    coupon: null,
+    application: { is: { period: { is: { status: { not: "CLOSED" as const }, endDate: { gte: now } } } } },
+    NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
+  };
+  const [awaitingTotal, coupons, couponsTotal, taxiRowsRaw] = await Promise.all([
     db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
@@ -171,45 +165,12 @@ export default async function CouponsPage({
 
   return (
     <div data-wide className="space-y-10">
-      <header>
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("coupons.title")}</h1>
+        <Link href="/coupons/awaiting" className={buttonClass({ variant: "secondary", size: "sm" })}>
+          {t("coupons.awaitingTitle")} {awaitingTotal > 0 && `(${awaitingTotal})`} →
+        </Link>
       </header>
-
-      {/* Одобренные позиции без купона */}
-      <section className="space-y-3">
-        <SectionTitle className="text-lg" count={awaitingTotal}>
-          {t("coupons.awaitingTitle")}
-        </SectionTitle>
-        {awaitingTotal > awaiting.length && (
-          <p className="text-sm text-ink-muted">
-            {t("coupons.awaitingShown")} {awaiting.length}. {t("coupons.awaitingHint")}
-          </p>
-        )}
-        {awaiting.length === 0 ? (
-          <EmptyState>{t("coupons.awaitingEmpty")}</EmptyState>
-        ) : (
-          <ul className="space-y-3">
-            {awaiting.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-surface p-5 shadow-sm"
-              >
-                <div className="min-w-0">
-                  <div className="text-[0.9375rem] font-bold text-ink">{item.card.title}</div>
-                  <div className="mt-0.5 text-sm text-ink-subtle">
-                    {item.application.employee.fullName} · {item.card.partner?.name ?? "—"} ·{" "}
-                    {item.application.period.name}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <CreateCouponButton itemId={item.id} locale={locale} />
-                  <RejectAwaitingButton itemId={item.id} cardTitle={item.card.title} locale={locale} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* Реестр купонов */}
       <section className="space-y-3">

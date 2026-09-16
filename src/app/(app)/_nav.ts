@@ -123,6 +123,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "формирование и выдача купонов",
       icon: ICONS.coupons,
       badge: b.coupons || undefined,
+      children: [{ href: "/coupons/awaiting", label: t("nav.couponsForming") }],
     });
   if (isTaxiContractor)
     add("work", t("nav.work"), {
@@ -236,6 +237,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.access"),
       desc: "коды идентификации для Telegram-бота, привязка Telegram",
       icon: ICONS.access,
+      children: [{ href: "/admin/access/employees", label: t("nav.identification") }],
     });
   if (can(roles, "audit.view"))
     add("admin", t("nav.adminGroup"), {

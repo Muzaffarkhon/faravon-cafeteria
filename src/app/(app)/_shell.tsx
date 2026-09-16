@@ -20,6 +20,8 @@ export type NavItem = {
   icon: string; // path(s) для 24×24 stroke-иконки, сегменты через "||"
   badge?: number;
   soon?: boolean;
+  /** Подпункты, раскрываемые стрелочкой в левом меню админки (см. AdminShell). */
+  children?: { href: string; label: string }[];
 };
 export type NavGroup = { id: string; label: string; items: NavItem[] };
 
