@@ -203,19 +203,51 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.chat,
       badge: b.support || undefined,
     });
-  if (can(roles, "users.manage"))
+  // «Доступ» и «SLA» — не самостоятельные разделы по смыслу: первый про тот
+  // же справочник сотрудников, что и «Пользователи», второй — часть
+  // настройки процесса согласования, как и «Периоды». Сворачиваем их в
+  // подпункты, если у роли есть оба права; если только «дочернее» право
+  // выдано отдельно (матрица прав это позволяет), оставляем его отдельным
+  // верхнеуровневым пунктом, чтобы не потерять доступ.
+  const canUsers = can(roles, "users.manage");
+  const canAccess = can(roles, "access.manage");
+  const canPeriods = can(roles, "periods.manage");
+
+  if (canUsers)
     add("admin", t("nav.adminGroup"), {
       href: "/admin/users",
       label: t("nav.users"),
       desc: "справочник сотрудников, учётные записи, роли, архив",
       icon: ICONS.users,
+      children: canAccess
+        ? [
+            { href: "/admin/access", label: t("nav.access") },
+            { href: "/admin/access/employees", label: t("nav.identification") },
+          ]
+        : undefined,
     });
-  if (can(roles, "periods.manage"))
+  if (canAccess && !canUsers)
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/access",
+      label: t("nav.access"),
+      desc: "коды идентификации для Telegram-бота, привязка Telegram",
+      icon: ICONS.access,
+      children: [{ href: "/admin/access/employees", label: t("nav.identification") }],
+    });
+  if (canPeriods)
     add("admin", t("nav.adminGroup"), {
       href: "/admin/periods",
       label: t("nav.periods"),
       desc: "окна подачи заявок, лимит, открытие и закрытие",
       icon: ICONS.periods,
+      children: canManageCards ? [{ href: "/admin/sla", label: t("nav.sla") }] : undefined,
+    });
+  if (canManageCards && !canPeriods)
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/sla",
+      label: t("nav.sla"),
+      desc: "сроки согласования и правила эскалации",
+      icon: ICONS.sla,
     });
   if (can(roles, "reports.view"))
     add("admin", t("nav.adminGroup"), {
@@ -223,21 +255,6 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.reports"),
       desc: "активация, вовлечение, конверсия, топ льгот, экспорт XLSX",
       icon: ICONS.reports,
-    });
-  if (canManageCards)
-    add("admin", t("nav.adminGroup"), {
-      href: "/admin/sla",
-      label: t("nav.sla"),
-      desc: "сроки согласования и правила эскалации",
-      icon: ICONS.sla,
-    });
-  if (can(roles, "access.manage"))
-    add("admin", t("nav.adminGroup"), {
-      href: "/admin/access",
-      label: t("nav.access"),
-      desc: "коды идентификации для Telegram-бота, привязка Telegram",
-      icon: ICONS.access,
-      children: [{ href: "/admin/access/employees", label: t("nav.identification") }],
     });
   if (can(roles, "audit.view"))
     add("admin", t("nav.adminGroup"), {
