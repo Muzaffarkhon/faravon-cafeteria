@@ -148,8 +148,36 @@ export function RowContextMenu({
     });
   }
 
+  function openAtButton(e: React.MouseEvent<HTMLButtonElement>) {
+    // Иначе тот же клик, что открывает меню, доходит (bubbling) до window и
+    // мгновенно закрывает его — тем же слушателем click-вне-меню ниже.
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setAt({
+      x: Math.min(r.left, window.innerWidth - 200),
+      y: r.bottom > window.innerHeight * 0.65 ? r.top : r.bottom,
+      openUp: r.bottom > window.innerHeight * 0.65,
+    });
+  }
+
   return (
     <span ref={anchor} className="contents">
+      {/* Видимая кнопка-триггер — раньше меню открывалось только по правому
+          клику, без единой подсказки, что оно вообще есть (сам «Удалить
+          навсегда» внутри намеренно без отдельной кнопки на строке — слишком
+          легко нажать; тут нужно ещё открыть меню и подтвердить). */}
+      <button
+        type="button"
+        aria-label={t("users.menu.moreActions")}
+        onClick={openAtButton}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-subtle transition hover:bg-surface-muted hover:text-ink"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="12" cy="19" r="1.5" />
+        </svg>
+      </button>
       {at &&
         createPortal(
         <div

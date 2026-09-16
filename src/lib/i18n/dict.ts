@@ -703,6 +703,7 @@ export const DICT = {
     "users.arch.confirmTitle": "В архив?",
     "users.arch.confirmMessage": "Сотрудник исчезнет из основного списка, вход будет закрыт.",
 
+    "users.menu.moreActions": "Ещё действия",
     "users.menu.openCard": "Открыть карточку",
     "users.menu.deleteForever": "Удалить безвозвратно…",
     "users.menu.deleteConfirmTitle": "Удалить безвозвратно?",
@@ -1875,6 +1876,7 @@ export const DICT = {
     "users.arch.confirmTitle": "Ба бойгонӣ?",
     "users.arch.confirmMessage": "Корманд аз рӯйхати асосӣ нест мешавад, вуруд баста мешавад.",
 
+    "users.menu.moreActions": "Амалҳои дигар",
     "users.menu.openCard": "Кушодани корт",
     "users.menu.deleteForever": "Барқарорнашаванда нест кардан…",
     "users.menu.deleteConfirmTitle": "Барқарорнашаванда нест мекунед?",
@@ -3047,6 +3049,7 @@ export const DICT = {
     "users.arch.confirmTitle": "Arxivga?",
     "users.arch.confirmMessage": "Xodim asosiy ro'yxatdan yo'qoladi, kirish yopiladi.",
 
+    "users.menu.moreActions": "Boshqa amallar",
     "users.menu.openCard": "Kartochkani ochish",
     "users.menu.deleteForever": "Qaytarib bo'lmaydigan tarzda o'chirish…",
     "users.menu.deleteConfirmTitle": "Qaytarib bo'lmaydigan tarzda o'chirasizmi?",
