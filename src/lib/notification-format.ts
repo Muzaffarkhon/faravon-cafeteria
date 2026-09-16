@@ -97,7 +97,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   COUPON_ISSUED: {
     label: NOTIFICATION_LABELS.COUPON_ISSUED,
-    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует с {validFrom} до {validUntil}]]\n\nПредъявите его партнёру.",
+    body: "🎟️ <b>Купон готов</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nДействует с {validFrom} до {validUntil}]]\n\nПредъявите его партнёру.[[\n\nПодробнее — в разделе «Мои заявки и купоны»: {siteUrl}/applications]]",
   },
   SLA_ESCALATION: {
     label: NOTIFICATION_LABELS.SLA_ESCALATION,
@@ -125,7 +125,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   TAXI_PROMO_CODE: {
     label: NOTIFICATION_LABELS.TAXI_PROMO_CODE,
-    body: "🎟️ <b>Промокод на поездку</b>[[\n«{card}»]][[ · {period}]]\n<code>{promo}</code>",
+    body: "🎟️ <b>Промокод на поездку</b>[[\n«{card}»]][[ · {period}]]\n<code>{promo}</code>[[\n\nПодробнее — в разделе «Мои заявки и купоны»: {siteUrl}/applications]]",
   },
   DAILY_DIGEST: {
     label: NOTIFICATION_LABELS.DAILY_DIGEST,
@@ -154,6 +154,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     period: "Сентябрь 2026",
     validFrom: "01.09.2026",
     validUntil: "30.09.2026",
+    siteUrl: "https://cafeteria.example.com",
   },
   SLA_ESCALATION: {
     employee: "Иванов И.И.",
@@ -167,7 +168,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   WINDOW_CLOSING: { period: "III квартал 2026", windowEnd: "30.09.2026" },
   TAXI_REQUEST_APPROVED: { employee: "Иванов И.И.", card: "Такси на работу", phone: "+992 900 000 000", period: "Сентябрь 2026" },
   TAXI_APPROVED_EMPLOYEE: { card: "Такси на работу", period: "Сентябрь 2026" },
-  TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026" },
+  TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026", siteUrl: "https://cafeteria.example.com" },
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
 };
@@ -177,14 +178,14 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
   ITEM_APPROVED: ["card", "period"],
   ITEM_REJECTED: ["card", "comment", "period"],
-  COUPON_ISSUED: ["card", "number", "period", "validFrom", "validUntil"],
+  COUPON_ISSUED: ["card", "number", "period", "validFrom", "validUntil", "siteUrl"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],
   COUPON_CONFIRMED_BY_PROVIDER: ["card", "number", "period"],
   WINDOW_OPEN: ["period", "windowEnd"],
   WINDOW_CLOSING: ["period", "windowEnd"],
   TAXI_REQUEST_APPROVED: ["employee", "card", "phone", "period"],
   TAXI_APPROVED_EMPLOYEE: ["card", "period"],
-  TAXI_PROMO_CODE: ["card", "promo", "period"],
+  TAXI_PROMO_CODE: ["card", "promo", "period", "siteUrl"],
   DAILY_DIGEST: ["text"],
   GROUP_CARRIED_OVER: ["card", "period"],
 };
@@ -210,6 +211,9 @@ function buildVars(event: string, payload: Record<string, unknown>): Record<stri
   if (event === "APPLICATION_SUBMITTED") {
     vars.countNoun = positionNoun(Number(payload.count) || 0);
   }
+  // Доступен во всех шаблонах как {siteUrl} — если PLATFORM_URL не задан,
+  // пустой, и блоки [[ ... {siteUrl} ... ]] в шаблонах сами исчезают.
+  vars.siteUrl = process.env.PLATFORM_URL || "";
   return vars;
 }
 

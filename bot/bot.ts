@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { linkByPhone, reissueOtp, SafeLinkError } from "./link";
+import { linkByPhone, reissueOtp, SafeLinkError, isKnownTelegramId } from "./link";
 import { startNotificationLoop } from "./notifications";
 
 // --- минимальная загрузка .env (Prisma грузит свой, но токен бота — здесь) ---
@@ -58,6 +58,13 @@ const CONTACT_KEYBOARD = {
     one_time_keyboard: true,
   },
 };
+
+// Уже привязанному Telegram не место повторно просить «Поделиться
+// контактом» — этот номер система уже знает (см. src/app/api/telegram/route.ts).
+const UNKNOWN_MESSAGE_KNOWN_USER =
+  "Не поняли ваше сообщение.\n\n" +
+  "• /login — получить новый одноразовый пароль для входа\n" +
+  "• /id — узнать ваш Telegram ID для администратора";
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -156,6 +163,11 @@ async function handle(msg: TgMessage) {
     if (text === "/login") {
       const g = await reissueOtp(telegramId);
       await send(chatId, grantMessage(g.login, g.otp, g.fullName));
+      return;
+    }
+
+    if (await isKnownTelegramId(telegramId)) {
+      await send(chatId, UNKNOWN_MESSAGE_KNOWN_USER);
       return;
     }
 

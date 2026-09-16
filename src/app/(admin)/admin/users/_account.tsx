@@ -165,7 +165,7 @@ export function AccountPanel({
   );
 }
 
-function RoleEditor({ userId, roles, locale }: { userId: string; roles: Role[]; locale: Locale }) {
+export function RoleEditor({ userId, roles, locale }: { userId: string; roles: Role[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Role[]>(roles);
@@ -334,6 +334,7 @@ export function ServiceAccountRow({
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<AccountResult | null>(null);
   const [tg, setTg] = useState(user.telegramId ?? "");
+  const [showRoles, setShowRoles] = useState(false);
   const isContractor = user.roles.includes("CONTRACTOR");
 
   return (
@@ -422,6 +423,14 @@ export function ServiceAccountRow({
               {t("users.acc.password")}
             </Button>
             <Button
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              onClick={() => setShowRoles((v) => !v)}
+            >
+              {t("users.acc.roles")}
+            </Button>
+            <Button
               variant={user.isActive ? "danger" : "success"}
               size="sm"
               disabled={pending}
@@ -436,6 +445,13 @@ export function ServiceAccountRow({
           </div>
         </td>
       </tr>
+      {showRoles && (
+        <tr>
+          <td colSpan={10} className="border-t border-line-subtle bg-surface-muted/40 px-4 py-3">
+            <RoleEditor userId={user.id} roles={user.roles} locale={locale} />
+          </td>
+        </tr>
+      )}
       {(msg?.otp || msg?.error) && (
         <tr>
           <td colSpan={10} className="px-4 pb-3">

@@ -399,7 +399,26 @@ export async function setUserRoles(userId: string, roles: Role[]): Promise<Accou
     }
   }
 
-  await db.user.update({ where: { id: userId }, data: { roles: next } });
+  // Подрядчик — общий PIN на кассу партнёра, без «смены пароля при входе»
+  // и без срока годности (см. issueOtpForUser). Если роль назначили ЭТОЙ
+  // сменой (а не при выдаче пароля), старые mustChangePassword/otpExpiresAt
+  // от прежней роли иначе остаются висеть и блокируют вход даже с верным
+  // паролем — loginAction видит mustChangePassword=true и просроченный
+  // otpExpiresAt и отказывает раньше проверки самого пароля.
+  const becomesContractor = next.includes("CONTRACTOR") && !before.roles.includes("CONTRACTOR");
+  // Партнёр привязывается только к «Подрядчику» (см. setServicePartner) —
+  // если роль сняли, отвязываем и партнёра, иначе он остаётся висеть
+  // мёртвым грузом на аккаунте, для которого уже ничего не значит.
+  const losesContractor = !next.includes("CONTRACTOR") && before.roles.includes("CONTRACTOR");
+
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      roles: next,
+      ...(becomesContractor ? { mustChangePassword: false, otpExpiresAt: null } : {}),
+      ...(losesContractor && before.partnerId ? { partnerId: null } : {}),
+    },
+  });
   await audit({
     actorId: s.user.id,
     action: "USER_ROLES_CHANGED",

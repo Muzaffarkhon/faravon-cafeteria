@@ -44,6 +44,21 @@ const CONTACT_KEYBOARD = {
   },
 };
 
+const SUPPORT_BUTTON = {
+  reply_markup: {
+    inline_keyboard: [[{ text: "Написать администратору", callback_data: "support:start" }]],
+  },
+};
+
+// Уже привязанному Telegram (сотрудник/служебная учётка) не место повторно
+// просить «Поделиться контактом» — этот номер система уже знает. Иначе
+// человек, который просто написал боту что-то непонятное, получает тот же
+// экран, что и незнакомец, впервые открывший бота.
+const UNKNOWN_MESSAGE_KNOWN_USER =
+  "Не поняли ваше сообщение.\n\n" +
+  "• /login — получить новый одноразовый пароль для входа\n" +
+  "• «Написать администратору» — если нужна помощь";
+
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -201,25 +216,25 @@ async function handle(msg: TgMessage) {
       if (appended) return;
     }
 
+    if (await isKnownTelegramId(telegramId)) {
+      await send(chatId, UNKNOWN_MESSAGE_KNOWN_USER, SUPPORT_BUTTON);
+      return;
+    }
+
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
     // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
     // логируем, пользователю — общая фраза (не оракул для перебора).
-    const supportButton = {
-      reply_markup: {
-        inline_keyboard: [[{ text: "Написать администратору", callback_data: "support:start" }]],
-      },
-    };
     if (e instanceof SafeLinkError) {
       // Любое сообщение об ошибке, которое отправляет человека к
       // администратору — это и есть тупик, который решает чат поддержки.
       // Правило по подстроке, а не по списку сообщений: новая ошибка с той
       // же фразой получит кнопку сама, без правки этого места.
-      const extra = /напишите администратору/i.test(e.message) ? supportButton : {};
+      const extra = /напишите администратору/i.test(e.message) ? SUPPORT_BUTTON : {};
       await send(chatId, `⚠️ ${e.message}`, extra);
     } else {
       console.error("[telegram] ошибка обработки update:", e);
-      await send(chatId, "⚠️ Не удалось обработать запрос. Попробуйте позже или напишите администратору.", supportButton);
+      await send(chatId, "⚠️ Не удалось обработать запрос. Попробуйте позже или напишите администратору.", SUPPORT_BUTTON);
     }
   }
 }

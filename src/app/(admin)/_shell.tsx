@@ -87,6 +87,7 @@ export function AdminShell({
   const [hydrated, setHydrated] = useState(false);
   const [navOrder, setNavOrder] = useState<Record<string, string[]>>({});
   const [dragHref, setDragHref] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
@@ -137,7 +138,7 @@ export function AdminShell({
   }, [pathname]);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-canvas text-ink">
+    <div className="flex min-h-dvh items-start bg-canvas text-ink">
       {/* Мобильный хедер с гамбургером — сама навигация вне потока (drawer). */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
         <button
@@ -165,7 +166,11 @@ export function AdminShell({
       <aside
         className={cx(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 ease-in-out",
-          "md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
+          // На десктопе колонка больше не держит высоту экрана насильно — только
+          // sticky top-0 и растяжение по высоте строки (см. self-stretch на
+          // родителе-flex): короткие страницы больше не тянут сайдбар на весь
+          // экран с пустым «хвостом» после короткого контента.
+          "md:h-auto md:self-stretch md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "md:w-16" : "md:w-64",
           !hydrated && "md:transition-none",
@@ -201,57 +206,102 @@ export function AdminShell({
                 <div className="space-y-0.5">
                   {items.map((it) => {
                     const active = isActive(it.href);
+                    const hasChildren = !!it.children?.length;
+                    const childActive = !!it.children?.some((c) => isActive(c.href));
+                    const open = !collapsed && hasChildren && (expanded.has(it.href) || childActive);
                     return (
-                      <div
-                        key={it.href}
-                        className={cx(
-                          "group/nav flex items-center rounded-lg transition-colors",
-                          !collapsed && dragHref && dragHref !== it.href && "border-t-2 border-transparent",
-                        )}
-                        onDragOver={(e) => !collapsed && e.preventDefault()}
-                        onDrop={(e) => {
-                          if (collapsed || !dragHref) return;
-                          e.preventDefault();
-                          reorder(g.id, items, dragHref, it.href);
-                          setDragHref(null);
-                        }}
-                      >
-                        {!collapsed && (
-                          <button
-                            type="button"
-                            draggable
-                            onDragStart={() => setDragHref(it.href)}
-                            onDragEnd={() => setDragHref(null)}
-                            aria-label="Перетащить, чтобы изменить порядок"
-                            className="hidden shrink-0 cursor-grab touch-none px-1 py-2 text-ink-subtle opacity-0 transition-opacity group-hover/nav:opacity-100 active:cursor-grabbing md:block"
-                          >
-                            <Icon path={DRAG_HANDLE_ICON} className="pointer-events-none" />
-                          </button>
-                        )}
-                        <Link
-                          href={it.href}
-                          title={collapsed ? it.label : undefined}
+                      <div key={it.href}>
+                        <div
                           className={cx(
-                            "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
-                            collapsed && "justify-center",
-                            active ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
+                            "group/nav flex items-center rounded-lg transition-colors",
+                            !collapsed && dragHref && dragHref !== it.href && "border-t-2 border-transparent",
                           )}
-                          aria-current={active ? "page" : undefined}
+                          onDragOver={(e) => !collapsed && e.preventDefault()}
+                          onDrop={(e) => {
+                            if (collapsed || !dragHref) return;
+                            e.preventDefault();
+                            reorder(g.id, items, dragHref, it.href);
+                            setDragHref(null);
+                          }}
                         >
-                          <Icon path={it.icon} className="shrink-0" />
-                          {!collapsed && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
-                          {it.badge ? (
-                            <span
-                              className={cx(
-                                "inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
-                                active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
-                                collapsed && "absolute ml-5 mt-[-14px]",
-                              )}
+                          {!collapsed && (
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={() => setDragHref(it.href)}
+                              onDragEnd={() => setDragHref(null)}
+                              aria-label="Перетащить, чтобы изменить порядок"
+                              className="hidden shrink-0 cursor-grab touch-none px-1 py-2 text-ink-subtle opacity-0 transition-opacity group-hover/nav:opacity-100 active:cursor-grabbing md:block"
                             >
-                              {it.badge}
-                            </span>
-                          ) : null}
-                        </Link>
+                              <Icon path={DRAG_HANDLE_ICON} className="pointer-events-none" />
+                            </button>
+                          )}
+                          <Link
+                            href={it.href}
+                            title={collapsed ? it.label : undefined}
+                            className={cx(
+                              "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
+                              collapsed && "justify-center",
+                              active ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
+                            )}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <Icon path={it.icon} className="shrink-0" />
+                            {!collapsed && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
+                            {it.badge ? (
+                              <span
+                                className={cx(
+                                  "inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
+                                  active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
+                                  collapsed && "absolute ml-5 mt-[-14px]",
+                                )}
+                              >
+                                {it.badge}
+                              </span>
+                            ) : null}
+                          </Link>
+                          {!collapsed && hasChildren && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpanded((cur) => {
+                                  const next = new Set(cur);
+                                  if (next.has(it.href)) next.delete(it.href);
+                                  else next.add(it.href);
+                                  return next;
+                                })
+                              }
+                              aria-label={open ? t("shell.collapseSubmenu") : t("shell.expandSubmenu")}
+                              aria-expanded={open}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center text-ink-subtle transition hover:text-ink"
+                            >
+                              <Icon
+                                path={I.back}
+                                className={cx("transition-transform", open ? "-rotate-90" : "rotate-180")}
+                              />
+                            </button>
+                          )}
+                        </div>
+                        {open && (
+                          <div className="ml-6 space-y-0.5 border-l border-line-subtle pl-2.5">
+                            {it.children!.map((c) => {
+                              const childIsActive = isActive(c.href);
+                              return (
+                                <Link
+                                  key={c.href}
+                                  href={c.href}
+                                  className={cx(
+                                    "block truncate rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+                                    childIsActive ? "bg-primary text-on-brand" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                                  )}
+                                  aria-current={childIsActive ? "page" : undefined}
+                                >
+                                  {c.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -274,7 +324,7 @@ export function AdminShell({
       </aside>
 
       {/* ── Правая колонка: закреплённая шапка + прокручиваемый контент ── */}
-      <div className="flex flex-1 flex-col overflow-hidden pt-14 md:pt-0">
+      <div className="flex flex-1 flex-col pt-14 md:pt-0">
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
           <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
 
@@ -338,7 +388,7 @@ export function AdminShell({
         {/* Левое меню и шапка уже отделяют контент от края экрана — сами по
             себе отступы страницы были избыточны и «резали» широкие таблицы.
             Минимум 6px слева/справа/снизу, сверху оставлен запас под шапку. */}
-        <main className="relative flex-1 overflow-y-auto px-1.5 pb-1.5 pt-4 sm:pt-6">
+        <main className="relative px-1.5 pb-1.5 pt-4 sm:pt-6">
           <div key={pathname} className="animate-page mx-auto w-full max-w-6xl has-[[data-wide]]:max-w-none">
             {children}
           </div>
