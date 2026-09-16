@@ -191,9 +191,14 @@ export async function broadcastTaxiPromo(
   if (code.length > 200) throw new Error("Промокод слишком длинный.");
 
   const recipients = await taxiRecipientsForPartner(partnerId);
-  // Промокод уже доставлен по этой позиции — не заваливаем сотрудника повторами.
-  const pending = recipients.filter((r) => r.promoStatus !== "DELIVERED");
-  const employeeIds = [...new Set(pending.map((r) => r.employeeId))];
+  // По этой позиции уже есть уведомление, которое либо доставлено, либо ещё
+  // только в очереди на доставку (PENDING) — во втором случае повторная
+  // рассылка создала бы второе уведомление, и сотруднику ушли бы оба, как
+  // только очередь разгребётся. Пересылаем только тем, у кого рассылки не
+  // было (NONE) или она гарантированно не дойдёт (BLOCKED — бот заблокирован,
+  // такое уведомление снято с очереди и само не повторится).
+  const eligible = recipients.filter((r) => r.promoStatus === "NONE" || r.promoStatus === "BLOCKED");
+  const employeeIds = [...new Set(eligible.map((r) => r.employeeId))];
   if (employeeIds.length === 0) throw new Error("Нет одобренных сотрудников для рассылки.");
 
   const users = await db.user.findMany({
@@ -202,7 +207,7 @@ export async function broadcastTaxiPromo(
   });
   const userIdByEmployee = new Map(users.map((u) => [u.employeeId, u.id]));
 
-  const data = pending.flatMap((r) => {
+  const data = eligible.flatMap((r) => {
     const userId = userIdByEmployee.get(r.employeeId);
     if (!userId) return [];
     return [
