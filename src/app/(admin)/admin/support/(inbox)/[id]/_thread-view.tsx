@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Badge, Button, Input, Textarea } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
@@ -30,17 +30,23 @@ export type QuickReply = { id: string; text: string };
 function EmployeeLinkPanel({
   threadId,
   guestPhone,
+  guestNameGuess,
   initialMatches,
   locale,
 }: {
   threadId: string;
   guestPhone: string | null;
+  guestNameGuess: string | null;
   initialMatches: EmployeeMatch[];
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pending, start] = useTransition();
-  const [query, setQuery] = useState(guestPhone ?? "");
+  // Номер — только для серверного поиска (см. initialMatches), в строку не
+  // подставляем — иначе он дублируется с подписью «Номер гостя» ниже. ФИО,
+  // наоборот, ставим сразу в строку: гость сам его написал, это ожидаемое
+  // содержимое поля поиска.
+  const [query, setQuery] = useState(guestNameGuess ?? "");
   const [matches, setMatches] = useState(initialMatches);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saved, setSaved] = useState<Record<string, { login: string; otp: string }>>({});
@@ -153,6 +159,7 @@ export function ThreadView({
   identitySubtitle,
   messages,
   guestPhone,
+  guestNameGuess,
   alreadyLinked,
   initialMatches,
   quickReplies,
@@ -169,6 +176,7 @@ export function ThreadView({
   identitySubtitle: string;
   messages: Msg[];
   guestPhone: string | null;
+  guestNameGuess: string | null;
   alreadyLinked: boolean;
   initialMatches: EmployeeMatch[];
   quickReplies: QuickReply[];
@@ -263,7 +271,12 @@ export function ThreadView({
               ‹
             </a>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-ink">{identityTitle}</h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="truncate text-base font-bold leading-tight text-ink">{identityTitle}</h1>
+                <Badge tone={source === "WEB" ? "accent" : "neutral"} className="shrink-0 text-[10px]">
+                  {source === "WEB" ? t("support.sourceFeedback") : t("support.sourceTelegram")}
+                </Badge>
+              </div>
               <p className="truncate text-xs text-ink-muted">{identitySubtitle}</p>
             </div>
           </div>
@@ -298,7 +311,13 @@ export function ThreadView({
           </div>
         </div>
         {!alreadyLinked && (
-          <EmployeeLinkPanel threadId={threadId} guestPhone={guestPhone} initialMatches={initialMatches} locale={locale} />
+          <EmployeeLinkPanel
+            threadId={threadId}
+            guestPhone={guestPhone}
+            guestNameGuess={guestNameGuess}
+            initialMatches={initialMatches}
+            locale={locale}
+          />
         )}
       </div>
 

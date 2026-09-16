@@ -16,6 +16,7 @@ type ThreadData = {
   identityTitle: string;
   identitySubtitle: string;
   guestPhone: string | null;
+  guestNameGuess: string | null;
   alreadyLinked: boolean;
   initialMatches: EmployeeMatch[];
 };
@@ -101,6 +102,7 @@ export function ThreadViewLive({
       identitySubtitle={data.identitySubtitle}
       messages={data.messages}
       guestPhone={data.guestPhone}
+      guestNameGuess={data.guestNameGuess}
       alreadyLinked={data.alreadyLinked}
       initialMatches={data.initialMatches}
       quickReplies={data.quickReplies}

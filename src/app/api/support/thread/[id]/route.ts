@@ -25,6 +25,28 @@ function detectGuestPhone(messages: { direction: "IN" | "OUT"; body: string }[])
   return null;
 }
 
+// Слово ФИО: заглавная (в т.ч. таджикская) буква + строчные, с необязательным
+// дефисным продолжением («Абдурахим-заде»).
+const NAME_WORD = /^[А-ЯЁӢӮҲҶҒҚ][а-яёӣӯҳҷғқ]+(-[А-ЯЁӢӮҲҶҒҚ]?[а-яёӣӯҳҷғқ]+)?$/;
+
+/** true, если текст похож на «Фамилия Имя [Отчество]», а не на обычную реплику. */
+function looksLikeFullName(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.startsWith("[") || /\d/.test(t)) return false;
+  const words = t.split(/\s+/);
+  return words.length >= 2 && words.length <= 4 && words.every((w) => NAME_WORD.test(w));
+}
+
+/** Просят прислать ФИО (см. api/telegram/route.ts) — гость обычно отвечает на это. */
+function detectGuestName(messages: { direction: "IN" | "OUT"; body: string }[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.direction !== "IN") continue;
+    if (looksLikeFullName(m.body)) return m.body.trim();
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session || (!can(session.roles, "support.manage") && !can(session.roles, "feedback.manage"))) {
@@ -70,6 +92,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         ? `${thread.employee.position} · ${thread.employee.department}${thread.topic ? ` · ${thread.topic}` : ""}`
         : (thread.topic ?? ""),
       guestPhone: null,
+      guestNameGuess: null,
       alreadyLinked: true,
       initialMatches: [],
     });
@@ -83,8 +106,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     : null;
 
   const guestPhone = thread.phone ?? detectGuestPhone(thread.messages);
-  const initialMatches =
+  const guestNameGuess = linkedEmployee ? null : detectGuestName(thread.messages);
+  let initialMatches =
     !linkedEmployee && guestPhone ? (await findEmployeeForLink(guestPhone)).matches ?? [] : [];
+  // Номер не нашёл совпадений (или его не было) — пробуем по ФИО, которое
+  // гость прислал в ответ на просьбу представиться (см. api/telegram/route.ts).
+  if (!linkedEmployee && guestNameGuess && initialMatches.length === 0) {
+    initialMatches = (await findEmployeeForLink(guestNameGuess)).matches ?? [];
+  }
 
   const identityTitle = linkedEmployee ? linkedEmployee.fullName : `${t("support.guestPrefix")}${thread.seq}`;
   const identitySubtitle = linkedEmployee
@@ -98,6 +127,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     identityTitle,
     identitySubtitle,
     guestPhone,
+    guestNameGuess,
     alreadyLinked: !!linkedEmployee,
     initialMatches,
   });

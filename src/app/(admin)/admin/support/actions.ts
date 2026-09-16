@@ -11,7 +11,7 @@ import { escHtml, grantMessage } from "@/lib/notification-format";
 import { hashPassword } from "@/lib/password";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
-import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
+import { loginFromFullName, generateUniqueLogin, fuzzyNameKey } from "@/lib/translit";
 import { getFaqKeyboard } from "@/lib/support-chat";
 
 /** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. */
@@ -184,25 +184,38 @@ export async function findEmployeeForLink(query: string): Promise<{ error?: stri
 
   const phone = formatTajikPhone(q) ? normalizePhone(q) : null;
 
-  const employees = await db.employee.findMany({
-    where: {
-      archivedAt: null,
-      ...(phone
-        ? { OR: [{ phoneNormalized: phone }, { phoneSecondaryNormalized: phone }] }
-        : { fullName: { contains: q, mode: "insensitive" as const } }),
-    },
-    select: {
-      id: true,
-      fullName: true,
-      position: true,
-      department: true,
-      phoneNormalized: true,
-      telegramId: true,
-      user: { select: { id: true } },
-    },
-    take: 5,
-    orderBy: { fullName: "asc" },
-  });
+  const select = {
+    id: true,
+    fullName: true,
+    position: true,
+    department: true,
+    phoneNormalized: true,
+    telegramId: true,
+    user: { select: { id: true } },
+  } as const;
+
+  let employees;
+  if (phone) {
+    employees = await db.employee.findMany({
+      where: { archivedAt: null, OR: [{ phoneNormalized: phone }, { phoneSecondaryNormalized: phone }] },
+      select,
+      take: 5,
+      orderBy: { fullName: "asc" },
+    });
+  } else {
+    // Нечёткий поиск по ФИО: сравниваем «огрублённое» написание (см.
+    // fuzzyNameKey) — иначе «Орипов» не находится по запросу «Арипов» и
+    // подобным путаницам с таджикскими буквами. БД не умеет сравнивать
+    // так на уровне SQL, поэтому фильтруем в памяти — сотрудников в
+    // организации сотни, не миллионы, точечный ручной поиск это не напряжёт.
+    const key = fuzzyNameKey(q);
+    const candidates = await db.employee.findMany({
+      where: { archivedAt: null },
+      select,
+      orderBy: { fullName: "asc" },
+    });
+    employees = candidates.filter((e) => fuzzyNameKey(e.fullName).includes(key)).slice(0, 5);
+  }
 
   return {
     matches: employees.map((e) => ({

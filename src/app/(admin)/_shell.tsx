@@ -283,7 +283,7 @@ export function AdminShell({
                           )}
                         </div>
                         {open && (
-                          <div className="ml-6 space-y-0.5 border-l border-line-subtle pl-2.5">
+                          <div className="ml-6 mt-1 space-y-0.5 border-l border-line-subtle pl-2.5">
                             {it.children!.map((c) => {
                               const childIsActive = isActive(c.href);
                               return (
