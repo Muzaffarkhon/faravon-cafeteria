@@ -89,7 +89,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   ITEM_APPROVED: {
     label: NOTIFICATION_LABELS.ITEM_APPROVED,
-    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]]\n\nЭто групповая льгота — купон придёт, как только наберётся нужное число участников. Прогресс набора виден в разделе «Мои заявки».",
+    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]][[\n\nЭто {group} льгота — купон придёт, как только наберётся нужное число участников. Прогресс набора виден в разделе «Мои заявки».]]",
   },
   ITEM_REJECTED: {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,
@@ -146,7 +146,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
     countNoun: "позиции",
     period: "III квартал 2026",
   },
-  ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026" },
+  ITEM_APPROVED: { card: "Абонемент в бассейн", period: "Сентябрь 2026", group: "групповая" },
   ITEM_REJECTED: { card: "Абонемент в бассейн", comment: "нет бюджета в периоде", period: "Сентябрь 2026" },
   COUPON_ISSUED: {
     card: "Ковры «Кайраккум»",
@@ -176,7 +176,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
 export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   APPLICATION_SUBMITTED: ["employee", "department", "count", "countNoun", "period"],
-  ITEM_APPROVED: ["card", "period"],
+  ITEM_APPROVED: ["card", "period", "group"],
   ITEM_REJECTED: ["card", "comment", "period"],
   COUPON_ISSUED: ["card", "number", "period", "validFrom", "validUntil", "siteUrl"],
   SLA_ESCALATION: ["employee", "department", "card", "hours", "level"],

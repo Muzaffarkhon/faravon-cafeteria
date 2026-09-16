@@ -142,7 +142,11 @@ async function approveItemImpl(itemId: string) {
           ? "TAXI_APPROVED_EMPLOYEE"
           : // Партнёр «по номеру телефона» — сотруднику не про купон/QR, а про промокод от партнёра.
             "ITEM_APPROVED",
-      payload: { card: item.card.title, period: item.application.period.name },
+      payload: {
+        card: item.card.title,
+        period: item.application.period.name,
+        group: item.card.minParticipants > 1 ? "групповая" : "",
+      },
       deferFlush: true,
     });
   }
@@ -265,7 +269,11 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
         await notifyEmployee({
           employeeId: item.application.employeeId,
           event: outcome === "taxi" ? "TAXI_APPROVED_EMPLOYEE" : "ITEM_APPROVED",
-          payload: { card: item.card.title, period: item.application.period.name },
+          payload: {
+            card: item.card.title,
+            period: item.application.period.name,
+            group: item.card.minParticipants > 1 ? "групповая" : "",
+          },
           deferFlush: true,
         });
       }

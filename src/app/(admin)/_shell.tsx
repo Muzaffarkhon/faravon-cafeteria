@@ -166,11 +166,12 @@ export function AdminShell({
       <aside
         className={cx(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 ease-in-out",
-          // На десктопе колонка больше не держит высоту экрана насильно — только
-          // sticky top-0 и растяжение по высоте строки (см. self-stretch на
-          // родителе-flex): короткие страницы больше не тянут сайдбар на весь
-          // экран с пустым «хвостом» после короткого контента.
-          "md:h-auto md:self-stretch md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
+          // На десктопе — sticky top-0 с высотой ровно во весь экран
+          // (h-dvh), а не self-stretch по высоте строки: в этом браузере
+          // (Chromium) sticky не работает на flex-элементе, чья высота
+          // вычисляется через align-self/stretch — растянутая высота ломает
+          // позиционирование, и меню просто уезжает вместе со страницей.
+          "md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "md:w-16" : "md:w-64",
           !hydrated && "md:transition-none",
