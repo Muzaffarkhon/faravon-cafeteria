@@ -93,7 +93,14 @@ export async function loginAction(
     return { error: `Слишком много неверных попыток. Вход заблокирован ещё на ${minutesLeft} мин.` };
   }
 
-  if (user.mustChangePassword && user.otpExpiresAt && user.otpExpiresAt < new Date()) {
+  // Подрядчик — общий PIN на кассу партнёра: постоянный, без «смены пароля
+  // при входе» и без срока годности (issueOtpForUser выдаёт его именно так).
+  // Если роль назначили/сменили в обход выдачи нового пароля, старые
+  // mustChangePassword/otpExpiresAt от прежней роли могли остаться в базе —
+  // тогда эта проверка блокировала бы вход даже с верным паролем. Для
+  // подрядчика она не применяется в принципе.
+  const isContractorPin = user.roles.includes("CONTRACTOR");
+  if (!isContractorPin && user.mustChangePassword && user.otpExpiresAt && user.otpExpiresAt < new Date()) {
     return { error: "Одноразовый код истёк. Запросите новый через Telegram-бот." };
   }
 
@@ -119,7 +126,10 @@ export async function loginAction(
     return genericError;
   }
 
-  // Успех: сбрасываем счётчики, при слабом хеше — пере-хешируем (§5.1, cost ≥ 12)
+  // Успех: сбрасываем счётчики, при слабом хеше — пере-хешируем (§5.1, cost ≥ 12).
+  // Заодно приводим mustChangePassword/otpExpiresAt подрядчика к его
+  // постоянному PIN-инварианту (см. isContractorPin выше) — если запись
+  // была унаследована от прежней роли, дальше она уже не мешает.
   await db.user.update({
     where: { id: user.id },
     data: {
@@ -129,19 +139,23 @@ export async function loginAction(
       ...(needsRehash(user.passwordHash)
         ? { passwordHash: await hashPassword(password) }
         : {}),
+      ...(isContractorPin && (user.mustChangePassword || user.otpExpiresAt)
+        ? { mustChangePassword: false, otpExpiresAt: null }
+        : {}),
     },
   });
   await db.loginAttempt.create({ data: { login, ip, userAgent, success: true } });
 
+  const effectiveMustChangePassword = isContractorPin ? false : user.mustChangePassword;
   await createSession({
     sub: user.id,
     login: user.login,
     roles: user.roles,
     employeeId: user.employeeId,
-    mustChangePassword: user.mustChangePassword,
+    mustChangePassword: effectiveMustChangePassword,
     epoch: user.sessionEpoch,
   });
   await audit({ actorId: user.id, action: "LOGIN_OK", entityType: "User", entityId: user.id });
 
-  redirect(user.mustChangePassword ? "/change-password" : next);
+  redirect(effectiveMustChangePassword ? "/change-password" : next);
 }
