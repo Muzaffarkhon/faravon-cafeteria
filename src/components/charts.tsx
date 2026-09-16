@@ -72,18 +72,25 @@ export function BarChartCard({
   rows: { label: string; n: number }[];
   color?: string;
 }) {
+  const rotated = rows.length > 5;
+  // Длинные подписи (название партнёра/подразделения) в развёрнутом виде не
+  // помещаются между барами и обрезаются краем графика — сокращаем с
+  // многоточием, полное название всё равно видно в подсказке (ChartTooltip
+  // берёт исходный label, а не усечённый).
+  const truncate = (s: string) => (s.length > 12 ? `${s.slice(0, 11)}…` : s);
   return (
     <ChartFrame title={title} unit={unit} noData={rows.length === 0}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        <BarChart data={rows} margin={{ top: 4, right: 8, left: rotated ? 32 : -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
           <XAxis
             dataKey="label"
             tick={AXIS_STYLE}
             interval={0}
-            angle={rows.length > 5 ? -25 : 0}
-            textAnchor={rows.length > 5 ? "end" : "middle"}
-            height={rows.length > 5 ? 50 : 24}
+            angle={rotated ? -35 : 0}
+            textAnchor={rotated ? "end" : "middle"}
+            height={rotated ? 68 : 24}
+            tickFormatter={truncate}
           />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-muted)" }} />

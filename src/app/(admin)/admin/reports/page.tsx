@@ -229,6 +229,15 @@ export default async function ReportsPage({
           }))}
           noDataLabel={t("reports.noData")}
         />
+        {/* Тот же полный (не обрезанный до 8 и не усечённый по ширине бара,
+            как в графике выше) список — по льготам, а не только по
+            подразделениям. */}
+        <BarList
+          title={t("reports.topSelections")}
+          unit={t("reports.selectionsUnit")}
+          rows={report.topSelections.map((r) => ({ label: r.title, n: r.n }))}
+          noDataLabel={t("reports.noData")}
+        />
       </div>
 
       <p className="text-xs leading-5 text-ink-subtle">
