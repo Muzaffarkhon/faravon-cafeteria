@@ -26,7 +26,17 @@ export async function computeNavBadges(opts: {
   const [review, coupons, adRequests, myCoupons, partnerCoupons, support] =
     await Promise.all([
       canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
-      canManageCoupons ? db.applicationItem.count({ where: { status: "APPROVED", coupon: null } }) : 0,
+      canManageCoupons
+        ? db.applicationItem.count({
+            where: {
+              status: "APPROVED",
+              coupon: null,
+              // PHONE_PROMO (такси) купон/QR не формирует — этим позициям
+              // тут нечего ждать (см. /coupons: тот же фильтр в списке).
+              NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" } } } } },
+            },
+          })
+        : 0,
       canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
       employeeId ? db.coupon.count({ where: { employeeId, status: "ISSUED" } }) : 0,
       canConfirmCoupons && partnerId
