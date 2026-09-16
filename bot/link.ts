@@ -331,3 +331,15 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
     await recordAttempt(telegramId, "reissue", ok);
   }
 }
+
+/**
+ * true, если этот Telegram уже привязан к действующему сотруднику или
+ * служебной учётке — см. тот же хелпер в src/app/api/telegram/route.ts
+ * (держать синхронным).
+ */
+export async function isKnownTelegramId(telegramId: string): Promise<boolean> {
+  const employee = await db.employee.findFirst({ where: { telegramId, archivedAt: null }, select: { id: true } });
+  if (employee) return true;
+  const serviceUser = await db.user.findFirst({ where: { telegramId, employeeId: null }, select: { id: true } });
+  return !!serviceUser;
+}
