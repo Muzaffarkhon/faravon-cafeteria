@@ -107,16 +107,19 @@ export async function taxiRecipientsForPartner(
   });
 }
 
+export type TaxiPromoInfo = { status: PromoStatus; promo: string | null };
+
 /**
  * Статус рассылки промокода такси по конкретным позициям (itemId) для
  * одного сотрудника — чтобы показать на его собственной странице заявок,
  * что происходит с одобренной поездкой (а не просто статичный бейдж
  * «Одобрено», неотличимый от QR-льготы, купон по которой ещё не выдан).
+ * Возвращает и сам код — тот же, что уже пришёл этому сотруднику в Telegram.
  */
 export async function taxiPromoStatusForUser(
   userId: string,
   itemIds: string[],
-): Promise<Map<string, PromoStatus>> {
+): Promise<Map<string, TaxiPromoInfo>> {
   if (itemIds.length === 0) return new Map();
   const notifications = await db.notification.findMany({
     where: { userId, event: "TAXI_PROMO_CODE" },
@@ -128,7 +131,13 @@ export async function taxiPromoStatusForUser(
     const itemId = (n.payload as { itemId?: string } | null)?.itemId;
     if (itemId && !latestByItem.has(itemId)) latestByItem.set(itemId, n);
   }
-  return new Map(itemIds.map((id) => [id, promoStatusOf(latestByItem.get(id))]));
+  return new Map(
+    itemIds.map((id) => {
+      const n = latestByItem.get(id);
+      const promo = (n?.payload as { promo?: string } | null)?.promo ?? null;
+      return [id, { status: promoStatusOf(n), promo }];
+    }),
+  );
 }
 
 /**
