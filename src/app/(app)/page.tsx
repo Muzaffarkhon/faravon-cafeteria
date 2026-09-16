@@ -119,6 +119,14 @@ export default async function OverviewPage() {
 
   const emp = session.employee;
   const satisfactionEligible = await isEligibleForSatisfactionSurvey(emp.id);
+  // Сотрудник ни разу не подавал заявку — значит, ему ещё не встречались ни
+  // статусы, ни купон/промокод. Показываем короткое объяснение механики один
+  // раз: как только появится первая позиция (любого статуса), блок исчезает
+  // сам — не нужен ни клиентский стейт, ни отдельная настройка «прочитано».
+  const everSubmitted = await db.applicationItem.count({
+    where: { application: { employeeId: emp.id } },
+  });
+  const isNewEmployee = everSubmitted === 0;
   const ctx = await resolveSelectionContext();
   // Для показа периода/окна — период с открытым окном; для выбора — целевой
   // (после старта периода выбор переносится на следующий, §2).
@@ -261,6 +269,32 @@ export default async function OverviewPage() {
           </p>
         )}
       </section>
+
+      {isNewEmployee && (
+        <section className="rounded-[20px] border border-line bg-surface px-6 py-6 sm:px-8">
+          <div className="text-xs font-bold uppercase tracking-[0.1em] text-ink-subtle">
+            {t("home.onboardingTitle")}
+          </div>
+          <ol className="mt-3 space-y-2.5 text-sm leading-6 text-ink-muted">
+            <li className="flex gap-2.5">
+              <span className="shrink-0 font-bold text-ink">1.</span>
+              {t("home.onboardingStep1")}
+            </li>
+            <li className="flex gap-2.5">
+              <span className="shrink-0 font-bold text-ink">2.</span>
+              {t("home.onboardingStep2")}
+            </li>
+            <li className="flex gap-2.5">
+              <span className="shrink-0 font-bold text-ink">3.</span>
+              {t("home.onboardingStep3")}
+            </li>
+            <li className="flex gap-2.5">
+              <span className="shrink-0 font-bold text-ink">4.</span>
+              {t("home.onboardingStep4")}
+            </li>
+          </ol>
+        </section>
+      )}
 
       {bannerSlides.length > 0 && <BannerCarousel slides={bannerSlides} locale={locale} />}
 

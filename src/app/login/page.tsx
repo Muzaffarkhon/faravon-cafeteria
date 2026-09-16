@@ -117,6 +117,9 @@ export default async function LoginPage() {
               <HelpIcon className="h-3.5 w-3.5 shrink-0" />
               {t("login.cantLogin")}
             </a>
+            <p className="mt-1.5 text-center text-[11px] leading-relaxed text-ink-subtle">
+              {t("login.phoneMismatchHint")}
+            </p>
           </div>
         </div>
       </div>

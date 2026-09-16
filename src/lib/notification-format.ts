@@ -89,7 +89,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   ITEM_APPROVED: {
     label: NOTIFICATION_LABELS.ITEM_APPROVED,
-    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]]",
+    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]]\n\nЭто групповая льгота — купон придёт, как только наберётся нужное число участников. Прогресс набора виден в разделе «Мои заявки».",
   },
   ITEM_REJECTED: {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,
