@@ -55,8 +55,9 @@ export async function taxiRecipientsForPartner(
     orderBy: { decidedAt: "desc" },
   });
 
-  // Последняя рассылка промокода на сотрудника — промокод активируется один раз
-  // за период, поэтому важен статус самой свежей попытки, а не всей истории.
+  // Статус промокода считаем по конкретной позиции (itemId), а не по всей
+  // истории сотрудника — иначе новое одобрение в новом периоде наследует
+  // «доставлено» от промокода, отправленного в прошлом периоде.
   const employeeIds = [...new Set(items.map((i) => i.application.employee.id))];
   const users = employeeIds.length
     ? await db.user.findMany({
@@ -64,25 +65,24 @@ export async function taxiRecipientsForPartner(
         select: { employeeId: true, id: true },
       })
     : [];
-  const userIdByEmployee = new Map(users.map((u) => [u.employeeId, u.id]));
   const userIds = users.map((u) => u.id);
   const notifications = userIds.length
     ? await db.notification.findMany({
         where: { userId: { in: userIds }, event: "TAXI_PROMO_CODE" },
         orderBy: { sentAt: "desc" },
-        select: { userId: true, deliveredAt: true, blockedAt: true },
+        select: { payload: true, deliveredAt: true, blockedAt: true },
       })
     : [];
-  const latestByUser = new Map<string, (typeof notifications)[number]>();
+  const latestByItem = new Map<string, (typeof notifications)[number]>();
   for (const n of notifications) {
-    if (!latestByUser.has(n.userId)) latestByUser.set(n.userId, n);
+    const itemId = (n.payload as { itemId?: string } | null)?.itemId;
+    if (itemId && !latestByItem.has(itemId)) latestByItem.set(itemId, n);
   }
 
   return items.map((i) => {
     const custom = (i.contactPhone ?? "").trim();
     const profile = (i.application.employee.phone ?? "").trim();
-    const userId = userIdByEmployee.get(i.application.employee.id);
-    const latest = userId ? latestByUser.get(userId) : undefined;
+    const latest = latestByItem.get(i.id);
     const promoStatus: TaxiRecipient["promoStatus"] = !latest
       ? "NONE"
       : latest.blockedAt
@@ -156,36 +156,40 @@ export async function broadcastTaxiPromo(
   if (code.length > 200) throw new Error("Промокод слишком длинный.");
 
   const recipients = await taxiRecipientsForPartner(partnerId);
-  const employeeIds = [...new Set(recipients.map((r) => r.employeeId))];
+  // Промокод уже доставлен по этой позиции — не заваливаем сотрудника повторами.
+  const pending = recipients.filter((r) => r.promoStatus !== "DELIVERED");
+  const employeeIds = [...new Set(pending.map((r) => r.employeeId))];
   if (employeeIds.length === 0) throw new Error("Нет одобренных сотрудников для рассылки.");
 
   const users = await db.user.findMany({
     where: { isActive: true, employeeId: { in: employeeIds } },
     select: { id: true, employeeId: true },
   });
-  const cardByEmployee = new Map(recipients.map((r) => [r.employeeId, r.card]));
-  const periodByEmployee = new Map(recipients.map((r) => [r.employeeId, r.period]));
+  const userIdByEmployee = new Map(users.map((u) => [u.employeeId, u.id]));
 
-  await db.notification.createMany({
-    data: users.map((u) => ({
-      userId: u.id,
-      event: "TAXI_PROMO_CODE",
-      channel: "TELEGRAM",
-      payload: {
-        promo: code,
-        card: cardByEmployee.get(u.employeeId ?? "") ?? "",
-        period: periodByEmployee.get(u.employeeId ?? "") ?? "",
+  const data = pending.flatMap((r) => {
+    const userId = userIdByEmployee.get(r.employeeId);
+    if (!userId) return [];
+    return [
+      {
+        userId,
+        event: "TAXI_PROMO_CODE",
+        channel: "TELEGRAM",
+        payload: { itemId: r.itemId, promo: code, card: r.card, period: r.period },
       },
-    })),
+    ];
   });
+  if (data.length === 0) throw new Error("Нет одобренных сотрудников для рассылки.");
+
+  await db.notification.createMany({ data });
 
   await audit({
     actorId: actorUserId,
     action: "TAXI_PROMO_BROADCAST",
     entityType: "Partner",
     entityId: partnerId,
-    newValue: { recipients: users.length },
+    newValue: { recipients: data.length },
   });
   flushTelegram();
-  return users.length;
+  return data.length;
 }
