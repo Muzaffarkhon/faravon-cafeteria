@@ -13,6 +13,15 @@ import { flushTelegram } from "@/lib/notify";
 
 const ACTIVE_TAXI_STATUSES = ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED"] as const;
 
+export type PromoStatus = "NONE" | "DELIVERED" | "BLOCKED" | "PENDING";
+
+function promoStatusOf(n?: { deliveredAt: Date | null; blockedAt: Date | null }): PromoStatus {
+  if (!n) return "NONE";
+  if (n.blockedAt) return "BLOCKED";
+  if (n.deliveredAt) return "DELIVERED";
+  return "PENDING";
+}
+
 export type TaxiRecipient = {
   itemId: string;
   employeeId: string;
@@ -24,8 +33,8 @@ export type TaxiRecipient = {
   card: string;
   period: string;
   approvedAt: Date | null;
-  /** Статус последней рассылки промокода этому сотруднику (если была). */
-  promoStatus: "NONE" | "DELIVERED" | "BLOCKED" | "PENDING";
+  /** Статус последней рассылки промокода по этой позиции (если была). */
+  promoStatus: PromoStatus;
 };
 
 /**
@@ -82,14 +91,7 @@ export async function taxiRecipientsForPartner(
   return items.map((i) => {
     const custom = (i.contactPhone ?? "").trim();
     const profile = (i.application.employee.phone ?? "").trim();
-    const latest = latestByItem.get(i.id);
-    const promoStatus: TaxiRecipient["promoStatus"] = !latest
-      ? "NONE"
-      : latest.blockedAt
-        ? "BLOCKED"
-        : latest.deliveredAt
-          ? "DELIVERED"
-          : "PENDING";
+    const promoStatus = promoStatusOf(latestByItem.get(i.id));
     return {
       itemId: i.id,
       employeeId: i.application.employee.id,
@@ -103,6 +105,30 @@ export async function taxiRecipientsForPartner(
       promoStatus,
     };
   });
+}
+
+/**
+ * Статус рассылки промокода такси по конкретным позициям (itemId) для
+ * одного сотрудника — чтобы показать на его собственной странице заявок,
+ * что происходит с одобренной поездкой (а не просто статичный бейдж
+ * «Одобрено», неотличимый от QR-льготы, купон по которой ещё не выдан).
+ */
+export async function taxiPromoStatusForUser(
+  userId: string,
+  itemIds: string[],
+): Promise<Map<string, PromoStatus>> {
+  if (itemIds.length === 0) return new Map();
+  const notifications = await db.notification.findMany({
+    where: { userId, event: "TAXI_PROMO_CODE" },
+    orderBy: { sentAt: "desc" },
+    select: { payload: true, deliveredAt: true, blockedAt: true },
+  });
+  const latestByItem = new Map<string, (typeof notifications)[number]>();
+  for (const n of notifications) {
+    const itemId = (n.payload as { itemId?: string } | null)?.itemId;
+    if (itemId && !latestByItem.has(itemId)) latestByItem.set(itemId, n);
+  }
+  return new Map(itemIds.map((id) => [id, promoStatusOf(latestByItem.get(id))]));
 }
 
 /**

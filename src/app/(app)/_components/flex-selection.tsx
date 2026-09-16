@@ -198,6 +198,23 @@ export function FlexSelection({
                 <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
                 {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
 
+                {c.phonePromo ? (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-400">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                    {t("flex.promoBadge")}
+                  </div>
+                ) : (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-ink-subtle">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" />
+                    </svg>
+                    {t("flex.qrBadge")}
+                  </div>
+                )}
+
                 {c.condition && (
                   <p className="mt-2 text-sm font-medium leading-6 text-ink">{c.condition}</p>
                 )}

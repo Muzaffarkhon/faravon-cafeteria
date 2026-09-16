@@ -6,6 +6,7 @@ import { itemStatusLabel } from "@/lib/application-workflow";
 import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui";
 import { isCouponExpired, isCouponOverdue, isCouponPeriodPassed } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
+import { taxiPromoStatusForUser, type PromoStatus } from "@/lib/taxi";
 import { couponQrSvg } from "@/lib/qr";
 import { safeImageSrc } from "@/lib/safe-url";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -55,12 +56,29 @@ export default async function ApplicationsPage() {
     );
   }
 
-  const blockedPromo = await db.notification.findFirst({
-    where: { userId: session.user.id, event: "TAXI_PROMO_CODE", blockedAt: { not: null } },
-    orderBy: { sentAt: "desc" },
+  // Ориентир по сроку рассмотрения для PENDING-позиций — берём порог первой
+  // ступени эскалации (после него уходит напоминание согласующим), чтобы не
+  // придумывать отдельное число: сотрудник видит тот же ориентир, на который
+  // реально настроена система.
+  const slaRule = await db.slaEscalationRule.findFirst({
+    where: { level: 1, active: true },
+    select: { afterHours: true },
   });
 
   const allItems = applications.flatMap((a) => a.items);
+
+  // Статус промокода такси по каждой одобренной PHONE_PROMO-позиции — чтобы
+  // на месте пустого блока купона не оставался голый бейдж «Одобрено»,
+  // неотличимый от QR-льготы, купон по которой ещё просто не выдан.
+  const taxiItemIds = allItems
+    .filter(
+      (i) =>
+        !i.coupon &&
+        i.card.partner?.deliveryMode === "PHONE_PROMO" &&
+        ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED"].includes(i.status),
+    )
+    .map((i) => i.id);
+  const taxiStatusByItem = await taxiPromoStatusForUser(session.user.id, taxiItemIds);
   const coupons = allItems.filter((i) => i.coupon).length;
   const pending = allItems.filter((i) => i.status === "PENDING").length;
 
@@ -99,12 +117,6 @@ export default async function ApplicationsPage() {
           {t("applications.summary")}: {applications.length} · {t("applications.pendingShort")}: {pending} · {t("applications.couponsShort")}: {coupons}
         </p>
       </header>
-
-      {blockedPromo && (
-        <p className="rounded-xl border border-warning-soft bg-warning-soft/40 px-4 py-3 text-sm text-warning-strong">
-          {t("applications.blockedPromo")}
-        </p>
-      )}
 
       <div className="space-y-6">
         {applications.map((app) => (
@@ -155,6 +167,12 @@ export default async function ApplicationsPage() {
                     {item.status === "REJECTED" && item.decisionComment && (
                       <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger">
                         {t("applications.rejectReason")}: {item.decisionComment}
+                      </p>
+                    )}
+
+                    {item.status === "PENDING" && slaRule && (
+                      <p className="text-xs text-ink-muted">
+                        {t("applications.pendingEta")} {slaRule.afterHours} {t("applications.pendingEtaHours")}
                       </p>
                     )}
 
@@ -252,6 +270,47 @@ export default async function ApplicationsPage() {
                               </div>
                             </div>
                           </div>
+                              );
+                            })()}
+
+                          {!item.coupon &&
+                            item.card.partner?.deliveryMode === "PHONE_PROMO" &&
+                            ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED"].includes(item.status) &&
+                            (() => {
+                              const status: PromoStatus = taxiStatusByItem.get(item.id) ?? "NONE";
+                              const phone = (item.contactPhone ?? "").trim() || (session.employee?.phone ?? "").trim();
+                              const hint =
+                                status === "BLOCKED"
+                                  ? t("applications.taxiHintBlocked")
+                                  : status === "DELIVERED"
+                                    ? t("applications.taxiHintDelivered")
+                                    : status === "PENDING"
+                                      ? t("applications.taxiHintPending")
+                                      : t("applications.taxiHintNone");
+                              return (
+                                <div
+                                  className={
+                                    status === "BLOCKED"
+                                      ? "mt-1 rounded-xl border border-warning-soft bg-warning-soft/40 p-3"
+                                      : "mt-1 rounded-xl border border-line bg-surface-muted p-3"
+                                  }
+                                >
+                                  <div
+                                    className={
+                                      status === "BLOCKED"
+                                        ? "min-w-0 space-y-0.5 text-sm text-warning-strong"
+                                        : "min-w-0 space-y-0.5 text-sm text-ink-muted"
+                                    }
+                                  >
+                                    <span className="font-semibold">{t("applications.taxiApproved")}</span>
+                                    {phone && (
+                                      <div data-numeric>
+                                        {t("applications.taxiPhone")} {phone}
+                                      </div>
+                                    )}
+                                    <div className="pt-1 text-xs">{hint}</div>
+                                  </div>
+                                </div>
                               );
                             })()}
                         </>
