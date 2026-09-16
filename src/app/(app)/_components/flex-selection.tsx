@@ -63,6 +63,7 @@ export function FlexSelection({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [justSubmitted, setJustSubmitted] = useState(false);
   // Ввод номера телефона для PHONE_PROMO-льготы (id карточки, для которой открыт ввод).
   const [phoneFor, setPhoneFor] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
@@ -121,6 +122,10 @@ export function FlexSelection({
       try {
         const r = await submitSelection();
         if (r?.error) setError(r.error);
+        else {
+          setJustSubmitted(true);
+          window.setTimeout(() => setJustSubmitted(false), 8000);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : t("flex.error"));
       } finally {
@@ -134,6 +139,12 @@ export function FlexSelection({
       {error && (
         <p className="mb-3 rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
           {error}
+        </p>
+      )}
+
+      {justSubmitted && (
+        <p className="mb-3 rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong" role="status">
+          {t("flex.submitSuccess")}
         </p>
       )}
 

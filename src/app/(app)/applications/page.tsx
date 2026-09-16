@@ -247,10 +247,16 @@ export default async function ApplicationsPage() {
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold">{t("applications.coupon")}</span>
-                                  {expired && (
+                                  {expired ? (
                                     <Badge tone="warning" className="px-1.5 py-0 text-[11px]">
                                       {t("applications.overdue")}
                                     </Badge>
+                                  ) : (
+                                    live && (
+                                      <Badge tone="success" className="px-1.5 py-0 text-[11px]">
+                                        {t("applications.active")}
+                                      </Badge>
+                                    )
                                   )}
                                 </div>
                                 <div className="font-mono" data-numeric>
@@ -265,6 +271,14 @@ export default async function ApplicationsPage() {
                                 {hint && (
                                   <div className={live ? "pt-1 text-xs text-success-strong/80" : "pt-1 text-xs"}>
                                     {hint}
+                                    {live && !qr && (
+                                      <>
+                                        {" "}
+                                        <Link href="/feedback" className="underline underline-offset-2">
+                                          {t("applications.contactSupport")}
+                                        </Link>
+                                      </>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -308,7 +322,17 @@ export default async function ApplicationsPage() {
                                         {t("applications.taxiPhone")} {phone}
                                       </div>
                                     )}
-                                    <div className="pt-1 text-xs">{hint}</div>
+                                    <div className="pt-1 text-xs">
+                                      {hint}
+                                      {(status === "NONE" || status === "PENDING") && (
+                                        <>
+                                          {" "}
+                                          <Link href="/feedback" className="underline underline-offset-2">
+                                            {t("applications.contactSupport")}
+                                          </Link>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
