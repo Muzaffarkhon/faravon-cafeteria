@@ -145,7 +145,7 @@ export default async function ReportBuilderPage({
                     </tr>
                   ))}
                   {result.totals && (
-                    <tr className="bg-surface-muted">
+                    <tr className="bg-surface-muted" data-pin="end">
                       {result.columns.map((c, j) => (
                         <td key={c.key} data-numeric={c.numeric || undefined} className="font-bold text-ink">
                           {j === 0 ? "Итого" : (c.numeric ? result.totals![c.key] : "")}

@@ -222,42 +222,10 @@ export function CardHeader({
 
 /* ------------------------------------------------------------------- Table --- */
 
-/**
- * Таблица на дизайн-токенах с горизонтальным скроллом на узких экранах.
- * `stickyHeader` — прокручиваемое тело с закреплённой шапкой (высота ограничена).
- */
-export function Table({
-  className,
-  stickyHeader,
-  children,
-  ...props
-}: HTMLAttributes<HTMLTableElement> & { children: ReactNode; stickyHeader?: boolean }) {
-  return (
-    <div
-      className={cx(
-        "w-full",
-        stickyHeader ? "max-h-[calc(100dvh-13rem)] overflow-auto" : "overflow-x-auto",
-      )}
-    >
-      <table
-        className={cx(
-          "w-full border-collapse text-sm [&_thead]:bg-surface-muted " +
-            "[&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-bold " +
-            "[&_th]:uppercase [&_th]:tracking-[0.06em] [&_th]:text-ink-muted " +
-            "[&_td]:px-3 [&_td]:py-2 [&_td]:border-t [&_td]:border-line-subtle " +
-            "[&_tbody_tr:hover]:bg-surface-muted",
-          stickyHeader &&
-            "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-surface-muted " +
-              "[&_thead_th]:shadow-[inset_0_-1px_0_var(--line)]",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </table>
-    </div>
-  );
-}
+// Сортировка по клику на заголовок колонки — интерактивность, поэтому вынесена
+// в отдельный клиентский модуль (этот файл рендерится и на сервере); реэкспорт
+// сохраняет прежний путь импорта (`@/components/ui`) для всех страниц.
+export { Table } from "./table";
 
 /**
  * Идентификатор записи в таблице — компактный чип с порядковым номером
