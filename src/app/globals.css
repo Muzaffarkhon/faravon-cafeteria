@@ -532,6 +532,28 @@
     }
   }
 
+  /* Двойной клик/тап по карточке льготы — сердечко всплывает и плавно тает (§10). */
+  .animate-heart-pop {
+    animation: heart-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes heart-pop {
+    0% { opacity: 0; transform: scale(0.4); }
+    18% { opacity: 1; transform: scale(1.15); }
+    32% { transform: scale(1); }
+    72% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.06); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-heart-pop {
+      animation: heart-pop-fade 0.5s ease-out both;
+    }
+  }
+  @keyframes heart-pop-fade {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
   .petal-drift > i {
     position: absolute;
     display: block;

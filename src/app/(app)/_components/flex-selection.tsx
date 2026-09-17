@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -89,6 +89,24 @@ export function FlexSelection({
       const res = await toggleLike(c.id);
       if (res.error) setLikeOverride((m) => ({ ...m, [c.id]: cur }));
     });
+  }
+  // Двойной клик/тап по фото карточки — лайк, как в Instagram: всегда
+  // ставит (никогда не снимает) и показывает всплывающее сердечко, даже
+  // если льгота уже лайкнута. `onClick` (не `onDoubleClick`) с ручным
+  // замером времени между кликами — срабатывает одинаково от мыши и от
+  // тача на мобильном, без разницы в поведении между браузерами.
+  const lastTapRef = useRef<Record<string, number>>({});
+  const [heartPulseId, setHeartPulseId] = useState<Record<string, boolean>>({});
+  function onImageTap(c: Card) {
+    // eslint-disable-next-line react-hooks/purity -- вызывается только из onClick, не во время рендера
+    const now = Date.now();
+    const last = lastTapRef.current[c.id] ?? 0;
+    lastTapRef.current[c.id] = now;
+    if (now - last >= 350) return;
+    lastTapRef.current[c.id] = 0; // сброс — третий быстрый тап не должен снова сработать как двойной
+    if (!(likeOverride[c.id]?.liked ?? c.liked)) onLikeClick(c);
+    setHeartPulseId((m) => ({ ...m, [c.id]: true }));
+    window.setTimeout(() => setHeartPulseId((m) => ({ ...m, [c.id]: false })), 900);
   }
   // Автовыбор (§5) — тот же оптимистичный приём, что и у лайков.
   const [autoPickOverride, setAutoPickOverride] = useState<Record<string, boolean>>({});
@@ -240,7 +258,26 @@ export function FlexSelection({
                 flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
-              <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted">
+              <div
+                className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted"
+                onClick={() => onImageTap(c)}
+              >
+                {heartPulseId[c.id] && (
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                    <svg
+                      width="72"
+                      height="72"
+                      viewBox="0 0 24 24"
+                      fill="white"
+                      stroke="white"
+                      strokeWidth="1"
+                      className="animate-heart-pop drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
+                      aria-hidden="true"
+                    >
+                      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                  </div>
+                )}
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
