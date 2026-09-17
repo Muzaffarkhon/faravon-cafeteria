@@ -49,6 +49,57 @@ function ChartFrame({
   );
 }
 
+/**
+ * Подпись категории под столбцом — горизонтальная (без наклона), перенос по
+ * словам в несколько строк вместо обрезки многоточием: длинные названия
+ * партнёров/льгот («Тренажёрный зал «Жемчужина»») читаются целиком.
+ */
+function WrappedAxisTick({
+  x,
+  y,
+  payload,
+  maxCharsPerLine = 11,
+  maxLines = 3,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  maxCharsPerLine?: number;
+  maxLines?: number;
+}) {
+  const words = String(payload?.value ?? "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const w of words) {
+    const candidate = current ? `${current} ${w}` : w;
+    if (current && candidate.length > maxCharsPerLine) {
+      lines.push(current);
+      current = w;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+
+  const shown = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    const last = shown[maxLines - 1];
+    shown[maxLines - 1] = last.length > maxCharsPerLine - 1 ? `${last.slice(0, maxCharsPerLine - 1)}…` : `${last}…`;
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fontSize={11} fill="var(--ink-subtle)">
+        {shown.map((line, i) => (
+          <tspan key={i} x={0} dy={i === 0 ? 12 : 13}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name?: string }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
@@ -75,26 +126,21 @@ export function BarChartCard({
   rows: { label: string; n: number }[];
   color?: string;
 }) {
-  const rotated = rows.length > 5;
-  // Длинные подписи (название партнёра/подразделения) в развёрнутом виде не
-  // помещаются между барами — сокращаем с многоточием, полное название всё
-  // равно видно в подсказке (ChartTooltip берёт исходный label, а не
-  // усечённый). Лимит и высота графика увеличены, чтобы обрезка случалась
-  // реже — раньше 12 символов резало почти любое название подразделения.
-  const truncate = (s: string) => (s.length > 20 ? `${s.slice(0, 19)}…` : s);
+  // Длинные подписи (название партнёра/подразделения) не помещаются в одну
+  // строку между барами — вместо наклона и обрезки многоточием переносим по
+  // словам на 2-3 строки (WrappedAxisTick), подписи остаются горизонтальными
+  // и читаются целиком. Область под ними увеличена под перенос.
+  const wide = rows.length > 5;
   return (
-    <ChartFrame title={title} unit={unit} noData={rows.length === 0} tall={rotated}>
+    <ChartFrame title={title} unit={unit} noData={rows.length === 0} tall={wide}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={{ top: 4, right: 8, left: rotated ? 32 : -20, bottom: 0 }}>
+        <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={AXIS_STYLE}
+            tick={<WrappedAxisTick />}
             interval={0}
-            angle={rotated ? -35 : 0}
-            textAnchor={rotated ? "end" : "middle"}
-            height={rotated ? 100 : 24}
-            tickFormatter={truncate}
+            height={52}
           />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-muted)" }} />
@@ -120,12 +166,21 @@ export function LineChartCard({
   return (
     <ChartFrame title={title} unit={unit} noData={rows.length === 0}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        {/* top-отступ увеличен — иначе подпись над самой высокой точкой обрезается краем графика. */}
+        <LineChart data={rows} margin={{ top: 20, right: 8, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
           <XAxis dataKey="label" tick={AXIS_STYLE} />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />
           <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="n" name="Значение" stroke={color} strokeWidth={2.5} dot={false} />
+          <Line
+            type="monotone"
+            dataKey="n"
+            name="Значение"
+            stroke={color}
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: color, strokeWidth: 0 }}
+            label={{ position: "top", fontSize: 11, fill: "var(--ink-subtle)" }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>

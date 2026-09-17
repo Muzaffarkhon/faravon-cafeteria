@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { resolveSelectionContext, getApplicationWithItems, groupProgress } from "@/lib/selection";
+import {
+  resolveSelectionContext,
+  getApplicationWithItems,
+  groupProgress,
+  getPreviousPeriodPicks,
+  getAutoPickedCardIds,
+  ensureAutoPicks,
+} from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
@@ -56,6 +63,18 @@ export default async function OverviewPage() {
 
     const groups = allGroups.filter((g) => g.id === "work");
     const total = groups.reduce((n, g) => n + g.items.length, 0);
+
+    // Подрядчик-кассир/подрядчик такси: единственный (или единственный +
+    // «Реклама») пункт — касса партнёра либо выдача промокодов. «Кабинет» с
+    // плиткой в один клик до той же страницы был лишним шагом — открываем
+    // сразу (вкладки шапки, включая «Реклама», остаются доступны как обычно).
+    const workItems = groups.find((g) => g.id === "work")?.items ?? [];
+    const soleWorkHref = (href: string) =>
+      groups.length === 1 &&
+      workItems.some((it) => it.href === href) &&
+      workItems.every((it) => it.href === href || it.href === "/advertising");
+    if (soleWorkHref("/provider")) redirect("/provider");
+    if (soleWorkHref("/provider/taxi")) redirect("/provider/taxi");
 
     return (
       <div className="space-y-6">
@@ -175,9 +194,16 @@ export default async function OverviewPage() {
   for (const c of flex) if (c.partnerId && c.isActive && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
   for (const c of flex) if (c.partnerId && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
 
-  const application = targetPeriod
-    ? await getApplicationWithItems(emp.id, targetPeriod.id)
-    : null;
+  const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
+
+  let application = targetPeriod ? await getApplicationWithItems(emp.id, targetPeriod.id) : null;
+  // Автовыбор (§5): заявки на период ещё нет — первое обращение сотрудника
+  // после открытия окна. Применяем сохранённые льготы один раз здесь, а не
+  // при каждом заходе (иначе вернули бы то, что сотрудник сам убрал).
+  if (!application && windowOpen && targetPeriod) {
+    await ensureAutoPicks(emp.id, targetPeriod);
+    application = await getApplicationWithItems(emp.id, targetPeriod.id);
+  }
   const items = application?.items ?? [];
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
@@ -186,26 +212,47 @@ export default async function OverviewPage() {
 
   // Статус позиции по карточке — чтобы показать «уже выбрано / отклонено / в обработке».
   const itemStatusByCard = new Map(items.map((i) => [i.cardId, i.status] as const));
+  // Очередь наборов для групповых льгот: как только счётчик доходит до порога —
+  // это готовая группа (купоны выдаются сразу, см. issueCouponIfReady), а счётчик
+  // для интерфейса начинается заново для следующей группы. Без этого прогресс-бар
+  // навсегда «застревал» зелёным и полным после первого набора порога, и сотрудники
+  // думали, что мест больше нет, хотя выбор в новую группу по-прежнему шёл сразу.
+  const groupWaveOf = (have: number, min: number): { inWave: number; wave: number; done: boolean } => {
+    if (have <= 0) return { inWave: 0, wave: 1, done: false };
+    const wave = Math.floor((have - 1) / min) + 1;
+    const inWave = have - (wave - 1) * min;
+    return { inWave, wave, done: inWave === min };
+  };
   // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
   const groupCount = targetPeriod
     ? await groupProgress(groupCards.map((c) => c.id), targetPeriod.id)
     : new Map<string, number>();
 
-  const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
+  // «Выбрать как в прошлый раз» (§4): льготы из последнего прошлого периода,
+  // которые сотрудник ещё не выбрал/не пытался выбрать в текущем — с учётом
+  // только тех, что всё ещё опубликованы и активны (пересечение с `flex`).
+  const flexTitleById = new Map(flex.map((c) => [c.id, c.title]));
+  const previousPicks =
+    windowOpen && targetPeriod
+      ? (await getPreviousPeriodPicks(emp.id, targetPeriod.startDate))
+          .filter((p) => flexTitleById.has(p.cardId) && !selectedIds.includes(p.cardId))
+          .map((p) => ({ cardId: p.cardId, title: flexTitleById.get(p.cardId)! }))
+      : [];
 
   // Лайки на карточки витрины (§10): не привязаны к периоду, просто счётчик
   // популярности + собственный лайк сотрудника.
   const flexIds = flex.map((c) => c.id);
-  const [likeCounts, myLikes] = await Promise.all([
+  const [likeCounts, myLikes, autoPickedIds] = await Promise.all([
     db.cardLike.groupBy({ by: ["cardId"], where: { cardId: { in: flexIds } }, _count: { cardId: true } }),
     db.cardLike.findMany({ where: { cardId: { in: flexIds }, employeeId: emp.id }, select: { cardId: true } }),
+    getAutoPickedCardIds(emp.id),
   ]);
   const likeCountByCard = new Map(likeCounts.map((l) => [l.cardId, l._count.cardId]));
   const likedCardIds = new Set(myLikes.map((l) => l.cardId));
 
   // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
-  // «Партнёр») + групповые льготы, не набравшие порог, — с переходом на выбор.
+  // «Партнёр») + групповые льготы, набирающие текущую очередь, — с переходом на выбор.
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
     const isNews = b.kind === "NEWS";
     const cardId = !isNews && b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
@@ -231,20 +278,22 @@ export default async function OverviewPage() {
   });
 
   const groupBannerSlides: BannerSlide[] = groupCards
-    .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+    .filter((c) => c.isActive)
     .map((c) => {
       const have = groupCount.get(c.id) ?? 0;
-      const remaining = c.minParticipants - have;
+      const { inWave, wave } = groupWaveOf(have, c.minParticipants);
+      const remaining = c.minParticipants - inWave;
+      const waveHint = wave > 1 ? ` ${t("home.groupBenefitWavePrefix")} ${wave}.` : "";
       return {
         id: `group-${c.id}`,
         kind: "group",
         title: c.title,
-        subtitle: `${t("home.groupBenefitPrefix")} ${have} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
+        subtitle: `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
         imageUrl: safeImageSrc(c.imageUrl),
         linkHref: `#card-${c.id}`,
         external: false,
         cta: period?.windowOpen ? t("home.goToSelection") : t("home.goToBenefit"),
-        progress: { current: have, min: c.minParticipants },
+        progress: { current: inWave, min: c.minParticipants },
       };
     });
 
@@ -422,16 +471,20 @@ export default async function OverviewPage() {
             imageUrl: c.imageUrl,
             category: c.category,
             minParticipants: c.minParticipants,
-            groupCount: groupCount.get(c.id) ?? 0,
+            groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).inWave,
+            groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).wave,
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,
             liked: likedCardIds.has(c.id),
+            autoPicked: autoPickedIds.has(c.id),
             lockedStatus:
               itemStatusByCard.get(c.id) && itemStatusByCard.get(c.id) !== "DRAFT"
                 ? (itemStatusByCard.get(c.id) as string)
                 : null,
           }))}
           selectedIds={selectedIds}
+          previousPicks={previousPicks}
+          atSelectionLimit={selectedIds.length >= maxSelections}
           draftCount={draftCount}
           maxSelections={maxSelections}
           windowOpen={windowOpen}

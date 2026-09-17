@@ -125,6 +125,68 @@ export function countAgainstLimit(items: { status: string }[]) {
   return items.filter((i) => ACTIVE_FOR_LIMIT.includes(i.status as never)).length;
 }
 
+/** Карточки, отмеченные сотрудником для автовыбора (§5) — для состояния переключателя на витрине. */
+export async function getAutoPickedCardIds(employeeId: string): Promise<Set<string>> {
+  const rows = await db.autoPick.findMany({ where: { employeeId }, select: { cardId: true } });
+  return new Set(rows.map((r) => r.cardId));
+}
+
+/**
+ * Применяет сохранённый автовыбор (§5: «сохранить выбор») — вызывается один
+ * раз, при первом обращении к ещё не созданной заявке сотрудника на период
+ * (см. `(app)/page.tsx`): по порядку сохранения добавляет DRAFT-позиции по
+ * льготам из `AutoPick`, пока не достигнут лимит периода. Пропускает
+ * PHONE_PROMO-льготы (нужен явный номер телефона — не автоматизируем) и
+ * льготы, снятые с публикации/архивированные/выключенные с момента, когда
+ * сотрудник их сохранил.
+ */
+export async function ensureAutoPicks(
+  employeeId: string,
+  period: Pick<Period, "id" | "maxSelections">,
+): Promise<void> {
+  const picks = await db.autoPick.findMany({
+    where: { employeeId },
+    orderBy: { createdAt: "asc" },
+    include: { card: { include: { partner: true } } },
+  });
+  const eligible = picks
+    .map((p) => p.card)
+    .filter(
+      (c) =>
+        c.block === "FLEX" &&
+        c.status === "PUBLISHED" &&
+        c.isActive &&
+        !c.archivedAt &&
+        c.partner?.deliveryMode !== "PHONE_PROMO",
+    );
+  if (!eligible.length) return;
+
+  const app = await getOrCreateApplication(employeeId, period.id);
+
+  // Тот же приём, что и в toggleSelectionImpl (actions.ts): счёт + создание в
+  // одной сериализуемой транзакции — иначе конкурентный вызов (две вкладки)
+  // мог бы превысить лимит периода.
+  await db.$transaction(
+    async (tx) => {
+      const current = await tx.applicationItem.findMany({
+        where: { applicationId: app.id },
+        select: { status: true },
+      });
+      let remaining = period.maxSelections - countAgainstLimit(current);
+      if (remaining <= 0) return;
+      for (const c of eligible) {
+        if (remaining <= 0) break;
+        const created = await tx.applicationItem.createMany({
+          data: [{ applicationId: app.id, cardId: c.id, status: "DRAFT" }],
+          skipDuplicates: true,
+        });
+        if (created.count > 0) remaining -= 1;
+      }
+    },
+    { isolationLevel: "Serializable" },
+  );
+}
+
 /**
  * Статусы «участия» в групповой льготе для ОТОБРАЖЕНИЯ прогресса набора
  * («X из N выбрали»). Включает ещё не одобренные заявки.
@@ -162,6 +224,41 @@ export async function groupProgress(
 /** Прогресс набора (для отображения) по одной карточке. */
 export async function groupProgressOne(cardId: string, periodId: string): Promise<number> {
   return (await groupProgress([cardId], periodId)).get(cardId) ?? 0;
+}
+
+export type PreviousPick = { cardId: string; cardTitle: string };
+
+/**
+ * Льготы, реально полученные сотрудником в последнем прошлом периоде (§4:
+ * «Выбрать как в прошлый раз») — самый свежий период до `beforeStartDate`, в
+ * котором у сотрудника есть хотя бы одна позиция в статусе из
+ * `GROUP_ISSUE_STATUSES` (одобрена/купон сформирован/выдан — не черновик,
+ * не отклонена и не отменена). Только активные FLEX-карточки, которые всё
+ * ещё опубликованы — если льготу сняли с публикации, предлагать её повторно
+ * нет смысла.
+ */
+export async function getPreviousPeriodPicks(
+  employeeId: string,
+  beforeStartDate: Date,
+): Promise<PreviousPick[]> {
+  const app = await db.application.findFirst({
+    where: {
+      employeeId,
+      period: { startDate: { lt: beforeStartDate } },
+      items: { some: { status: { in: [...GROUP_ISSUE_STATUSES] } } },
+    },
+    orderBy: { period: { startDate: "desc" } },
+    include: {
+      items: {
+        where: { status: { in: [...GROUP_ISSUE_STATUSES] } },
+        include: { card: { select: { id: true, title: true, block: true, status: true, isActive: true, archivedAt: true } } },
+      },
+    },
+  });
+  if (!app) return [];
+  return app.items
+    .filter((i) => i.card.block === "FLEX" && i.card.status === "PUBLISHED" && i.card.isActive && !i.card.archivedAt)
+    .map((i) => ({ cardId: i.card.id, cardTitle: i.card.title }));
 }
 
 /**

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { itemStatusLabel } from "@/lib/application-workflow";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { toggleSelection, submitSelection, toggleLike } from "../actions";
+import { toggleSelection, submitSelection, toggleLike, toggleAutoPick } from "../actions";
 import { CardDetailsButton } from "./card-details";
 
 const emptySubscribe = () => () => {};
@@ -27,7 +28,10 @@ type Card = {
   imageUrl: string | null;
   category: string | null;
   minParticipants: number;
+  /** Сколько набрано в ТЕКУЩЕЙ очереди (после порога счётчик начинается заново — см. page.tsx `groupWaveOf`). */
   groupCount: number;
+  /** Номер текущей очереди набора (1 — первая; растёт после каждого набранного порога). */
+  groupWave: number;
   /** льгота партнёра со своей системой (такси): промокод уходит на номер телефона */
   phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
@@ -35,11 +39,15 @@ type Card = {
   /** Лайки (§10): сколько всего и лайкнул ли текущий сотрудник — не привязано к периоду. */
   likeCount: number;
   liked: boolean;
+  /** Автовыбор (§5): сотрудник сохранил льготу для автоматического выбора каждый период. */
+  autoPicked: boolean;
 };
 
 export function FlexSelection({
   cards,
   selectedIds,
+  previousPicks = [],
+  atSelectionLimit = false,
   draftCount,
   maxSelections,
   windowOpen,
@@ -49,6 +57,9 @@ export function FlexSelection({
 }: {
   cards: Card[];
   selectedIds: string[];
+  /** «Выбрать как в прошлый раз» (§4) — льготы из последнего прошлого периода, ещё не выбранные сейчас. */
+  previousPicks?: { cardId: string; title: string }[];
+  atSelectionLimit?: boolean;
   draftCount: number;
   maxSelections: number;
   windowOpen: boolean;
@@ -82,8 +93,42 @@ export function FlexSelection({
       if (res.error) setLikeOverride((m) => ({ ...m, [c.id]: cur }));
     });
   }
+  // Двойной клик/тап по фото карточки — лайк, как в Instagram: всегда
+  // ставит (никогда не снимает) и показывает всплывающее сердечко, даже
+  // если льгота уже лайкнута. `onClick` (не `onDoubleClick`) с ручным
+  // замером времени между кликами — срабатывает одинаково от мыши и от
+  // тача на мобильном, без разницы в поведении между браузерами.
+  const lastTapRef = useRef<Record<string, number>>({});
+  const [heartPulseId, setHeartPulseId] = useState<Record<string, boolean>>({});
+  function onImageTap(c: Card) {
+    // eslint-disable-next-line react-hooks/purity -- вызывается только из onClick, не во время рендера
+    const now = Date.now();
+    const last = lastTapRef.current[c.id] ?? 0;
+    lastTapRef.current[c.id] = now;
+    if (now - last >= 350) return;
+    lastTapRef.current[c.id] = 0; // сброс — третий быстрый тап не должен снова сработать как двойной
+    if (!(likeOverride[c.id]?.liked ?? c.liked)) onLikeClick(c);
+    setHeartPulseId((m) => ({ ...m, [c.id]: true }));
+    window.setTimeout(() => setHeartPulseId((m) => ({ ...m, [c.id]: false })), 900);
+  }
+  // Автовыбор (§5) — тот же оптимистичный приём, что и у лайков.
+  const [autoPickOverride, setAutoPickOverride] = useState<Record<string, boolean>>({});
+  const [, autoPickStart] = useTransition();
+  function onAutoPickClick(c: Card) {
+    const cur = autoPickOverride[c.id] ?? c.autoPicked;
+    setAutoPickOverride((m) => ({ ...m, [c.id]: !cur }));
+    autoPickStart(async () => {
+      const res = await toggleAutoPick(c.id);
+      if (res.error) {
+        setAutoPickOverride((m) => ({ ...m, [c.id]: cur }));
+        setError(res.error);
+      }
+    });
+  }
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
+  // «Выбрать как в прошлый раз» (§4) — подтверждение перед добавлением.
+  const [pickAgainTarget, setPickAgainTarget] = useState<{ cardId: string; title: string } | null>(null);
 
   // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
   useEffect(() => {
@@ -164,6 +209,39 @@ export function FlexSelection({
         </p>
       )}
 
+      {windowOpen && previousPicks.length > 0 && (
+        <div className="mb-4 rounded-xl border border-line bg-surface-muted p-3">
+          <div className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-ink-subtle">
+            {t("flex.previousPicksTitle")}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {previousPicks.map((p) => (
+              <button
+                key={p.cardId}
+                type="button"
+                disabled={pending || atSelectionLimit}
+                onClick={() => setPickAgainTarget(p)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-primary hover:text-primary-strong disabled:cursor-default disabled:opacity-60"
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!pickAgainTarget}
+        title={`${t("flex.confirmPickAgainPrefix")}${pickAgainTarget?.title ?? ""}${t("flex.confirmPickAgainSuffix")}`}
+        confirmLabel={t("flex.confirmPickAgainYes")}
+        busy={pending && busyId === pickAgainTarget?.cardId}
+        onConfirm={() => {
+          if (pickAgainTarget) onToggle(pickAgainTarget.cardId);
+          setPickAgainTarget(null);
+        }}
+        onClose={() => setPickAgainTarget(null)}
+      />
+
       {(() => {
         const renderCard = (c: Card) => {
           const isSel = selected.has(c.id);
@@ -183,7 +261,26 @@ export function FlexSelection({
                 flashId === c.id && "ring-2 ring-primary ring-offset-2",
               )}
             >
-              <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted">
+              <div
+                className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-surface-muted"
+                onClick={() => onImageTap(c)}
+              >
+                {heartPulseId[c.id] && (
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                    <svg
+                      width="72"
+                      height="72"
+                      viewBox="0 0 24 24"
+                      fill="white"
+                      stroke="white"
+                      strokeWidth="1"
+                      className="animate-heart-pop drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
+                      aria-hidden="true"
+                    >
+                      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                    </svg>
+                  </div>
+                )}
                 {c.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -227,35 +324,65 @@ export function FlexSelection({
                     <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
                     {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
                   </div>
-                  {(() => {
-                    const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
-                    return (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {!c.phonePromo && (
                       <button
                         type="button"
-                        onClick={() => onLikeClick(c)}
-                        aria-pressed={likeState.liked}
-                        aria-label={likeState.liked ? "Убрать лайк" : "Нравится"}
+                        onClick={() => onAutoPickClick(c)}
+                        aria-pressed={autoPickOverride[c.id] ?? c.autoPicked}
+                        aria-label={
+                          (autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")
+                        }
+                        title={(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")}
                         className={cx(
-                          "flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors hover:bg-surface-muted",
-                          likeState.liked ? "text-danger" : "text-ink-subtle",
+                          "flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-surface-muted",
+                          (autoPickOverride[c.id] ?? c.autoPicked) ? "text-primary" : "text-ink-subtle",
                         )}
                       >
                         <svg
                           width="15"
                           height="15"
                           viewBox="0 0 24 24"
-                          fill={likeState.liked ? "currentColor" : "none"}
+                          fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                          <path d="M17 2.1l4 4-4 4M3 12.9v-1a4 4 0 0 1 4-4h14M7 21.9l-4-4 4-4M21 11.1v1a4 4 0 0 1-4 4H3" />
                         </svg>
-                        {likeState.count > 0 && <span className="tabular-nums">{likeState.count}</span>}
                       </button>
-                    );
-                  })()}
+                    )}
+                    {(() => {
+                      const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onLikeClick(c)}
+                          aria-pressed={likeState.liked}
+                          aria-label={likeState.liked ? "Убрать лайк" : "Нравится"}
+                          className={cx(
+                            "flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors hover:bg-surface-muted",
+                            likeState.liked ? "text-danger" : "text-ink-subtle",
+                          )}
+                        >
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill={likeState.liked ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                          </svg>
+                          {likeState.count > 0 && <span className="tabular-nums">{likeState.count}</span>}
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {c.phonePromo ? (
@@ -303,6 +430,7 @@ export function FlexSelection({
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className={done ? "text-success-strong" : "text-amber-800 dark:text-amber-300"}>
                           {done ? t("flex.groupDiscountActive") : t("flex.groupBenefit")}
+                          {c.groupWave > 1 && ` · ${t("flex.groupWaveLabel")} ${c.groupWave}`}
                         </span>
                         <span className="tabular-nums text-ink" data-numeric>
                           {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}

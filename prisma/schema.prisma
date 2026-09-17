@@ -130,6 +130,7 @@ model Employee {
   supportThreads        SupportThread[]
   satisfactionResponses SatisfactionResponse[]
   cardLikes             CardLike[]
+  autoPicks             AutoPick[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -271,6 +272,7 @@ model BenefitCard {
   items    ApplicationItem[]
   versions BenefitCardVersion[]
   likes    CardLike[]
+  autoPicks AutoPick[]
 
   @@index([archivedAt])
 }
@@ -287,6 +289,25 @@ model CardLike {
 
   @@unique([cardId, employeeId])
   @@index([cardId])
+}
+
+/// Автовыбор (§4/§5: «сохранить выбор»): сотрудник помечает льготу, которую
+/// хочет получать каждый период без ручного выбора. При первом открытии
+/// заявки на новый период (см. `ensureAutoPicks` в lib/selection.ts) все
+/// сохранённые льготы сотрудника автоматически становятся DRAFT-позициями —
+/// в пределах лимита периода (`maxSelections`), по порядку сохранения.
+/// Не привязан к периоду — переживает смену периодов, пока сотрудник сам не
+/// уберёт отметку.
+model AutoPick {
+  id         String      @id @default(cuid())
+  card       BenefitCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId     String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  createdAt  DateTime    @default(now())
+
+  @@unique([cardId, employeeId])
+  @@index([employeeId])
 }
 
 /// Снимок состояния карточки льготы на момент изменения (история версий).
@@ -575,7 +596,16 @@ model SupportMessage {
   readAt    DateTime?
   createdAt DateTime                @default(now())
 
+  /// Сообщение, на которое отвечают (цитата в интерфейсе) — необязательно,
+  /// доступно для ответа на любое сообщение того же диалога. При удалении
+  /// исходного сообщения цитата просто пропадает (SetNull), само сообщение
+  /// с ответом остаётся.
+  replyTo   SupportMessage?  @relation("SupportMessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replyToId String?
+  replies   SupportMessage[] @relation("SupportMessageReply")
+
   @@index([threadId, createdAt])
+  @@index([replyToId])
 }
 
 /// Заготовленные быстрые ответы C&B в чате поддержки — админ сам ведёт список,

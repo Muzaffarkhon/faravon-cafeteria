@@ -39,11 +39,14 @@ export function ThreadViewLive({
   activeId,
   backHref,
   onBack,
+  onListChanged,
 }: {
   locale: Locale;
   activeId: string | undefined;
   backHref: string;
   onBack: () => void;
+  /** Вызывается после действий, меняющих список (ответ/закрытие/архив/удаление) — список обновляется сразу, не дожидаясь опроса. */
+  onListChanged?: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
@@ -109,6 +112,7 @@ export function ThreadViewLive({
       backHref={backHref}
       locale={locale}
       onChanged={reload}
+      onListChanged={onListChanged}
       onBack={onBack}
     />
   );

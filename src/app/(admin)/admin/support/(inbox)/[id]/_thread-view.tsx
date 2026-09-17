@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Badge, Button, Input, Textarea } from "@/components/ui";
+import { Badge, Button, Input, Textarea, cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
@@ -23,6 +23,7 @@ export type Msg = {
   body: string;
   createdAt: string;
   author: string | null;
+  replyTo: { id: string; direction: "IN" | "OUT"; body: string } | null;
 };
 
 export type QuickReply = { id: string; text: string };
@@ -166,6 +167,7 @@ export function ThreadView({
   backHref,
   locale,
   onChanged,
+  onListChanged,
   onBack,
 }: {
   threadId: string;
@@ -185,6 +187,8 @@ export function ThreadView({
   locale: Locale;
   /** Вызывается после действий, меняющих диалог (ответ/закрытие/архив) — живая панель перезагружает его данные. */
   onChanged?: () => void;
+  /** Вызывается после действий, меняющих список (ответ/закрытие/архив/удаление) — список обновляется сразу, не дожидаясь опроса. */
+  onListChanged?: () => void;
   /** Вернуться к списку диалогов — локальный переход без навигации Next.js (см. `_support-inbox-client.tsx`). */
   onBack: () => void;
 }) {
@@ -197,13 +201,15 @@ export function ThreadView({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; direction: "IN" | "OUT"; body: string } | null>(null);
   const quickRef = useRef<HTMLDivElement>(null);
-  const markedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function toggleArchive() {
     startArchive(async () => {
       await (archived ? unarchiveThread(threadId) : archiveThread(threadId));
       onChanged?.();
+      onListChanged?.();
     });
   }
 
@@ -215,6 +221,7 @@ export function ThreadView({
         setDeleteError(r.error);
         return;
       }
+      onListChanged?.();
       onBack();
     });
   }
@@ -231,11 +238,13 @@ export function ThreadView({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [quickOpen]);
 
-  // Открыли диалог — отмечаем входящие прочитанными. Ref защищает от
-  // повторного вызова при перерисовке в React Strict Mode.
+  // Открыли диалог (или подгрузили новые сообщения) — отмечаем входящие
+  // прочитанными. Раньше это срабатывало только один раз за монтирование
+  // (через ref-флаг) — если гость писал ещё, пока диалог уже открыт, новые
+  // сообщения так и оставались непрочитанными, счётчик в списке не исчезал.
+  // Сам вызов идемпотентен (обновляет только readAt: null), поэтому его можно
+  // смело повторять при каждой перезагрузке сообщений.
   useEffect(() => {
-    if (markedRef.current) return;
-    markedRef.current = true;
     if (messages.some((m) => m.direction === "IN")) {
       void markThreadRead(threadId);
     }
@@ -244,11 +253,13 @@ export function ThreadView({
   function send() {
     setErr(null);
     start(async () => {
-      const r = await replyToThread(threadId, text);
+      const r = await replyToThread(threadId, text, replyingTo?.id);
       if (r.error) setErr(r.error);
       else {
         setText("");
+        setReplyingTo(null);
         onChanged?.();
+        onListChanged?.();
       }
     });
   }
@@ -286,7 +297,16 @@ export function ThreadView({
                 variant="danger"
                 size="sm"
                 disabled={pending}
-                onClick={() => start(async () => { await closeThread(threadId); onChanged?.(); })}
+                onClick={() =>
+                  start(async () => {
+                    await closeThread(threadId);
+                    // Закрытый диалог смотреть дальше незачем — выходим к
+                    // списку, чтобы сразу выбрать следующий чат, а не читать
+                    // тот же (уже закрытый) диалог второй раз.
+                    onListChanged?.();
+                    onBack();
+                  })
+                }
               >
                 {t("support.closeDialog")}
               </Button>
@@ -346,26 +366,61 @@ export function ThreadView({
         {messages.length === 0 ? (
           <p className="text-sm text-ink-muted">{t("support.noMessages")}</p>
         ) : (
-          messages.map((m) => (
-            <div key={m.id} className={m.direction === "OUT" ? "flex justify-end" : "flex justify-start"}>
-              <div
-                className={
-                  "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm " +
-                  (m.direction === "OUT" ? "bg-primary text-on-brand" : "bg-surface-muted text-ink")
-                }
+          messages.map((m) => {
+            const replyButton = (
+              <button
+                type="button"
+                aria-label={t("support.replyToMessage")}
+                title={t("support.replyToMessage")}
+                onClick={() => {
+                  setReplyingTo({ id: m.id, direction: m.direction, body: m.body });
+                  textareaRef.current?.focus();
+                }}
+                className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-subtle opacity-0 transition-opacity hover:bg-surface-muted hover:text-ink group-hover:opacity-100"
               >
-                <p className="whitespace-pre-line">{m.body}</p>
-                <p
-                  className={
-                    "mt-1 text-[11px] " + (m.direction === "OUT" ? "text-on-brand/70" : "text-ink-subtle")
-                  }
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 17 4 12l5-5M4 12h11a5 5 0 0 1 0 10h-1" />
+                </svg>
+              </button>
+            );
+            return (
+              <div
+                key={m.id}
+                className={cx(
+                  "group flex items-end gap-1",
+                  m.direction === "OUT" ? "flex-row-reverse justify-start" : "justify-start",
+                )}
+              >
+                {replyButton}
+                <div
+                  className={cx(
+                    "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
+                    m.direction === "OUT" ? "bg-primary text-on-brand" : "bg-surface-muted text-ink",
+                  )}
                 >
-                  {m.direction === "OUT" ? (m.author ?? "C&B") : source === "WEB" ? t("support.employee") : t("support.guest")} ·{" "}
-                  {new Date(m.createdAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
-                </p>
+                  {m.replyTo && (
+                    <div
+                      className={cx(
+                        "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs",
+                        m.direction === "OUT" ? "border-on-brand/50 bg-on-brand/10 text-on-brand/80" : "border-ink-subtle/50 bg-surface-sunken text-ink-muted",
+                      )}
+                    >
+                      <p className="line-clamp-2 whitespace-pre-line">{m.replyTo.body}</p>
+                    </div>
+                  )}
+                  <p className="whitespace-pre-line">{m.body}</p>
+                  <p
+                    className={
+                      "mt-1 text-[11px] " + (m.direction === "OUT" ? "text-on-brand/70" : "text-ink-subtle")
+                    }
+                  >
+                    {m.direction === "OUT" ? (m.author ?? "C&B") : source === "WEB" ? t("support.employee") : t("support.guest")} ·{" "}
+                    {new Date(m.createdAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -440,7 +495,24 @@ export function ThreadView({
                 )}
               </div>
             )}
+            {replyingTo && (
+              <div className="flex items-start gap-2 rounded-lg border-l-2 border-primary bg-primary-soft/60 px-2.5 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-primary-strong">{t("support.replyingToLabel")}</p>
+                  <p className="line-clamp-1 text-xs text-ink-muted">{replyingTo.body}</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={t("support.cancelReply")}
+                  onClick={() => setReplyingTo(null)}
+                  className="shrink-0 rounded-full p-1 text-ink-subtle hover:bg-surface-muted hover:text-ink"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <Textarea
+              ref={textareaRef}
               rows={2}
               value={text}
               onChange={(e) => setText(e.target.value)}

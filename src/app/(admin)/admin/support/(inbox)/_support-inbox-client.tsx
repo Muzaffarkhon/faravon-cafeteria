@@ -30,6 +30,10 @@ export function SupportInboxClient({ locale }: { locale: Locale }) {
   // всегда без выбранного диалога — иначе гидратация не совпадёт с тем, что
   // отрисовал сервер. Хэш подхватываем эффектом сразу после монтирования.
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  // Растёт при каждом действии в диалоге (ответ/закрытие/архив/удаление) —
+  // заставляет ThreadListLive перечитать список сразу же, см. её комментарий.
+  const [listRefreshSignal, setListRefreshSignal] = useState(0);
+  const bumpListRefresh = useCallback(() => setListRefreshSignal((n) => n + 1), []);
 
   useEffect(() => {
     function syncFromHash() {
@@ -57,8 +61,18 @@ export function SupportInboxClient({ locale }: { locale: Locale }) {
   return (
     <SupportSplitShell
       showSidebarOnMobile={!activeId}
-      sidebar={<ThreadListLive locale={locale} activeId={activeId} onSelect={openThread} />}
-      content={<ThreadViewLive locale={locale} activeId={activeId} backHref={backHref} onBack={closeThread} />}
+      sidebar={
+        <ThreadListLive locale={locale} activeId={activeId} onSelect={openThread} refreshSignal={listRefreshSignal} />
+      }
+      content={
+        <ThreadViewLive
+          locale={locale}
+          activeId={activeId}
+          backHref={backHref}
+          onBack={closeThread}
+          onListChanged={bumpListRefresh}
+        />
+      }
     />
   );
 }
