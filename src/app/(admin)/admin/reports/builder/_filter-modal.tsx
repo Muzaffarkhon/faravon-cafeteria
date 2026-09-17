@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ItemStatus, SupportThreadSource, SupportThreadStatus } from "@prisma/client";
 import { Field, Input, Select, buttonClass } from "@/components/ui";
 import { FEEDBACK_TOPICS } from "@/lib/feedback";
-import type { Dataset } from "@/lib/report-builder";
+import type { Dataset } from "@/lib/report-builder-shared";
 
 const ITEM_STATUSES: { value: ItemStatus; label: string }[] = [
   { value: "PENDING", label: "На согласовании" },

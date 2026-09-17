@@ -11,7 +11,7 @@ import {
   type DateBucket,
   type FieldCatalogEntry,
   type AggCatalogEntry,
-} from "@/lib/report-builder";
+} from "@/lib/report-builder-shared";
 import { Select, Input, buttonClass, cx } from "@/components/ui";
 
 const DATE_BUCKETS = Object.keys(DATE_BUCKET_LABELS) as DateBucket[];
