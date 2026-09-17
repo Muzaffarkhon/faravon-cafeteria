@@ -596,7 +596,16 @@ model SupportMessage {
   readAt    DateTime?
   createdAt DateTime                @default(now())
 
+  /// Сообщение, на которое отвечают (цитата в интерфейсе) — необязательно,
+  /// доступно для ответа на любое сообщение того же диалога. При удалении
+  /// исходного сообщения цитата просто пропадает (SetNull), само сообщение
+  /// с ответом остаётся.
+  replyTo   SupportMessage?  @relation("SupportMessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replyToId String?
+  replies   SupportMessage[] @relation("SupportMessageReply")
+
   @@index([threadId, createdAt])
+  @@index([replyToId])
 }
 
 /// Заготовленные быстрые ответы C&B в чате поддержки — админ сам ведёт список,

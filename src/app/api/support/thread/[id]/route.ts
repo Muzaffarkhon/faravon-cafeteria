@@ -62,7 +62,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       employee: { select: { id: true, fullName: true, position: true, department: true } },
       messages: {
         orderBy: { createdAt: "asc" },
-        include: { author: { select: { login: true, employee: { select: { fullName: true } } } } },
+        include: {
+          author: { select: { login: true, employee: { select: { fullName: true } } } },
+          replyTo: { select: { id: true, direction: true, body: true } },
+        },
       },
     },
   });
@@ -80,6 +83,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       body: m.body,
       createdAt: m.createdAt.toISOString(),
       author: m.author?.employee?.fullName ?? m.author?.login ?? null,
+      replyTo: m.replyTo ? { id: m.replyTo.id, direction: m.replyTo.direction, body: m.replyTo.body } : null,
     })),
     quickReplies: quickReplies.map((r) => ({ id: r.id, text: r.text })),
   };

@@ -3,6 +3,7 @@ import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
   InputHTMLAttributes,
+  Ref,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
   ReactNode,
@@ -139,9 +140,10 @@ export function Input({
 
 export function Textarea({
   className,
+  ref,
   ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={inputClass(className)} {...props} />;
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
+  return <textarea ref={ref} className={inputClass(className)} {...props} />;
 }
 
 export function Select({

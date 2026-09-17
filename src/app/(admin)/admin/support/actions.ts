@@ -14,8 +14,8 @@ import { normalizePhone, formatTajikPhone } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin, fuzzyNameKey } from "@/lib/translit";
 import { getFaqKeyboard } from "@/lib/support-chat";
 
-/** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. */
-export async function replyToThread(threadId: string, body: string): Promise<ActionResult> {
+/** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. `replyToId` — необязательная цитата на конкретное сообщение того же диалога. */
+export async function replyToThread(threadId: string, body: string, replyToId?: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "support.manage");
@@ -26,14 +26,31 @@ export async function replyToThread(threadId: string, body: string): Promise<Act
     const thread = await db.supportThread.findUnique({ where: { id: threadId } });
     if (!thread) throw new Error("Диалог не найден.");
 
+    // Цитата — только на сообщение из этого же диалога (иначе можно было бы
+    // сослаться на чужой чат чужим id из формы).
+    let replyTo: { direction: "IN" | "OUT"; body: string } | null = null;
+    if (replyToId) {
+      replyTo = await db.supportMessage.findFirst({
+        where: { id: replyToId, threadId },
+        select: { direction: true, body: true },
+      });
+      if (!replyTo) throw new Error("Сообщение для ответа не найдено.");
+    }
+
     if (thread.source === "TELEGRAM") {
       if (!thread.telegramId) throw new Error("У диалога нет Telegram-чата.");
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token) throw new Error("TELEGRAM_BOT_TOKEN не задан — отправка недоступна.");
 
+      // Telegram не знает о самой цитате (нет sent message_id исходного
+      // сообщения — не сохраняем) — добавляем её отдельной строкой курсивом,
+      // чтобы гостю тоже был виден контекст, на что именно отвечают.
+      const quotePrefix = replyTo
+        ? `<i>${escHtml(replyTo.body.length > 200 ? `${replyTo.body.slice(0, 200)}…` : replyTo.body)}</i>\n\n`
+        : "";
       // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
       // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
-      const ok = await sendTelegram(token, thread.telegramId, escHtml(text), {
+      const ok = await sendTelegram(token, thread.telegramId, `${quotePrefix}${escHtml(text)}`, {
         reply_markup: await getFaqKeyboard(),
       });
       if (!ok) throw new Error("Не удалось отправить сообщение в Telegram.");
@@ -44,7 +61,7 @@ export async function replyToThread(threadId: string, body: string): Promise<Act
 
     await db.$transaction([
       db.supportMessage.create({
-        data: { threadId, direction: "OUT", body: text, authorId: s.user.id },
+        data: { threadId, direction: "OUT", body: text, authorId: s.user.id, replyToId: replyToId || undefined },
       }),
       db.supportMessage.updateMany({
         where: { threadId, direction: "IN", readAt: null },

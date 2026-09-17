@@ -36,10 +36,13 @@ export function ThreadListLive({
   locale,
   activeId,
   onSelect,
+  refreshSignal,
 }: {
   locale: Locale;
   activeId: string | undefined;
   onSelect: (id: string) => void;
+  /** Растёт на 1 при каждом действии, меняющем список (ответ/закрытие/архив/удаление) — заставляет перечитать список сразу, не дожидаясь опроса раз в 8 секунд. */
+  refreshSignal?: number;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const router = useRouter();
@@ -83,6 +86,17 @@ export function ThreadListLive({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- подгружает список с сервера (внешний источник), а не зеркалирует проп/стейт
     void load();
   }, [load]);
+
+  // Действие в открытом диалоге (ответ/закрытие/архив/удаление) бампает
+  // refreshSignal — перечитываем список сразу же, а не ждём следующий тик
+  // опроса (до POLL_MS): иначе диалог с новым сообщением не поднимался наверх
+  // и не пропадал непрочитанным, пока не пройдёт до 8 секунд.
+  useEffect(() => {
+    if (!refreshSignal) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- подгружает список с сервера (внешний источник), а не зеркалирует проп/стейт
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load меняется только вместе с searchKey, реагировать нужно именно на refreshSignal
+  }, [refreshSignal]);
 
   useEffect(() => {
     const id = setInterval(load, POLL_MS);
