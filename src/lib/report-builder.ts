@@ -3,74 +3,114 @@ import { db } from "@/lib/db";
 import type { ItemStatus } from "@prisma/client";
 
 /**
- * Конструктор сводных отчётов (§ «Отчёты»): группировка выбранных льгот
- * (ApplicationItem — ядро домена: заявка → позиция → льгота/партнёр/статус)
- * по произвольному измерению с агрегацией количества, плюс топ-N и период.
- * Опционально — второе измерение по колонкам (как сводная таблица в Excel):
- * тогда вместе с плоским списком `rows` считается ещё и `matrix`. Данные
- * считаются в памяти (тот же приём, что и `computeReport` в `reports.ts`) —
- * датасет одного периода умещается без проблем.
+ * Конструктор сводных отчётов (§ «Отчёты»): произвольный набор полей
+ * группировки (каждое — своя колонка результата, дата — с выбором
+ * периодичности разбивки) + произвольный набор вычисляемых полей
+ * (агрегатная функция на каждое) поверх ApplicationItem — ядра домена
+ * (заявка → позиция → льгота/партнёр/статус). Данные считаются в памяти
+ * (тот же приём, что и `computeReport` в `reports.ts`) — датасет одного
+ * периода умещается без проблем.
  */
 
-export type PivotDimension = "department" | "card" | "partner" | "status" | "period" | "day" | "month";
-export type PivotMeasure = "count" | "employees";
+export type GroupFieldId = "department" | "card" | "partner" | "status" | "period" | "date";
+export type DateBucket = "day" | "week" | "month" | "quarter" | "year";
+export type AggFn = "count" | "uniqueEmployees" | "firstDate" | "lastDate";
 
-export const DIMENSION_LABELS: Record<PivotDimension, string> = {
+export const GROUP_FIELD_LABELS: Record<GroupFieldId, string> = {
   department: "Подразделение",
   card: "Льгота",
   partner: "Партнёр",
   status: "Статус",
   period: "Период",
-  day: "День подачи",
-  month: "Месяц подачи",
+  date: "Дата подачи",
 };
 
-export const MEASURE_LABELS: Record<PivotMeasure, string> = {
+export const DATE_BUCKET_LABELS: Record<DateBucket, string> = {
+  day: "По дням",
+  week: "По неделям",
+  month: "По месяцам",
+  quarter: "По кварталам",
+  year: "По годам",
+};
+
+export const AGG_FN_LABELS: Record<AggFn, string> = {
   count: "Количество позиций",
-  employees: "Уникальных сотрудников",
+  uniqueEmployees: "Уникальных сотрудников",
+  firstDate: "Первая дата подачи",
+  lastDate: "Последняя дата подачи",
 };
 
-export type PivotConfig = {
-  dimension: PivotDimension;
-  /** Второе измерение — раскладывает те же данные по колонкам, как в сводной таблице Excel. */
-  columnDimension?: PivotDimension;
-  measure: PivotMeasure;
+export type GroupField = { field: GroupFieldId; bucket?: DateBucket };
+export type CalcField = { agg: AggFn; label: string };
+
+export type BuilderConfig = {
+  groupFields: GroupField[];
+  calcFields: CalcField[];
   periodId?: string;
   dateFrom?: string;
   dateTo?: string;
   status?: ItemStatus;
   cardQuery?: string;
   departmentQuery?: string;
-  topN?: number;
+  limit?: number;
 };
 
-export type PivotRow = { label: string; value: number };
-
-export type PivotMatrix = {
-  rowLabels: string[];
-  columnLabels: string[];
-  /** cells[i][j] — значение на пересечении rowLabels[i] × columnLabels[j]. */
-  cells: number[][];
-  rowTotals: number[];
-  columnTotals: number[];
-  grandTotal: number;
+export type BuilderColumn = { key: string; label: string; numeric: boolean };
+export type BuilderResult = {
+  columns: BuilderColumn[];
+  rows: Record<string, string | number>[];
+  totals: Record<string, number> | null;
+  matchedCount: number;
 };
 
-/** Именно эти ключи конструктора сохраняются в срезе (ReportPreset.config) — держим в одном месте с builder/page.tsx и builder/actions.ts. */
+/** Ключи, которые сохраняются в срезе (ReportPreset.config) — держим в одном месте с builder/page.tsx и builder/actions.ts. */
 export const PRESET_CONFIG_KEYS = [
-  "dimension",
-  "columnDimension",
-  "measure",
+  "g",
+  "c",
   "periodId",
   "dateFrom",
   "dateTo",
   "status",
   "cardQuery",
   "departmentQuery",
-  "topN",
+  "limit",
 ] as const;
 
 export type PresetConfig = Partial<Record<(typeof PRESET_CONFIG_KEYS)[number], string>>;
+
+/** Разбирает JSON из query-параметра `g` — молча отбрасывает всё некорректное (старые/битые пресеты). */
+export function parseGroupFields(raw: string | null | undefined): GroupField[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x): x is { field: string; bucket?: string } => !!x && typeof x.field === "string" && x.field in GROUP_FIELD_LABELS)
+      .map((x) => ({
+        field: x.field as GroupFieldId,
+        bucket: x.field === "date" && typeof x.bucket === "string" && x.bucket in DATE_BUCKET_LABELS ? (x.bucket as DateBucket) : undefined,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Разбирает JSON из query-параметра `c` — молча отбрасывает всё некорректное (старые/битые пресеты). */
+export function parseCalcFields(raw: string | null | undefined): CalcField[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x): x is { agg: string; label?: string } => !!x && typeof x.agg === "string" && x.agg in AGG_FN_LABELS)
+      .map((x) => ({
+        agg: x.agg as AggFn,
+        label: typeof x.label === "string" && x.label.trim() ? x.label.trim() : AGG_FN_LABELS[x.agg as AggFn],
+      }));
+  } catch {
+    return [];
+  }
+}
 
 export async function listPeriodsForBuilder() {
   return db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true } });
@@ -86,7 +126,7 @@ const STATUS_LABELS: Record<ItemStatus, string> = {
   CANCELLED: "Отменено",
 };
 
-type ItemForDimension = {
+type ItemForGroup = {
   status: ItemStatus;
   submittedAt: Date | null;
   application: {
@@ -97,9 +137,38 @@ type ItemForDimension = {
   card: { title: string; partner: { name: string } | null };
 };
 
-/** Значение измерения для одной позиции — общее для строк и колонок. */
-function dimensionKey(i: ItemForDimension, dimension: PivotDimension): string {
-  switch (dimension) {
+function isoWeekKey(d: Date): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7; // понедельник = 0
+  date.setUTCDate(date.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const weekNum =
+    1 +
+    Math.round(
+      ((date.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7,
+    );
+  return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+/** Ключ бакета даты — специально в ISO-подобном формате: сортируется как строка в хронологическом порядке. */
+function dateBucketKey(d: Date, bucket: DateBucket): string {
+  switch (bucket) {
+    case "day":
+      return d.toISOString().slice(0, 10);
+    case "week":
+      return isoWeekKey(d);
+    case "month":
+      return d.toISOString().slice(0, 7);
+    case "quarter":
+      return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
+    case "year":
+      return String(d.getUTCFullYear());
+  }
+}
+
+/** Значение поля группировки для одной позиции. */
+function groupValue(i: ItemForGroup, gf: GroupField): string {
+  switch (gf.field) {
     case "department":
       return i.application.employee.department || "(без подразделения)";
     case "card":
@@ -110,21 +179,47 @@ function dimensionKey(i: ItemForDimension, dimension: PivotDimension): string {
       return STATUS_LABELS[i.status];
     case "period":
       return i.application.period.name;
-    case "day":
-      return i.submittedAt ? i.submittedAt.toISOString().slice(0, 10) : "(не подано)";
-    case "month":
-      return i.submittedAt ? i.submittedAt.toISOString().slice(0, 7) : "(не подано)";
-    default:
-      return "—";
+    case "date":
+      return i.submittedAt ? dateBucketKey(i.submittedAt, gf.bucket ?? "day") : "(не подано)";
   }
 }
 
-/** Измерения по времени сортируются хронологически, остальные — по убыванию значения. */
-const isChronological = (d: PivotDimension) => d === "day" || d === "month";
+const dateFormatter = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short" });
 
-export async function runPivotReport(
-  cfg: PivotConfig,
-): Promise<{ rows: PivotRow[]; total: number; matrix: PivotMatrix | null }> {
+type Agg = { count: number; employees: Set<string>; minDate: Date | null; maxDate: Date | null };
+
+function newAgg(): Agg {
+  return { count: 0, employees: new Set(), minDate: null, maxDate: null };
+}
+
+function feedAgg(a: Agg, i: ItemForGroup) {
+  a.count += 1;
+  a.employees.add(i.application.employeeId);
+  if (i.submittedAt) {
+    if (!a.minDate || i.submittedAt < a.minDate) a.minDate = i.submittedAt;
+    if (!a.maxDate || i.submittedAt > a.maxDate) a.maxDate = i.submittedAt;
+  }
+}
+
+function aggValue(a: Agg, fn: AggFn): string | number {
+  switch (fn) {
+    case "count":
+      return a.count;
+    case "uniqueEmployees":
+      return a.employees.size;
+    case "firstDate":
+      return a.minDate ? dateFormatter.format(a.minDate) : "—";
+    case "lastDate":
+      return a.maxDate ? dateFormatter.format(a.maxDate) : "—";
+  }
+}
+
+const isNumericAgg = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees";
+
+export async function runBuilderReport(cfg: BuilderConfig): Promise<BuilderResult> {
+  const groupFields = cfg.groupFields.length ? cfg.groupFields : [{ field: "department" as const }];
+  const calcFields = cfg.calcFields.length ? cfg.calcFields : [{ agg: "count" as const, label: AGG_FN_LABELS.count }];
+
   const items = await db.applicationItem.findMany({
     where: {
       status: cfg.status ? cfg.status : { not: "CANCELLED" },
@@ -157,83 +252,51 @@ export async function runPivotReport(
     },
   });
 
-  const groups = new Map<string, { count: number; employees: Set<string> }>();
+  const groups = new Map<string, { values: string[]; agg: Agg }>();
   for (const i of items) {
-    const key = dimensionKey(i, cfg.dimension);
-    const g = groups.get(key) ?? { count: 0, employees: new Set() };
-    g.count += 1;
-    g.employees.add(i.application.employeeId);
+    const values = groupFields.map((gf) => groupValue(i, gf));
+    const key = values.join("");
+    const g = groups.get(key) ?? { values, agg: newAgg() };
+    feedAgg(g.agg, i);
     groups.set(key, g);
   }
 
-  let rows: PivotRow[] = [...groups.entries()]
-    .map(([label, g]) => ({ label, value: cfg.measure === "employees" ? g.employees.size : g.count }))
-    .sort((a, b) => b.value - a.value);
-
-  if (isChronological(cfg.dimension)) rows = rows.sort((a, b) => a.label.localeCompare(b.label));
-  if (cfg.topN && cfg.topN > 0 && !isChronological(cfg.dimension)) rows = rows.slice(0, cfg.topN);
-
-  const total = rows.reduce((s, r) => s + r.value, 0);
-
-  let matrix: PivotMatrix | null = null;
-  if (cfg.columnDimension && cfg.columnDimension !== cfg.dimension) {
-    const columnDimension = cfg.columnDimension;
-    // Ограничиваем строки итоговым (уже отсортированным и, возможно, топ-N)
-    // набором меток — то же подмножество, что видно в плоском списке, а не
-    // весь неограниченный срез: иначе топ-N в шапке и в матрице бы расходились.
-    const rowLabels = rows.map((r) => r.label);
-    const rowIndex = new Map(rowLabels.map((l, idx) => [l, idx]));
-    const colGroups = new Map<string, { count: number; employees: Set<string> }>();
-    // Строка -> колонка -> агрегат: вложенные Map вместо составного строкового
-    // ключа, чтобы метки измерений (название льготы, подразделения и т.п.)
-    // могли содержать любые символы без риска коллизии с разделителем.
-    const cellGroups = new Map<string, Map<string, { count: number; employees: Set<string> }>>();
-
-    for (const i of items) {
-      const rk = dimensionKey(i, cfg.dimension);
-      if (!rowIndex.has(rk)) continue; // отсечено топ-N по строкам
-      const ck = dimensionKey(i, columnDimension);
-
-      const cg = colGroups.get(ck) ?? { count: 0, employees: new Set() };
-      cg.count += 1;
-      cg.employees.add(i.application.employeeId);
-      colGroups.set(ck, cg);
-
-      const rowCells = cellGroups.get(rk) ?? new Map<string, { count: number; employees: Set<string> }>();
-      const cc = rowCells.get(ck) ?? { count: 0, employees: new Set() };
-      cc.count += 1;
-      cc.employees.add(i.application.employeeId);
-      rowCells.set(ck, cc);
-      cellGroups.set(rk, rowCells);
-    }
-
-    let columnLabels = [...colGroups.keys()];
-    columnLabels = isChronological(columnDimension)
-      ? columnLabels.sort((a, b) => a.localeCompare(b))
-      : columnLabels.sort(
-          (a, b) =>
-            (cfg.measure === "employees" ? colGroups.get(b)!.employees.size : colGroups.get(b)!.count) -
-            (cfg.measure === "employees" ? colGroups.get(a)!.employees.size : colGroups.get(a)!.count),
-        );
-
-    const cellValue = (rk: string, ck: string) => {
-      const c = cellGroups.get(rk)?.get(ck);
-      if (!c) return 0;
-      return cfg.measure === "employees" ? c.employees.size : c.count;
-    };
-
-    const cells = rowLabels.map((rl) => columnLabels.map((cl) => cellValue(rl, cl)));
-    const rowTotals = rows.map((r) => r.value);
-    const columnTotals = columnLabels.map((cl) =>
-      cfg.measure === "employees" ? colGroups.get(cl)!.employees.size : colGroups.get(cl)!.count,
-    );
-    // Грандтотал — не сумма ячеек (для measure="employees" один и тот же
-    // сотрудник может попасть в несколько ячеек и посчитался бы дважды), а
-    // те же уникальные сотрудники/позиции, что и total по строкам.
-    const grandTotal = total;
-
-    matrix = { rowLabels, columnLabels, cells, rowTotals, columnTotals, grandTotal };
+  const dateFirst = groupFields[0]?.field === "date";
+  let entries = [...groups.values()];
+  if (dateFirst) {
+    entries.sort((a, b) => a.values.join("").localeCompare(b.values.join("")));
+  } else {
+    const firstFn = calcFields[0].agg;
+    entries.sort((a, b) => {
+      const av = aggValue(a.agg, firstFn);
+      const bv = aggValue(b.agg, firstFn);
+      if (typeof av === "number" && typeof bv === "number") return bv - av;
+      return a.values.join("").localeCompare(b.values.join(""));
+    });
   }
+  if (cfg.limit && cfg.limit > 0) entries = entries.slice(0, cfg.limit);
 
-  return { rows, total, matrix };
+  const columns: BuilderColumn[] = [
+    ...groupFields.map((gf, i) => ({
+      key: `g${i}`,
+      label: GROUP_FIELD_LABELS[gf.field] + (gf.field === "date" && gf.bucket ? ` (${DATE_BUCKET_LABELS[gf.bucket]})` : ""),
+      numeric: false,
+    })),
+    ...calcFields.map((cf, i) => ({ key: `c${i}`, label: cf.label, numeric: isNumericAgg(cf.agg) })),
+  ];
+
+  const rows = entries.map((e) => {
+    const row: Record<string, string | number> = {};
+    e.values.forEach((v, i) => (row[`g${i}`] = v));
+    calcFields.forEach((cf, i) => (row[`c${i}`] = aggValue(e.agg, cf.agg)));
+    return row;
+  });
+
+  const totals: Record<string, number> = {};
+  calcFields.forEach((cf, i) => {
+    if (!isNumericAgg(cf.agg)) return;
+    totals[`c${i}`] = rows.reduce((s, r) => s + (r[`c${i}`] as number), 0);
+  });
+
+  return { columns, rows, totals: Object.keys(totals).length ? totals : null, matchedCount: items.length };
 }
