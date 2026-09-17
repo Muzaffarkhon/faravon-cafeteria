@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { resolveSelectionContext, getApplicationWithItems, groupProgress } from "@/lib/selection";
+import { resolveSelectionContext, getApplicationWithItems, groupProgress, getPreviousPeriodPicks } from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
@@ -193,6 +193,17 @@ export default async function OverviewPage() {
     : new Map<string, number>();
 
   const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
+
+  // «Выбрать как в прошлый раз» (§4): льготы из последнего прошлого периода,
+  // которые сотрудник ещё не выбрал/не пытался выбрать в текущем — с учётом
+  // только тех, что всё ещё опубликованы и активны (пересечение с `flex`).
+  const flexTitleById = new Map(flex.map((c) => [c.id, c.title]));
+  const previousPicks =
+    windowOpen && targetPeriod
+      ? (await getPreviousPeriodPicks(emp.id, targetPeriod.startDate))
+          .filter((p) => flexTitleById.has(p.cardId) && !selectedIds.includes(p.cardId))
+          .map((p) => ({ cardId: p.cardId, title: flexTitleById.get(p.cardId)! }))
+      : [];
 
   // Лайки на карточки витрины (§10): не привязаны к периоду, просто счётчик
   // популярности + собственный лайк сотрудника.
@@ -432,6 +443,8 @@ export default async function OverviewPage() {
                 : null,
           }))}
           selectedIds={selectedIds}
+          previousPicks={previousPicks}
+          atSelectionLimit={selectedIds.length >= maxSelections}
           draftCount={draftCount}
           maxSelections={maxSelections}
           windowOpen={windowOpen}

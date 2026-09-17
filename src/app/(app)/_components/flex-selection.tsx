@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, cx } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { itemStatusLabel } from "@/lib/application-workflow";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
@@ -40,6 +41,8 @@ type Card = {
 export function FlexSelection({
   cards,
   selectedIds,
+  previousPicks = [],
+  atSelectionLimit = false,
   draftCount,
   maxSelections,
   windowOpen,
@@ -49,6 +52,9 @@ export function FlexSelection({
 }: {
   cards: Card[];
   selectedIds: string[];
+  /** «Выбрать как в прошлый раз» (§4) — льготы из последнего прошлого периода, ещё не выбранные сейчас. */
+  previousPicks?: { cardId: string; title: string }[];
+  atSelectionLimit?: boolean;
   draftCount: number;
   maxSelections: number;
   windowOpen: boolean;
@@ -84,6 +90,8 @@ export function FlexSelection({
   }
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
+  // «Выбрать как в прошлый раз» (§4) — подтверждение перед добавлением.
+  const [pickAgainTarget, setPickAgainTarget] = useState<{ cardId: string; title: string } | null>(null);
 
   // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
   useEffect(() => {
@@ -163,6 +171,39 @@ export function FlexSelection({
           {t("flex.submitSuccess")}
         </p>
       )}
+
+      {windowOpen && previousPicks.length > 0 && (
+        <div className="mb-4 rounded-xl border border-line bg-surface-muted p-3">
+          <div className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-ink-subtle">
+            {t("flex.previousPicksTitle")}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {previousPicks.map((p) => (
+              <button
+                key={p.cardId}
+                type="button"
+                disabled={pending || atSelectionLimit}
+                onClick={() => setPickAgainTarget(p)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-primary hover:text-primary-strong disabled:cursor-default disabled:opacity-60"
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!pickAgainTarget}
+        title={`${t("flex.confirmPickAgainPrefix")}${pickAgainTarget?.title ?? ""}${t("flex.confirmPickAgainSuffix")}`}
+        confirmLabel={t("flex.confirmPickAgainYes")}
+        busy={pending && busyId === pickAgainTarget?.cardId}
+        onConfirm={() => {
+          if (pickAgainTarget) onToggle(pickAgainTarget.cardId);
+          setPickAgainTarget(null);
+        }}
+        onClose={() => setPickAgainTarget(null)}
+      />
 
       {(() => {
         const renderCard = (c: Card) => {

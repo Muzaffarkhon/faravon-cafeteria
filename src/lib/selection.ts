@@ -164,6 +164,41 @@ export async function groupProgressOne(cardId: string, periodId: string): Promis
   return (await groupProgress([cardId], periodId)).get(cardId) ?? 0;
 }
 
+export type PreviousPick = { cardId: string; cardTitle: string };
+
+/**
+ * Льготы, реально полученные сотрудником в последнем прошлом периоде (§4:
+ * «Выбрать как в прошлый раз») — самый свежий период до `beforeStartDate`, в
+ * котором у сотрудника есть хотя бы одна позиция в статусе из
+ * `GROUP_ISSUE_STATUSES` (одобрена/купон сформирован/выдан — не черновик,
+ * не отклонена и не отменена). Только активные FLEX-карточки, которые всё
+ * ещё опубликованы — если льготу сняли с публикации, предлагать её повторно
+ * нет смысла.
+ */
+export async function getPreviousPeriodPicks(
+  employeeId: string,
+  beforeStartDate: Date,
+): Promise<PreviousPick[]> {
+  const app = await db.application.findFirst({
+    where: {
+      employeeId,
+      period: { startDate: { lt: beforeStartDate } },
+      items: { some: { status: { in: [...GROUP_ISSUE_STATUSES] } } },
+    },
+    orderBy: { period: { startDate: "desc" } },
+    include: {
+      items: {
+        where: { status: { in: [...GROUP_ISSUE_STATUSES] } },
+        include: { card: { select: { id: true, title: true, block: true, status: true, isActive: true, archivedAt: true } } },
+      },
+    },
+  });
+  if (!app) return [];
+  return app.items
+    .filter((i) => i.card.block === "FLEX" && i.card.status === "PUBLISHED" && i.card.isActive && !i.card.archivedAt)
+    .map((i) => ({ cardId: i.card.id, cardTitle: i.card.title }));
+}
+
 /**
  * Сколько ОДОБРЕННЫХ участников у групповой льготы — по этому числу решается,
  * набралась ли группа для выдачи купонов (§ minParticipants).
