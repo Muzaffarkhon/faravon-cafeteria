@@ -212,6 +212,17 @@ export default async function OverviewPage() {
 
   // Статус позиции по карточке — чтобы показать «уже выбрано / отклонено / в обработке».
   const itemStatusByCard = new Map(items.map((i) => [i.cardId, i.status] as const));
+  // Очередь наборов для групповых льгот: как только счётчик доходит до порога —
+  // это готовая группа (купоны выдаются сразу, см. issueCouponIfReady), а счётчик
+  // для интерфейса начинается заново для следующей группы. Без этого прогресс-бар
+  // навсегда «застревал» зелёным и полным после первого набора порога, и сотрудники
+  // думали, что мест больше нет, хотя выбор в новую группу по-прежнему шёл сразу.
+  const groupWaveOf = (have: number, min: number): { inWave: number; wave: number; done: boolean } => {
+    if (have <= 0) return { inWave: 0, wave: 1, done: false };
+    const wave = Math.floor((have - 1) / min) + 1;
+    const inWave = have - (wave - 1) * min;
+    return { inWave, wave, done: inWave === min };
+  };
   // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
   const groupCount = targetPeriod
@@ -241,7 +252,7 @@ export default async function OverviewPage() {
   const likedCardIds = new Set(myLikes.map((l) => l.cardId));
 
   // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
-  // «Партнёр») + групповые льготы, не набравшие порог, — с переходом на выбор.
+  // «Партнёр») + групповые льготы, набирающие текущую очередь, — с переходом на выбор.
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
     const isNews = b.kind === "NEWS";
     const cardId = !isNews && b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
@@ -267,20 +278,22 @@ export default async function OverviewPage() {
   });
 
   const groupBannerSlides: BannerSlide[] = groupCards
-    .filter((c) => c.isActive && (groupCount.get(c.id) ?? 0) < c.minParticipants)
+    .filter((c) => c.isActive)
     .map((c) => {
       const have = groupCount.get(c.id) ?? 0;
-      const remaining = c.minParticipants - have;
+      const { inWave, wave } = groupWaveOf(have, c.minParticipants);
+      const remaining = c.minParticipants - inWave;
+      const waveHint = wave > 1 ? ` ${t("home.groupBenefitWavePrefix")} ${wave}.` : "";
       return {
         id: `group-${c.id}`,
         kind: "group",
         title: c.title,
-        subtitle: `${t("home.groupBenefitPrefix")} ${have} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
+        subtitle: `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
         imageUrl: safeImageSrc(c.imageUrl),
         linkHref: `#card-${c.id}`,
         external: false,
         cta: period?.windowOpen ? t("home.goToSelection") : t("home.goToBenefit"),
-        progress: { current: have, min: c.minParticipants },
+        progress: { current: inWave, min: c.minParticipants },
       };
     });
 
@@ -458,7 +471,8 @@ export default async function OverviewPage() {
             imageUrl: c.imageUrl,
             category: c.category,
             minParticipants: c.minParticipants,
-            groupCount: groupCount.get(c.id) ?? 0,
+            groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).inWave,
+            groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).wave,
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,
             liked: likedCardIds.has(c.id),

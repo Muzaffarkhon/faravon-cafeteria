@@ -28,7 +28,10 @@ type Card = {
   imageUrl: string | null;
   category: string | null;
   minParticipants: number;
+  /** Сколько набрано в ТЕКУЩЕЙ очереди (после порога счётчик начинается заново — см. page.tsx `groupWaveOf`). */
   groupCount: number;
+  /** Номер текущей очереди набора (1 — первая; растёт после каждого набранного порога). */
+  groupWave: number;
   /** льгота партнёра со своей системой (такси): промокод уходит на номер телефона */
   phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
@@ -427,6 +430,7 @@ export function FlexSelection({
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className={done ? "text-success-strong" : "text-amber-800 dark:text-amber-300"}>
                           {done ? t("flex.groupDiscountActive") : t("flex.groupBenefit")}
+                          {c.groupWave > 1 && ` · ${t("flex.groupWaveLabel")} ${c.groupWave}`}
                         </span>
                         <span className="tabular-nums text-ink" data-numeric>
                           {Math.min(c.groupCount, c.minParticipants)} / {c.minParticipants}
