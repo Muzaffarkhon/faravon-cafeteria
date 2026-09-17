@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ROLE_LABELS, can } from "@/lib/rbac";
-import { resolveSelectionContext, getApplicationWithItems, groupProgress, getPreviousPeriodPicks } from "@/lib/selection";
+import {
+  resolveSelectionContext,
+  getApplicationWithItems,
+  groupProgress,
+  getPreviousPeriodPicks,
+  getAutoPickedCardIds,
+  ensureAutoPicks,
+} from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
 import { FlexSelection } from "./_components/flex-selection";
@@ -175,9 +182,16 @@ export default async function OverviewPage() {
   for (const c of flex) if (c.partnerId && c.isActive && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
   for (const c of flex) if (c.partnerId && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
 
-  const application = targetPeriod
-    ? await getApplicationWithItems(emp.id, targetPeriod.id)
-    : null;
+  const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
+
+  let application = targetPeriod ? await getApplicationWithItems(emp.id, targetPeriod.id) : null;
+  // Автовыбор (§5): заявки на период ещё нет — первое обращение сотрудника
+  // после открытия окна. Применяем сохранённые льготы один раз здесь, а не
+  // при каждом заходе (иначе вернули бы то, что сотрудник сам убрал).
+  if (!application && windowOpen && targetPeriod) {
+    await ensureAutoPicks(emp.id, targetPeriod);
+    application = await getApplicationWithItems(emp.id, targetPeriod.id);
+  }
   const items = application?.items ?? [];
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
@@ -191,8 +205,6 @@ export default async function OverviewPage() {
   const groupCount = targetPeriod
     ? await groupProgress(groupCards.map((c) => c.id), targetPeriod.id)
     : new Map<string, number>();
-
-  const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
 
   // «Выбрать как в прошлый раз» (§4): льготы из последнего прошлого периода,
   // которые сотрудник ещё не выбрал/не пытался выбрать в текущем — с учётом
@@ -208,9 +220,10 @@ export default async function OverviewPage() {
   // Лайки на карточки витрины (§10): не привязаны к периоду, просто счётчик
   // популярности + собственный лайк сотрудника.
   const flexIds = flex.map((c) => c.id);
-  const [likeCounts, myLikes] = await Promise.all([
+  const [likeCounts, myLikes, autoPickedIds] = await Promise.all([
     db.cardLike.groupBy({ by: ["cardId"], where: { cardId: { in: flexIds } }, _count: { cardId: true } }),
     db.cardLike.findMany({ where: { cardId: { in: flexIds }, employeeId: emp.id }, select: { cardId: true } }),
+    getAutoPickedCardIds(emp.id),
   ]);
   const likeCountByCard = new Map(likeCounts.map((l) => [l.cardId, l._count.cardId]));
   const likedCardIds = new Set(myLikes.map((l) => l.cardId));
@@ -437,6 +450,7 @@ export default async function OverviewPage() {
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,
             liked: likedCardIds.has(c.id),
+            autoPicked: autoPickedIds.has(c.id),
             lockedStatus:
               itemStatusByCard.get(c.id) && itemStatusByCard.get(c.id) !== "DRAFT"
                 ? (itemStatusByCard.get(c.id) as string)

@@ -131,6 +131,8 @@ export const DICT = {
     "flex.confirmPickAgainPrefix": "Выбрать «",
     "flex.confirmPickAgainSuffix": "» снова?",
     "flex.confirmPickAgainYes": "Да",
+    "flex.autoPickOn": "Автовыбор включён — будет выбираться каждый период",
+    "flex.autoPickOff": "Включить автовыбор каждый период",
 
     "cardDetails.more": "Подробнее",
     "cardDetails.whereToGo": "Куда идти",
@@ -1313,6 +1315,8 @@ export const DICT = {
     "flex.confirmPickAgainPrefix": "Интихоб кардани «",
     "flex.confirmPickAgainSuffix": "» бори дигар?",
     "flex.confirmPickAgainYes": "Ҳа",
+    "flex.autoPickOn": "Автоинтихоб фаъол аст — ҳар давра интихоб мешавад",
+    "flex.autoPickOff": "Автоинтихоби ҳар давраро фаъол кунед",
 
     "cardDetails.more": "Тафсилот",
     "cardDetails.whereToGo": "Ба куҷо равем",
@@ -2495,6 +2499,8 @@ export const DICT = {
     "flex.confirmPickAgainPrefix": "«",
     "flex.confirmPickAgainSuffix": "»ni qayta tanlaysizmi?",
     "flex.confirmPickAgainYes": "Ha",
+    "flex.autoPickOn": "Avtomatik tanlov yoqilgan — har davrda tanlanadi",
+    "flex.autoPickOff": "Har davr uchun avtomatik tanlovni yoqish",
 
     "cardDetails.more": "Batafsil",
     "cardDetails.whereToGo": "Qayerga borish kerak",

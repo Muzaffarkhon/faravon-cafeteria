@@ -135,6 +135,31 @@ async function toggleLikeImpl(cardId: string) {
   revalidatePath("/", "layout");
 }
 
+export async function toggleAutoPick(cardId: string): Promise<ActionResult> {
+  return runAction(() => toggleAutoPickImpl(cardId));
+}
+
+async function toggleAutoPickImpl(cardId: string) {
+  const s = await requireSession();
+  if (!s.employee) throw new Error("Доступно только сотрудникам.");
+  const existing = await db.autoPick.findUnique({
+    where: { cardId_employeeId: { cardId, employeeId: s.employee.id } },
+  });
+  if (existing) {
+    await db.autoPick.delete({ where: { id: existing.id } });
+  } else {
+    const card = await db.benefitCard.findUnique({ where: { id: cardId }, include: { partner: true } });
+    if (!card || card.block !== "FLEX") throw new Error("Некорректная карточка.");
+    // §такси: промокод по телефону требует явного подтверждения номера каждый
+    // раз — автовыбор для таких льгот не предлагаем.
+    if (card.partner?.deliveryMode === "PHONE_PROMO") {
+      throw new Error("Для этой льготы нужен номер телефона — автовыбор недоступен.");
+    }
+    await db.autoPick.create({ data: { cardId, employeeId: s.employee.id } });
+  }
+  revalidatePath("/", "layout");
+}
+
 export async function submitSelection(): Promise<ActionResult> {
   return runAction(submitSelectionImpl);
 }

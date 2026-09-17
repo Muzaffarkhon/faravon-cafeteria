@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { itemStatusLabel } from "@/lib/application-workflow";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { toggleSelection, submitSelection, toggleLike } from "../actions";
+import { toggleSelection, submitSelection, toggleLike, toggleAutoPick } from "../actions";
 import { CardDetailsButton } from "./card-details";
 
 const emptySubscribe = () => () => {};
@@ -36,6 +36,8 @@ type Card = {
   /** Лайки (§10): сколько всего и лайкнул ли текущий сотрудник — не привязано к периоду. */
   likeCount: number;
   liked: boolean;
+  /** Автовыбор (§5): сотрудник сохранил льготу для автоматического выбора каждый период. */
+  autoPicked: boolean;
 };
 
 export function FlexSelection({
@@ -86,6 +88,20 @@ export function FlexSelection({
     likeStart(async () => {
       const res = await toggleLike(c.id);
       if (res.error) setLikeOverride((m) => ({ ...m, [c.id]: cur }));
+    });
+  }
+  // Автовыбор (§5) — тот же оптимистичный приём, что и у лайков.
+  const [autoPickOverride, setAutoPickOverride] = useState<Record<string, boolean>>({});
+  const [, autoPickStart] = useTransition();
+  function onAutoPickClick(c: Card) {
+    const cur = autoPickOverride[c.id] ?? c.autoPicked;
+    setAutoPickOverride((m) => ({ ...m, [c.id]: !cur }));
+    autoPickStart(async () => {
+      const res = await toggleAutoPick(c.id);
+      if (res.error) {
+        setAutoPickOverride((m) => ({ ...m, [c.id]: cur }));
+        setError(res.error);
+      }
     });
   }
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
@@ -268,35 +284,65 @@ export function FlexSelection({
                     <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
                     {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
                   </div>
-                  {(() => {
-                    const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
-                    return (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {!c.phonePromo && (
                       <button
                         type="button"
-                        onClick={() => onLikeClick(c)}
-                        aria-pressed={likeState.liked}
-                        aria-label={likeState.liked ? "Убрать лайк" : "Нравится"}
+                        onClick={() => onAutoPickClick(c)}
+                        aria-pressed={autoPickOverride[c.id] ?? c.autoPicked}
+                        aria-label={
+                          (autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")
+                        }
+                        title={(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")}
                         className={cx(
-                          "flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors hover:bg-surface-muted",
-                          likeState.liked ? "text-danger" : "text-ink-subtle",
+                          "flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-surface-muted",
+                          (autoPickOverride[c.id] ?? c.autoPicked) ? "text-primary" : "text-ink-subtle",
                         )}
                       >
                         <svg
                           width="15"
                           height="15"
                           viewBox="0 0 24 24"
-                          fill={likeState.liked ? "currentColor" : "none"}
+                          fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                          <path d="M17 2.1l4 4-4 4M3 12.9v-1a4 4 0 0 1 4-4h14M7 21.9l-4-4 4-4M21 11.1v1a4 4 0 0 1-4 4H3" />
                         </svg>
-                        {likeState.count > 0 && <span className="tabular-nums">{likeState.count}</span>}
                       </button>
-                    );
-                  })()}
+                    )}
+                    {(() => {
+                      const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onLikeClick(c)}
+                          aria-pressed={likeState.liked}
+                          aria-label={likeState.liked ? "Убрать лайк" : "Нравится"}
+                          className={cx(
+                            "flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors hover:bg-surface-muted",
+                            likeState.liked ? "text-danger" : "text-ink-subtle",
+                          )}
+                        >
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill={likeState.liked ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                          </svg>
+                          {likeState.count > 0 && <span className="tabular-nums">{likeState.count}</span>}
+                        </button>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {c.phonePromo ? (
