@@ -325,7 +325,7 @@ export function AdminShell({
       </aside>
 
       {/* ── Правая колонка: закреплённая шапка + прокручиваемый контент ── */}
-      <div className="flex flex-1 flex-col pt-14 md:pt-0">
+      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
           <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
 
