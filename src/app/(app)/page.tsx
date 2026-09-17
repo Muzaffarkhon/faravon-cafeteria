@@ -194,6 +194,16 @@ export default async function OverviewPage() {
 
   const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
 
+  // Лайки на карточки витрины (§10): не привязаны к периоду, просто счётчик
+  // популярности + собственный лайк сотрудника.
+  const flexIds = flex.map((c) => c.id);
+  const [likeCounts, myLikes] = await Promise.all([
+    db.cardLike.groupBy({ by: ["cardId"], where: { cardId: { in: flexIds } }, _count: { cardId: true } }),
+    db.cardLike.findMany({ where: { cardId: { in: flexIds }, employeeId: emp.id }, select: { cardId: true } }),
+  ]);
+  const likeCountByCard = new Map(likeCounts.map((l) => [l.cardId, l._count.cardId]));
+  const likedCardIds = new Set(myLikes.map((l) => l.cardId));
+
   // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
   // «Партнёр») + групповые льготы, не набравшие порог, — с переходом на выбор.
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
@@ -414,6 +424,8 @@ export default async function OverviewPage() {
             minParticipants: c.minParticipants,
             groupCount: groupCount.get(c.id) ?? 0,
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
+            likeCount: likeCountByCard.get(c.id) ?? 0,
+            liked: likedCardIds.has(c.id),
             lockedStatus:
               itemStatusByCard.get(c.id) && itemStatusByCard.get(c.id) !== "DRAFT"
                 ? (itemStatusByCard.get(c.id) as string)

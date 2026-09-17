@@ -109,7 +109,11 @@ export default async function ReportsPage({
   }
 
   const sp = await searchParams;
-  const periodId = sp.period && periods.some((p) => p.id === sp.period) ? sp.period : periods[0].id;
+  // По умолчанию — открытый период, а не первый по дате: свежесозданный
+  // черновик следующего месяца (см. ensureNextPeriodDraft) обычно новее по
+  // startDate и раньше подставлялся вместо активного, показывая «Нет данных».
+  const defaultPeriodId = periods.find((p) => p.status === "OPEN")?.id ?? periods[0].id;
+  const periodId = sp.period && periods.some((p) => p.id === sp.period) ? sp.period : defaultPeriodId;
   const report = (await computeReport(periodId)) as Report;
   const k = report.kpis;
   const exportBase = `/admin/reports/export?period=${periodId}`;

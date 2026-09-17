@@ -6,7 +6,7 @@ import { Badge, Button, cx } from "@/components/ui";
 import { itemStatusLabel } from "@/lib/application-workflow";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { toggleSelection, submitSelection } from "../actions";
+import { toggleSelection, submitSelection, toggleLike } from "../actions";
 import { CardDetailsButton } from "./card-details";
 
 const emptySubscribe = () => () => {};
@@ -32,6 +32,9 @@ type Card = {
   phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
   lockedStatus: string | null;
+  /** Лайки (§10): сколько всего и лайкнул ли текущий сотрудник — не привязано к периоду. */
+  likeCount: number;
+  liked: boolean;
 };
 
 export function FlexSelection({
@@ -66,6 +69,19 @@ export function FlexSelection({
   const [justSubmitted, setJustSubmitted] = useState(false);
   // Ввод номера телефона для PHONE_PROMO-льготы (id карточки, для которой открыт ввод).
   const [phoneFor, setPhoneFor] = useState<string | null>(null);
+  // Лайки (§10): оптимистичный оверрайд поверх серверных cards[].liked/likeCount,
+  // чтобы не ждать revalidate по каждому клику (round-trip до БД заметно долгий).
+  const [likeOverride, setLikeOverride] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [, likeStart] = useTransition();
+  function onLikeClick(c: Card) {
+    const cur = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
+    const next = { liked: !cur.liked, count: Math.max(0, cur.count + (cur.liked ? -1 : 1)) };
+    setLikeOverride((m) => ({ ...m, [c.id]: next }));
+    likeStart(async () => {
+      const res = await toggleLike(c.id);
+      if (res.error) setLikeOverride((m) => ({ ...m, [c.id]: cur }));
+    });
+  }
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
 
@@ -206,8 +222,41 @@ export function FlexSelection({
               </div>
 
               <div className="flex flex-1 flex-col p-4">
-                <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
-                {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold leading-snug text-balance text-ink">{c.title}</div>
+                    {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
+                  </div>
+                  {(() => {
+                    const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onLikeClick(c)}
+                        aria-pressed={likeState.liked}
+                        aria-label={likeState.liked ? "Убрать лайк" : "Нравится"}
+                        className={cx(
+                          "flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors hover:bg-surface-muted",
+                          likeState.liked ? "text-danger" : "text-ink-subtle",
+                        )}
+                      >
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill={likeState.liked ? "currentColor" : "none"}
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                        </svg>
+                        {likeState.count > 0 && <span className="tabular-nums">{likeState.count}</span>}
+                      </button>
+                    );
+                  })()}
+                </div>
 
                 {c.phonePromo ? (
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-400">
@@ -323,7 +372,10 @@ export function FlexSelection({
                       )}
 
                       {phoneFor === c.id && !isSel && (
-                        <div className="mt-3 rounded-lg bg-surface-muted p-3">
+                        <div
+                          ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
+                          className="mt-3 rounded-lg bg-surface-muted p-3"
+                        >
                           <label
                             htmlFor={`phone-${c.id}`}
                             className="text-sm font-medium text-ink-muted"

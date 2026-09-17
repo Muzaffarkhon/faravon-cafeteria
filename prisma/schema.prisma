@@ -129,6 +129,7 @@ model Employee {
   feedback              Feedback[]
   supportThreads        SupportThread[]
   satisfactionResponses SatisfactionResponse[]
+  cardLikes             CardLike[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -269,8 +270,23 @@ model BenefitCard {
 
   items    ApplicationItem[]
   versions BenefitCardVersion[]
+  likes    CardLike[]
 
   @@index([archivedAt])
+}
+
+/// Лайк сотрудника на льготу-карточку в каталоге (§ витрина) — не привязан к
+/// периоду/заявке, просто сигнал «нравится», один на пару сотрудник+карточка.
+model CardLike {
+  id         String      @id @default(cuid())
+  card       BenefitCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId     String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  createdAt  DateTime    @default(now())
+
+  @@unique([cardId, employeeId])
+  @@index([cardId])
 }
 
 /// Снимок состояния карточки льготы на момент изменения (история версий).

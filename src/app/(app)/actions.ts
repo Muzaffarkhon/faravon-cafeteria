@@ -117,6 +117,24 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
   revalidatePath("/", "layout");
 }
 
+export async function toggleLike(cardId: string): Promise<ActionResult> {
+  return runAction(() => toggleLikeImpl(cardId));
+}
+
+async function toggleLikeImpl(cardId: string) {
+  const s = await requireSession();
+  if (!s.employee) throw new Error("Доступно только сотрудникам.");
+  const existing = await db.cardLike.findUnique({
+    where: { cardId_employeeId: { cardId, employeeId: s.employee.id } },
+  });
+  if (existing) {
+    await db.cardLike.delete({ where: { id: existing.id } });
+  } else {
+    await db.cardLike.create({ data: { cardId, employeeId: s.employee.id } });
+  }
+  revalidatePath("/", "layout");
+}
+
 export async function submitSelection(): Promise<ActionResult> {
   return runAction(submitSelectionImpl);
 }

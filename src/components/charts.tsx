@@ -25,11 +25,14 @@ function ChartFrame({
   unit,
   children,
   noData,
+  tall,
 }: {
   title: string;
   unit?: string;
   children: React.ReactNode;
   noData?: boolean;
+  /** Больше места снизу под развёрнутые (наклонные) подписи категорий. */
+  tall?: boolean;
 }) {
   return (
     <div className="rounded-[20px] bg-surface p-6 shadow-sm sm:p-7">
@@ -40,7 +43,7 @@ function ChartFrame({
       {noData ? (
         <p className="mt-3 text-sm text-ink-subtle">Нет данных.</p>
       ) : (
-        <div className="mt-4 h-64 w-full">{children}</div>
+        <div className={`mt-4 w-full ${tall ? "h-80" : "h-64"}`}>{children}</div>
       )}
     </div>
   );
@@ -74,12 +77,13 @@ export function BarChartCard({
 }) {
   const rotated = rows.length > 5;
   // Длинные подписи (название партнёра/подразделения) в развёрнутом виде не
-  // помещаются между барами и обрезаются краем графика — сокращаем с
-  // многоточием, полное название всё равно видно в подсказке (ChartTooltip
-  // берёт исходный label, а не усечённый).
-  const truncate = (s: string) => (s.length > 12 ? `${s.slice(0, 11)}…` : s);
+  // помещаются между барами — сокращаем с многоточием, полное название всё
+  // равно видно в подсказке (ChartTooltip берёт исходный label, а не
+  // усечённый). Лимит и высота графика увеличены, чтобы обрезка случалась
+  // реже — раньше 12 символов резало почти любое название подразделения.
+  const truncate = (s: string) => (s.length > 20 ? `${s.slice(0, 19)}…` : s);
   return (
-    <ChartFrame title={title} unit={unit} noData={rows.length === 0}>
+    <ChartFrame title={title} unit={unit} noData={rows.length === 0} tall={rotated}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 4, right: 8, left: rotated ? 32 : -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
@@ -89,7 +93,7 @@ export function BarChartCard({
             interval={0}
             angle={rotated ? -35 : 0}
             textAnchor={rotated ? "end" : "middle"}
-            height={rotated ? 68 : 24}
+            height={rotated ? 100 : 24}
             tickFormatter={truncate}
           />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />

@@ -152,10 +152,12 @@ export function AppShell({
             </span>
           </Link>
 
-          {/* Прокручиваемая лента вкладок */}
+          {/* Прокручиваемая лента вкладок — на мобильном те же разделы уже есть
+              внизу (нижняя навигация, sm:hidden), так что здесь скрываем её и
+              отдаём место счётчикам/языку/профилю, которые иначе обрезались. */}
           <div
             ref={navScrollRef}
-            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex"
           >
             {primary.map((it) => {
               const active = isActive(it.href);

@@ -231,6 +231,29 @@ export default async function AuditPage({
     include: { actor: { select: { login: true } } },
   });
 
+  // Вместо сырого cuid в колонке «Объект» — логин/ФИО/название, если тип
+  // сущности это позволяет узнать одним батч-запросом на тип.
+  const idsByType = new Map<string, Set<string>>();
+  for (const r of rows) {
+    if (!r.entityId) continue;
+    if (!idsByType.has(r.entityType)) idsByType.set(r.entityType, new Set());
+    idsByType.get(r.entityType)!.add(r.entityId);
+  }
+  const entityLabelById = new Map<string, string>();
+  const userIds = [...(idsByType.get("User") ?? [])];
+  const employeeIds = [...(idsByType.get("Employee") ?? [])];
+  const partnerIds = [...(idsByType.get("Partner") ?? [])];
+  const [users, employees, partners] = await Promise.all([
+    userIds.length ? db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, login: true } }) : [],
+    employeeIds.length
+      ? db.employee.findMany({ where: { id: { in: employeeIds } }, select: { id: true, fullName: true } })
+      : [],
+    partnerIds.length ? db.partner.findMany({ where: { id: { in: partnerIds } }, select: { id: true, name: true } }) : [],
+  ]);
+  for (const u of users) entityLabelById.set(u.id, u.login);
+  for (const e of employees) entityLabelById.set(e.id, e.fullName);
+  for (const p of partners) entityLabelById.set(p.id, p.name);
+
   return (
     <div data-wide className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -269,7 +292,11 @@ export default async function AuditPage({
                   <td className="text-ink-muted">
                     {ENTITY_LABELS[r.entityType] ?? r.entityType}
                     {r.entityId && (
-                      <div className="font-mono text-[11px] text-ink-subtle">{r.entityId}</div>
+                      <div className="text-[11px] text-ink-subtle">
+                        {entityLabelById.get(r.entityId) ?? (
+                          <span className="font-mono">{r.entityId}</span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="text-xs text-ink-subtle">
