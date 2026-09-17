@@ -357,6 +357,11 @@ const STOPWORDS = new Set([
 
 const WORD_RE = /[a-zа-яё0-9]+/gi;
 
+// Тело автослужебных сообщений бота начинается с тега в квадратных скобках
+// (`[Поделился контактом] ...`, `[Вопрос] ...`) — живой текст от человека так
+// никогда не начинается.
+const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
+
 /**
  * Топ слов из текстов входящих сообщений обращений (§ «Обращения»: «какие
  * слова чаще всего пишут») — те же фильтры, что и у группировки по датасету
@@ -391,6 +396,11 @@ export async function topSupportWords(
 
   const counts = new Map<string, number>();
   for (const m of messages) {
+    // Системные служебные сообщения бота (нажатие «Поделиться контактом»,
+    // клик по готовому вопросу из FAQ) помечены тегом `[...]` в начале тела
+    // (см. appendGuestMessage в api/telegram/route.ts) — это не то, что
+    // человек сам написал, поэтому в «Топ слов» их не считаем.
+    if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
     const words = m.body.toLowerCase().match(WORD_RE) ?? [];
     for (const w of words) {
       if (w.length < 3 || STOPWORDS.has(w) || /^\d+$/.test(w)) continue;
