@@ -3,19 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  GROUP_FIELD_LABELS,
   DATE_BUCKET_LABELS,
-  AGG_FN_LABELS,
   type GroupField,
   type GroupFieldId,
   type CalcField,
   type AggFn,
   type DateBucket,
+  type FieldCatalogEntry,
+  type AggCatalogEntry,
 } from "@/lib/report-builder";
 import { Select, Input, buttonClass, cx } from "@/components/ui";
 
-const GROUP_FIELD_IDS = Object.keys(GROUP_FIELD_LABELS) as GroupFieldId[];
-const AGG_FNS = Object.keys(AGG_FN_LABELS) as AggFn[];
 const DATE_BUCKETS = Object.keys(DATE_BUCKET_LABELS) as DateBucket[];
 
 /**
@@ -23,22 +21,30 @@ const DATE_BUCKETS = Object.keys(DATE_BUCKET_LABELS) as DateBucket[];
  * в референсе (ATLAS): слева список выбранных полей группировки (для даты —
  * ещё и режим группировки), справа — вычисляемые поля с агрегатной функцией.
  * Клик «+ Добавить» вместо drag-and-drop (проще, работает на мобильном).
- * Каждое изменение сразу переходит по новому адресу (`g`/`c` — JSON в query),
- * остальные параметры страницы (фильтры) сохраняются как есть.
+ * Каталоги полей/функций приходят пропсами — свои под каждый источник
+ * данных (`Dataset`), а не глобальный список. Каждое изменение сразу
+ * переходит по новому адресу (`g`/`c` — JSON в query), остальные параметры
+ * страницы (фильтры) сохраняются как есть.
  */
 export function FieldsEditor({
   basePath,
   restQuery,
+  groupCatalog,
+  calcCatalog,
   groupFields,
   calcFields,
 }: {
   basePath: string;
   /** Строка query без ключей `g` и `c` — остальные параметры (фильтры) переносятся как есть. */
   restQuery: string;
+  groupCatalog: FieldCatalogEntry[];
+  calcCatalog: AggCatalogEntry[];
   groupFields: GroupField[];
   calcFields: CalcField[];
 }) {
   const router = useRouter();
+  const groupLabel = (id: GroupFieldId) => groupCatalog.find((f) => f.id === id)?.label ?? id;
+  const aggLabel = (agg: AggFn) => calcCatalog.find((c) => c.agg === agg)?.label ?? agg;
   // Локальный черновик названий вычисляемых полей — навигация (перестроение
   // отчёта) срабатывает по потере фокуса, а не на каждый символ: иначе поле
   // ввода теряло бы фокус посреди набора текста (полный переход страницы).
@@ -55,7 +61,7 @@ export function FieldsEditor({
     router.push(`${basePath}?${p.toString()}`);
   }
 
-  const availableGroupFields = GROUP_FIELD_IDS.filter((id) => !groupFields.some((g) => g.field === id));
+  const availableGroupFields = groupCatalog.filter((f) => !groupFields.some((g) => g.field === f.id));
 
   return (
     <div className="space-y-4">
@@ -64,7 +70,7 @@ export function FieldsEditor({
         <div className="space-y-1.5">
           {groupFields.map((gf, i) => (
             <div key={gf.field} className="flex items-center gap-1.5 rounded-lg border border-line-subtle p-1.5">
-              <span className="flex-1 truncate text-sm font-medium text-ink">{GROUP_FIELD_LABELS[gf.field]}</span>
+              <span className="flex-1 truncate text-sm font-medium text-ink">{groupLabel(gf.field)}</span>
               {gf.field === "date" && (
                 <Select
                   value={gf.bucket ?? "day"}
@@ -86,7 +92,7 @@ export function FieldsEditor({
               )}
               <button
                 type="button"
-                aria-label={`Убрать поле «${GROUP_FIELD_LABELS[gf.field]}»`}
+                aria-label={`Убрать поле «${groupLabel(gf.field)}»`}
                 onClick={() => navigate(groupFields.filter((_, j) => j !== i), calcFields)}
                 className="shrink-0 rounded p-1 text-ink-subtle hover:text-danger"
               >
@@ -109,9 +115,9 @@ export function FieldsEditor({
             className="mt-2 text-sm"
           >
             <option value="">+ Добавить поле…</option>
-            {availableGroupFields.map((id) => (
-              <option key={id} value={id}>
-                {GROUP_FIELD_LABELS[id]}
+            {availableGroupFields.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
               </option>
             ))}
           </Select>
@@ -128,7 +134,7 @@ export function FieldsEditor({
                   value={labels[i] ?? cf.label}
                   onChange={(e) => setLabels((ls) => ls.map((l, j) => (j === i ? e.target.value : l)))}
                   onBlur={() => {
-                    const label = (labels[i] ?? cf.label).trim() || AGG_FN_LABELS[cf.agg];
+                    const label = (labels[i] ?? cf.label).trim() || aggLabel(cf.agg);
                     if (label !== cf.label) {
                       navigate(
                         groupFields,
@@ -154,16 +160,14 @@ export function FieldsEditor({
                   const agg = e.target.value as AggFn;
                   navigate(
                     groupFields,
-                    calcFields.map((c, j) =>
-                      j === i ? { agg, label: c.label === AGG_FN_LABELS[c.agg] ? AGG_FN_LABELS[agg] : c.label } : c,
-                    ),
+                    calcFields.map((c, j) => (j === i ? { agg, label: c.label === aggLabel(c.agg) ? aggLabel(agg) : c.label } : c)),
                   );
                 }}
                 className="text-xs"
               >
-                {AGG_FNS.map((fn) => (
-                  <option key={fn} value={fn}>
-                    {AGG_FN_LABELS[fn]}
+                {calcCatalog.map((c) => (
+                  <option key={c.agg} value={c.agg}>
+                    {c.label}
                   </option>
                 ))}
               </Select>
@@ -175,7 +179,7 @@ export function FieldsEditor({
         </div>
         <button
           type="button"
-          onClick={() => navigate(groupFields, [...calcFields, { agg: "count", label: AGG_FN_LABELS.count }])}
+          onClick={() => navigate(groupFields, [...calcFields, { agg: calcCatalog[0].agg, label: calcCatalog[0].label }])}
           className={cx(buttonClass({ variant: "secondary", size: "sm" }), "mt-2 w-full")}
         >
           + Добавить вычисляемое поле

@@ -1,12 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import ExcelJS from "exceljs";
-import type { ItemStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
-import { parseGroupFields, parseCalcFields, runBuilderReport, AGG_FN_LABELS } from "@/lib/report-builder";
-
-const STATUSES: ItemStatus[] = ["PENDING", "APPROVED", "REJECTED", "COUPON_CREATED", "COUPON_ISSUED"];
+import {
+  parseDataset,
+  parseGroupFields,
+  parseCalcFields,
+  runBuilderReport,
+  GROUP_CATALOG,
+  CALC_CATALOG,
+} from "@/lib/report-builder";
 
 function styleHeader(row: ExcelJS.Row) {
   row.font = { bold: true };
@@ -23,23 +27,28 @@ export async function GET(req: NextRequest) {
   if (!can(session.roles, "reports.view")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const sp = req.nextUrl.searchParams;
-  const groupFields = parseGroupFields(sp.get("g"));
+  const dataset = parseDataset(sp.get("dataset"));
+  const groupCatalog = GROUP_CATALOG[dataset];
+  const calcCatalog = CALC_CATALOG[dataset];
+  const groupFields = parseGroupFields(sp.get("g")).filter((f) => groupCatalog.some((c) => c.id === f.field));
   const calcFields = parseCalcFields(sp.get("c"));
-  const resolvedGroupFields = groupFields.length ? groupFields : [{ field: "department" as const }];
-  const resolvedCalcFields = calcFields.length ? calcFields : [{ agg: "count" as const, label: AGG_FN_LABELS.count }];
-  const status = STATUSES.find((s) => s === sp.get("status"));
+  const resolvedGroupFields = groupFields.length ? groupFields : [{ field: groupCatalog[0].id }];
+  const resolvedCalcFields = calcFields.length ? calcFields : [{ agg: calcCatalog[0].agg, label: calcCatalog[0].label }];
   const limitRaw = sp.get("limit");
   const limit = limitRaw ? Math.max(1, Number.parseInt(limitRaw, 10) || 0) : undefined;
 
   const result = await runBuilderReport({
+    dataset,
     groupFields: resolvedGroupFields,
     calcFields: resolvedCalcFields,
     periodId: sp.get("periodId") ?? undefined,
     dateFrom: sp.get("dateFrom") ?? undefined,
     dateTo: sp.get("dateTo") ?? undefined,
-    status,
+    status: sp.get("status") ?? undefined,
     cardQuery: sp.get("cardQuery") ?? undefined,
     departmentQuery: sp.get("departmentQuery") ?? undefined,
+    topic: sp.get("topic") ?? undefined,
+    source: sp.get("source") ?? undefined,
     limit,
   });
 
@@ -67,7 +76,7 @@ export async function GET(req: NextRequest) {
     action: "REPORT_BUILDER_EXPORTED",
     entityType: "ReportBuilder",
     entityId: resolvedGroupFields.map((g) => g.field).join(","),
-    newValue: { groupFields: resolvedGroupFields, calcFields: resolvedCalcFields },
+    newValue: { dataset, groupFields: resolvedGroupFields, calcFields: resolvedCalcFields },
   });
 
   const filename = "Конструктор_отчётов.xlsx";
