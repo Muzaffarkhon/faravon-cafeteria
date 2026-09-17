@@ -64,16 +64,17 @@ export default async function OverviewPage() {
     const groups = allGroups.filter((g) => g.id === "work");
     const total = groups.reduce((n, g) => n + g.items.length, 0);
 
-    // Подрядчик-кассир: единственный (или единственный + «Реклама») пункт —
-    // касса партнёра. «Кабинет» с плиткой в один клик до той же страницы был
-    // лишним шагом — открываем кассу сразу (вкладки шапки, включая «Реклама»,
-    // остаются доступны как обычно).
+    // Подрядчик-кассир/подрядчик такси: единственный (или единственный +
+    // «Реклама») пункт — касса партнёра либо выдача промокодов. «Кабинет» с
+    // плиткой в один клик до той же страницы был лишним шагом — открываем
+    // сразу (вкладки шапки, включая «Реклама», остаются доступны как обычно).
     const workItems = groups.find((g) => g.id === "work")?.items ?? [];
-    const isPureCashier =
+    const soleWorkHref = (href: string) =>
       groups.length === 1 &&
-      workItems.some((it) => it.href === "/provider") &&
-      workItems.every((it) => it.href === "/provider" || it.href === "/advertising");
-    if (isPureCashier) redirect("/provider");
+      workItems.some((it) => it.href === href) &&
+      workItems.every((it) => it.href === href || it.href === "/advertising");
+    if (soleWorkHref("/provider")) redirect("/provider");
+    if (soleWorkHref("/provider/taxi")) redirect("/provider/taxi");
 
     return (
       <div className="space-y-6">
