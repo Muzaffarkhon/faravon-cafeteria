@@ -107,8 +107,8 @@ export function SatisfactionPrompt({
       >
         {done ? (
           <>
-            <div className="mb-2 text-[40px]" aria-hidden="true">
-              🙏
+            <div className="mb-2 text-[40px] leading-none text-warning" aria-hidden="true">
+              ★
             </div>
             <p className="font-display text-[17px] font-bold text-ink">{t("satisfaction.thanks")}</p>
           </>
