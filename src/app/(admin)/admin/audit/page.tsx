@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { can } from "@/lib/rbac";
+import { can, ROLE_LABELS } from "@/lib/rbac";
 import { Card, EmptyState, Table } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
@@ -92,6 +92,11 @@ const ACTION_LABELS: Record<string, string> = {
   NOTIFICATION_TEMPLATE_UPDATED: "Шаблон уведомления изменён",
   NOTIFICATION_TEMPLATE_RESET: "Шаблон уведомления сброшен",
   REPORT_EXPORTED: "Отчёт выгружен",
+  REPORT_BUILDER_EXPORTED: "Свод из конструктора отчётов выгружен",
+  SATISFACTION_SETTINGS_UPDATED: "Настройки опроса удовлетворённости изменены",
+  SUPPORT_THREAD_ARCHIVED: "Диалог поддержки архивирован",
+  SUPPORT_THREAD_UNARCHIVED: "Диалог поддержки возвращён из архива",
+  SUPPORT_THREAD_DELETED: "Диалог поддержки удалён",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -114,6 +119,8 @@ const ENTITY_LABELS: Record<string, string> = {
   Feedback: "Обращение",
   TextBlock: "Текстовый блок",
   SlaEscalationRule: "Правило SLA",
+  SatisfactionSettings: "Настройки опроса удовлетворённости",
+  ReportBuilder: "Конструктор отчётов",
 };
 
 /** Названия полей из JSON-диффа — человеческим языком вместо camelCase. */
@@ -124,6 +131,7 @@ const FIELD_LABELS: Record<string, string> = {
   isActive: "Активен",
   telegramId: "Telegram ID",
   roles: "Роли",
+  notifyRoles: "Роли-получатели",
   partnerId: "Партнёр",
   count: "Количество",
   reason: "Причина",
@@ -136,9 +144,59 @@ const FIELD_LABELS: Record<string, string> = {
   title: "Название",
   name: "Название",
   phone: "Телефон",
+  phoneSecondary: "Доп. телефон",
   department: "Подразделение",
+  position: "Должность",
   number: "Номер",
   recipients: "Получателей",
+  items: "Позиций",
+  via: "Способ",
+  relinked: "Перепривязка",
+  level: "Уровень",
+  afterHours: "Через часов",
+  active: "Активно",
+  enabled: "Включено",
+  repeatDays: "Повтор, дней",
+  dataset: "Источник данных",
+  groupFields: "Группировка",
+  calcFields: "Вычисляемые поля",
+  field: "Поле",
+  agg: "Показатель",
+  bucket: "Разбивка по датам",
+  format: "Формат",
+  periodName: "Период",
+  period: "Период",
+  card: "Льгота",
+  deletedCoupons: "Удалено купонов",
+  deletedItems: "Удалено позиций",
+  deletedApps: "Удалено заявок",
+  auto: "Автоматически",
+  fromPeriod: "Из периода",
+  toPeriod: "В период",
+  fromItem: "Из позиции",
+  messagesCount: "Сообщений",
+  who: "Кто",
+  source: "Источник",
+  productName: "Товар/услуга",
+  employeeId: "Сотрудник",
+  text: "Текст",
+  label: "Название",
+  body: "Текст",
+  question: "Вопрос",
+  answer: "Ответ",
+  url: "Ссылка",
+  service: "Служебная учётка",
+  adminLogin: "Администратор",
+  created: "Создано",
+  updated: "Обновлено",
+  usersCreated: "Учёток создано",
+  deactivated: "Деактивировано",
+  rows: "Строк",
+  file: "Файл",
+  threadId: "Диалог",
+  archivedAt: "Архивировано",
+  isArchive: "Архив",
+  fromAdRequest: "Заявка на рекламу",
 };
 
 /** Известные словари статусов из БД — переводим значение, если ключ поля это подразумевает. */
@@ -151,6 +209,7 @@ const VALUE_LABEL_MAPS: Record<string, string>[] = [
   CARD_STATUS_LABELS,
   PERIOD_STATUS_LABELS,
   EMPLOYMENT_STATUS_LABELS,
+  ROLE_LABELS,
 ];
 
 function humanValue(v: unknown): string {
@@ -161,6 +220,9 @@ function humanValue(v: unknown): string {
     return v;
   }
   if (Array.isArray(v)) return v.map(humanValue).join(", ") || "—";
+  // Вложенный объект (напр. настройки полей конструктора отчётов) — тоже
+  // расписываем как «поле: значение», а не роняем в нечитаемое [object Object].
+  if (typeof v === "object") return humanDiff(v).join("; ") || "—";
   return String(v);
 }
 
