@@ -19,6 +19,7 @@ export default async function NotificationsPage() {
     ITEM_REJECTED: t("notifications.hintItemRejected"),
     COUPON_ISSUED: t("notifications.hintCouponIssued"),
     SLA_ESCALATION: t("notifications.hintSlaEscalation"),
+    BROADCAST: t("notifications.hintBroadcast"),
   };
 
   const rows = await db.notificationTemplate.findMany({
