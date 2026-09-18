@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma, type Block, type CardStatus } from "@prisma/client";
+import { Prisma, type BenefitMode, type Block, type CardStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -15,6 +15,7 @@ export type CardFormState = { error?: string };
 
 const BLOCKS: Block[] = ["RECOGNITION", "CARE", "FLEX"];
 const STATUSES: CardStatus[] = ["DRAFT", "PUBLISHED"];
+const MODES: BenefitMode[] = ["ONE_TIME", "PERIOD", "CASHBACK"];
 
 function parse(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -34,6 +35,14 @@ function parse(formData: FormData) {
   const sortOrder = Number.parseInt(String(formData.get("sortOrder") ?? "0"), 10);
   const minRaw = Number.parseInt(String(formData.get("minParticipants") ?? "1"), 10);
   const partnerId = block === "FLEX" ? str("partnerId") : null;
+  const modeRaw = String(formData.get("mode") ?? "ONE_TIME");
+  const mode = (MODES.includes(modeRaw as BenefitMode) ? modeRaw : "ONE_TIME") as BenefitMode;
+  const pctRaw = Number.parseInt(String(formData.get("cashbackPercent") ?? "0"), 10);
+  const cashbackPercent = mode === "CASHBACK" && Number.isFinite(pctRaw) ? pctRaw : 0;
+  if (mode === "CASHBACK") {
+    if (block !== "FLEX" || !partnerId) throw new Error("Для кешбека выберите партнёра (кешбек копится у конкретного партнёра).");
+    if (cashbackPercent < 1 || cashbackPercent > 100) throw new Error("Процент кешбека — от 1 до 100.");
+  }
 
   let translations: object | null = null;
   try {
@@ -54,6 +63,8 @@ function parse(formData: FormData) {
     isActive: formData.get("isActive") === "on",
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
     minParticipants: Number.isFinite(minRaw) && minRaw > 1 ? minRaw : 1,
+    mode,
+    cashbackPercent,
     partnerId,
     translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };

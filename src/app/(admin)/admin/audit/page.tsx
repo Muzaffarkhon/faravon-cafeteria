@@ -54,6 +54,8 @@ const ACTION_LABELS: Record<string, string> = {
   COUPON_DELETED: "Купон удалён",
   COUPON_EXPIRED: "Купон просрочен",
   COUPON_REDEEMED_BY_PROVIDER: "Купон активирован у партнёра",
+  COUPON_VISIT_BY_PROVIDER: "Визит по многоразовому купону",
+  CASHBACK_APPLIED: "Покупка с кешбеком проведена",
   COUPON_REGISTRY_EXPORTED: "Реестр купонов выгружен",
   PERIOD_CREATED: "Период создан",
   PERIOD_UPDATED: "Период изменён",

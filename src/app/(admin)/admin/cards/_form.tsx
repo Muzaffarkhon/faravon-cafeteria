@@ -21,6 +21,8 @@ export type CardValues = {
   isActive: boolean;
   sortOrder: number;
   minParticipants: number;
+  mode: string;
+  cashbackPercent: number;
   partnerId: string | null;
   translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
@@ -52,6 +54,7 @@ export function CardForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
   const [block, setBlock] = useState(initial?.block ?? "FLEX");
+  const [mode, setMode] = useState(initial?.mode ?? "ONE_TIME");
   const initialCategory = initial?.category ?? "";
   const [category, setCategory] = useState(
     initialCategory && !categories.includes(initialCategory) ? NEW_CATEGORY : initialCategory,
@@ -120,6 +123,26 @@ export function CardForm({
               defaultValue={initial?.minParticipants ?? 1}
             />
           </Field>
+          <Field label={t("cards.form.mode")} htmlFor="mode" hint={t(`cards.form.modeHint.${mode}` as Parameters<typeof t>[0])}>
+            <Select id="mode" name="mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="ONE_TIME">{t("cards.form.mode.ONE_TIME")}</option>
+              <option value="PERIOD">{t("cards.form.mode.PERIOD")}</option>
+              <option value="CASHBACK">{t("cards.form.mode.CASHBACK")}</option>
+            </Select>
+          </Field>
+          {mode === "CASHBACK" && (
+            <Field label={t("cards.form.cashbackPercent")} htmlFor="cashbackPercent" hint={t("cards.form.cashbackPercentHint")}>
+              <Input
+                id="cashbackPercent"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={100}
+                name="cashbackPercent"
+                defaultValue={initial?.cashbackPercent || 10}
+              />
+            </Field>
+          )}
         </>
       )}
 
