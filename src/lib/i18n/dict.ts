@@ -136,6 +136,9 @@ export const DICT = {
     "flex.confirmPickAgainYes": "Да",
     "flex.autoPickOn": "Автовыбор включён — будет выбираться каждый период",
     "flex.autoPickOff": "Включить автовыбор каждый период",
+    "flex.autoPickBtnOn": "Автовыбор ✓",
+    "flex.autoPickBtnOff": "Автовыбор",
+    "flex.autoPickLegend": "Кнопка «Автовыбор» на карточке: льгота будет сама добавляться в вашу заявку каждый период. Нажмите ещё раз, чтобы отключить.",
 
     "cardDetails.more": "Подробнее",
     "cardDetails.whereToGo": "Куда идти",
@@ -1339,6 +1342,9 @@ export const DICT = {
     "flex.confirmPickAgainYes": "Ҳа",
     "flex.autoPickOn": "Автоинтихоб фаъол аст — ҳар давра интихоб мешавад",
     "flex.autoPickOff": "Автоинтихоби ҳар давраро фаъол кунед",
+    "flex.autoPickBtnOn": "Автоинтихоб ✓",
+    "flex.autoPickBtnOff": "Автоинтихоб",
+    "flex.autoPickLegend": "Тугмаи «Автоинтихоб» дар корт: имтиёз ҳар давра худаш ба дархости шумо илова мешавад. Барои хомӯш кардан бори дигар пахш кунед.",
 
     "cardDetails.more": "Тафсилот",
     "cardDetails.whereToGo": "Ба куҷо равем",
@@ -2542,6 +2548,9 @@ export const DICT = {
     "flex.confirmPickAgainYes": "Ha",
     "flex.autoPickOn": "Avtomatik tanlov yoqilgan — har davrda tanlanadi",
     "flex.autoPickOff": "Har davr uchun avtomatik tanlovni yoqish",
+    "flex.autoPickBtnOn": "Avto tanlov ✓",
+    "flex.autoPickBtnOff": "Avto tanlov",
+    "flex.autoPickLegend": "Kartadagi «Avto tanlov» tugmasi: imtiyoz har davrda arizangizga o'zi qo'shiladi. O'chirish uchun yana bosing.",
 
     "cardDetails.more": "Batafsil",
     "cardDetails.whereToGo": "Qayerga borish kerak",

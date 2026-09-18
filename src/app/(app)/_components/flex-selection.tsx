@@ -232,6 +232,10 @@ export function FlexSelection({
         </div>
       )}
 
+      {windowOpen && (
+        <p className="mb-4 text-xs leading-relaxed text-ink-subtle">{t("flex.autoPickLegend")}</p>
+      )}
+
       <ConfirmDialog
         open={!!pickAgainTarget}
         title={`${t("flex.confirmPickAgainPrefix")}${pickAgainTarget?.title ?? ""}${t("flex.confirmPickAgainSuffix")}`}
@@ -337,8 +341,10 @@ export function FlexSelection({
                         }
                         title={(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")}
                         className={cx(
-                          "flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-surface-muted",
-                          (autoPickOverride[c.id] ?? c.autoPicked) ? "text-primary" : "text-ink-subtle",
+                          "flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold transition-colors",
+                          (autoPickOverride[c.id] ?? c.autoPicked)
+                            ? "border-primary bg-primary-soft text-primary-strong"
+                            : "border-line-strong text-ink-muted hover:bg-surface-muted",
                         )}
                       >
                         <svg
@@ -353,6 +359,7 @@ export function FlexSelection({
                         >
                           <path d="M17 2.1l4 4-4 4M3 12.9v-1a4 4 0 0 1 4-4h14M7 21.9l-4-4 4-4M21 11.1v1a4 4 0 0 1-4 4H3" />
                         </svg>
+                        {(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickBtnOn") : t("flex.autoPickBtnOff")}
                       </button>
                     )}
                     {(() => {
