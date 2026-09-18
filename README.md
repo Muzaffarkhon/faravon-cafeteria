@@ -266,16 +266,16 @@ Env на Vercel: добавить `CRON_SECRET`
 
 ### SLA-эскалации (§5.12)
 
-Роут `/api/cron/sla-escalations` (та же защита `CRON_SECRET`) проверяет позиции в статусе
+Логика (`runSlaEscalations` в `src/lib/sla-escalation.ts`) проверяет позиции в статусе
 `PENDING`: если прошло больше `afterHours` от `submittedAt`, а уровень эскалации позиции ниже
 правила — шлёт `SLA_ESCALATION` ролям из правила и поднимает уровень. Матрица правил
 редактируется в разделе **SLA** (`/admin/sla`), текст — в разделе «Уведомления».
 
-Планировщик: отдельная Cronjob на cron-job.org, URL `https://<домен>/api/cron/sla-escalations`,
-метод GET, заголовок `Authorization: Bearer <CRON_SECRET>`, интервал 10–15 мин.
+Запускается роутом `/api/cron/daily-digest` (объединён с ежедневным отчётом — на Vercel Hobby
+лимит 2 cron-задачи, см. `vercel.json`), та же защита `CRON_SECRET`, раз в сутки.
 
-Проверка: `curl -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/sla-escalations`
-→ `{"ok":true,"escalation":{...},"delivery":{...}}`.
+Проверка: `curl -H "Authorization: Bearer <CRON_SECRET>" https://<домен>/api/cron/daily-digest`
+→ `{"ok":true,"escalation":{...},"digest":{...},"delivery":{...}}`.
 
 ### Чек-лист безопасности
 

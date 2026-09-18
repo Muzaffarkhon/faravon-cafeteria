@@ -21,7 +21,7 @@ export default async function SlaPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">{t("sla.title")}</h1>
         <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-          {t("sla.hintPrefix")} <code className="rounded bg-surface-muted px-1">/api/cron/sla-escalations</code>
+          {t("sla.hintPrefix")} <code className="rounded bg-surface-muted px-1">/api/cron/daily-digest</code>
           {t("sla.hintMiddle")}{" "}
           <code className="rounded bg-surface-muted px-1">SLA_ESCALATION</code>.
         </p>
