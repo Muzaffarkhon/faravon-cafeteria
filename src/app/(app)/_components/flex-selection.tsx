@@ -32,6 +32,8 @@ type Card = {
   groupCount: number;
   /** Номер текущей очереди набора (1 — первая; растёт после каждого набранного порога). */
   groupWave: number;
+  /** «Минимум N» (без очереди): порог уже набран — прогресс не показываем. */
+  groupHidden: boolean;
   /** льгота партнёра со своей системой (такси): промокод уходит на номер телефона */
   phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
@@ -422,7 +424,7 @@ export function FlexSelection({
                   locale={locale}
                 />
 
-              {c.minParticipants > 1 &&
+              {c.minParticipants > 1 && !c.groupHidden &&
                 (() => {
                   const done = c.groupCount >= c.minParticipants;
                   return (
