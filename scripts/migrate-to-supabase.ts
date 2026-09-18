@@ -30,6 +30,13 @@ const target = new PrismaClient({ datasources: { db: { url: SUPABASE_URL } } });
 // последовательность вперёд, иначе следующий INSERT упадёт на дубликате.
 const SEQ_TABLES = ["Employee", "User", "Partner", "ApplicationItem", "Coupon", "AdvertisingRequest"];
 
+type Row = Record<string, unknown>;
+type ModelDelegate = {
+  deleteMany: () => Promise<unknown>;
+  findMany: () => Promise<Row[]>;
+  createMany: (args: { data: Row[] }) => Promise<unknown>;
+};
+
 function toCamel(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
 }
@@ -44,18 +51,18 @@ async function main() {
   // запускать повторно на любом этапе (репетиция и финальный cutover).
   for (const model of models) {
     const key = toCamel(model);
-    await (target as Record<string, any>)[key].deleteMany();
+    await (target as unknown as Record<string, ModelDelegate>)[key].deleteMany();
   }
 
   let totalRows = 0;
   for (const model of models) {
     const key = toCamel(model);
-    const rows = await (source as Record<string, any>)[key].findMany();
+    const rows = await (source as unknown as Record<string, ModelDelegate>)[key].findMany();
     if (rows.length === 0) {
       console.log(`  ${model}: 0 строк`);
       continue;
     }
-    await (target as Record<string, any>)[key].createMany({ data: rows });
+    await (target as unknown as Record<string, ModelDelegate>)[key].createMany({ data: rows });
     totalRows += rows.length;
     console.log(`  ${model}: ${rows.length}`);
   }

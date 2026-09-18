@@ -4,6 +4,8 @@ import { PrismaClient, Prisma } from "@prisma/client";
 const url = process.env.COUNT_URL ?? process.env.DATABASE_URL;
 const db = new PrismaClient({ datasources: { db: { url } } });
 
+type ModelDelegate = { count: () => Promise<number> };
+
 function toCamel(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
 }
@@ -13,7 +15,7 @@ async function main() {
   let total = 0;
   for (const model of models) {
     const key = toCamel(model);
-    const n = await (db as Record<string, any>)[key].count();
+    const n = await (db as unknown as Record<string, ModelDelegate>)[key].count();
     total += n;
     console.log(`${model}\t${n}`);
   }
