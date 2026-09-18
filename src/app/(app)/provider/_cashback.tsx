@@ -22,9 +22,9 @@ export function CashbackForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const cur = t("provider.cb.currency");
   const [text, setText] = useState("");
-  const [useBalance, setUseBalance] = useState(view.balance > 0);
-  // Один ключ на открытую форму: повторное нажатие «Провести» не задвоит операцию.
-  const [opKey] = useState(() => crypto.randomUUID());
+  // По умолчанию кешбек НЕ списывается: списание — только по просьбе клиента.
+  const [useBalance, setUseBalance] = useState(false);
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
   const [pending, start] = useTransition();
@@ -51,15 +51,14 @@ export function CashbackForm({
       setError(t("provider.errors.invalidAmount"));
       return;
     }
+    if (!/^\d{6}$/.test(code.replace(/\s/g, ""))) {
+      setError(t("provider.errors.invalidCode"));
+      return;
+    }
     setError(null);
     start(async () => {
-      const r = await submitCashback({
-        employeeId: view.employeeId,
-        partnerId: view.partnerId,
-        purchase,
-        useBalance,
-        opKey,
-      });
+      // Токен операции одноразовый по смыслу: повторное нажатие «Провести» вернёт результат первой операции.
+      const r = await submitCashback({ token: view.token, purchase, useBalance, code });
       if (r.ok) setDone(r);
       else setError(r.error);
     });
@@ -151,6 +150,18 @@ export function CashbackForm({
           />
         </Field>
 
+        <Field label={t("provider.cb.code")} htmlFor="cb-code" hint={t("provider.cb.codeHint")}>
+          <Input
+            id="cb-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={7}
+            placeholder="000 000"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </Field>
+
         {view.balance > 0 && (
           <label className="mt-3 flex items-center gap-2 text-sm text-ink">
             <input
@@ -198,7 +209,7 @@ export function CashbackForm({
           </p>
         )}
 
-        <Button type="submit" fullWidth size="lg" loading={pending} disabled={!calc || nothingToDo} className="mt-4">
+        <Button type="submit" fullWidth size="lg" loading={pending} disabled={!calc || nothingToDo || code.replace(/\s/g, "").length !== 6} className="mt-4">
           {t("provider.cb.submit")}
         </Button>
         <Button type="button" variant="ghost" fullWidth onClick={onBack} disabled={pending} className="mt-2">

@@ -270,6 +270,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "история действий: кто, что и когда изменял, согласования, входы",
       icon: ICONS.history,
     });
+  if (can(roles, "cashback.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/cashback",
+      label: t("nav.cashback"),
+      desc: "обязательства по кешбеку, сверка баланса, журнал операций и сторно",
+      icon: ICONS.reports,
+    });
   if (can(roles, "satisfaction.manage"))
     add("admin", t("nav.adminGroup"), {
       href: "/admin/satisfaction",

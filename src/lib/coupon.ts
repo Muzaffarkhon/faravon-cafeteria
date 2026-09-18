@@ -129,11 +129,11 @@ export async function redeemCouponByNumber(
   }
   if (coupon.status === "USED") throw new Error("Купон уже активирован.");
   // Кешбек проводится отдельно — по сумме покупки (см. lib/cashback.ts, applyCashback).
-  if (coupon.item.card.mode === "CASHBACK") {
+  if (coupon.benefitMode === "CASHBACK") {
     throw new Error("Это льгота с кешбеком: введите сумму покупки.");
   }
   // Многоразовый купон: гасится при каждом визите, но не «сгорает» — действует весь период.
-  const reusable = coupon.item.card.mode === "PERIOD";
+  const reusable = coupon.benefitMode === "PERIOD";
   if (coupon.status !== "ISSUED") {
     throw new Error(`Купон нельзя активировать: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }

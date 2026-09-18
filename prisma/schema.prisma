@@ -68,6 +68,9 @@ enum BenefitMode {
 enum CashbackKind {
   ACCRUAL
   REDEMPTION
+  /// Сторно начисления / списания: запись-противовес (журнал не редактируется и не удаляется).
+  ACCRUAL_REVERSAL
+  REDEMPTION_REVERSAL
 }
 
 enum CouponStatus {
@@ -452,6 +455,9 @@ model Coupon {
   period          Period       @relation(fields: [periodId], references: [id])
   periodId        String
   type            String       @default("PROMO") // PROMO | QR | PDF | PHYSICAL
+  /// Снимок правил карточки на момент выдачи: смена режима/процента карточки не действует на уже выданные купоны.
+  benefitMode     BenefitMode  @default(ONE_TIME)
+  cashbackPercent Int?
   nominal         String?
   status          CouponStatus @default(CREATED)
   deliveryChannel String       @default("PORTAL")
@@ -475,6 +481,8 @@ model CashbackAccount {
   partner    Partner  @relation(fields: [partnerId], references: [id])
   partnerId  String
   balance    Int      @default(0)
+  /// Окно (30 с) последнего использованного кода клиента: код одноразовый, повтор в этом окне отвергается.
+  lastCodeWindow Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -496,9 +504,17 @@ model CashbackEntry {
   couponId       String?
   actorId        String?
   opKey          String          @unique
+  /// Общий ключ операции (списание и начисление одной покупки делят его).
+  operationKey   String?
+  /// SHA-256 параметров операции (сотрудник|партнёр|сумма|списание): повтор с тем же ключом, но другими цифрами отвергается.
+  paramsHash     String?
+  /// Для сторно: какую запись журнала гасит эта (каждую можно погасить только один раз).
+  reversesEntryId String?        @unique
+  reason         String?
   createdAt      DateTime        @default(now())
 
   @@index([accountId, createdAt])
+  @@index([operationKey])
 }
 
 model PartnerBanner {

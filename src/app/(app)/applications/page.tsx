@@ -7,7 +7,8 @@ import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui"
 import { isCouponExpired, isCouponOverdue, isCouponPeriodPassed } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { taxiPromoStatusForUser } from "@/lib/taxi";
-import { getEmployeeCashback } from "@/lib/cashback";
+import { employeeHasCashback, getEmployeeCashback } from "@/lib/cashback";
+import { CashbackCode } from "./_cashback-code";
 import { formatSomoni } from "@/lib/cashback-math";
 import { couponQrSvg } from "@/lib/qr";
 import { safeImageSrc } from "@/lib/safe-url";
@@ -31,7 +32,10 @@ export default async function ApplicationsPage() {
 
   const locale = await getLocale();
   const t = await getTranslator();
-  const cashback = await getEmployeeCashback(session.employee.id);
+  const [cashback, showCashbackCode] = await Promise.all([
+    getEmployeeCashback(session.employee.id),
+    employeeHasCashback(session.employee.id),
+  ]);
 
   const applications = await db.application.findMany({
     where: { employeeId: session.employee.id },
@@ -121,10 +125,19 @@ export default async function ApplicationsPage() {
         </p>
       </header>
 
-      {cashback.length > 0 && (
+      {(cashback.length > 0 || showCashbackCode) && (
         <section className="rounded-[20px] border border-line bg-surface p-5">
           <h2 className="text-base font-bold text-ink">{t("cashback.title")}</h2>
           <p className="mt-1 text-xs text-ink-subtle">{t("cashback.hint")}</p>
+          {showCashbackCode && (
+            <div className="mt-3">
+              <CashbackCode
+                title={t("cashback.codeTitle")}
+                hint={t("cashback.codeHint")}
+                secondsLabel={t("cashback.codeSeconds")}
+              />
+            </div>
+          )}
           <ul className="mt-3 space-y-4">
             {cashback.map((a) => (
               <li key={a.id}>
@@ -140,10 +153,11 @@ export default async function ApplicationsPage() {
                       <li key={e.id} className="flex justify-between gap-3">
                         <span>
                           {e.createdAt.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })} ·{" "}
-                          {e.kind === "ACCRUAL" ? t("cashback.accrued") : t("cashback.redeemed")}
+                          {e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? t("cashback.accrued") : t("cashback.redeemed")}
+                          {e.kind.endsWith("REVERSAL") ? ` · ${t("cashback.reversed")}` : ""}
                         </span>
-                        <span className={e.kind === "ACCRUAL" ? "text-success-strong" : ""}>
-                          {e.kind === "ACCRUAL" ? "+" : "−"}
+                        <span className={e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? "text-success-strong" : ""}>
+                          {e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? "+" : "−"}
                           {formatSomoni(e.amount)}
                         </span>
                       </li>

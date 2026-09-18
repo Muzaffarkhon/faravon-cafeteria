@@ -35,8 +35,11 @@ export function calcCashback({ purchase, balance, percent, canAccrue, useBalance
   return { redeem, paid, accrue, newBalance: balance - redeem + accrue };
 }
 
-/** Верхняя граница суммы одной покупки: 1 000 000 сомони. */
-export const MAX_PURCHASE_DIRAM = 100_000_000;
+/** Верхняя граница суммы одной покупки: 100 000 сомони. */
+export const MAX_PURCHASE_DIRAM = 10_000_000;
+
+/** Сколько операций по одной паре «сотрудник + партнёр» допускается в сутки (по времени Душанбе). */
+export const MAX_OPERATIONS_PER_DAY = 5;
 
 /** «12,5» / «12.50» → 1250 дирам; null — если не сумма. Не больше 2 знаков после запятой. */
 export function parseSomoni(input: string): number | null {
