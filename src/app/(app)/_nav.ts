@@ -213,6 +213,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
   const canAccess = can(roles, "access.manage");
   const canPeriods = can(roles, "periods.manage");
 
+  if (canManageCards)
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/broadcast",
+      label: t("nav.broadcast"),
+      desc: "сообщение всем сотрудникам или по отделу в Telegram",
+      icon: ICONS.ad,
+    });
   if (canUsers)
     add("admin", t("nav.adminGroup"), {
       href: "/admin/users",

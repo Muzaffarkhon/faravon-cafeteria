@@ -46,6 +46,7 @@ export const DICT = {
 
     "nav.adminGroup": "Аналитика и доступ",
     "nav.support": "Обращения",
+    "nav.broadcast": "Рассылки",
     "nav.users": "Пользователи",
     "nav.periods": "Периоды",
     "nav.reports": "Отчёты",
@@ -314,6 +315,17 @@ export const DICT = {
     "notifications.save": "Сохранить",
     "notifications.resetToDefault": "Сбросить к стандартному",
     "notifications.saved": "Сохранено",
+    "notifications.hintBroadcast": "Обёртка вокруг текста рассылки — сам текст задаётся при отправке в разделе «Рассылки».",
+
+    "broadcast.title": "Рассылки",
+    "broadcast.hint": "Сообщение в Telegram всем сотрудникам или по отделу.",
+    "broadcast.audienceLabel": "Кому",
+    "broadcast.audienceAll": "Все сотрудники",
+    "broadcast.textLabel": "Текст сообщения",
+    "broadcast.textPlaceholder": "Уважаемые коллеги...",
+    "broadcast.send": "Отправить",
+    "broadcast.sentPrefix": "Отправлено",
+    "broadcast.sentSuffix": "сотрудникам.",
 
     "cards.inArchive": "В архиве",
     "cards.total": "Всего",
@@ -1235,6 +1247,7 @@ export const DICT = {
 
     "nav.adminGroup": "Таҳлил ва дастрасӣ",
     "nav.support": "Муроҷиатҳо",
+    "nav.broadcast": "Паёмнависӣ",
     "nav.users": "Корбарон",
     "nav.periods": "Давраҳо",
     "nav.reports": "Ҳисоботҳо",
@@ -1503,6 +1516,17 @@ export const DICT = {
     "notifications.save": "Нигоҳ доштан",
     "notifications.resetToDefault": "Барқарор кардан ба стандартӣ",
     "notifications.saved": "Нигоҳ дошта шуд",
+    "notifications.hintBroadcast": "Матни атрофи паём — худи матн ҳангоми фиристодан дар бахши «Паёмнависӣ» дохил карда мешавад.",
+
+    "broadcast.title": "Паёмнависӣ",
+    "broadcast.hint": "Паём дар Telegram ба ҳамаи кормандон ё аз рӯи шӯъба.",
+    "broadcast.audienceLabel": "Ба кӣ",
+    "broadcast.audienceAll": "Ҳамаи кормандон",
+    "broadcast.textLabel": "Матни паём",
+    "broadcast.textPlaceholder": "Ҳамкорони гиромӣ...",
+    "broadcast.send": "Фиристодан",
+    "broadcast.sentPrefix": "Фиристода шуд",
+    "broadcast.sentSuffix": "корманд.",
 
     "cards.inArchive": "Дар бойгонӣ",
     "cards.total": "Ҳамагӣ",
@@ -2424,6 +2448,7 @@ export const DICT = {
 
     "nav.adminGroup": "Tahlil va kirish huquqi",
     "nav.support": "Murojaatlar",
+    "nav.broadcast": "Xabarnomalar",
     "nav.users": "Foydalanuvchilar",
     "nav.periods": "Davrlar",
     "nav.reports": "Hisobotlar",
@@ -2692,6 +2717,17 @@ export const DICT = {
     "notifications.save": "Saqlash",
     "notifications.resetToDefault": "Standartga qaytarish",
     "notifications.saved": "Saqlandi",
+    "notifications.hintBroadcast": "Matn atrofidagi qobiq — matnning o'zi «Xabarnomalar» bo'limida yuborishda kiritiladi.",
+
+    "broadcast.title": "Xabarnomalar",
+    "broadcast.hint": "Telegramda barcha xodimlarga yoki bo'lim bo'yicha xabar.",
+    "broadcast.audienceLabel": "Kimga",
+    "broadcast.audienceAll": "Barcha xodimlar",
+    "broadcast.textLabel": "Xabar matni",
+    "broadcast.textPlaceholder": "Hurmatli hamkasblar...",
+    "broadcast.send": "Yuborish",
+    "broadcast.sentPrefix": "Yuborildi",
+    "broadcast.sentSuffix": "xodimga.",
 
     "cards.inArchive": "Arxivda",
     "cards.total": "Jami",
