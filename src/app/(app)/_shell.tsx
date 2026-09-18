@@ -305,27 +305,27 @@ export function AppShell({
                   <Link
                     href="/profile"
                     onClick={closeMenus}
-                    className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+                    className="flex items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                   >
-                    <Icon path={I.profile} />
+                    <Icon path={I.profile} className="h-5 w-5" />
                     {t("shell.profile")}
                   </Link>
                   {adminHref && (
                     <Link
                       href={adminHref}
                       onClick={closeMenus}
-                      className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+                      className="flex items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
                     >
-                      <Icon path={I.admin} />
+                      <Icon path={I.admin} className="h-5 w-5" />
                       {t("shell.adminPanel")}
                     </Link>
                   )}
                   <form action={logout}>
                     <button
                       type="submit"
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
+                      className="flex w-full items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
-                      <Icon path={I.logout} />
+                      <Icon path={I.logout} className="h-5 w-5" />
                       {t("shell.logout")}
                     </button>
                   </form>
