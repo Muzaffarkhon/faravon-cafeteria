@@ -202,6 +202,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.chat,
       badge: b.support || undefined,
     });
+  if (canManageCards)
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/broadcast",
+      label: t("nav.broadcast"),
+      desc: "сообщение всем сотрудникам или по отделу в Telegram",
+      icon: ICONS.ad,
+    });
   if (can(roles, "users.manage"))
     add("admin", t("nav.adminGroup"), {
       href: "/admin/users",
