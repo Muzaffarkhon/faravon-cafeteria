@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { del } from "@vercel/blob";
 import { Prisma, type Block, type CardStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -10,21 +9,9 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { recordCardVersion, restoreCardVersion } from "@/lib/card-version";
 import { runAction, type ActionResult } from "@/lib/action-result";
+import { cleanupBlob } from "@/lib/blob-cleanup";
 
 export type CardFormState = { error?: string };
-
-const BLOB_HOST = ".public.blob.vercel-storage.com";
-
-/** Удаляет старый файл из Vercel Blob, если карточка сменила/убрала изображение. */
-async function cleanupBlob(oldUrl: string | null, newUrl: string | null) {
-  if (!oldUrl || oldUrl === newUrl) return;
-  if (!oldUrl.includes(BLOB_HOST)) return; // внешняя ссылка — не трогаем
-  try {
-    await del(oldUrl);
-  } catch {
-    // нет BLOB_READ_WRITE_TOKEN или файл уже удалён — не блокируем сохранение
-  }
-}
 
 const BLOCKS: Block[] = ["RECOGNITION", "CARE", "FLEX"];
 const STATUSES: CardStatus[] = ["DRAFT", "PUBLISHED"];

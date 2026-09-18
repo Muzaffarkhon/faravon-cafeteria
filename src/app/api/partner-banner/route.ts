@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { apiGuard } from "@/lib/api-guard";
 import { isSafeLinkHref, isSafeImageSrc } from "@/lib/safe-url";
+import { cleanupBlob } from "@/lib/blob-cleanup";
 
 /** CRUD баннеров партнёров. Право: partners.manage (C&B). */
 export async function GET() {
@@ -92,7 +93,11 @@ export async function PUT(req: Request) {
   if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
   const parsed = parseBanner(body);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const prev = await db.partnerBanner.findUnique({ where: { id }, select: { imageUrl: true } });
   const item = await db.partnerBanner.update({ where: { id }, data: parsed });
+  // Замена/удаление картинки баннера раньше не чистила старый файл в Vercel
+  // Blob — он оставался там навсегда и копил объём хранилища.
+  await cleanupBlob(prev?.imageUrl ?? null, parsed.imageUrl);
   return NextResponse.json(item);
 }
 
@@ -101,6 +106,7 @@ export async function DELETE(req: Request) {
   if (g.response) return g.response;
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
-  await db.partnerBanner.delete({ where: { id } });
+  const doomed = await db.partnerBanner.delete({ where: { id } });
+  await cleanupBlob(doomed.imageUrl, null);
   return NextResponse.json({ ok: true });
 }
