@@ -48,8 +48,8 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
   // Стартовый слайд выбирается случайно (§6): при каждом заходе показывается
   // разный баннер, а не всегда первый.
   const [pos, setPos] = useState(() =>
-    count > 1 ? count + Math.floor(Math.random() * count) : count,
-  ); // единицы = ширина слайда
+    count > 1 ? count + Math.floor(Math.random() * count) : 0,
+  ); // единицы = ширина слайда; при одном слайде цикла нет — он стоит на позиции 0
   const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
 
