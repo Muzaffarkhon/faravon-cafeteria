@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Button, Field, Select, Textarea } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import type { AudienceFilters } from "@/lib/broadcast-audience";
@@ -21,6 +22,8 @@ export function BroadcastForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState<BroadcastState, FormData>(sendBroadcast, {});
   const [text, setText] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Шаблоны выбранной аудитории — первыми.
   const templates = [...BROADCAST_TEMPLATES].sort(
@@ -28,13 +31,7 @@ export function BroadcastForm({
   );
 
   return (
-    <form
-      action={formAction}
-      className="max-w-xl space-y-4"
-      onSubmit={(e) => {
-        if (!confirm(`Отправить сообщение: ${recipients} получателям?\n(${SEGMENT_LABELS[filters.segment]})`)) e.preventDefault();
-      }}
-    >
+    <form ref={formRef} action={formAction} className="max-w-xl space-y-4">
       {/* Те же фильтры, что показаны выше: получатели пересчитываются на сервере при отправке. */}
       <input type="hidden" name="segment" value={filters.segment} />
       <input type="hidden" name="department" value={filters.department} />
@@ -73,9 +70,35 @@ export function BroadcastForm({
         />
       </Field>
 
-      <Button type="submit" loading={pending} disabled={recipients === 0}>
+      <Button
+        type="button"
+        loading={pending}
+        disabled={recipients === 0}
+        onClick={() => formRef.current?.reportValidity() && setConfirming(true)}
+      >
         {t("broadcast.send")} ({recipients})
       </Button>
+      <ConfirmDialog
+        open={confirming}
+        title="Отправить рассылку?"
+        message={
+          <>
+            Сообщение получат <b className="text-ink">{recipients}</b> чел.
+            <br />
+            {SEGMENT_LABELS[filters.segment]}
+            {filters.department && <> · {filters.department}</>}
+            {filters.position && <> · {filters.position}</>}
+            <br />
+            Отменить отправку после подтверждения будет нельзя.
+          </>
+        }
+        confirmLabel="Отправить"
+        onClose={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          formRef.current?.requestSubmit();
+        }}
+      />
 
       {state.error && (
         <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
