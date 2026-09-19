@@ -115,22 +115,57 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
+/** Контур многоугольника со скруглёнными вершинами (радиус r; на коротких рёбрах уменьшается). */
+function roundedPolygon(pts: [number, number][], r: number): string {
+  const n = pts.length;
+  let dstr = "";
+  for (let i = 0; i < n; i++) {
+    const [px, py] = pts[(i + n - 1) % n];
+    const [cx, cy] = pts[i];
+    const [nx, ny] = pts[(i + 1) % n];
+    const lenPrev = Math.hypot(cx - px, cy - py);
+    const lenNext = Math.hypot(nx - cx, ny - cy);
+    const rr = Math.min(r, lenPrev / 2, lenNext / 2);
+    const ax = cx + ((px - cx) / lenPrev) * rr;
+    const ay = cy + ((py - cy) / lenPrev) * rr;
+    const bx = cx + ((nx - cx) / lenNext) * rr;
+    const by = cy + ((ny - cy) / lenNext) * rr;
+    dstr += `${i === 0 ? "M" : "L"}${ax},${ay} Q${cx},${cy} ${bx},${by} `;
+  }
+  return dstr + "Z";
+}
+
 /**
- * Объёмный столбец: лицевая грань + светлая верхняя и тёмная боковая грани (косая проекция).
+ * Объёмный столбец (углы контура скруглены): лицевая грань + светлая верхняя и тёмная боковая грани (косая проекция).
  * Тени и блики — полупрозрачные белый/чёрный поверх цвета столбца, поэтому работают с любым
  * цветом из темы и в светлой, и в тёмной теме.
  */
 function Bar3D({ x = 0, y = 0, width = 0, height = 0, fill }: { x?: number; y?: number; width?: number; height?: number; fill?: string }) {
-  const gid = useId();
+  const gid = useId().replace(/:/g, ""); // двоеточия из useId ломают url(#...)
   if (width <= 0 || height <= 0) return null;
   const d = Math.min(10, width * 0.24); // глубина
   const fw = width - d; // ширина лицевой грани
   const top = y + d; // верх лицевой грани
   const fh = height - d; // высота лицевой грани
   if (fh <= 0) return <rect x={x} y={y} width={width} height={height} fill={fill} rx={2} />;
+  // Внешний контур столбца (шестиугольник косой проекции) со скруглёнными углами — им обрезаем все грани.
+  const outline = roundedPolygon(
+    [
+      [x, top],
+      [x + d, y],
+      [x + width, y],
+      [x + width, y + fh],
+      [x + fw, y + height],
+      [x, y + height],
+    ],
+    Math.min(7, fw * 0.32),
+  );
   return (
-    <g>
+    <g clipPath={`url(#${gid}-c)`}>
       <defs>
+        <clipPath id={`${gid}-c`}>
+          <path d={outline} />
+        </clipPath>
         <linearGradient id={`${gid}-f`} x1="0" x2="1" y1="0" y2="0">
           <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
           <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
