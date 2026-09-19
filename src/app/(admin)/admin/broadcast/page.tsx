@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { MessagesTabs } from "@/components/messages-tabs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -45,6 +46,7 @@ export default async function BroadcastPage({
 
   return (
     <div className="space-y-5">
+      <MessagesTabs active="broadcast" />
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">{t("broadcast.title")}</h1>
         <p className="mt-1 text-sm text-ink-muted">{t("broadcast.hint")}</p>

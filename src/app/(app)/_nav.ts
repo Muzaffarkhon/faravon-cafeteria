@@ -177,20 +177,6 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.inbox,
       badge: b.adRequests || undefined,
     });
-  if (canManageCards)
-    add("catalog", t("nav.catalog"), {
-      href: "/admin/texts",
-      label: t("nav.texts"),
-      desc: "«Цель программы» и уведомление о новизне",
-      icon: ICONS.texts,
-    });
-  if (canManageCards)
-    add("catalog", t("nav.catalog"), {
-      href: "/admin/notifications",
-      label: t("nav.notifications"),
-      desc: "шаблоны сообщений в Telegram",
-      icon: ICONS.bell,
-    });
 
   // Порядок внутри группы — по типичной частоте обращения: инбоксы (смотрят
   // каждый день) → справочник сотрудников (часто) → отчёты/периоды (по
@@ -216,9 +202,14 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
   if (canManageCards)
     add("admin", t("nav.adminGroup"), {
       href: "/admin/broadcast",
-      label: t("nav.broadcast"),
-      desc: "сообщение всем сотрудникам или по отделу в Telegram",
+      label: t("nav.messages"),
+      desc: "рассылки в Telegram, шаблоны уведомлений бота, текстовые блоки сайта",
       icon: ICONS.ad,
+      children: [
+        { href: "/admin/broadcast", label: t("nav.broadcast") },
+        { href: "/admin/notifications", label: t("nav.notifications") },
+        { href: "/admin/texts", label: t("nav.texts") },
+      ],
     });
   if (canUsers)
     add("admin", t("nav.adminGroup"), {
