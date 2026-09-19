@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Field, Input, cx } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
@@ -32,7 +32,7 @@ function ResultIcon({ tone }: { tone: "success" | "neutral" }) {
   );
 }
 
-export function ProviderConfirm({ locale }: { locale: Locale }) {
+export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; initialNumber?: string }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   // ── Основной сценарий: касса партнёра, поиск по телефону ──
   const [phone, setPhone] = useState("");
@@ -104,6 +104,17 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
       }
     });
   }
+
+  // Открыто по ссылке из QR (обычной камерой): сразу ищем купон и убираем номер из адреса,
+  // чтобы обновление страницы не повторяло поиск.
+  const autoLookedUp = useRef(false);
+  useEffect(() => {
+    if (!initialNumber || autoLookedUp.current) return;
+    autoLookedUp.current = true;
+    setNumber(initialNumber);
+    doManualLookup(initialNumber);
+    window.history.replaceState(null, "", "/provider");
+  }, [initialNumber]);
 
   function onManualSubmit(e: React.FormEvent) {
     e.preventDefault();

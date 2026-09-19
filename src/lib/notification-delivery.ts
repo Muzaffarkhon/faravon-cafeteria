@@ -8,6 +8,7 @@ import type { PrismaClient } from "@prisma/client";
 import QRCode from "qrcode";
 import { formatNotificationText, templateMapFromRows } from "./notification-format";
 import { asLocale } from "./i18n/shared";
+import { couponScanUrl } from "./coupon-link";
 
 const TG_API = "https://api.telegram.org";
 
@@ -183,7 +184,7 @@ export async function deliverTelegramNotifications(opts: {
       // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
       // остальных опциональных блоков, а не разбор готового HTML регуляркой).
       const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates, locale);
-      result = await sendTelegramQr(token, tgId, payload.number, caption);
+      result = await sendTelegramQr(token, tgId, couponScanUrl(payload.number), caption);
     } else {
       result = await sendTelegramDetailed(token, tgId, body);
     }
