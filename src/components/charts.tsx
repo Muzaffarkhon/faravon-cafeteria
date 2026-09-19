@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
   Bar,
   BarChart,
@@ -114,6 +115,41 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
+/**
+ * Объёмный столбец: лицевая грань + светлая верхняя и тёмная боковая грани (косая проекция).
+ * Тени и блики — полупрозрачные белый/чёрный поверх цвета столбца, поэтому работают с любым
+ * цветом из темы и в светлой, и в тёмной теме.
+ */
+function Bar3D({ x = 0, y = 0, width = 0, height = 0, fill }: { x?: number; y?: number; width?: number; height?: number; fill?: string }) {
+  const gid = useId();
+  if (width <= 0 || height <= 0) return null;
+  const d = Math.min(10, width * 0.24); // глубина
+  const fw = width - d; // ширина лицевой грани
+  const top = y + d; // верх лицевой грани
+  const fh = height - d; // высота лицевой грани
+  if (fh <= 0) return <rect x={x} y={y} width={width} height={height} fill={fill} rx={2} />;
+  return (
+    <g>
+      <defs>
+        <linearGradient id={`${gid}-f`} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
+          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.14" />
+        </linearGradient>
+      </defs>
+      {/* боковая (правая) грань — темнее */}
+      <polygon points={`${x + fw},${top} ${x + width},${y} ${x + width},${y + fh} ${x + fw},${y + height}`} fill={fill} />
+      <polygon points={`${x + fw},${top} ${x + width},${y} ${x + width},${y + fh} ${x + fw},${y + height}`} fill="#000" fillOpacity="0.28" />
+      {/* лицевая грань с мягким градиентом */}
+      <rect x={x} y={top} width={fw} height={fh} fill={fill} />
+      <rect x={x} y={top} width={fw} height={fh} fill={`url(#${gid}-f)`} />
+      {/* верхняя грань — светлее */}
+      <polygon points={`${x},${top} ${x + d},${y} ${x + width},${y} ${x + fw},${top}`} fill={fill} />
+      <polygon points={`${x},${top} ${x + d},${y} ${x + width},${y} ${x + fw},${top}`} fill="#fff" fillOpacity="0.38" />
+    </g>
+  );
+}
+
 /** Столбчатая диаграмма (гистограмма) по подписанным категориям. */
 export function BarChartCard({
   title,
@@ -144,7 +180,7 @@ export function BarChartCard({
           />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-muted)" }} />
-          <Bar dataKey="n" name="Значение" fill={color} radius={[6, 6, 0, 0]} maxBarSize={48} />
+          <Bar dataKey="n" name="Значение" fill={color} shape={<Bar3D />} maxBarSize={52} />
         </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
