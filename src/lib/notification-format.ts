@@ -59,6 +59,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",
   GROUP_CARRIED_OVER: "Групповая льгота перенесена на следующий период",
   BROADCAST: "Рассылка от администрации",
+  NEW_CARD: "Новая льгота на витрине",
 };
 
 /** Порядок событий в админке. */
@@ -77,6 +78,7 @@ export const NOTIFICATION_EVENTS = [
   "DAILY_DIGEST",
   "GROUP_CARRIED_OVER",
   "BROADCAST",
+  "NEW_CARD",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -141,6 +143,10 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.BROADCAST,
     body: "📢 <b>Объявление</b>\n{text}",
   },
+  NEW_CARD: {
+    label: NOTIFICATION_LABELS.NEW_CARD,
+    body: "🆕 <b>Новая льгота</b>\n«{card}»[[ · {partner}]][[\n{condition}]]\n\nПосмотреть и выбрать — на витрине: {siteUrl}",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -178,6 +184,7 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
   BROADCAST: { text: "Уважаемые коллеги! 30 сентября — технический перерыв в работе платформы с 22:00 до 23:00." },
+  NEW_CARD: { card: "Абонемент в бассейн", partner: "Фитнес-клуб «Олимп»", condition: "Скидка 20% на месячный абонемент", siteUrl: "https://cafeteria.example.com" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -196,6 +203,7 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   DAILY_DIGEST: ["text"],
   GROUP_CARRIED_OVER: ["card", "period"],
   BROADCAST: ["text"],
+  NEW_CARD: ["card", "partner", "condition", "siteUrl"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));

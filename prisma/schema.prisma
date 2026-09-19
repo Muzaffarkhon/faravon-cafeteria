@@ -264,6 +264,7 @@ model BenefitCard {
   minParticipants Int    @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
   groupWaves  Boolean    @default(false) // true — набор группами: после порога счётчик начинается заново («набор №N»); false — «минимум N»: набрали порог, прогресс скрывается.
   archivedAt  DateTime?  // карточка в архиве — не показывается сотрудникам и в основном списке
+  announcedAt DateTime?  // когда сотрудникам ушло Telegram-оповещение о новой карточке (null — ещё не объявляли)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
