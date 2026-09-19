@@ -129,6 +129,20 @@ async function isKnownTelegramId(telegramId: string): Promise<boolean> {
   return !!serviceUser;
 }
 
+/** Запоминаем незнакомого человека, запустившего бота, — для рассылки «не зарегистрировался». Сбой не мешает ответу бота. */
+async function noteGuest(telegramId: string) {
+  try {
+    if (await isKnownTelegramId(telegramId)) return;
+    await db.telegramGuest.upsert({
+      where: { telegramId },
+      create: { telegramId },
+      update: { lastStartAt: new Date(), blockedAt: null },
+    });
+  } catch (e) {
+    console.error("[telegram] не удалось записать гостя:", e);
+  }
+}
+
 async function handle(msg: TgMessage) {
   const chatId = msg.chat.id;
   const fromId = msg.from?.id;
@@ -181,11 +195,13 @@ async function handle(msg: TgMessage) {
     // как текст "/start support". Сразу открываем чат поддержки, не
     // заставляя человека ещё и нажимать кнопку внутри переписки.
     if (text === "/start support") {
+      await noteGuest(telegramId);
       await openOrReopenThread(telegramId);
       await send(chatId, SUPPORT_OPENED, { reply_markup: await getFaqKeyboard() });
       return;
     }
     if (text === "/start" || text === "/help") {
+      await noteGuest(telegramId);
       await send(chatId, WELCOME, CONTACT_KEYBOARD);
       return;
     }
@@ -222,6 +238,7 @@ async function handle(msg: TgMessage) {
       return;
     }
 
+    await noteGuest(telegramId);
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
     // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
