@@ -7,12 +7,14 @@ import { runPeriodLifecycle, type PeriodLifecycleResult } from "@/lib/period-lif
 import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
-// Рассылка идёт пачками с паузой (см. notification-delivery) — на 300
-// уведомлений нужно ~12 с, дефолтных 10 с функции не хватит.
-export const maxDuration = 60;
-// Новые проходы доставки запускаем не позже 40 с от старта: последний идёт ещё ~12 с,
-// и всё укладывается в maxDuration с запасом.
-const DELIVERY_BUDGET_MS = 40_000;
+// Рассылка идёт пачками с паузой (см. notification-delivery): ~25 сообщений в секунду,
+// то есть 3000 сотрудников — около двух минут. 300 с — максимум для Hobby с Fluid Compute
+// (включён по умолчанию у новых проектов Vercel); без Fluid потолок 60 с — тогда сборка
+// на этом значении откажется, и его надо вернуть к 60 (а бюджет ниже — к 40 с).
+export const maxDuration = 300;
+// Новые проходы доставки запускаем не позже 240 с от старта: последний идёт ещё ~12 с,
+// и всё укладывается в maxDuration с запасом. Бюджета хватает примерно на 5 000 сообщений.
+const DELIVERY_BUDGET_MS = 240_000;
 export const dynamic = "force-dynamic";
 
 /**
