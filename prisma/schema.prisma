@@ -186,6 +186,7 @@ model User {
   partnerId String?
 
   auditLogs       AuditLog[]
+  cashierLinks    CashierLink[]
   notifications   Notification[]
   decisions       ApplicationItem[]      @relation("DecidedBy")
   cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
@@ -795,4 +796,21 @@ model TelegramGuest {
   lastStartAt  DateTime  @default(now())
   blockedAt    DateTime? // бот заблокирован (Telegram 403) — писать бессмысленно
   locale       String?   // язык Telegram-клиента (ru/tg/uz) — на нём пишем в рассылке
+}
+
+/// Одноразовая ссылка «привязать телефон кассы»: подрядчик открывает её один раз и входит без пароля
+/// (дальше — обычная долгая сессия подрядчика). Сам токен нигде не хранится — только его SHA-256.
+model CashierLink {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  usedIp    String?
+  usedAgent String?
+  createdBy String? // User.id администратора, создавшего ссылку
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

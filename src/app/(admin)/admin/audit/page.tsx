@@ -59,6 +59,8 @@ const ACTION_LABELS: Record<string, string> = {
   CASHBACK_APPLIED: "Покупка с кешбеком проведена",
   CASHBACK_REVERSED: "Операция по кешбеку сторнирована",
   CASHBACK_CODE_FAILED: "Неверный код клиента при проведении кешбека",
+  CASHIER_LINK_CREATED: "Создана ссылка привязки телефона кассы",
+  CASHIER_DEVICE_LINKED: "Телефон кассы привязан",
   COUPON_REGISTRY_EXPORTED: "Реестр купонов выгружен",
   PERIOD_CREATED: "Период создан",
   PERIOD_UPDATED: "Период изменён",
@@ -231,6 +233,8 @@ const FIELD_LABELS: Record<string, string> = {
   bulk: "Массово",
   actorNote: "Примечание",
   cardId: "Льгота",
+  partnerName: "Партнёр",
+  expiresAt: "Действует до",
 };
 
 /** Суммы (в сомони, уже отформатированные) — дописываем валюту. */
