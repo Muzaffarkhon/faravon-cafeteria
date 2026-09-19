@@ -65,6 +65,7 @@ function parse(formData: FormData) {
     minParticipants: Number.isFinite(minRaw) && minRaw > 1 ? minRaw : 1,
     mode,
     cashbackPercent,
+    groupWaves: formData.get("groupWaves") === "on",
     partnerId,
     translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };

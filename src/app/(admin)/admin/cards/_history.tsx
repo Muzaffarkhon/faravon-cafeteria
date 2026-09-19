@@ -23,6 +23,7 @@ export type CardVersionRow = {
   minParticipants: number;
   mode: string;
   cashbackPercent: number;
+  groupWaves: boolean;
   partnerId: string | null;
 };
 
@@ -73,6 +74,7 @@ const FIELDS: FieldDef[] = [
           ? "Многоразовый (весь период)"
           : "Одноразовый",
   },
+  { key: "groupWaves", label: "Набор группами", fmt: (v) => (v.groupWaves ? "да" : "нет") },
   { key: "imageUrl", label: "Изображение", fmt: (v) => v.imageUrl ?? "", image: true },
 ];
 
