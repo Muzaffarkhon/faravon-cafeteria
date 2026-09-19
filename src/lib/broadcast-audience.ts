@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { SEGMENTS, type Segment } from "./broadcast-segments";
+import { LOCALES, asLocale, type Locale } from "./i18n/shared";
 
 /**
  * Аудитория рассылки. Одна функция на предпросмотр и на отправку — чтобы то, что
@@ -12,11 +13,15 @@ export type AudienceFilters = { segment: Segment; department: string; position: 
 
 export type PreviewRow = { key: string; name: string; sub: string; telegram: boolean };
 
+export type Recipient = { id: string; locale: Locale };
+
 export type Audience = {
-  /** Пользователи, которым ставим уведомление в очередь. */
-  userIds: string[];
-  /** Чаты «гостей» — им пишем напрямую, у них нет учётной записи. */
-  guestChatIds: string[];
+  /** Пользователи, которым ставим уведомление в очередь (язык — из User.locale, по умолчанию русский). */
+  users: Recipient[];
+  /** Чаты «гостей» — им пишем напрямую, у них нет учётной записи (язык — из Telegram). */
+  guests: Recipient[];
+  /** Сколько получателей на каждом языке — чтобы админ видел, для кого нужен перевод. */
+  byLocale: Record<Locale, number>;
   total: number;
   withoutTelegram: number;
   rows: PreviewRow[];
@@ -36,7 +41,21 @@ export function parseFilters(raw: Record<string, string | string[] | undefined>)
   };
 }
 
-const empty = (error?: string): Audience => ({ userIds: [], guestChatIds: [], total: 0, withoutTelegram: 0, rows: [], error });
+const countByLocale = (list: Recipient[]) => {
+  const r = Object.fromEntries(LOCALES.map((l) => [l, 0])) as Record<Locale, number>;
+  for (const x of list) r[x.locale]++;
+  return r;
+};
+
+const empty = (error?: string): Audience => ({
+  users: [],
+  guests: [],
+  byLocale: countByLocale([]),
+  total: 0,
+  withoutTelegram: 0,
+  rows: [],
+  error,
+});
 
 export async function resolveAudience(f: AudienceFilters): Promise<Audience> {
   return f.segment === "NOT_REGISTERED" ? resolveGuests() : resolveEmployees(f);
@@ -52,15 +71,17 @@ async function resolveGuests(): Promise<Audience> {
 
   const guests = await db.telegramGuest.findMany({ where: { blockedAt: null }, orderBy: { lastStartAt: "desc" } });
   const fresh = guests.filter((g) => !linked.has(g.telegramId));
+  const guestList = fresh.map((g) => ({ id: g.telegramId, locale: asLocale(g.locale) ?? "ru" }));
   return {
-    userIds: [],
-    guestChatIds: fresh.map((g) => g.telegramId),
+    users: [],
+    guests: guestList,
+    byLocale: countByLocale(guestList),
     total: fresh.length,
     withoutTelegram: 0,
     rows: fresh.slice(0, PREVIEW_LIMIT).map((g) => ({
       key: g.telegramId,
       name: `Telegram ${g.telegramId}`,
-      sub: `Последняя активность в боте:${g.lastStartAt.toLocaleDateString("ru-RU")}`,
+      sub: `Последняя активность в боте: ${g.lastStartAt.toLocaleDateString("ru-RU")}`,
       telegram: true,
     })),
   };
@@ -107,13 +128,15 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
 
   const people = await db.employee.findMany({
     where: base,
-    select: { fullName: true, department: true, position: true, telegramId: true, user: { select: { id: true } } },
+    select: { fullName: true, department: true, position: true, telegramId: true, user: { select: { id: true, locale: true } } },
     orderBy: { fullName: "asc" },
   });
   const reachable = people.filter((p) => p.telegramId && p.user);
+  const userList = reachable.map((p) => ({ id: p.user!.id, locale: asLocale(p.user!.locale) ?? "ru" }));
   return {
-    userIds: reachable.map((p) => p.user!.id),
-    guestChatIds: [],
+    users: userList,
+    guests: [],
+    byLocale: countByLocale(userList),
     total: people.length,
     withoutTelegram: people.length - reachable.length,
     rows: people.slice(0, PREVIEW_LIMIT).map((p) => ({

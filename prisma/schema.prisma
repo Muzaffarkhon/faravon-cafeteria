@@ -168,6 +168,7 @@ model User {
   telegramId        String?   @unique // §11/§12: Telegram-адресат для учёток без Employee (подрядчики, C&B)
   roles             Role[]    @default([EMPLOYEE])
   lastLoginAt       DateTime?
+  locale            String?   // язык интерфейса (ru/tg/uz): запоминается при смене языка; рассылки пишут на нём
   failedLoginCount  Int       @default(0)
   lockedUntil       DateTime?
   otpExpiresAt      DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
@@ -792,4 +793,5 @@ model TelegramGuest {
   firstStartAt DateTime  @default(now())
   lastStartAt  DateTime  @default(now())
   blockedAt    DateTime? // бот заблокирован (Telegram 403) — писать бессмысленно
+  locale       String?   // язык Telegram-клиента (ru/tg/uz) — на нём пишем в рассылке
 }

@@ -17,3 +17,14 @@ export const LOCALE_SHORT: Record<Locale, string> = {
 };
 
 export const LOCALE_COOKIE = "faravon.locale";
+
+/** Язык Telegram-клиента (`language_code`, например "tg", "uz-UZ", "ru") → наш язык; всё прочее — русский. */
+export function localeFromTelegram(code?: string | null): Locale {
+  const c = (code ?? "").toLowerCase().slice(0, 2);
+  return c === "tg" || c === "uz" ? c : "ru";
+}
+
+/** Значение из БД/формы → язык или null, если это не ru/tg/uz. */
+export function asLocale(v: unknown): Locale | null {
+  return (LOCALES as readonly string[]).includes(v as string) ? (v as Locale) : null;
+}

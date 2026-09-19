@@ -12,7 +12,9 @@ import { SupportAlert } from "./_support-alert";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getAdminNav } from "./_admin-nav";
-import { getLocale } from "@/lib/i18n";
+import { cookies } from "next/headers";
+import { getLocale, LOCALE_COOKIE } from "@/lib/i18n";
+import { asLocale } from "@/lib/i18n/shared";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -20,6 +22,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (session.mustChangePassword) redirect("/change-password");
 
   await ensureRbac(); // подтянуть матрицу прав из БД перед проверками can()
+
+  // Язык, выбранный до появления поля User.locale, запоминаем один раз из cookie (дальше — при смене языка).
+  if (!session.user.locale) {
+    const chosen = asLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+    if (chosen) await db.user.update({ where: { id: session.user.id }, data: { locale: chosen } }).catch(() => {});
+  }
 
   const { roles } = session;
   const canManageSupport = can(roles, "support.manage");
