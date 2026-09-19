@@ -783,3 +783,13 @@ model RolePermission {
 
   @@id([role, permission])
 }
+
+/// Кто хотя бы раз нажал «Старт» в боте (для рассылки «не зарегистрировался»). Telegram не отдаёт
+/// список запустивших бота, поэтому запоминаем сами. Не привязан к Employee/User: гость мог быть
+/// не опознан — рассылка исключает тех, чей telegramId уже привязан.
+model TelegramGuest {
+  telegramId   String    @id
+  firstStartAt DateTime  @default(now())
+  lastStartAt  DateTime  @default(now())
+  blockedAt    DateTime? // бот заблокирован (Telegram 403) — писать бессмысленно
+}

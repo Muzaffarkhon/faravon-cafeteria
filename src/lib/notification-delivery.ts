@@ -44,7 +44,7 @@ export async function sendTelegram(
   return (await sendTelegramDetailed(token, chatId, html, extra)).ok;
 }
 
-async function sendTelegramDetailed(
+export async function sendTelegramDetailed(
   token: string,
   chatId: string,
   html: string,
