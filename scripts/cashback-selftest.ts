@@ -64,15 +64,15 @@ test("мусор, пустая подпись, лишние части, чужо
 });
 
 console.log("Код клиента");
-test("текущий код принимается, формат 6 цифр", () => {
+test("текущий код принимается, формат 4 цифры", () => {
   const { code, secondsLeft } = currentCashbackCode("emp_1", T0);
-  assert.match(code, /^\d{6}$/);
+  assert.match(code, /^\d{4}$/);
   assert.ok(secondsLeft >= 1 && secondsLeft <= CODE_STEP_S);
   assert.notEqual(matchCashbackCodeWindow("emp_1", code, T0), null);
 });
-test("код с пробелом («123 456») принимается", () => {
+test("код с пробелом («12 34») принимается", () => {
   const { code } = currentCashbackCode("emp_1", T0);
-  assert.notEqual(matchCashbackCodeWindow("emp_1", `${code.slice(0, 3)} ${code.slice(3)}`, T0), null);
+  assert.notEqual(matchCashbackCodeWindow("emp_1", `${code.slice(0, 2)} ${code.slice(2)}`, T0), null);
 });
 test("код предыдущего окна ещё принимается, позапрошлого — нет", () => {
   const old = currentCashbackCode("emp_1", T0).code;
@@ -89,7 +89,7 @@ test("возвращаемое окно монотонно растёт (осн�
   assert.equal(b, a + 1);
 });
 test("неверные форматы отвергаются", () => {
-  for (const bad of ["", "12345", "1234567", "abcdef", "12 34 5", "١٢٣٤٥٦", "12345\n", null as unknown as string]) {
+  for (const bad of ["", "123", "12345", "123456", "1234567", "abcdef", "12 34 5", "١٢٣٤٥٦", "12345\n", null as unknown as string]) {
     assert.equal(matchCashbackCodeWindow("emp_1", bad, T0), null);
   }
 });

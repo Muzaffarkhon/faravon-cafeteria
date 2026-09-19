@@ -57,7 +57,7 @@ export type ApplyCashbackInput = {
   /** Сумма покупки по чеку, дирамы. */
   purchase: number;
   useBalance: boolean;
-  /** Код клиента из его кабинета (6 цифр). */
+  /** Код клиента из его кабинета (4 цифры). */
   code: string;
 };
 
