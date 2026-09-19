@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
-import { formatTajikPhone } from "@/lib/phone";
+import { formatTajikPhone, isTajikInternational } from "@/lib/phone";
 import { grantMessage } from "@/lib/notification-format";
 import { safeEqual } from "@/lib/timing-safe";
 import { db } from "@/lib/db";
@@ -107,7 +107,8 @@ interface TgCallbackQuery {
 }
 
 async function openContactSupportThread(telegramId: string, rawPhone: string) {
-  const phone = formatTajikPhone(rawPhone);
+  // Номер другой страны не приводим к «+992…»: иначе C&B принял бы его за таджикский.
+  const phone = isTajikInternational(rawPhone) ? formatTajikPhone(rawPhone) : null;
   await openOrReopenThread(telegramId);
   if (phone) await db.supportThread.update({ where: { telegramId }, data: { phone } });
   await appendGuestMessage(telegramId, `[Поделился контактом] ${phone ?? rawPhone}`);
