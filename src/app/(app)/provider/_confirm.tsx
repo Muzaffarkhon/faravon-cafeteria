@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { Button, Field, Input, cx } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CouponView } from "./actions";
+import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CashbackView, type CouponView } from "./actions";
+import { CashbackForm } from "./_cashback";
 import { CouponScanner } from "./_scanner";
 
-type Phase = "idle" | "found" | "not_found" | "no_benefit" | "done";
+type Phase = "idle" | "found" | "cashback" | "not_found" | "no_benefit" | "done";
 
 /** Из результата сканирования достаёт номер купона (текст или ссылка ?number=). */
 function extractNumber(raw: string): string {
@@ -37,6 +38,8 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
   const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [coupon, setCoupon] = useState<CouponView | null>(null);
+  // Купона уже нет, но у сотрудника остался кешбек у этого партнёра.
+  const [cashbackOnly, setCashbackOnly] = useState<CashbackView | null>(null);
   const [notFoundName, setNotFoundName] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +58,9 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
       if (r.status === "found") {
         setCoupon(r.coupon);
         setPhase("found");
+      } else if (r.status === "cashback_only") {
+        setCashbackOnly(r.cashback);
+        setPhase("cashback");
       } else if (r.status === "no_benefit") {
         setNotFoundName(r.employee);
         setPhase("no_benefit");
@@ -78,6 +84,7 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
   function reset() {
     setPhone("");
     setCoupon(null);
+    setCashbackOnly(null);
     setNotFoundName(null);
     setError(null);
     setPhase("idle");
@@ -107,6 +114,14 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
     const n = extractNumber(raw);
     setNumber(n);
     doManualLookup(n);
+  }
+
+  // ── Кешбек: ввод суммы покупки (по купону или только накопленный баланс) ──
+  if (phase === "cashback" && cashbackOnly) {
+    return <CashbackForm view={cashbackOnly} locale={locale} onBack={reset} />;
+  }
+  if (phase === "found" && coupon?.cashback) {
+    return <CashbackForm view={coupon.cashback} locale={locale} onBack={reset} />;
   }
 
   // ── Найдено: карточка с данными и активацией ──

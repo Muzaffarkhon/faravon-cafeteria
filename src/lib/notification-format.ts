@@ -59,6 +59,8 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",
   GROUP_CARRIED_OVER: "Групповая льгота перенесена на следующий период",
   BROADCAST: "Рассылка от администрации",
+  CASHBACK_OPERATION: "Операция по кешбеку",
+  CASHBACK_REVERSED: "Операция по кешбеку сторнирована",
   NEW_CARD: "Новая льгота на витрине",
 };
 
@@ -78,6 +80,8 @@ export const NOTIFICATION_EVENTS = [
   "DAILY_DIGEST",
   "GROUP_CARRIED_OVER",
   "BROADCAST",
+  "CASHBACK_OPERATION",
+  "CASHBACK_REVERSED",
   "NEW_CARD",
 ] as const;
 
@@ -143,6 +147,14 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.BROADCAST,
     body: "📢 <b>Объявление</b>\n{text}",
   },
+  CASHBACK_OPERATION: {
+    label: NOTIFICATION_LABELS.CASHBACK_OPERATION,
+    body: "💳 <b>Покупка с кешбеком</b>\n{partner} — чек {purchase} сом.[[\nСписано кешбека: {redeemed} сом.]][[\nНачислено кешбека: {accrued} сом.]]\nБаланс у партнёра: {balance} сом.\n\nЕсли это были не вы — сообщите в поддержку.",
+  },
+  CASHBACK_REVERSED: {
+    label: NOTIFICATION_LABELS.CASHBACK_REVERSED,
+    body: "↩️ <b>Операция по кешбеку сторнирована</b>\n{partner}[[\nПричина: {reason}]]\nБаланс у партнёра: {balance} сом.",
+  },
   NEW_CARD: {
     label: NOTIFICATION_LABELS.NEW_CARD,
     body: "🆕 <b>Новая льгота</b>\n«{card}»[[ · {partner}]][[\n{condition}]]\n\nПосмотреть и выбрать — на витрине: {siteUrl}",
@@ -184,6 +196,8 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
   BROADCAST: { text: "Уважаемые коллеги! 30 сентября — технический перерыв в работе платформы с 22:00 до 23:00." },
+  CASHBACK_OPERATION: { partner: "Магазин «Ковры»", purchase: "100,00", redeemed: "30,00", accrued: "7,00", balance: "7,00" },
+  CASHBACK_REVERSED: { partner: "Магазин «Ковры»", reason: "ошибка ввода суммы", balance: "0,00" },
   NEW_CARD: { card: "Абонемент в бассейн", partner: "Фитнес-клуб «Олимп»", condition: "Скидка 20% на месячный абонемент", siteUrl: "https://cafeteria.example.com" },
 };
 
@@ -203,6 +217,8 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   DAILY_DIGEST: ["text"],
   GROUP_CARRIED_OVER: ["card", "period"],
   BROADCAST: ["text"],
+  CASHBACK_OPERATION: ["partner", "purchase", "redeemed", "accrued", "balance"],
+  CASHBACK_REVERSED: ["partner", "reason", "balance"],
   NEW_CARD: ["card", "partner", "condition", "siteUrl"],
 };
 

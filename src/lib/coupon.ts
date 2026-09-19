@@ -128,6 +128,12 @@ export async function redeemCouponByNumber(
     );
   }
   if (coupon.status === "USED") throw new Error("Купон уже активирован.");
+  // Кешбек проводится отдельно — по сумме покупки (см. lib/cashback.ts, applyCashback).
+  if (coupon.benefitMode === "CASHBACK") {
+    throw new Error("Это льгота с кешбеком: введите сумму покупки.");
+  }
+  // Многоразовый купон: гасится при каждом визите, но не «сгорает» — действует весь период.
+  const reusable = coupon.benefitMode === "PERIOD";
   if (coupon.status !== "ISSUED") {
     throw new Error(`Купон нельзя активировать: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }
@@ -168,31 +174,35 @@ export async function redeemCouponByNumber(
 
   // Атомарный переход ISSUED → USED: условия в WHERE не дают погасить купон
   // дважды при гонке и не дают погасить просроченный.
-  const claimed = await db.coupon.updateMany({
-    where: {
-      id: coupon.id,
-      status: "ISSUED",
-      OR: [{ validUntil: null }, { validUntil: { gte: now } }],
-    },
-    data: { status: "USED" },
-  });
-  if (claimed.count === 0) {
-    throw new Error("Купон уже активирован или просрочен.");
+  if (!reusable) {
+    const claimed = await db.coupon.updateMany({
+      where: {
+        id: coupon.id,
+        status: "ISSUED",
+        OR: [{ validUntil: null }, { validUntil: { gte: now } }],
+      },
+      data: { status: "USED" },
+    });
+    if (claimed.count === 0) {
+      throw new Error("Купон уже активирован или просрочен.");
+    }
   }
 
   await audit({
     actorId,
-    action: "COUPON_REDEEMED_BY_PROVIDER",
+    action: reusable ? "COUPON_VISIT_BY_PROVIDER" : "COUPON_REDEEMED_BY_PROVIDER",
     entityType: "Coupon",
     entityId: coupon.id,
     oldValue: { status: "ISSUED" },
-    newValue: { status: "USED", number: coupon.number },
+    newValue: { status: reusable ? "ISSUED" : "USED", number: coupon.number },
   });
-  await notifyEmployee({
-    employeeId: coupon.employeeId,
-    event: "COUPON_CONFIRMED_BY_PROVIDER",
-    payload: { number: coupon.number, card: coupon.item.card.title, period: coupon.period.name },
-  });
+  if (!reusable) {
+    await notifyEmployee({
+      employeeId: coupon.employeeId,
+      event: "COUPON_CONFIRMED_BY_PROVIDER",
+      payload: { number: coupon.number, card: coupon.item.card.title, period: coupon.period.name },
+    });
+  }
   return coupon;
 }
 
