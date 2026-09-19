@@ -56,6 +56,7 @@ export function CardForm({
   const [state, formAction, pending] = useActionState(action, {});
   const [block, setBlock] = useState(initial?.block ?? "FLEX");
   const [mode, setMode] = useState(initial?.mode ?? "ONE_TIME");
+  const [status, setStatus] = useState(initial?.status ?? "PUBLISHED");
   const initialCategory = initial?.category ?? "";
   const [category, setCategory] = useState(
     initialCategory && !categories.includes(initialCategory) ? NEW_CATEGORY : initialCategory,
@@ -67,7 +68,7 @@ export function CardForm({
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={t("cards.form.block")} htmlFor="block" required>
+        <Field label={t("cards.form.block")} htmlFor="block" required hint={t("cards.form.hint.block")}>
           <Select id="block" name="block" value={block} onChange={(e) => setBlock(e.target.value)}>
             {BLOCKS.map((b) => (
               <option key={b} value={b}>
@@ -76,8 +77,19 @@ export function CardForm({
             ))}
           </Select>
         </Field>
-        <Field label={t("cards.form.publication")} htmlFor="status">
-          <Select id="status" name="status" defaultValue={initial?.status ?? "PUBLISHED"}>
+        <Field
+          label={t("cards.form.publication")}
+          htmlFor="status"
+          hint={
+            <>
+              {t("cards.form.hint.publication")}
+              {status === "PUBLISHED" && block === "FLEX" && (
+                <span className="mt-1 block font-medium text-warning-strong">{t("cards.form.hint.announce")}</span>
+              )}
+            </>
+          }
+        >
+          <Select id="status" name="status" value={status} onChange={(e) => setStatus(e.target.value)}>
             {CARD_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {cardStatusLabel(locale, s)}
@@ -87,20 +99,20 @@ export function CardForm({
         </Field>
       </div>
 
-      <Field label={t("cards.form.title")} htmlFor="title" required>
+      <Field label={t("cards.form.title")} htmlFor="title" required hint={t("cards.form.hint.title")}>
         <Input id="title" name="title" defaultValue={initial?.title ?? ""} required />
       </Field>
 
-      <Field label={t("cards.form.description")} htmlFor="description">
+      <Field label={t("cards.form.description")} htmlFor="description" hint={t("cards.form.hint.description")}>
         <Textarea id="description" name="description" defaultValue={initial?.description ?? ""} rows={2} />
       </Field>
 
       {block === "FLEX" && (
         <>
-          <Field label={t("cards.form.condition")} htmlFor="condition">
+          <Field label={t("cards.form.condition")} htmlFor="condition" hint={t("cards.form.hint.condition")}>
             <Input id="condition" name="condition" defaultValue={initial?.condition ?? ""} />
           </Field>
-          <Field label={t("cards.form.partner")} htmlFor="partnerId">
+          <Field label={t("cards.form.partner")} htmlFor="partnerId" hint={t("cards.form.hint.partner")}>
             <Select id="partnerId" name="partnerId" defaultValue={initial?.partnerId ?? ""}>
               <option value="">{t("cards.form.partnerNone")}</option>
               {partners.map((p) => (
@@ -160,7 +172,7 @@ export function CardForm({
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={t("cards.form.category")} htmlFor="category">
+        <Field label={t("cards.form.category")} htmlFor="category" hint={t("cards.form.hint.category")}>
           <Select
             id="category"
             value={category}
@@ -188,7 +200,7 @@ export function CardForm({
             value={category === NEW_CATEGORY ? customCategory : category}
           />
         </Field>
-        <Field label={t("cards.form.sortOrder")} htmlFor="sortOrder">
+        <Field label={t("cards.form.sortOrder")} htmlFor="sortOrder" hint={t("cards.form.hint.sortOrder")}>
           <Input id="sortOrder" type="number" name="sortOrder" defaultValue={initial?.sortOrder ?? 0} />
         </Field>
       </div>
