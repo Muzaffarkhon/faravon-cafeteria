@@ -34,6 +34,9 @@ export const ICONS = {
   users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
   history: "M3 12a9 9 0 1 0 3-6.7L3 8||M3 3v5h5||M12 8v5l3 2",
   chat: "M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z||M8 9h8||M8 12h5",
+  // монета со знаком процента — кешбек
+  cashback:
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 15l6-6||M9.2 9.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z||M14.8 15.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z",
   star: "M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z",
 };
 
@@ -266,7 +269,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       href: "/admin/cashback",
       label: t("nav.cashback"),
       desc: "обязательства по кешбеку, сверка баланса, журнал операций и сторно",
-      icon: ICONS.reports,
+      icon: ICONS.cashback,
     });
   if (can(roles, "satisfaction.manage"))
     add("admin", t("nav.adminGroup"), {
