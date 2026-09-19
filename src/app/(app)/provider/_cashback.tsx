@@ -154,6 +154,7 @@ export function CashbackForm({
           <Input
             id="cb-code"
             inputMode="numeric"
+            pattern="[0-9 ]*"
             autoComplete="one-time-code"
             maxLength={7}
             placeholder="000 000"

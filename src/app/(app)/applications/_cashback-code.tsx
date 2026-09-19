@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMyCashbackCode } from "../cashback-actions";
 
-/** Код для кассы: меняется каждые 30 секунд, показывается только владельцу счёта. */
+/** Код для кассы: меняется каждые 60 секунд, показывается только владельцу счёта. */
 export function CashbackCode({ title, hint, secondsLabel }: { title: string; hint: string; secondsLabel: string }) {
   const [code, setCode] = useState<string | null>(null);
   const [left, setLeft] = useState(0);
