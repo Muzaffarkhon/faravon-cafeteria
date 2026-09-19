@@ -30,9 +30,11 @@ export async function sendBroadcast(
   const raw = String(formData.get("text") ?? "").trim();
   if (raw.length < 2) return { error: "Введите текст сообщения." };
   // Плейсхолдеры шаблонов подставляем при отправке, чтобы в текстах не хардкодить адрес сайта.
-  const text = raw
-    .replaceAll("{siteUrl}", process.env.PLATFORM_URL || "")
-    .replaceAll("{botUrl}", BOT_URL);
+  const siteUrl = (process.env.PLATFORM_URL || "").trim().replace(/\/+$/, "");
+  if (raw.includes("{siteUrl}") && !siteUrl) {
+    return { error: "Не задан адрес сайта (PLATFORM_URL) — {siteUrl} в тексте останется пустым. Задайте переменную в настройках сервера или уберите {siteUrl} из текста." };
+  }
+  const text = raw.replaceAll("{siteUrl}", siteUrl).replaceAll("{botUrl}", BOT_URL);
   if (text.length > 3500) return { error: "Текст слишком длинный (максимум 3500 символов)." };
   // Незаполненные пометки шаблона вроде [дата] не должны уйти сотрудникам.
   const leftover = text.match(/\[[^\]\n]{1,40}\]/);
