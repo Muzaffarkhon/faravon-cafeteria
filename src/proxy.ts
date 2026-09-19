@@ -4,6 +4,7 @@ import { jwtVerify } from "jose";
 const COOKIE = "faravon_session";
 const PUBLIC_PATHS = [
   "/login",
+  "/activate", // привязка телефона кассы по одноразовой ссылке (см. lib/cashier-link.ts)
   "/manifest.webmanifest",
   "/sw.js",
   "/pwa.js",

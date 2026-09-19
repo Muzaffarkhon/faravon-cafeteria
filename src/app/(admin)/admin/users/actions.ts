@@ -10,6 +10,8 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
+import { createCashierLink } from "@/lib/cashier-link";
+import { couponQrSvg } from "@/lib/qr";
 import { normalizePhone, parsePhoneNumbers } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 import { ALL_ROLES } from "./roles";
@@ -1075,4 +1077,33 @@ export async function deleteServiceAccount(userId: string): Promise<AccountResul
   revalidatePath("/admin/users");
   revalidatePath("/admin/access");
   return { ok: true };
+}
+
+/* ------------------------------------------------ привязка телефона кассы --- */
+
+export type CashierLinkResult = { error?: string; url?: string; qrSvg?: string; expiresAt?: string };
+
+/**
+ * Одноразовая ссылка «привязать телефон кассы» для учётки подрядчика (см. lib/cashier-link.ts).
+ * Сама ссылка показывается один раз; в журнал аудита токен не попадает.
+ */
+export async function createCashierLinkAction(userId: string): Promise<CashierLinkResult> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const base = (process.env.PLATFORM_URL || "").trim().replace(/\/+$/, "");
+  if (!base) return { error: "Не задан адрес сайта (PLATFORM_URL) — ссылку собрать нельзя." };
+
+  const r = await createCashierLink(userId, s.user.id);
+  if (!r.ok) return { error: r.error };
+
+  await audit({
+    actorId: s.user.id,
+    action: "CASHIER_LINK_CREATED",
+    entityType: "User",
+    entityId: userId,
+    newValue: { partnerName: r.partnerName, expiresAt: r.expiresAt.toISOString() },
+  });
+  const url = `${base}/activate/${r.token}`;
+  return { url, qrSvg: await couponQrSvg(url, 224), expiresAt: r.expiresAt.toISOString() };
 }

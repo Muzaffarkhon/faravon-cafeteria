@@ -9,8 +9,10 @@ import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { RolePicker } from "./_form";
 import { RowContextMenu } from "./_row-menu";
+import { CashierLinkModal } from "./_cashier-link-modal";
 import {
   createAccountForEmployee,
+  createCashierLinkAction,
   createServiceAccount,
   issuePassword,
   setAccountActive,
@@ -19,6 +21,7 @@ import {
   setUserRoles,
   setUserTelegramId,
   type AccountResult,
+  type CashierLinkResult,
 } from "./actions";
 import { ALL_ROLES } from "./roles";
 
@@ -336,6 +339,9 @@ export function ServiceAccountRow({
   const [tg, setTg] = useState(user.telegramId ?? "");
   const [showRoles, setShowRoles] = useState(false);
   const isContractor = user.roles.includes("CONTRACTOR");
+  // Ссылка привязки телефона — только для «чистого» подрядчика с партнёром (в админскую учётку по ссылке не войти).
+  const canLinkPhone = isContractor && user.roles.length === 1 && !!user.partnerId && user.isActive;
+  const [link, setLink] = useState<CashierLinkResult | null>(null);
 
   return (
     <>
@@ -422,6 +428,27 @@ export function ServiceAccountRow({
             >
               {t("users.acc.password")}
             </Button>
+            {canLinkPhone && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={pending}
+                onClick={() => {
+                  setMsg(null);
+                  start(async () => {
+                    try {
+                      const r = await createCashierLinkAction(user.id);
+                      if (r.error) setMsg({ error: r.error });
+                      else setLink(r);
+                    } catch {
+                      setMsg({ error: t("users.acc.actionFailed") });
+                    }
+                  });
+                }}
+              >
+                {t("users.acc.cashierPhone")}
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -442,6 +469,16 @@ export function ServiceAccountRow({
               {user.isActive ? t("users.acc.disable") : t("users.acc.enable")}
             </Button>
             <RowContextMenu kind="service" id={user.id} name={user.login} locale={locale} />
+            {link?.url && link.qrSvg && link.expiresAt && (
+              <CashierLinkModal
+                url={link.url}
+                qrSvg={link.qrSvg}
+                expiresAt={link.expiresAt}
+                login={user.login}
+                locale={locale}
+                onClose={() => setLink(null)}
+              />
+            )}
           </div>
         </td>
       </tr>
