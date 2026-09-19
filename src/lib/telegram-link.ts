@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
-import { normalizePhone } from "@/lib/phone";
+import { isTajikInternational, normalizePhone } from "@/lib/phone";
 import { hashPassword } from "@/lib/password";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 
@@ -153,6 +153,13 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
   await assertNotRateLimited(telegramId, "phone");
   let ok = false;
   try {
+    // Только таджикский номер (+992): иначе номер другой страны с теми же 9 цифрами
+    // выдал бы доступ к чужой учётной записи (см. isTajikInternational).
+    if (!isTajikInternational(phone)) {
+      throw new PhoneNotRecognizedError(
+        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
+      );
+    }
     const norm = normalizePhone(phone);
     if (norm.length < 7) throw new PhoneNotRecognizedError("Не удалось распознать номер телефона.");
 
