@@ -60,7 +60,7 @@ async function resolveGuests(): Promise<Audience> {
     rows: fresh.slice(0, PREVIEW_LIMIT).map((g) => ({
       key: g.telegramId,
       name: `Telegram ${g.telegramId}`,
-      sub: `Нажал «Старт»: ${g.lastStartAt.toLocaleDateString("ru-RU")}`,
+      sub: `Последняя активность в боте:${g.lastStartAt.toLocaleDateString("ru-RU")}`,
       telegram: true,
     })),
   };
