@@ -257,10 +257,17 @@ const VALUE_LABEL_MAPS: Record<string, string>[] = [
   ROLE_LABELS,
 ];
 
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
 function humanValue(v: unknown, names: Map<string, string>): string {
   if (v == null) return "—";
   if (typeof v === "boolean") return v ? "да" : "нет";
   if (typeof v === "string") {
+    // Дата/время в ISO (…T…Z) — показываем по-человечески, во времени Душанбе.
+    if (ISO_DATETIME.test(v)) {
+      const d = new Date(v);
+      if (!Number.isNaN(d.getTime())) return d.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" });
+    }
     if (SEGMENT_LABELS[v as Segment]) return SEGMENT_LABELS[v as Segment];
     for (const map of VALUE_LABEL_MAPS) if (map[v]) return map[v];
     return v;
