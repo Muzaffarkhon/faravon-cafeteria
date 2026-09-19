@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
           root: projectRoot,
         },
       }),
+  // Размер серверных функций (Vercel считает его в «Functions Storage» на каждый деплой).
+  // Рантайм Prisma тянет за собой wasm-движки для MySQL/SQLite/SQL Server/CockroachDB и
+  // edge-сборку (~44 МБ на функцию); мы работаем с PostgreSQL через нативный движок, они не нужны.
+  outputFileTracingExcludes: {
+    "/*": ["node_modules/@prisma/client/runtime/*wasm*"],
+  },
   // Self-contained server bundle for container/Docker deployment only (not needed on Vercel)
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
   // Изображения карточек рисуются обычным <img>, а не next/image: они мелкие
