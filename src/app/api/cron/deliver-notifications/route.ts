@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { deliverTelegramNotifications } from "@/lib/notification-delivery";
+import { drainTelegramNotifications } from "@/lib/notification-drain";
+import { runNewCardAnnouncements } from "@/lib/card-announcements";
 import { runPeriodWindowNotifications } from "@/lib/period-notifications";
 import { runPeriodLifecycle, type PeriodLifecycleResult } from "@/lib/period-lifecycle";
 import { safeEqual } from "@/lib/timing-safe";
@@ -9,6 +10,9 @@ export const runtime = "nodejs";
 // Рассылка идёт пачками с паузой (см. notification-delivery) — на 300
 // уведомлений нужно ~12 с, дефолтных 10 с функции не хватит.
 export const maxDuration = 60;
+// Новые проходы доставки запускаем не позже 40 с от старта: последний идёт ещё ~12 с,
+// и всё укладывается в maxDuration с запасом.
+const DELIVERY_BUDGET_MS = 40_000;
 export const dynamic = "force-dynamic";
 
 /**
@@ -44,11 +48,22 @@ export async function GET(req: NextRequest) {
     console.error("[cron/deliver] оконные уведомления:", e);
   }
 
-  const result = await deliverTelegramNotifications({
+  // Оповещение о новых карточках витрины (утром, вместе с этим запуском) — тоже в очередь.
+  let cards = { cards: 0, queued: 0 };
+  try {
+    cards = await runNewCardAnnouncements();
+  } catch (e) {
+    console.error("[cron/deliver] оповещение о новых карточках:", e);
+  }
+
+  // Несколько проходов подряд, пока очередь не опустеет или не выйдет время:
+  // один проход — 300 сообщений, а рассылка идёт всем сотрудникам с Telegram.
+  const result = await drainTelegramNotifications({
     db,
     token: process.env.TELEGRAM_BOT_TOKEN,
+    budgetMs: DELIVERY_BUDGET_MS,
     log: (m) => console.log(`[cron/deliver] ${m}`),
   });
 
-  return NextResponse.json({ ok: true, ...result, ...windows, periods: lifecycle });
+  return NextResponse.json({ ok: true, ...result, ...windows, newCards: cards, periods: lifecycle });
 }
