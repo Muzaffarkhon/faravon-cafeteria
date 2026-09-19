@@ -21,6 +21,7 @@ export type CardVersionRow = {
   status: string;
   sortOrder: number;
   minParticipants: number;
+  groupWaves: boolean;
   partnerId: string | null;
 };
 
@@ -61,6 +62,7 @@ const FIELDS: FieldDef[] = [
     label: "Мин. участников",
     fmt: (v) => (v.minParticipants > 1 ? String(v.minParticipants) : "без порога"),
   },
+  { key: "groupWaves", label: "Набор группами", fmt: (v) => (v.groupWaves ? "да" : "нет") },
   { key: "imageUrl", label: "Изображение", fmt: (v) => v.imageUrl ?? "", image: true },
 ];
 

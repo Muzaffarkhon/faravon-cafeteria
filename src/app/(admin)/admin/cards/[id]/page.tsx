@@ -62,6 +62,7 @@ export default async function EditCardPage({
     status: v.status,
     sortOrder: v.sortOrder,
     minParticipants: v.minParticipants,
+    groupWaves: v.groupWaves,
     partnerId: v.partnerId,
   }));
 

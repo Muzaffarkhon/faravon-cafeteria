@@ -21,6 +21,7 @@ export type CardValues = {
   isActive: boolean;
   sortOrder: number;
   minParticipants: number;
+  groupWaves: boolean;
   partnerId: string | null;
   translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
@@ -120,6 +121,18 @@ export function CardForm({
               defaultValue={initial?.minParticipants ?? 1}
             />
           </Field>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="groupWaves"
+              defaultChecked={initial?.groupWaves ?? false}
+              className="mt-0.5 h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
+            />
+            <span>
+              {t("cards.form.groupWaves")}
+              <span className="block text-xs text-ink-muted">{t("cards.form.groupWavesHint")}</span>
+            </span>
+          </label>
         </>
       )}
 
