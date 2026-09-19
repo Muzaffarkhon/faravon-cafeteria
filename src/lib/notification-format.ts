@@ -17,6 +17,9 @@
  *   [[ ... {x} ... ]] — блок удаляется целиком, если {x} внутри пустой
  */
 
+import { COUNT_NOUN, DEFAULT_TEMPLATES_I18N, GROUP_WORD } from "./notification-i18n";
+import type { Locale } from "./i18n/shared";
+
 /** Экранирование для Telegram HTML (parse_mode=HTML): только &, <, > значимы. */
 export const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -233,7 +236,7 @@ export function positionNoun(count: number): string {
 }
 
 /** Строит набор подстановок из payload + производные значения. */
-function buildVars(event: string, payload: Record<string, unknown>): Record<string, string> {
+function buildVars(event: string, payload: Record<string, unknown>, locale: Locale = "ru"): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const [k, v] of Object.entries(payload)) {
     if (v != null && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")) {
@@ -241,8 +244,10 @@ function buildVars(event: string, payload: Record<string, unknown>): Record<stri
     }
   }
   if (event === "APPLICATION_SUBMITTED") {
-    vars.countNoun = positionNoun(Number(payload.count) || 0);
+    vars.countNoun = locale === "ru" ? positionNoun(Number(payload.count) || 0) : COUNT_NOUN[locale];
   }
+  // В payload слово «групповая» лежит по-русски — для tg/uz подставляем перевод.
+  if (locale !== "ru" && vars.group) vars.group = GROUP_WORD[locale];
   // Доступен во всех шаблонах как {siteUrl} — если PLATFORM_URL не задан,
   // пустой, и блоки [[ ... {siteUrl} ... ]] в шаблонах сами исчезают.
   vars.siteUrl = process.env.PLATFORM_URL || "";
@@ -277,17 +282,38 @@ export function formatNotificationText(
   event: string,
   payload: Record<string, unknown> | null | undefined,
   templates?: Map<string, string> | Record<string, string>,
+  locale: Locale = "ru",
 ): string {
   const p = (payload ?? {}) as Record<string, unknown>;
 
-  const fromMap =
-    templates instanceof Map
-      ? templates.get(event)
-      : templates
-        ? templates[event]
-        : undefined;
-  const body = fromMap ?? DEFAULT_TEMPLATES[event]?.body;
+  const lookup = (key: string) =>
+    templates instanceof Map ? templates.get(key) : templates ? templates[key] : undefined;
+
+  // tg/uz: правка админа → зашитый перевод → русский текст (правка админа или зашитый).
+  // Русскую правку админа на другой язык не подставляем: она написана по-русски.
+  const body =
+    (locale !== "ru" ? (lookup(`${event}:${locale}`) ?? DEFAULT_TEMPLATES_I18N[locale][event]) : undefined) ??
+    lookup(event) ??
+    DEFAULT_TEMPLATES[event]?.body;
   if (!body) return NOTIFICATION_LABELS[event] ?? event;
 
-  return renderTemplate(body, buildVars(event, p));
+  return renderTemplate(body, buildVars(event, p, locale));
+}
+
+/**
+ * Карта шаблонов из строк NotificationTemplate: `EVENT` — русский текст, `EVENT:tg` / `EVENT:uz` —
+ * переводы, отредактированные в админке.
+ */
+export function templateMapFromRows(
+  rows: { event: string; body: string; translations?: unknown }[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    map.set(r.event, r.body);
+    const tr = (r.translations ?? {}) as Record<string, unknown>;
+    for (const l of ["tg", "uz"] as const) {
+      if (typeof tr[l] === "string" && tr[l]) map.set(`${r.event}:${l}`, tr[l] as string);
+    }
+  }
+  return map;
 }

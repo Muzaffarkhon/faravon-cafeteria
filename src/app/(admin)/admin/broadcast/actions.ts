@@ -9,7 +9,7 @@ import { flushTelegram } from "@/lib/notify";
 import { resolveAudience, parseFilters } from "@/lib/broadcast-audience";
 import { BOT_URL } from "@/lib/broadcast-templates";
 import { LOCALES, type Locale } from "@/lib/i18n/shared";
-import { formatNotificationText } from "@/lib/notification-format";
+import { formatNotificationText, templateMapFromRows } from "@/lib/notification-format";
 import { sendTelegramDetailed } from "@/lib/notification-delivery";
 
 export type BroadcastState = { sent?: number; failed?: number; error?: string };
@@ -70,10 +70,10 @@ export async function sendBroadcast(
     }
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return { error: "Не задан токен бота — отправка невозможна." };
-    const rows = await db.notificationTemplate.findMany({ select: { event: true, body: true } });
-    const templates = new Map(rows.map((r) => [r.event, r.body]));
+    const rows = await db.notificationTemplate.findMany({ select: { event: true, body: true, translations: true } });
+    const templates = templateMapFromRows(rows);
     const html = Object.fromEntries(
-      LOCALES.map((l) => [l, formatNotificationText("BROADCAST", { text: textFor(l) }, templates)]),
+      LOCALES.map((l) => [l, formatNotificationText("BROADCAST", { text: textFor(l) }, templates, l)]),
     ) as Record<Locale, string>;
 
     const chats = audience.guests;
