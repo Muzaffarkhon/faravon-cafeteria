@@ -8,6 +8,7 @@ import {
   TEMPLATE_SAMPLE_VARS,
   renderTemplate,
 } from "@/lib/notification-format";
+import { DEFAULT_TEMPLATES_I18N } from "@/lib/notification-i18n";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import {
@@ -20,6 +21,8 @@ export function TemplateForm({
   event,
   label,
   body,
+  bodyTg,
+  bodyUz,
   overridden,
   editedBy,
   editedAt,
@@ -28,6 +31,8 @@ export function TemplateForm({
   event: string;
   label: string;
   body: string;
+  bodyTg: string;
+  bodyUz: string;
   overridden: boolean;
   editedBy?: string | null;
   editedAt?: string | null;
@@ -37,6 +42,8 @@ export function TemplateForm({
   const action = updateNotificationTemplate.bind(null, event);
   const [state, formAction, pending] = useActionState<TemplateFormState, FormData>(action, {});
   const [draft, setDraft] = useState(body);
+  const [draftTg, setDraftTg] = useState(bodyTg);
+  const [draftUz, setDraftUz] = useState(bodyUz);
   const [resetting, startReset] = useTransition();
 
   const placeholders = TEMPLATE_PLACEHOLDERS[event] ?? [];
@@ -99,6 +106,25 @@ export function TemplateForm({
           />
         </Field>
 
+        <Field label={t("notifications.bodyTg")} htmlFor={`${event}-body-tg`} hint={t("notifications.translationHint")}>
+          <Textarea
+            id={`${event}-body-tg`}
+            name="body_tg"
+            value={draftTg}
+            onChange={(e) => setDraftTg(e.target.value)}
+            rows={3}
+          />
+        </Field>
+        <Field label={t("notifications.bodyUz")} htmlFor={`${event}-body-uz`}>
+          <Textarea
+            id={`${event}-body-uz`}
+            name="body_uz"
+            value={draftUz}
+            onChange={(e) => setDraftUz(e.target.value)}
+            rows={3}
+          />
+        </Field>
+
         <div className="rounded-lg bg-surface-muted px-3 py-2 text-sm">
           <div className="mb-0.5 text-xs font-medium text-ink-subtle">
             {t("notifications.previewTitle")}
@@ -123,6 +149,8 @@ export function TemplateForm({
               startReset(async () => {
                 await resetNotificationTemplate(event);
                 setDraft(defaultBody);
+                setDraftTg(DEFAULT_TEMPLATES_I18N.tg[event] ?? "");
+                setDraftUz(DEFAULT_TEMPLATES_I18N.uz[event] ?? "");
               })
             }
             className="text-sm font-medium text-ink-muted hover:text-danger hover:underline"

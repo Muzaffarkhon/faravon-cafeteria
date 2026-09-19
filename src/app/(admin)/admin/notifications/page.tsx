@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { DEFAULT_TEMPLATES, NOTIFICATION_EVENTS } from "@/lib/notification-format";
+import { DEFAULT_TEMPLATES_I18N } from "@/lib/notification-i18n";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { TemplateForm } from "./_form";
 
@@ -40,7 +41,8 @@ export default async function NotificationsPage() {
         {NOTIFICATION_EVENTS.map((event) => {
           const row = byEvent.get(event);
           const def = DEFAULT_TEMPLATES[event];
-          const overridden = !!row && (row.body !== def.body || row.label !== def.label);
+          const tr = (row?.translations ?? {}) as { tg?: string; uz?: string };
+          const overridden = !!row && (row.body !== def.body || row.label !== def.label || !!tr.tg || !!tr.uz);
           const editedBy = row?.updatedBy?.employee?.fullName ?? row?.updatedBy?.login ?? null;
           const editedAt =
             overridden && row ? row.updatedAt.toLocaleString("ru-RU") : null;
@@ -51,6 +53,8 @@ export default async function NotificationsPage() {
                 event={event}
                 label={row?.label ?? def.label}
                 body={row?.body ?? def.body}
+                bodyTg={tr.tg ?? DEFAULT_TEMPLATES_I18N.tg[event] ?? ""}
+                bodyUz={tr.uz ?? DEFAULT_TEMPLATES_I18N.uz[event] ?? ""}
                 overridden={overridden}
                 editedBy={overridden ? editedBy : null}
                 editedAt={editedAt}

@@ -737,6 +737,7 @@ model NotificationTemplate {
   event       String   @id
   label       String
   body        String
+  translations Json?   // { tg?: string, uz?: string } — правки переводов из админки; пусто = зашитый перевод
   updatedBy   User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
   updatedById String?
   updatedAt   DateTime @updatedAt
