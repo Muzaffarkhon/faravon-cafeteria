@@ -298,7 +298,11 @@ export default async function OverviewPage() {
         id: `group-${c.id}`,
         kind: "group",
         title: c.title,
-        subtitle: `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
+        subtitle:
+          // Набор собран — «Нужно ещё 0» не пишем: скидка уже действует.
+          remaining <= 0
+            ? `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitComplete")}`
+            : `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
         imageUrl: safeImageSrc(c.imageUrl),
         linkHref: `#card-${c.id}`,
         external: false,

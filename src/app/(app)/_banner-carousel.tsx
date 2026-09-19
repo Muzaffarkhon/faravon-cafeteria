@@ -237,7 +237,10 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                       </div>
                       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/25 sm:h-2">
                         <div
-                          className="h-full rounded-full bg-amber-400 transition-[width] duration-300"
+                          className={cx(
+                            "h-full rounded-full transition-[width] duration-300",
+                            b.progress.current >= b.progress.min ? "bg-success" : "bg-amber-400",
+                          )}
                           style={{
                             width: `${Math.min(100, (b.progress.current / b.progress.min) * 100)}%`,
                           }}

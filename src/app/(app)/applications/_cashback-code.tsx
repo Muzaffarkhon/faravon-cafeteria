@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getMyCashbackCode } from "../cashback-actions";
+import { CODE_DIGITS } from "@/lib/cashback-math";
 
 /** Код для кассы: меняется каждые 60 секунд, показывается только владельцу счёта. */
 export function CashbackCode({ title, hint, secondsLabel }: { title: string; hint: string; secondsLabel: string }) {
@@ -35,7 +36,7 @@ export function CashbackCode({ title, hint, secondsLabel }: { title: string; hin
     <div className="rounded-2xl bg-primary-soft p-4">
       <div className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary-strong">{title}</div>
       <div className="mt-1 font-display text-[32px] font-bold tracking-[0.18em] text-primary" data-numeric aria-live="off">
-        {code ? `${code.slice(0, 3)} ${code.slice(3)}` : "··· ···"}
+        {code ? `${code.slice(0, CODE_DIGITS / 2)} ${code.slice(CODE_DIGITS / 2)}` : "·· ··"}
       </div>
       <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-sunken">
         <div className="h-full bg-primary transition-[width] duration-1000 ease-linear" style={{ width: `${(left / 30) * 100}%` }} />

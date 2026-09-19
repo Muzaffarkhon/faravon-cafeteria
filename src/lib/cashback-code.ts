@@ -1,8 +1,9 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { CODE_DIGITS } from "./cashback-math";
 
 /**
- * Код клиента для кассы: 6 цифр, меняется каждые 60 секунд (HMAC от id сотрудника и
+ * Код клиента для кассы: 4 цифры, меняется каждые 60 секунд (HMAC от id сотрудника и
  * номера окна, как TOTP). Сотрудник видит его в своём кабинете, кассир вводит при
  * проведении кешбека — так операция невозможна «по одному номеру телефона», без
  * ведома владельца счёта. Принимается текущее и предыдущее окно (запас ~60 с);
@@ -23,7 +24,7 @@ function codeFor(employeeId: string, w: number): string {
   const h = createHmac("sha256", key()).update(`${employeeId}:${w}`).digest();
   const off = h[h.length - 1] & 0x0f;
   const n = ((h[off] & 0x7f) << 24) | (h[off + 1] << 16) | (h[off + 2] << 8) | h[off + 3];
-  return String(n % 1_000_000).padStart(6, "0");
+  return String(n % 10 ** CODE_DIGITS).padStart(CODE_DIGITS, "0");
 }
 
 export function currentCashbackCode(employeeId: string, now: number = Date.now()) {
@@ -34,7 +35,7 @@ export function currentCashbackCode(employeeId: string, now: number = Date.now()
 /** Окно, к которому относится введённый код (текущее или предыдущее), либо null. */
 export function matchCashbackCodeWindow(employeeId: string, input: string, now: number = Date.now()): number | null {
   const digits = String(input ?? "").replace(/\s/g, "");
-  if (!/^\d{6}$/.test(digits)) return null;
+  if (digits.length !== CODE_DIGITS || !/^\d+$/.test(digits)) return null;
   const given = Buffer.from(digits);
   const w = windowOf(now);
   let matched: number | null = null;

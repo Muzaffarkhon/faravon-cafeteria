@@ -24,6 +24,8 @@ export type CardValues = {
   mode: string;
   cashbackPercent: number;
   groupWaves: boolean;
+  /** Когда карточку объявили в утренней рассылке; null — ещё нет. */
+  announcedAt?: Date | null;
   partnerId: string | null;
   translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
@@ -84,7 +86,11 @@ export function CardForm({
             <>
               {t("cards.form.hint.publication")}
               {status === "PUBLISHED" && block === "FLEX" && (
-                <span className="mt-1 block font-medium text-warning-strong">{t("cards.form.hint.announce")}</span>
+                <span
+                  className={`mt-1 block ${initial?.announcedAt ? "" : "font-medium text-warning-strong"}`}
+                >
+                  {t(initial?.announcedAt ? "cards.form.hint.announced" : "cards.form.hint.announce")}
+                </span>
               )}
             </>
           }

@@ -5,9 +5,18 @@ import { can } from "@/lib/rbac";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ProviderConfirm } from "./_confirm";
 
-export default async function ProviderPage() {
+export default async function ProviderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Номер купона из ссылки в QR (обычная камера телефона): после входа возвращаемся к тому же купону.
+  const raw = (await searchParams).number;
+  const initialNumber = (Array.isArray(raw) ? raw[0] : raw)?.trim().toUpperCase().slice(0, 64) || undefined;
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) {
+    redirect(initialNumber ? `/login?next=${encodeURIComponent(`/provider?number=${encodeURIComponent(initialNumber)}`)}` : "/login");
+  }
   if (!can(session.roles, "coupons.confirm")) redirect("/");
 
   const partner = session.user.partnerId
@@ -37,7 +46,7 @@ export default async function ProviderPage() {
         )}
       </header>
 
-      <ProviderConfirm locale={locale} />
+      <ProviderConfirm locale={locale} initialNumber={initialNumber} />
     </div>
   );
 }

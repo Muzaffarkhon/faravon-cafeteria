@@ -54,3 +54,6 @@ export function parseSomoni(input: string): number | null {
 export function formatSomoni(diram: number): string {
   return (diram / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/** Длина кода клиента для кассы (цифр). Единая для сервера и формы кассира. */
+export const CODE_DIGITS = 4;

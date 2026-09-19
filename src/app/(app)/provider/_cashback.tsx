@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Button, Field, Input } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { calcCashback, formatSomoni, parseSomoni } from "@/lib/cashback-math";
+import { CODE_DIGITS, calcCashback, formatSomoni, parseSomoni } from "@/lib/cashback-math";
 import { submitCashback, type CashbackView } from "./actions";
 
 type Done = { redeem: number; paid: number; accrue: number; newBalance: number };
@@ -51,7 +51,7 @@ export function CashbackForm({
       setError(t("provider.errors.invalidAmount"));
       return;
     }
-    if (!/^\d{6}$/.test(code.replace(/\s/g, ""))) {
+    if (!new RegExp(`^\\d{${CODE_DIGITS}}$`).test(code.replace(/\s/g, ""))) {
       setError(t("provider.errors.invalidCode"));
       return;
     }
@@ -156,8 +156,8 @@ export function CashbackForm({
             inputMode="numeric"
             pattern="[0-9 ]*"
             autoComplete="one-time-code"
-            maxLength={7}
-            placeholder="000 000"
+            maxLength={CODE_DIGITS + 1}
+            placeholder="0000"
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
@@ -210,7 +210,7 @@ export function CashbackForm({
           </p>
         )}
 
-        <Button type="submit" fullWidth size="lg" loading={pending} disabled={!calc || nothingToDo || code.replace(/\s/g, "").length !== 6} className="mt-4">
+        <Button type="submit" fullWidth size="lg" loading={pending} disabled={!calc || nothingToDo || code.replace(/\s/g, "").length !== CODE_DIGITS} className="mt-4">
           {t("provider.cb.submit")}
         </Button>
         <Button type="button" variant="ghost" fullWidth onClick={onBack} disabled={pending} className="mt-2">

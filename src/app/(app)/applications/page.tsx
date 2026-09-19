@@ -11,6 +11,7 @@ import { employeeHasCashback, getEmployeeCashback } from "@/lib/cashback";
 import { CashbackCode } from "./_cashback-code";
 import { formatSomoni } from "@/lib/cashback-math";
 import { couponQrSvg } from "@/lib/qr";
+import { couponScanUrl } from "@/lib/coupon-link";
 import { safeImageSrc } from "@/lib/safe-url";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { CancelItemButton } from "./_cancel-button";
@@ -102,7 +103,7 @@ export default async function ApplicationsPage() {
     await Promise.all(
       issuedCoupons.map(
         async (c) =>
-          [c.id, await couponQrSvg(c.number).catch(() => null)] as const,
+          [c.id, await couponQrSvg(couponScanUrl(c.number)).catch(() => null)] as const,
       ),
     ),
   );
