@@ -120,9 +120,10 @@ export default async function ReportsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-        <form method="get" className="flex items-center gap-2">
-          <Select name="period" defaultValue={periodId} className="w-auto py-1.5 text-sm">
+      {/* flex-wrap: на телефоне ряд переносится, а не уезжает влево за экран (justify-end + длинный список периодов). */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <form method="get" className="flex min-w-0 max-w-full items-center gap-2">
+          <Select name="period" defaultValue={periodId} className="w-auto min-w-0 max-w-full py-1.5 text-sm">
             {periods.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} — {PERIOD_STATUS_LABELS[p.status]}
