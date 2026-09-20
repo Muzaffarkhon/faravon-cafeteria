@@ -20,11 +20,12 @@ export function QuickSearch({
   preserveKeys?: string[];
 }) {
   const preserve = [...preserveKeys, ...Object.keys(sp).filter((k) => k.startsWith("sf_"))];
+  // На телефоне форма занимает всю доступную ширину и сжимается (min-w-0), а не выдавливает страницу шире экрана.
   return (
-    <form method="get" action={basePath} className="flex items-center gap-2">
+    <form method="get" action={basePath} className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
       {hiddenChipInputs(sp, preserve)}
-      <Input name="q" defaultValue={sp.q ?? ""} placeholder={placeholder} className="w-64 py-1.5 text-sm" />
-      <button className={buttonClass({ variant: "secondary", size: "sm" })}>Найти</button>
+      <Input name="q" defaultValue={sp.q ?? ""} placeholder={placeholder} className="min-w-0 flex-1 py-1.5 text-sm sm:w-64 sm:flex-none" />
+      <button className={buttonClass({ variant: "secondary", size: "sm" }) + " shrink-0"}>Найти</button>
     </form>
   );
 }
