@@ -180,6 +180,10 @@ export function AppShell({
             })}
           </div>
 
+          {/* На мобильном лента вкладок скрыта — эта «распорка» прижимает счётчики, «Ещё» и профиль
+              вправо. Без неё они липнут к логотипу слева, и выпадающие меню (right-0) уезжают за левый край экрана. */}
+          <div className="min-w-0 flex-1 sm:hidden" aria-hidden="true" />
+
           {/* Счётчики выбора льгот — в один ряд с вкладками, справа. */}
           {selectionStat && (
             <div className="flex shrink-0 items-center gap-1.5" aria-label="Выбор льгот">
@@ -226,7 +230,7 @@ export function AppShell({
                     onClick={() => setMoreOpen(false)}
                     className="fixed inset-0 z-40 cursor-default"
                   />
-                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-64 overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-lg">
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 max-h-[70vh] w-64 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl border border-line bg-surface p-2 shadow-lg">
                     {moreGroups.map((g) => (
                       <div key={g.id} className="mb-1 last:mb-0">
                         <div className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
@@ -294,7 +298,7 @@ export function AppShell({
                   onClick={() => setProfileOpen(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
-                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
                   <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">
                     <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
                     {roleLabel}
