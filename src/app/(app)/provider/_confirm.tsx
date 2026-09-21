@@ -41,8 +41,8 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // ── Резервный сценарий: сканирование QR (камера сразу), ручной ввод — если не распозналось ──
-  const [manualOpen, setManualOpen] = useState(false);
+  // ── Резервный сценарий: сканирование QR (камера видна сразу на экране,
+  // без лишнего тапа), ручной ввод — если не распозналось ──
   const [showManual, setShowManual] = useState(false);
   const [number, setNumber] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
@@ -103,10 +103,41 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
     doManualLookup(number);
   }
 
+  /**
+   * Скан камерой — если купон найден и погашаем (действительно его, не чужого
+   * партнёра, не просрочен), активируем сразу, без отдельного тапа
+   * «Активировать»: сканирование — это уже подтверждение личности клиента
+   * (QR виден только ему), лишний тап тут не добавляет защиты. Если купон
+   * нельзя погасить (чужой партнёр/просрочен/и т.п.) — показываем карточку
+   * с причиной, как раньше, ничего не активируем.
+   */
   function onScan(raw: string) {
     const n = extractNumber(raw);
     setNumber(n);
-    doManualLookup(n);
+    setManualError(null);
+    setError(null);
+    start(async () => {
+      const r = await lookupCoupon(n);
+      if (r.error) {
+        setManualError(r.error);
+        setCoupon(null);
+        setPhase("idle");
+        return;
+      }
+      const c = r.coupon ?? null;
+      setCoupon(c);
+      if (!c?.redeemable) {
+        setPhase("found");
+        return;
+      }
+      const red = await redeemCoupon(c.number);
+      if (red.error) {
+        setError(red.error);
+        setPhase("found");
+      } else {
+        setPhase("done");
+      }
+    });
   }
 
   // ── Найдено: карточка с данными и активацией ──
@@ -228,6 +259,7 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
             {t("provider.check")}
           </Button>
         </form>
+        <p className="mt-2 text-center text-xs leading-6 text-ink-subtle">{t("provider.phoneHint")}</p>
 
         <div className="my-4 flex items-center gap-2.5">
           <span className="h-px flex-1 bg-line" />
@@ -235,28 +267,10 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
           <span className="h-px flex-1 bg-line" />
         </div>
 
-        <Button
-          variant="secondary"
-          fullWidth
-          onClick={() => {
-            setManualOpen((v) => !v);
-            setShowManual(false);
-            setManualError(null);
-          }}
-        >
-          {t("provider.scanOrEnter")}
-        </Button>
-      </div>
-
-      {!manualOpen && (
-        <p className="text-center text-xs leading-6 text-ink-subtle">
-          {t("provider.phoneHint")}
-        </p>
-      )}
-
-      {manualOpen && (
-        <div className="space-y-4 rounded-[18px] bg-surface p-5 shadow-sm">
-          {/* Камера включается сразу; ручной ввод появляется, если QR не считался. */}
+        {/* Камера видна сразу на экране кассы (без лишнего тапа) — валидный
+            скан своего купона активируется мгновенно, без отдельного тапа
+            «Активировать» (см. onScan). Ручной ввод — если QR не считался. */}
+        <div className="space-y-4">
           <CouponScanner onScan={onScan} autoStart onFallback={() => setShowManual(true)} locale={locale} />
 
           {!showManual && (
@@ -298,7 +312,7 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
             </p>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
