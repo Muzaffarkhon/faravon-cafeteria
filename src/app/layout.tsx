@@ -3,6 +3,7 @@ import Script from "next/script";
 import { InlineScript } from "@/components/inline-script";
 import { TelegramChrome } from "@/components/telegram-chrome";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { EnvRibbon } from "@/components/env-ribbon";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -52,6 +53,7 @@ export default function RootLayout({
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
         <Script src="/pwa.js" strategy="afterInteractive" />
         <TelegramChrome />
+        <EnvRibbon />
         {children}
         <PullToRefresh />
       </body>

@@ -56,6 +56,7 @@ export const DICT = {
     "nav.identification": "Идентификация сотрудников",
     "nav.audit": "Аудит",
     "nav.satisfaction": "Удовлетворённость",
+    "nav.sandbox": "Тестовая среда",
 
     "shell.profile": "Профиль",
     "shell.adminPanel": "Админ-панель",
@@ -1365,6 +1366,7 @@ export const DICT = {
     "nav.identification": "Шиносномаи кормандон",
     "nav.audit": "Аудит",
     "nav.satisfaction": "Қаноатмандӣ",
+    "nav.sandbox": "Муҳити озмоишӣ",
 
     "shell.profile": "Профил",
     "shell.adminPanel": "Панели маъмур",
@@ -2674,6 +2676,7 @@ export const DICT = {
     "nav.identification": "Xodimlarni identifikatsiya qilish",
     "nav.audit": "Audit",
     "nav.satisfaction": "Qoniqish",
+    "nav.sandbox": "Sinov muhiti",
 
     "shell.profile": "Profil",
     "shell.adminPanel": "Admin panel",
