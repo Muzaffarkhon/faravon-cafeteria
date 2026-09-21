@@ -13,6 +13,7 @@ import { issueOtpForUser } from "@/lib/otp";
 import { createCashierLink } from "@/lib/cashier-link";
 import { couponQrSvg } from "@/lib/qr";
 import { normalizePhone, parsePhoneNumbers } from "@/lib/phone";
+import { platformUrl } from "@/lib/platform-url";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 import { ALL_ROLES } from "./roles";
 
@@ -180,6 +181,69 @@ export async function updateEmployee(
   revalidatePath(`/admin/users/${id}`);
   revalidatePath("/admin/access");
   return { ok: true };
+}
+
+export type EmployeeEditData = {
+  fullName: string;
+  position: string;
+  department: string;
+  phone: string | null;
+  phoneSecondary: string | null;
+  telegramId: string | null;
+  isActive: boolean;
+  archivedAt: string | null;
+  terminatedAt: string | null;
+  status: string;
+  user: {
+    id: string;
+    login: string;
+    roles: Role[];
+    isActive: boolean;
+    mustChangePassword: boolean;
+    lastLoginAt: string | null;
+  } | null;
+};
+
+/** Данные сотрудника для модалки редактирования (карточка в один экран, без перехода на отдельную страницу). */
+export async function getEmployeeEditData(id: string): Promise<EmployeeEditData | null> {
+  const s = await requireSession();
+  assertCan(s.roles, "users.manage");
+
+  const employee = await db.employee.findUnique({
+    where: { id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          login: true,
+          roles: true,
+          isActive: true,
+          mustChangePassword: true,
+          lastLoginAt: true,
+        },
+      },
+    },
+  });
+  if (!employee) return null;
+
+  return {
+    fullName: employee.fullName,
+    position: employee.position,
+    department: employee.department,
+    phone: employee.phone,
+    phoneSecondary: employee.phoneSecondary,
+    telegramId: employee.telegramId,
+    isActive: employee.isActive,
+    archivedAt: employee.archivedAt ? employee.archivedAt.toISOString() : null,
+    terminatedAt: employee.terminatedAt ? employee.terminatedAt.toISOString() : null,
+    status: employee.status,
+    user: employee.user
+      ? {
+          ...employee.user,
+          lastLoginAt: employee.user.lastLoginAt ? employee.user.lastLoginAt.toISOString() : null,
+        }
+      : null,
+  };
 }
 
 /* ----------------------------------------------------------------- accounts --- */
@@ -1091,7 +1155,7 @@ export async function createCashierLinkAction(userId: string): Promise<CashierLi
   const s = await requireSession();
   assertCan(s.roles, "users.manage");
 
-  const base = (process.env.PLATFORM_URL || "").trim().replace(/\/+$/, "");
+  const base = platformUrl();
   if (!base) return { error: "Не задан адрес сайта (PLATFORM_URL) — ссылку собрать нельзя." };
 
   const r = await createCashierLink(userId, s.user.id);
