@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
+import { resolveSelfRegistrationStep } from "@/lib/self-registration";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
 import { formatTajikPhone, isTajikInternational } from "@/lib/phone";
 import { grantMessage } from "@/lib/notification-format";
@@ -37,9 +38,17 @@ const UNSUPPORTED_CONTENT =
 const SUPPORT_OPENED =
   "Опишите ваш вопрос — администратор увидит его и ответит здесь же, в этом чате.";
 
+const ADMIN_BUTTON_LABEL = "🆘 Написать администратору";
+
+// Вторая строка — «Написать администратору» — есть всегда, вместе с
+// «Поделиться контактом»: обычная кнопка (не request_contact), по нажатию
+// отправляет свой текст как сообщение (см. проверку text === ADMIN_BUTTON_LABEL
+// ниже). Из-за one_time_keyboard клавиатура схлопывается после каждого
+// ответа — поэтому её нужно прикладывать к каждому сообщению бота, где
+// кнопка администратора должна быть под рукой (не только на /start).
 const CONTACT_KEYBOARD = {
   reply_markup: {
-    keyboard: [[{ text: "📱 Поделиться контактом", request_contact: true }]],
+    keyboard: [[{ text: "📱 Поделиться контактом", request_contact: true }], [{ text: ADMIN_BUTTON_LABEL }]],
     resize_keyboard: true,
     one_time_keyboard: true,
   },
@@ -145,6 +154,50 @@ async function noteGuest(telegramId: string, languageCode?: string) {
   }
 }
 
+/**
+ * После того как appendGuestMessage залогировал реплику гостя в тред,
+ * пробует продвинуть авторегистрацию (см. self-registration.ts). Для
+ * обычной переписки поддержки (тред без phone — не наша ветка) ничего не
+ * делает — resolveSelfRegistrationStep вернёт { kind: "none" }.
+ */
+async function handleSelfRegistrationReply(chatId: number, telegramId: string, text: string) {
+  const action = await resolveSelfRegistrationStep(telegramId, text);
+  switch (action.kind) {
+    case "none":
+      return;
+    case "ambiguous":
+      await send(
+        chatId,
+        "Нашли несколько похожих сотрудников. Уточните, пожалуйста, подразделение и должность — как в системе.",
+        CONTACT_KEYBOARD,
+      );
+      return;
+    case "ask_phone":
+      await send(
+        chatId,
+        `Нашли вас: <b>${esc(action.fullName)}</b>.\n\n` +
+          "Чтобы подтвердить личность, пришлите, пожалуйста, номер телефона, который сейчас записан за вами в системе.",
+        CONTACT_KEYBOARD,
+      );
+      return;
+    case "phone_wrong":
+      await send(chatId, `Номер не подошёл. Осталось попыток: ${action.attemptsLeft}.`, CONTACT_KEYBOARD);
+      return;
+    case "phone_exhausted":
+      await send(
+        chatId,
+        "Не получилось подтвердить номер. Напишите, пожалуйста, администратору — он поможет вручную.",
+        CONTACT_KEYBOARD,
+      );
+      return;
+    case "granted":
+      await send(chatId, grantMessage(action.result.login, action.result.otp, action.result.fullName), {
+        reply_markup: { remove_keyboard: true },
+      });
+      return;
+  }
+}
+
 async function handle(msg: TgMessage) {
   const chatId = msg.chat.id;
   const fromId = msg.from?.id;
@@ -184,8 +237,9 @@ async function handle(msg: TgMessage) {
         await send(
           chatId,
           "Не нашли вас по этому номеру в базе сотрудников.\n\n" +
-            "Напишите, пожалуйста, здесь своё ФИО и должность — администратор проверит и подключит вас.",
-          { reply_markup: await getFaqKeyboard() },
+            "Напишите, пожалуйста, здесь своё ФИО, должность и подразделение — как записано в системе. " +
+            "Мы попробуем найти вашу карточку автоматически.",
+          CONTACT_KEYBOARD,
         );
       }
       return;
@@ -196,7 +250,7 @@ async function handle(msg: TgMessage) {
     // Deep-link со страницы входа (?start=support) — Telegram присылает его
     // как текст "/start support". Сразу открываем чат поддержки, не
     // заставляя человека ещё и нажимать кнопку внутри переписки.
-    if (text === "/start support") {
+    if (text === "/start support" || text === ADMIN_BUTTON_LABEL) {
       await noteGuest(telegramId, msg.from?.language_code);
       await openOrReopenThread(telegramId);
       await send(chatId, SUPPORT_OPENED, { reply_markup: await getFaqKeyboard() });
@@ -232,7 +286,10 @@ async function handle(msg: TgMessage) {
     // прямо в интерфейсе — см. _support-alert.tsx.
     if (text && !text.startsWith("/")) {
       const appended = await appendGuestMessage(telegramId, text);
-      if (appended) return;
+      if (appended) {
+        await handleSelfRegistrationReply(chatId, telegramId, text);
+        return;
+      }
     }
 
     if (await isKnownTelegramId(telegramId)) {
