@@ -217,7 +217,14 @@ export default async function OverviewPage() {
   // для интерфейса начинается заново для следующей группы. Без этого прогресс-бар
   // навсегда «застревал» зелёным и полным после первого набора порога, и сотрудники
   // думали, что мест больше нет, хотя выбор в новую группу по-прежнему шёл сразу.
-  const groupWaveOf = (have: number, min: number): { inWave: number; wave: number; done: boolean } => {
+  // Только для карточек с groupWaves (набор группами). У «минимум N» (groupWaves=false)
+  // очереди нет: набрали порог — прогресс скрывается (см. groupHidden ниже).
+  const groupWaveOf = (
+    have: number,
+    min: number,
+    waves: boolean,
+  ): { inWave: number; wave: number; done: boolean } => {
+    if (!waves) return { inWave: Math.min(have, min), wave: 1, done: have >= min };
     if (have <= 0) return { inWave: 0, wave: 1, done: false };
     const wave = Math.floor((have - 1) / min) + 1;
     const inWave = have - (wave - 1) * min;
@@ -225,6 +232,9 @@ export default async function OverviewPage() {
   };
   // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
+  // «Минимум N»: порог набран — бар и баннер прогресса больше не нужны.
+  const groupHiddenOf = (c: { id: string; minParticipants: number; groupWaves: boolean }) =>
+    !c.groupWaves && (groupCount.get(c.id) ?? 0) >= c.minParticipants;
   const groupCount = targetPeriod
     ? await groupProgress(groupCards.map((c) => c.id), targetPeriod.id)
     : new Map<string, number>();
@@ -278,17 +288,21 @@ export default async function OverviewPage() {
   });
 
   const groupBannerSlides: BannerSlide[] = groupCards
-    .filter((c) => c.isActive)
+    .filter((c) => c.isActive && !groupHiddenOf(c))
     .map((c) => {
       const have = groupCount.get(c.id) ?? 0;
-      const { inWave, wave } = groupWaveOf(have, c.minParticipants);
+      const { inWave, wave } = groupWaveOf(have, c.minParticipants, c.groupWaves);
       const remaining = c.minParticipants - inWave;
       const waveHint = wave > 1 ? ` ${t("home.groupBenefitWavePrefix")} ${wave}.` : "";
       return {
         id: `group-${c.id}`,
         kind: "group",
         title: c.title,
-        subtitle: `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
+        subtitle:
+          // Набор собран — «Нужно ещё 0» не пишем: скидка уже действует.
+          remaining <= 0
+            ? `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitComplete")}`
+            : `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
         imageUrl: safeImageSrc(c.imageUrl),
         linkHref: `#card-${c.id}`,
         external: false,
@@ -471,8 +485,9 @@ export default async function OverviewPage() {
             imageUrl: c.imageUrl,
             category: c.category,
             minParticipants: c.minParticipants,
-            groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).inWave,
-            groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants).wave,
+            groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).inWave,
+            groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).wave,
+            groupHidden: groupHiddenOf(c),
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,
             liked: likedCardIds.has(c.id),

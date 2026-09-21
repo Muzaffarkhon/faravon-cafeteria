@@ -7,7 +7,11 @@ import { Badge, EmptyState, buttonClass, type BadgeTone } from "@/components/ui"
 import { isCouponExpired, isCouponOverdue, isCouponPeriodPassed } from "@/lib/coupon";
 import { groupProgress } from "@/lib/selection";
 import { taxiPromoStatusForUser } from "@/lib/taxi";
+import { employeeHasCashback, getEmployeeCashback } from "@/lib/cashback";
+import { CashbackCode } from "./_cashback-code";
+import { formatSomoni } from "@/lib/cashback-math";
 import { couponQrSvg } from "@/lib/qr";
+import { couponScanUrl } from "@/lib/coupon-link";
 import { safeImageSrc } from "@/lib/safe-url";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { CancelItemButton } from "./_cancel-button";
@@ -29,6 +33,10 @@ export default async function ApplicationsPage() {
 
   const locale = await getLocale();
   const t = await getTranslator();
+  const [cashback, showCashbackCode] = await Promise.all([
+    getEmployeeCashback(session.employee.id),
+    employeeHasCashback(session.employee.id),
+  ]);
 
   const applications = await db.application.findMany({
     where: { employeeId: session.employee.id },
@@ -95,7 +103,7 @@ export default async function ApplicationsPage() {
     await Promise.all(
       issuedCoupons.map(
         async (c) =>
-          [c.id, await couponQrSvg(c.number).catch(() => null)] as const,
+          [c.id, await couponQrSvg(couponScanUrl(c.number)).catch(() => null)] as const,
       ),
     ),
   );
@@ -117,6 +125,51 @@ export default async function ApplicationsPage() {
           {t("applications.summary")}: {applications.length} · {t("applications.pendingShort")}: {pending} · {t("applications.couponsShort")}: {coupons}
         </p>
       </header>
+
+      {(cashback.length > 0 || showCashbackCode) && (
+        <section className="rounded-[20px] border border-line bg-surface p-5">
+          <h2 className="text-base font-bold text-ink">{t("cashback.title")}</h2>
+          <p className="mt-1 text-xs text-ink-subtle">{t("cashback.hint")}</p>
+          {showCashbackCode && (
+            <div className="mt-3">
+              <CashbackCode
+                title={t("cashback.codeTitle")}
+                hint={t("cashback.codeHint")}
+                secondsLabel={t("cashback.codeSeconds")}
+              />
+            </div>
+          )}
+          <ul className="mt-3 space-y-4">
+            {cashback.map((a) => (
+              <li key={a.id}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-semibold text-ink">{a.partner.name}</span>
+                  <span className="font-display text-lg font-bold text-primary" data-numeric>
+                    {formatSomoni(a.balance)} {t("cashback.currency")}
+                  </span>
+                </div>
+                {a.entries.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 text-xs text-ink-muted" data-numeric>
+                    {a.entries.map((e) => (
+                      <li key={e.id} className="flex justify-between gap-3">
+                        <span>
+                          {e.createdAt.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })} ·{" "}
+                          {e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? t("cashback.accrued") : t("cashback.redeemed")}
+                          {e.kind.endsWith("REVERSAL") ? ` · ${t("cashback.reversed")}` : ""}
+                        </span>
+                        <span className={e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? "text-success-strong" : ""}>
+                          {e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? "+" : "−"}
+                          {formatSomoni(e.amount)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="space-y-6">
         {applications.map((app) => (

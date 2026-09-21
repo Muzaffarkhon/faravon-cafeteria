@@ -6,7 +6,9 @@
  */
 import type { PrismaClient } from "@prisma/client";
 import QRCode from "qrcode";
-import { formatNotificationText } from "./notification-format";
+import { formatNotificationText, templateMapFromRows } from "./notification-format";
+import { asLocale } from "./i18n/shared";
+import { couponScanUrl } from "./coupon-link";
 
 const TG_API = "https://api.telegram.org";
 
@@ -44,7 +46,7 @@ export async function sendTelegram(
   return (await sendTelegramDetailed(token, chatId, html, extra)).ok;
 }
 
-async function sendTelegramDetailed(
+export async function sendTelegramDetailed(
   token: string,
   chatId: string,
   html: string,
@@ -114,9 +116,9 @@ export async function deliverTelegramNotifications(opts: {
   }
 
   const templateRows = await db.notificationTemplate.findMany({
-    select: { event: true, body: true },
+    select: { event: true, body: true, translations: true },
   });
-  const templates = new Map(templateRows.map((t) => [t.event, t.body]));
+  const templates = templateMapFromRows(templateRows);
 
   // Не пытаемся вечно: уведомления старше 7 дней (бот заблокирован, чат удалён,
   // «отравленное» сообщение) больше не выбираем — иначе они забивают очередь.
@@ -142,7 +144,7 @@ export async function deliverTelegramNotifications(opts: {
       id: true,
       event: true,
       payload: true,
-      user: { select: { telegramId: true, employee: { select: { telegramId: true } } } },
+      user: { select: { telegramId: true, locale: true, employee: { select: { telegramId: true } } } },
     },
     orderBy: { sentAt: "asc" },
     take: limit,
@@ -171,7 +173,9 @@ export async function deliverTelegramNotifications(opts: {
       return;
     }
     const payload = n.payload as Record<string, unknown> | null;
-    const body = formatNotificationText(n.event, payload, templates);
+    // Язык получателя (User.locale); не выбран — русский.
+    const locale = asLocale(n.user.locale) ?? "ru";
+    const body = formatNotificationText(n.event, payload, templates, locale);
 
     let result: TgResult;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
@@ -179,8 +183,8 @@ export async function deliverTelegramNotifications(opts: {
       // нужен (партнёр сканирует QR) — рендерим тот же шаблон без {number},
       // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
       // остальных опциональных блоков, а не разбор готового HTML регуляркой).
-      const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates);
-      result = await sendTelegramQr(token, tgId, payload.number, caption);
+      const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates, locale);
+      result = await sendTelegramQr(token, tgId, couponScanUrl(payload.number), caption);
     } else {
       result = await sendTelegramDetailed(token, tgId, body);
     }

@@ -42,6 +42,9 @@ export async function formCouponForItem(itemId: string, actorId: string) {
         employeeId: item.application.employeeId,
         periodId: item.application.periodId,
         type: "PROMO",
+        // Снимок правил карточки: дальнейшая правка карточки не меняет условия этого купона.
+        benefitMode: item.card.mode,
+        cashbackPercent: item.card.mode === "CASHBACK" ? item.card.cashbackPercent : null,
         nominal: item.card.condition,
         status: "CREATED",
         deliveryChannel: "PORTAL",

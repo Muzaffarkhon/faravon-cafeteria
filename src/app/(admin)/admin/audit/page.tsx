@@ -6,6 +6,7 @@ import { Card, EmptyState, Table } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { SEGMENT_LABELS, type Segment } from "@/lib/broadcast-segments";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
 import { FEEDBACK_STATUS_LABEL } from "@/lib/feedback";
@@ -54,6 +55,12 @@ const ACTION_LABELS: Record<string, string> = {
   COUPON_DELETED: "Купон удалён",
   COUPON_EXPIRED: "Купон просрочен",
   COUPON_REDEEMED_BY_PROVIDER: "Купон активирован у партнёра",
+  COUPON_VISIT_BY_PROVIDER: "Визит по многоразовому купону",
+  CASHBACK_APPLIED: "Покупка с кешбеком проведена",
+  CASHBACK_REVERSED: "Операция по кешбеку сторнирована",
+  CASHBACK_CODE_FAILED: "Неверный код клиента при проведении кешбека",
+  CASHIER_LINK_CREATED: "Создана ссылка привязки телефона кассы",
+  CASHIER_DEVICE_LINKED: "Телефон кассы привязан",
   COUPON_REGISTRY_EXPORTED: "Реестр купонов выгружен",
   PERIOD_CREATED: "Период создан",
   PERIOD_UPDATED: "Период изменён",
@@ -197,7 +204,45 @@ const FIELD_LABELS: Record<string, string> = {
   archivedAt: "Архивировано",
   isArchive: "Архив",
   fromAdRequest: "Заявка на рекламу",
+  // кешбек (суммы — в сомони, см. MONEY_KEYS)
+  purchase: "Чек",
+  redeemed: "Списано кешбека",
+  paid: "К оплате",
+  accrued: "Начислено кешбека",
+  operationKey: "Операция",
+  // рассылки и уведомления
+  sent: "Отправлено",
+  failed: "Не доставлено",
+  segment: "Кому",
+  filters: "Фильтры",
+  byLocale: "По языкам",
+  texts: "Тексты",
+  translations: "Переводы",
+  ru: "Русский",
+  tg: "Таджикский",
+  uz: "Узбекский",
+  // прочее
+  restoredFrom: "Восстановлено из версии",
+  value: "Значение",
+  next: "Новое значение",
+  archived: "В архиве",
+  topic: "Тема",
+  self: "Сам себе",
+  comment: "Комментарий",
+  trimmed: "Обрезано",
+  bulk: "Массово",
+  actorNote: "Примечание",
+  cardId: "Льгота",
+  partnerName: "Партнёр",
+  expiresAt: "Действует до",
 };
+
+/** Суммы (в сомони, уже отформатированные) — дописываем валюту. */
+const MONEY_KEYS = new Set(["purchase", "redeemed", "paid", "accrued"]);
+/** Технические поля: человеку ничего не говорят, в списке не показываем. */
+const HIDDEN_KEYS = new Set(["paramsHash", "closedPeriodId"]);
+/** Поля, где лежит id сущности — заменяем на название (см. names). */
+const ID_KEYS = new Set(["partnerId", "employeeId", "cardId"]);
 
 /** Известные словари статусов из БД — переводим значение, если ключ поля это подразумевает. */
 const VALUE_LABEL_MAPS: Record<string, string>[] = [
@@ -212,27 +257,45 @@ const VALUE_LABEL_MAPS: Record<string, string>[] = [
   ROLE_LABELS,
 ];
 
-function humanValue(v: unknown): string {
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
+function humanValue(v: unknown, names: Map<string, string>): string {
   if (v == null) return "—";
   if (typeof v === "boolean") return v ? "да" : "нет";
   if (typeof v === "string") {
+    // Дата/время в ISO (…T…Z) — показываем по-человечески, во времени Душанбе.
+    if (ISO_DATETIME.test(v)) {
+      const d = new Date(v);
+      if (!Number.isNaN(d.getTime())) return d.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" });
+    }
+    if (SEGMENT_LABELS[v as Segment]) return SEGMENT_LABELS[v as Segment];
     for (const map of VALUE_LABEL_MAPS) if (map[v]) return map[v];
     return v;
   }
-  if (Array.isArray(v)) return v.map(humanValue).join(", ") || "—";
+  if (Array.isArray(v)) return v.map((x) => humanValue(x, names)).join(", ") || "—";
   // Вложенный объект (напр. настройки полей конструктора отчётов) — тоже
   // расписываем как «поле: значение», а не роняем в нечитаемое [object Object].
-  if (typeof v === "object") return humanDiff(v).join("; ") || "—";
+  if (typeof v === "object") return humanDiff(v, names).join("; ") || "—";
   return String(v);
 }
 
+/** Одна строка «Поле: значение» с учётом особых полей (суммы, id, ключ операции). */
+function humanEntry(k: string, val: unknown, names: Map<string, string>): string | null {
+  if (HIDDEN_KEYS.has(k)) return null;
+  const label = FIELD_LABELS[k] ?? k;
+  if (ID_KEYS.has(k) && typeof val === "string") return `${label}: ${names.get(val) ?? "—"}`;
+  if (k === "operationKey" && typeof val === "string") return `${label}: № ${val.slice(0, 8)}`;
+  if (MONEY_KEYS.has(k) && (typeof val === "string" || typeof val === "number")) return `${label}: ${val} сом.`;
+  return `${label}: ${humanValue(val, names)}`;
+}
+
 /** Разбирает oldValue/newValue в читаемые строки «Поле: значение» вместо сырого JSON. */
-function humanDiff(v: unknown): string[] {
+function humanDiff(v: unknown, names: Map<string, string>): string[] {
   if (v == null) return [];
-  if (typeof v !== "object" || Array.isArray(v)) return [humanValue(v)];
-  return Object.entries(v as Record<string, unknown>).map(
-    ([k, val]) => `${FIELD_LABELS[k] ?? k}: ${humanValue(val)}`,
-  );
+  if (typeof v !== "object" || Array.isArray(v)) return [humanValue(v, names)];
+  return Object.entries(v as Record<string, unknown>)
+    .map(([k, val]) => humanEntry(k, val, names))
+    .filter((x): x is string => x !== null);
 }
 
 export default async function AuditPage({
@@ -312,6 +375,29 @@ export default async function AuditPage({
       : [],
     partnerIds.length ? db.partner.findMany({ where: { id: { in: partnerIds } }, select: { id: true, name: true } }) : [],
   ]);
+  // id из самих записей (partnerId/employeeId/cardId) → названия одним запросом на тип.
+  const refIds: Record<string, Set<string>> = { partnerId: new Set(), employeeId: new Set(), cardId: new Set() };
+  const collectRefs = (v: unknown) => {
+    if (!v || typeof v !== "object") return;
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      if (ID_KEYS.has(k) && typeof val === "string") refIds[k].add(val);
+      else collectRefs(val);
+    }
+  };
+  for (const r of rows) {
+    collectRefs(r.oldValue);
+    collectRefs(r.newValue);
+  }
+  const [refPartners, refEmployees, refCards] = await Promise.all([
+    refIds.partnerId.size ? db.partner.findMany({ where: { id: { in: [...refIds.partnerId] } }, select: { id: true, name: true } }) : [],
+    refIds.employeeId.size ? db.employee.findMany({ where: { id: { in: [...refIds.employeeId] } }, select: { id: true, fullName: true } }) : [],
+    refIds.cardId.size ? db.benefitCard.findMany({ where: { id: { in: [...refIds.cardId] } }, select: { id: true, title: true } }) : [],
+  ]);
+  const names = new Map<string, string>();
+  for (const x of refPartners) names.set(x.id, x.name);
+  for (const x of refEmployees) names.set(x.id, x.fullName);
+  for (const x of refCards) names.set(x.id, x.title);
+
   for (const u of users) entityLabelById.set(u.id, u.login);
   for (const e of employees) entityLabelById.set(e.id, e.fullName);
   for (const p of partners) entityLabelById.set(p.id, p.name);
@@ -362,12 +448,12 @@ export default async function AuditPage({
                     )}
                   </td>
                   <td className="text-xs text-ink-subtle">
-                    {humanDiff(r.oldValue).map((line, i) => (
+                    {humanDiff(r.oldValue, names).map((line, i) => (
                       <div key={`old-${i}`} className="text-danger/80">
                         − {line}
                       </div>
                     ))}
-                    {humanDiff(r.newValue).map((line, i) => (
+                    {humanDiff(r.newValue, names).map((line, i) => (
                       <div key={`new-${i}`} className="text-success-strong/80">
                         + {line}
                       </div>

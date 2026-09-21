@@ -17,6 +17,9 @@
  *   [[ ... {x} ... ]] — блок удаляется целиком, если {x} внутри пустой
  */
 
+import { COUNT_NOUN, DEFAULT_TEMPLATES_I18N, GROUP_WORD } from "./notification-i18n";
+import type { Locale } from "./i18n/shared";
+
 /** Экранирование для Telegram HTML (parse_mode=HTML): только &, <, > значимы. */
 export const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -58,6 +61,10 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   TAXI_PROMO_CODE: "Промокод на поездку",
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",
   GROUP_CARRIED_OVER: "Групповая льгота перенесена на следующий период",
+  BROADCAST: "Рассылка от администрации",
+  CASHBACK_OPERATION: "Операция по кешбеку",
+  CASHBACK_REVERSED: "Операция по кешбеку сторнирована",
+  NEW_CARD: "Новая льгота на витрине",
 };
 
 /** Порядок событий в админке. */
@@ -75,6 +82,10 @@ export const NOTIFICATION_EVENTS = [
   "TAXI_PROMO_CODE",
   "DAILY_DIGEST",
   "GROUP_CARRIED_OVER",
+  "BROADCAST",
+  "CASHBACK_OPERATION",
+  "CASHBACK_REVERSED",
+  "NEW_CARD",
 ] as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
@@ -135,6 +146,22 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
     label: NOTIFICATION_LABELS.GROUP_CARRIED_OVER,
     body: "🔁 <b>Групповая льгота перенесена</b>\n«{card}» не набрала нужное число участников[[\nПериод: {period}]]\nВаш выбор перенесён на следующий период — отменить его можно в окне выбора этого периода, до его начала.",
   },
+  BROADCAST: {
+    label: NOTIFICATION_LABELS.BROADCAST,
+    body: "📢 <b>Объявление</b>\n{text}",
+  },
+  CASHBACK_OPERATION: {
+    label: NOTIFICATION_LABELS.CASHBACK_OPERATION,
+    body: "💳 <b>Покупка с кешбеком</b>\n{partner} — чек {purchase} сом.[[\nСписано кешбека: {redeemed} сом.]][[\nНачислено кешбека: {accrued} сом.]]\nБаланс у партнёра: {balance} сом.\n\nЕсли это были не вы — сообщите в поддержку.",
+  },
+  CASHBACK_REVERSED: {
+    label: NOTIFICATION_LABELS.CASHBACK_REVERSED,
+    body: "↩️ <b>Операция по кешбеку сторнирована</b>\n{partner}[[\nПричина: {reason}]]\nБаланс у партнёра: {balance} сом.",
+  },
+  NEW_CARD: {
+    label: NOTIFICATION_LABELS.NEW_CARD,
+    body: "🆕 <b>Новая льгота</b>\n«{card}»[[ · {partner}]][[\n{condition}]]\n\nПосмотреть и выбрать — на витрине: {siteUrl}",
+  },
 };
 
 /** Демо-значения для предпросмотра шаблона в админке. */
@@ -171,6 +198,10 @@ export const TEMPLATE_SAMPLE_VARS: Record<string, Record<string, string>> = {
   TAXI_PROMO_CODE: { card: "Такси на работу", promo: "FRV-TAXI-2026", period: "Сентябрь 2026", siteUrl: "https://cafeteria.example.com" },
   DAILY_DIGEST: { text: "На согласовании: 4\nК выдаче купонов: 2\nЗаявок на рекламу: 1\nНовых обращений: 1" },
   GROUP_CARRIED_OVER: { card: "Абонемент в бассейн (группа)", period: "Октябрь 2026" },
+  BROADCAST: { text: "Уважаемые коллеги! 30 сентября — технический перерыв в работе платформы с 22:00 до 23:00." },
+  CASHBACK_OPERATION: { partner: "Магазин «Ковры»", purchase: "100,00", redeemed: "30,00", accrued: "7,00", balance: "7,00" },
+  CASHBACK_REVERSED: { partner: "Магазин «Ковры»", reason: "ошибка ввода суммы", balance: "0,00" },
+  NEW_CARD: { card: "Абонемент в бассейн", partner: "Фитнес-клуб «Олимп»", condition: "Скидка 20% на месячный абонемент", siteUrl: "https://cafeteria.example.com" },
 };
 
 /** Доступные плейсхолдеры по событию — для подсказки в админке. */
@@ -188,6 +219,10 @@ export const TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   TAXI_PROMO_CODE: ["card", "promo", "period", "siteUrl"],
   DAILY_DIGEST: ["text"],
   GROUP_CARRIED_OVER: ["card", "period"],
+  BROADCAST: ["text"],
+  CASHBACK_OPERATION: ["partner", "purchase", "redeemed", "accrued", "balance"],
+  CASHBACK_REVERSED: ["partner", "reason", "balance"],
+  NEW_CARD: ["card", "partner", "condition", "siteUrl"],
 };
 
 const str = (v: unknown) => (v == null ? "" : String(v));
@@ -201,7 +236,7 @@ export function positionNoun(count: number): string {
 }
 
 /** Строит набор подстановок из payload + производные значения. */
-function buildVars(event: string, payload: Record<string, unknown>): Record<string, string> {
+function buildVars(event: string, payload: Record<string, unknown>, locale: Locale = "ru"): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const [k, v] of Object.entries(payload)) {
     if (v != null && (typeof v === "string" || typeof v === "number" || typeof v === "boolean")) {
@@ -209,8 +244,10 @@ function buildVars(event: string, payload: Record<string, unknown>): Record<stri
     }
   }
   if (event === "APPLICATION_SUBMITTED") {
-    vars.countNoun = positionNoun(Number(payload.count) || 0);
+    vars.countNoun = locale === "ru" ? positionNoun(Number(payload.count) || 0) : COUNT_NOUN[locale];
   }
+  // В payload слово «групповая» лежит по-русски — для tg/uz подставляем перевод.
+  if (locale !== "ru" && vars.group) vars.group = GROUP_WORD[locale];
   // Доступен во всех шаблонах как {siteUrl} — если PLATFORM_URL не задан,
   // пустой, и блоки [[ ... {siteUrl} ... ]] в шаблонах сами исчезают.
   vars.siteUrl = process.env.PLATFORM_URL || "";
@@ -245,17 +282,38 @@ export function formatNotificationText(
   event: string,
   payload: Record<string, unknown> | null | undefined,
   templates?: Map<string, string> | Record<string, string>,
+  locale: Locale = "ru",
 ): string {
   const p = (payload ?? {}) as Record<string, unknown>;
 
-  const fromMap =
-    templates instanceof Map
-      ? templates.get(event)
-      : templates
-        ? templates[event]
-        : undefined;
-  const body = fromMap ?? DEFAULT_TEMPLATES[event]?.body;
+  const lookup = (key: string) =>
+    templates instanceof Map ? templates.get(key) : templates ? templates[key] : undefined;
+
+  // tg/uz: правка админа → зашитый перевод → русский текст (правка админа или зашитый).
+  // Русскую правку админа на другой язык не подставляем: она написана по-русски.
+  const body =
+    (locale !== "ru" ? (lookup(`${event}:${locale}`) ?? DEFAULT_TEMPLATES_I18N[locale][event]) : undefined) ??
+    lookup(event) ??
+    DEFAULT_TEMPLATES[event]?.body;
   if (!body) return NOTIFICATION_LABELS[event] ?? event;
 
-  return renderTemplate(body, buildVars(event, p));
+  return renderTemplate(body, buildVars(event, p, locale));
+}
+
+/**
+ * Карта шаблонов из строк NotificationTemplate: `EVENT` — русский текст, `EVENT:tg` / `EVENT:uz` —
+ * переводы, отредактированные в админке.
+ */
+export function templateMapFromRows(
+  rows: { event: string; body: string; translations?: unknown }[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    map.set(r.event, r.body);
+    const tr = (r.translations ?? {}) as Record<string, unknown>;
+    for (const l of ["tg", "uz"] as const) {
+      if (typeof tr[l] === "string" && tr[l]) map.set(`${r.event}:${l}`, tr[l] as string);
+    }
+  }
+  return map;
 }

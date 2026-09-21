@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { linkByPhone, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
-import { formatTajikPhone } from "@/lib/phone";
+import { formatTajikPhone, isTajikInternational } from "@/lib/phone";
 import { grantMessage } from "@/lib/notification-format";
 import { safeEqual } from "@/lib/timing-safe";
 import { db } from "@/lib/db";
+import { localeFromTelegram } from "@/lib/i18n/shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ const esc = (s: string) =>
 
 interface TgMessage {
   chat: { id: number };
-  from?: { id: number };
+  from?: { id: number; language_code?: string };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
   photo?: unknown;
@@ -107,7 +108,8 @@ interface TgCallbackQuery {
 }
 
 async function openContactSupportThread(telegramId: string, rawPhone: string) {
-  const phone = formatTajikPhone(rawPhone);
+  // Номер другой страны не приводим к «+992…»: иначе C&B принял бы его за таджикский.
+  const phone = isTajikInternational(rawPhone) ? formatTajikPhone(rawPhone) : null;
   await openOrReopenThread(telegramId);
   if (phone) await db.supportThread.update({ where: { telegramId }, data: { phone } });
   await appendGuestMessage(telegramId, `[Поделился контактом] ${phone ?? rawPhone}`);
@@ -126,6 +128,21 @@ async function isKnownTelegramId(telegramId: string): Promise<boolean> {
   if (employee) return true;
   const serviceUser = await db.user.findFirst({ where: { telegramId, employeeId: null }, select: { id: true } });
   return !!serviceUser;
+}
+
+/** Запоминаем незнакомого человека, запустившего бота, — для рассылки «не зарегистрировался». Сбой не мешает ответу бота. */
+async function noteGuest(telegramId: string, languageCode?: string) {
+  try {
+    if (await isKnownTelegramId(telegramId)) return;
+    const locale = localeFromTelegram(languageCode);
+    await db.telegramGuest.upsert({
+      where: { telegramId },
+      create: { telegramId, locale },
+      update: { lastStartAt: new Date(), blockedAt: null, locale },
+    });
+  } catch (e) {
+    console.error("[telegram] не удалось записать гостя:", e);
+  }
 }
 
 async function handle(msg: TgMessage) {
@@ -180,11 +197,13 @@ async function handle(msg: TgMessage) {
     // как текст "/start support". Сразу открываем чат поддержки, не
     // заставляя человека ещё и нажимать кнопку внутри переписки.
     if (text === "/start support") {
+      await noteGuest(telegramId, msg.from?.language_code);
       await openOrReopenThread(telegramId);
       await send(chatId, SUPPORT_OPENED, { reply_markup: await getFaqKeyboard() });
       return;
     }
     if (text === "/start" || text === "/help") {
+      await noteGuest(telegramId, msg.from?.language_code);
       await send(chatId, WELCOME, CONTACT_KEYBOARD);
       return;
     }
@@ -221,6 +240,7 @@ async function handle(msg: TgMessage) {
       return;
     }
 
+    await noteGuest(telegramId, msg.from?.language_code);
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
     // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)

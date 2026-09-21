@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { MessagesTabs } from "@/components/messages-tabs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -23,6 +24,7 @@ export default async function TextsPage() {
 
   return (
     <div className="space-y-5">
+      <MessagesTabs active="texts" />
       <h1 className="font-display text-2xl font-bold text-ink">{t("texts.title")}</h1>
       <div className="space-y-4">
         {blocks.map((b) => (

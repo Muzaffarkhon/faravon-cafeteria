@@ -56,6 +56,23 @@ enum ItemStatus {
   CANCELLED        // Отменено сотрудником
 }
 
+/// Режим льготы (карточка): как купон работает у партнёра.
+/// ONE_TIME — одноразовый (гасится один раз); PERIOD — многоразовый, действует весь период;
+/// CASHBACK — при каждой покупке кассир вводит сумму, на баланс сотрудника у партнёра начисляется %.
+enum BenefitMode {
+  ONE_TIME
+  PERIOD
+  CASHBACK
+}
+
+enum CashbackKind {
+  ACCRUAL
+  REDEMPTION
+  /// Сторно начисления / списания: запись-противовес (журнал не редактируется и не удаляется).
+  ACCRUAL_REVERSAL
+  REDEMPTION_REVERSAL
+}
+
 enum CouponStatus {
   CREATED
   ISSUED
@@ -130,6 +147,7 @@ model Employee {
   supportThreads        SupportThread[]
   satisfactionResponses SatisfactionResponse[]
   cardLikes             CardLike[]
+  cashbackAccounts      CashbackAccount[]
   autoPicks             AutoPick[]
 
   @@index([archivedAt])
@@ -150,6 +168,7 @@ model User {
   telegramId        String?   @unique // §11/§12: Telegram-адресат для учёток без Employee (подрядчики, C&B)
   roles             Role[]    @default([EMPLOYEE])
   lastLoginAt       DateTime?
+  locale            String?   // язык интерфейса (ru/tg/uz): запоминается при смене языка; рассылки пишут на нём
   failedLoginCount  Int       @default(0)
   lockedUntil       DateTime?
   otpExpiresAt      DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
@@ -167,6 +186,7 @@ model User {
   partnerId String?
 
   auditLogs       AuditLog[]
+  cashierLinks    CashierLink[]
   notifications   Notification[]
   decisions       ApplicationItem[]      @relation("DecidedBy")
   cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
@@ -244,6 +264,7 @@ model Partner {
   cards               BenefitCard[]
   coupons             Coupon[]
   banners             PartnerBanner[]
+  cashbackAccounts    CashbackAccount[]
   serviceUsers        User[]
   advertisingRequests AdvertisingRequest[]
 }
@@ -262,7 +283,11 @@ model BenefitCard {
   status      CardStatus @default(PUBLISHED)
   sortOrder   Int        @default(0)
   minParticipants Int    @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
+  mode        BenefitMode @default(ONE_TIME)
+  cashbackPercent Int    @default(0) // для mode=CASHBACK: % кешбека от оплаченной суммы (1..100)
+  groupWaves  Boolean    @default(false) // true — набор группами: после порога счётчик начинается заново («набор №N»); false — «минимум N»: набрали порог, прогресс скрывается.
   archivedAt  DateTime?  // карточка в архиве — не показывается сотрудникам и в основном списке
+  announcedAt DateTime?  // когда сотрудникам ушло Telegram-оповещение о новой карточке (null — ещё не объявляли)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -330,6 +355,9 @@ model BenefitCardVersion {
   status      CardStatus
   sortOrder   Int
   minParticipants Int   @default(1)
+  mode        BenefitMode @default(ONE_TIME)
+  cashbackPercent Int   @default(0)
+  groupWaves  Boolean   @default(false)
   partnerId   String?
 
   editedBy   User?   @relation("CardVersionEditor", fields: [editedById], references: [id])
@@ -432,6 +460,9 @@ model Coupon {
   period          Period       @relation(fields: [periodId], references: [id])
   periodId        String
   type            String       @default("PROMO") // PROMO | QR | PDF | PHYSICAL
+  /// Снимок правил карточки на момент выдачи: смена режима/процента карточки не действует на уже выданные купоны.
+  benefitMode     BenefitMode  @default(ONE_TIME)
+  cashbackPercent Int?
   nominal         String?
   status          CouponStatus @default(CREATED)
   deliveryChannel String       @default("PORTAL")
@@ -444,6 +475,51 @@ model Coupon {
   @@index([status])
   @@index([employeeId])
   @@index([partnerId])
+}
+
+/// Баланс кешбека сотрудника у конкретного партнёра, в дирамах (1 сомони = 100 дирам).
+/// Начисляется только пока действует купон-кешбек, тратится в любое время.
+model CashbackAccount {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  partner    Partner  @relation(fields: [partnerId], references: [id])
+  partnerId  String
+  balance    Int      @default(0)
+  /// Окно (30 с) последнего использованного кода клиента: код одноразовый, повтор в этом окне отвергается.
+  lastCodeWindow Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  entries CashbackEntry[]
+
+  @@unique([employeeId, partnerId])
+  @@index([partnerId])
+}
+
+/// Журнал операций кешбека: баланс = сумма начислений − списаний. `opKey` защищает от двойного нажатия.
+model CashbackEntry {
+  id             String          @id @default(cuid())
+  account        CashbackAccount @relation(fields: [accountId], references: [id])
+  accountId      String
+  kind           CashbackKind
+  amount         Int             // дирамы, всегда > 0
+  purchaseAmount Int             // сумма покупки по чеку до списания
+  paidAmount     Int             // сколько сотрудник реально заплатил (чек − списанный кешбек)
+  couponId       String?
+  actorId        String?
+  opKey          String          @unique
+  /// Общий ключ операции (списание и начисление одной покупки делят его).
+  operationKey   String?
+  /// SHA-256 параметров операции (сотрудник|партнёр|сумма|списание): повтор с тем же ключом, но другими цифрами отвергается.
+  paramsHash     String?
+  /// Для сторно: какую запись журнала гасит эта (каждую можно погасить только один раз).
+  reversesEntryId String?        @unique
+  reason         String?
+  createdAt      DateTime        @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([operationKey])
 }
 
 model PartnerBanner {
@@ -662,6 +738,7 @@ model NotificationTemplate {
   event       String   @id
   label       String
   body        String
+  translations Json?   // { tg?: string, uz?: string } — правки переводов из админки; пусто = зашитый перевод
   updatedBy   User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
   updatedById String?
   updatedAt   DateTime @updatedAt
@@ -708,4 +785,32 @@ model RolePermission {
   updatedAt  DateTime @updatedAt
 
   @@id([role, permission])
+}
+
+/// Кто хотя бы раз нажал «Старт» в боте (для рассылки «не зарегистрировался»). Telegram не отдаёт
+/// список запустивших бота, поэтому запоминаем сами. Не привязан к Employee/User: гость мог быть
+/// не опознан — рассылка исключает тех, чей telegramId уже привязан.
+model TelegramGuest {
+  telegramId   String    @id
+  firstStartAt DateTime  @default(now())
+  lastStartAt  DateTime  @default(now())
+  blockedAt    DateTime? // бот заблокирован (Telegram 403) — писать бессмысленно
+  locale       String?   // язык Telegram-клиента (ru/tg/uz) — на нём пишем в рассылке
+}
+
+/// Одноразовая ссылка «привязать телефон кассы»: подрядчик открывает её один раз и входит без пароля
+/// (дальше — обычная долгая сессия подрядчика). Сам токен нигде не хранится — только его SHA-256.
+model CashierLink {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  usedIp    String?
+  usedAgent String?
+  createdBy String? // User.id администратора, создавшего ссылку
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

@@ -31,6 +31,12 @@ export function normalizePhone(raw: string): string {
   return d.length > 9 ? d.slice(-9) : d;
 }
 
+/** Как isTajikInternational в src/lib/phone.ts — правки вносить синхронно. */
+export function isTajikInternational(raw: string): boolean {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  return d.length === 12 && d.startsWith("992");
+}
+
 // --- rate-limit (§5.1) ---
 const RL_WINDOW_MS = 15 * 60_000;
 const RL_MAX_ATTEMPTS = 8;
@@ -174,6 +180,13 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
   await assertNotRateLimited(telegramId, "phone");
   let ok = false;
   try {
+    // Только таджикский номер (+992): иначе номер другой страны с теми же 9 цифрами
+    // выдал бы доступ к чужой учётной записи.
+    if (!isTajikInternational(phone)) {
+      throw new SafeLinkError(
+        "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
+      );
+    }
     const norm = normalizePhone(phone);
     if (norm.length < 7) throw new SafeLinkError("Не удалось распознать номер телефона.");
 

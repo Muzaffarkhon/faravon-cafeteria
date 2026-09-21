@@ -137,6 +137,70 @@ export function AdminShell({
     setMobileOpen(false);
   }, [pathname]);
 
+  /** Профиль, язык и тема: в шапке на десктопе и в верхней полосе на телефоне (там она без вкладок). */
+  const renderProfile = (mobile: boolean) => (
+    <div className="relative flex shrink-0 items-center gap-2 max-md:gap-1.5" onMouseLeave={() => setProfileOpen(false)}>
+      {!mobile && <ThemeToggle compact />}
+      <LanguageSwitcher locale={locale ?? "ru"} />
+      {displayName && !mobile && (
+        <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
+          {displayName}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => setProfileOpen((v) => !v)}
+        aria-label="Меню профиля"
+        aria-expanded={profileOpen}
+        className={cx(
+          "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
+          profileOpen ? "bg-primary text-on-brand" : "bg-surface text-ink hover:bg-surface-muted",
+        )}
+      >
+        <Icon path={I.profile} />
+      </button>
+      {profileOpen && (
+        <>
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => setProfileOpen(false)}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+            <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">
+              <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+              {roleLabel}
+            </div>
+            {mobile && (
+              <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2">
+                <ThemeToggle compact />
+              </div>
+            )}
+            <Link
+              href="/profile"
+              onClick={() => setProfileOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
+            >
+              <Icon path={I.profile} />
+              {t("shell.profile")}
+            </Link>
+            <form action={logout}>
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <Icon path={I.logout} />
+                {t("shell.logout")}
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex min-h-dvh items-start bg-canvas text-ink">
       {/* Мобильный хедер с гамбургером — сама навигация вне потока (drawer). */}
@@ -149,7 +213,8 @@ export function AdminShell({
         >
           <Icon path={I.menu} />
         </button>
-        <span className="truncate text-sm font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
+        {renderProfile(true)}
       </div>
 
       {/* Затемнение под мобильным drawer'ом */}
@@ -329,61 +394,7 @@ export function AdminShell({
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
           <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
 
-          <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
-            <ThemeToggle compact />
-            <LanguageSwitcher locale={locale ?? "ru"} />
-            {displayName && (
-              <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
-                {displayName}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-label="Меню профиля"
-              aria-expanded={profileOpen}
-              className={cx(
-                "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line transition-colors",
-                profileOpen ? "bg-primary text-on-brand" : "bg-surface text-ink hover:bg-surface-muted",
-              )}
-            >
-              <Icon path={I.profile} />
-            </button>
-            {profileOpen && (
-              <>
-                <button
-                  type="button"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                  onClick={() => setProfileOpen(false)}
-                  className="fixed inset-0 z-40 cursor-default"
-                />
-                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
-                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">
-                    <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
-                    {roleLabel}
-                  </div>
-                  <Link
-                    href="/profile"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-muted"
-                  >
-                    <Icon path={I.profile} />
-                    {t("shell.profile")}
-                  </Link>
-                  <form action={logout}>
-                    <button
-                      type="submit"
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Icon path={I.logout} />
-                      {t("shell.logout")}
-                    </button>
-                  </form>
-                </div>
-              </>
-            )}
-          </div>
+          {renderProfile(false)}
         </header>
 
         {/* Левое меню и шапка уже отделяют контент от края экрана — сами по

@@ -15,6 +15,9 @@ export type CardSnapshot = Pick<
   | "status"
   | "sortOrder"
   | "minParticipants"
+  | "mode"
+  | "cashbackPercent"
+  | "groupWaves"
   | "partnerId"
 >;
 
@@ -30,6 +33,9 @@ export function toSnapshot(card: BenefitCard): CardSnapshot {
     status: card.status,
     sortOrder: card.sortOrder,
     minParticipants: card.minParticipants,
+    mode: card.mode,
+    cashbackPercent: card.cashbackPercent,
+    groupWaves: card.groupWaves,
     partnerId: card.partnerId,
   };
 }
@@ -83,6 +89,9 @@ export async function restoreCardVersion(
     status: version.status,
     sortOrder: version.sortOrder,
     minParticipants: version.minParticipants,
+    mode: version.mode,
+    cashbackPercent: version.cashbackPercent,
+    groupWaves: version.groupWaves,
     partnerId: version.partnerId,
   };
 

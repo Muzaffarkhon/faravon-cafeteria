@@ -4,6 +4,7 @@ import { jwtVerify } from "jose";
 const COOKIE = "faravon_session";
 const PUBLIC_PATHS = [
   "/login",
+  "/activate", // привязка телефона кассы по одноразовой ссылке (см. lib/cashier-link.ts)
   "/manifest.webmanifest",
   "/sw.js",
   "/pwa.js",
@@ -32,21 +33,23 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get(COOKIE)?.value;
-  if (!token) {
+  // После входа возвращаем туда же, куда шли, вместе с параметрами (напр. /provider?number=… из QR купона).
+  const loginRedirect = () => {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
-  }
+  };
+
+  const token = req.cookies.get(COOKIE)?.value;
+  if (!token) return loginRedirect();
 
   try {
     await jwtVerify(token, secret());
     return NextResponse.next();
   } catch {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return loginRedirect();
   }
 }
 

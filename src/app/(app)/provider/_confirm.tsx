@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Field, Input, cx } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CouponView } from "./actions";
+import { lookupCoupon, lookupCouponByPhone, redeemCoupon, type CashbackView, type CouponView } from "./actions";
+import { CashbackForm } from "./_cashback";
 import { CouponScanner } from "./_scanner";
 
-type Phase = "idle" | "found" | "not_found" | "no_benefit" | "done";
+type Phase = "idle" | "found" | "cashback" | "not_found" | "no_benefit" | "done";
 
 /** Из результата сканирования достаёт номер купона (текст или ссылка ?number=). */
 function extractNumber(raw: string): string {
@@ -31,12 +32,14 @@ function ResultIcon({ tone }: { tone: "success" | "neutral" }) {
   );
 }
 
-export function ProviderConfirm({ locale }: { locale: Locale }) {
+export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; initialNumber?: string }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   // ── Основной сценарий: касса партнёра, поиск по телефону ──
   const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [coupon, setCoupon] = useState<CouponView | null>(null);
+  // Купона уже нет, но у сотрудника остался кешбек у этого партнёра.
+  const [cashbackOnly, setCashbackOnly] = useState<CashbackView | null>(null);
   const [notFoundName, setNotFoundName] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +58,9 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
       if (r.status === "found") {
         setCoupon(r.coupon);
         setPhase("found");
+      } else if (r.status === "cashback_only") {
+        setCashbackOnly(r.cashback);
+        setPhase("cashback");
       } else if (r.status === "no_benefit") {
         setNotFoundName(r.employee);
         setPhase("no_benefit");
@@ -78,6 +84,7 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
   function reset() {
     setPhone("");
     setCoupon(null);
+    setCashbackOnly(null);
     setNotFoundName(null);
     setError(null);
     setPhase("idle");
@@ -97,6 +104,17 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
       }
     });
   }
+
+  // Открыто по ссылке из QR (обычной камерой): сразу ищем купон и убираем номер из адреса,
+  // чтобы обновление страницы не повторяло поиск.
+  const autoLookedUp = useRef(false);
+  useEffect(() => {
+    if (!initialNumber || autoLookedUp.current) return;
+    autoLookedUp.current = true;
+    setNumber(initialNumber);
+    doManualLookup(initialNumber);
+    window.history.replaceState(null, "", "/provider");
+  }, [initialNumber]);
 
   function onManualSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,6 +156,14 @@ export function ProviderConfirm({ locale }: { locale: Locale }) {
         setPhase("done");
       }
     });
+  }
+
+  // ── Кешбек: ввод суммы покупки (по купону или только накопленный баланс) ──
+  if (phase === "cashback" && cashbackOnly) {
+    return <CashbackForm view={cashbackOnly} locale={locale} onBack={reset} />;
+  }
+  if (phase === "found" && coupon?.cashback) {
+    return <CashbackForm view={coupon.cashback} locale={locale} onBack={reset} />;
   }
 
   // ── Найдено: карточка с данными и активацией ──
