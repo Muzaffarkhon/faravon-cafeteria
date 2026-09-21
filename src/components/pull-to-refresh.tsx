@@ -19,6 +19,12 @@ export function PullToRefresh() {
   const isPullingRef = useRef(false);
   const isRefreshingRef = useRef(false);
   const hapticTriggeredRef = useRef(false);
+  // Ближайшая прокручиваемая панель под пальцем на момент touchstart (список
+  // диалогов, окно переписки и т.п. — их скролл независим от window.scrollY,
+  // страница вокруг них сама не скроллится). Если жест начался не с самого
+  // верха такой панели, это её внутренний скролл, а не желание обновить
+  // страницу — см. handleTouchStart/handleTouchMove ниже.
+  const scrollableRef = useRef<HTMLElement | null>(null);
   // Держим актуальное значение в ref, чтобы обработчики touch не зависели от
   // pullDistance и не перевешивались на каждый кадр перетаскивания.
   const pullDistanceRef = useRef(0);
@@ -49,12 +55,37 @@ export function PullToRefresh() {
       } catch {}
     };
 
+    // Ищем ближайшего скроллящегося предка узла — панели вроде списка
+    // диалогов или окна переписки прокручиваются сами (overflow-y-auto
+    // внутри страницы с фиксированной высотой), window.scrollY при этом не
+    // меняется вовсе.
+    const findScrollableAncestor = (node: EventTarget | null): HTMLElement | null => {
+      let el = node instanceof Element ? (node as HTMLElement) : null;
+      while (el && el !== document.body) {
+        if (el.scrollHeight > el.clientHeight + 1) {
+          const overflowY = window.getComputedStyle(el).overflowY;
+          if (overflowY === "auto" || overflowY === "scroll") return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       if (isRefreshingRef.current) return;
 
       // Проверяем, что страница в самом верху
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
       if (scrollY > 1) {
+        isPullingRef.current = false;
+        return;
+      }
+
+      // Жест начался внутри своей прокручиваемой панели, и та панель не в
+      // самом верху — это её скролл, а не намерение обновить страницу.
+      const scrollable = findScrollableAncestor(e.target);
+      scrollableRef.current = scrollable;
+      if (scrollable && scrollable.scrollTop > 1) {
         isPullingRef.current = false;
         return;
       }
@@ -67,6 +98,15 @@ export function PullToRefresh() {
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isPullingRef.current || isRefreshingRef.current) return;
+      // Панель под пальцем прокрутилась за время жеста — отдаём скролл ей.
+      if (scrollableRef.current && scrollableRef.current.scrollTop > 1) {
+        isPullingRef.current = false;
+        if (pullDistanceRef.current > 0) {
+          applyPull(0);
+          setIsDragging(false);
+        }
+        return;
+      }
 
       const currentY = e.touches[0].clientY;
       const currentX = e.touches[0].clientX;
