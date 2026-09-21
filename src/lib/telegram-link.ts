@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { issueOtpForUser } from "@/lib/otp";
-import { isTajikInternational, normalizePhone } from "@/lib/phone";
+import { isTajikInternational, normalizePhone, extractPhoneFromText } from "@/lib/phone";
 import { hashPassword } from "@/lib/password";
 import { loginFromFullName, generateUniqueLogin } from "@/lib/translit";
 
@@ -257,6 +257,50 @@ export async function linkByCode(rawCode: string, telegramId: string): Promise<L
     return result;
   } finally {
     await recordAttempt(telegramId, "code", ok);
+  }
+}
+
+/** Результат проверки номера кандидата — различает «не похоже на номер»
+ * (попытку не считаем) и «номер похож, но не тот» (считаем). */
+export type PhoneVerifyResult = { kind: "granted"; result: LinkResult } | { kind: "no_number" } | { kind: "wrong_number" };
+
+/**
+ * Шаг авторегистрации: гость уже найден по ФИО (кандидат из
+ * self-registration.ts), теперь проверяем, что он знает номер, записанный
+ * за ним в системе (без подсказки, какой это номер).
+ *
+ * Бросает SafeLinkError только для общего рейт-лимита и для проблем самой
+ * учётки сотрудника (уволен, уже другой Telegram и т.п.) — как и у linkByPhone.
+ */
+export async function verifyPhoneForCandidate(
+  employeeId: string,
+  phoneGuessRaw: string,
+  telegramId: string,
+): Promise<PhoneVerifyResult> {
+  await assertNotRateLimited(telegramId, "phone");
+
+  const guess = extractPhoneFromText(phoneGuessRaw);
+  if (!guess) return { kind: "no_number" }; // не похоже на номер — попытку не считаем
+  const guessNorm = normalizePhone(guess);
+
+  const employee = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { ...EMP_SELECT, phoneNormalized: true, phoneSecondaryNormalized: true, archivedAt: true },
+  });
+  if (!employee || employee.archivedAt) return { kind: "no_number" };
+
+  const matches =
+    (!!employee.phoneNormalized && employee.phoneNormalized === guessNorm) ||
+    (!!employee.phoneSecondaryNormalized && employee.phoneSecondaryNormalized === guessNorm);
+
+  let ok = false;
+  try {
+    if (!matches) return { kind: "wrong_number" };
+    const res = await issueForEmployee(employee, telegramId, "telegram:selfreg", { allowRelink: false });
+    ok = true;
+    return { kind: "granted", result: res };
+  } finally {
+    await recordAttempt(telegramId, "phone", ok);
   }
 }
 
