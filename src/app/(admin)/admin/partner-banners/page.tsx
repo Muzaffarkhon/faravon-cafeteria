@@ -33,7 +33,7 @@ export default function Page() {
 
   useEffect(() => {
     fetch("/api/partner-banner")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: Banner[]) => {
         setBanners(list);
         // ?new=<id> — пришли после одобрения заявки на рекламу: открываем черновик на правку.
