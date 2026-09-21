@@ -105,37 +105,21 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     });
   }
 
-  // Открыто по ссылке из QR (обычной камерой): сразу ищем купон и убираем номер из адреса,
-  // чтобы обновление страницы не повторяло поиск.
-  const autoLookedUp = useRef(false);
-  useEffect(() => {
-    if (!initialNumber || autoLookedUp.current) return;
-    autoLookedUp.current = true;
-    setNumber(initialNumber);
-    doManualLookup(initialNumber);
-    window.history.replaceState(null, "", "/provider");
-  }, [initialNumber]);
-
-  function onManualSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    doManualLookup(number);
-  }
-
   /**
-   * Скан камерой — если купон найден и погашаем (действительно его, не чужого
-   * партнёра, не просрочен), активируем сразу, без отдельного тапа
-   * «Активировать»: сканирование — это уже подтверждение личности клиента
-   * (QR виден только ему), лишний тап тут не добавляет защиты. Если купон
-   * нельзя погасить (чужой партнёр/просрочен/и т.п.) — показываем карточку
-   * с причиной, как раньше, ничего не активируем.
+   * Купон из QR — и со встроенной камеры кассы, и по ссылке из обычной камеры
+   * телефона. Если купон найден и его можно погасить (тот же партнёр, не
+   * просрочен, нужный статус) — активируем сразу, без отдельного тапа
+   * «Активировать»: сам QR виден только владельцу купона, а вход и право
+   * `coupons.confirm` уже проверены (страница кассы — в page.tsx, каждый
+   * серверный экшен — ещё раз у себя). Лишний тап тут ничего не защищает.
+   * Если погасить нельзя (чужой партнёр/просрочен/и т.п.) — показываем
+   * карточку с причиной и ничего не активируем.
    */
-  function onScan(raw: string) {
-    const n = extractNumber(raw);
-    setNumber(n);
+  function lookupAndRedeem(value: string) {
     setManualError(null);
     setError(null);
     start(async () => {
-      const r = await lookupCoupon(n);
+      const r = await lookupCoupon(value);
       if (r.error) {
         setManualError(r.error);
         setCoupon(null);
@@ -144,7 +128,9 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
       }
       const c = r.coupon ?? null;
       setCoupon(c);
-      if (!c?.redeemable) {
+      // Кешбек считается от суммы покупки — её вводит кассир, поэтому такой
+      // купон всегда ведём в форму кешбека, а не гасим молча.
+      if (!c?.redeemable || c.cashback) {
         setPhase("found");
         return;
       }
@@ -156,6 +142,28 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
         setPhase("done");
       }
     });
+  }
+
+  // Открыто по ссылке из QR (обычной камерой): сразу гасим купон и убираем номер
+  // из адреса, чтобы обновление страницы не повторяло операцию.
+  const autoLookedUp = useRef(false);
+  useEffect(() => {
+    if (!initialNumber || autoLookedUp.current) return;
+    autoLookedUp.current = true;
+    setNumber(initialNumber);
+    lookupAndRedeem(initialNumber);
+    window.history.replaceState(null, "", "/provider");
+  }, [initialNumber]);
+
+  function onManualSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    doManualLookup(number);
+  }
+
+  function onScan(raw: string) {
+    const n = extractNumber(raw);
+    setNumber(n);
+    lookupAndRedeem(n);
   }
 
   // ── Кешбек: ввод суммы покупки (по купону или только накопленный баланс) ──
