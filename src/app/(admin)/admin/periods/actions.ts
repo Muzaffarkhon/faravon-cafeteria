@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
+import { isSandbox } from "@/lib/app-env";
 
 export type PeriodFormState = { error?: string };
 
@@ -211,6 +212,13 @@ export async function resetFlowData(periodId: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "periods.manage");
+
+    // Разрушающая очистка допустима только в песочнице. На боевом деплое
+    // SANDBOX_LABEL не задан, поэтому действие не выполнится, даже если
+    // вызвать его напрямую в обход интерфейса.
+    if (!isSandbox()) {
+      throw new Error("Очистка заявок и купонов доступна только в тестовой среде.");
+    }
 
     const period = await db.period.findUnique({ where: { id: periodId } });
     if (!period) throw new Error("Период не найден.");

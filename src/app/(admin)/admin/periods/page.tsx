@@ -8,6 +8,7 @@ import { Badge, buttonClass, type BadgeTone } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PeriodActions, ResetFlowButton } from "./_status-buttons";
+import { isSandbox } from "@/lib/app-env";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   DRAFT: "neutral",
@@ -27,6 +28,8 @@ export default async function PeriodsPage() {
   if (!can(session.roles, "periods.manage")) redirect("/");
   const locale = await getLocale();
   const t = await getTranslator();
+  // Очистка заявок и купонов — тестовое действие: показываем только в песочнице.
+  const sandbox = isSandbox();
 
   const periods = await db.period.findMany({
     include: { _count: { select: { applications: true } } },
@@ -73,7 +76,9 @@ export default async function PeriodsPage() {
                   {t("periods.edit")}
                 </Link>
               )}
-              <ResetFlowButton periodId={p.id} name={p.name} locale={locale} />
+              {sandbox && (
+                <ResetFlowButton periodId={p.id} name={p.name} locale={locale} />
+              )}
               <PeriodActions id={p.id} status={p.status} name={p.name} locale={locale} />
             </div>
           </li>
