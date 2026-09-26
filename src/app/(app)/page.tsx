@@ -200,7 +200,10 @@ export default async function OverviewPage() {
   // Автовыбор (§5): заявки на период ещё нет — первое обращение сотрудника
   // после открытия окна. Применяем сохранённые льготы один раз здесь, а не
   // при каждом заходе (иначе вернули бы то, что сотрудник сам убрал).
-  if (!application && windowOpen && targetPeriod) {
+  // Заявка может уже существовать только из-за покупки за монеты — в этом
+  // случае обычный авто-подбор всё равно должен применяться.
+  const hasRealSelection = application?.items.some((i) => !i.viaCoins) ?? false;
+  if (!hasRealSelection && windowOpen && targetPeriod) {
     await ensureAutoPicks(emp.id, targetPeriod);
     application = await getApplicationWithItems(emp.id, targetPeriod.id);
   }

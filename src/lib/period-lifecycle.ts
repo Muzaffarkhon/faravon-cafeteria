@@ -22,7 +22,7 @@ const MONTH_NAMES_RU = [
  * `after` по 2 дня до старта нового периода (как уже сложилось у C&B вручную:
  * см. периоды «Октябрь»/«Ноябрь» 2026). Лимит выбора — как у `after`.
  */
-function nextPeriodTemplate(after: Pick<Period, "startDate" | "maxSelections">) {
+function nextPeriodTemplate(after: Pick<Period, "startDate" | "maxSelections" | "maxCoinRedemptions">) {
   const { y, m } = dushanbeYM(after.startDate); // месяц периода `after`
   const ny = m === 11 ? y + 1 : y;
   const nm = (m + 1) % 12; // месяц нового периода
@@ -39,6 +39,7 @@ function nextPeriodTemplate(after: Pick<Period, "startDate" | "maxSelections">) 
     windowStart,
     windowEnd,
     maxSelections: after.maxSelections,
+    maxCoinRedemptions: after.maxCoinRedemptions,
   };
 }
 
@@ -50,7 +51,7 @@ function nextPeriodTemplate(after: Pick<Period, "startDate" | "maxSelections">) 
  * ничего не делает.
  */
 export async function ensureNextPeriodDraft(
-  after: Pick<Period, "startDate" | "maxSelections">,
+  after: Pick<Period, "startDate" | "maxSelections" | "maxCoinRedemptions">,
   actorId?: string | null,
 ): Promise<{ id: string; name: string } | null> {
   const tpl = nextPeriodTemplate(after);

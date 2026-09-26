@@ -58,7 +58,7 @@ export default async function PeriodsPage() {
               </div>
               <div className="mt-1.5 text-sm leading-6 text-ink-muted" data-numeric>
                 {t("periods.periodLabel")}: {fmt(p.startDate)} — {fmt(p.endDate)} · {t("periods.windowLabel")}: {fmt(p.windowStart)} —{" "}
-                {fmt(p.windowEnd)} · {t("periods.limitLabel")}: {p.maxSelections} · {t("periods.applicationsLabel")}: {p._count.applications}
+                {fmt(p.windowEnd)} · {t("periods.limitLabel")}: {p.maxSelections} · {t("periods.form.maxCoinRedemptions")}: {p.maxCoinRedemptions} · {t("periods.applicationsLabel")}: {p._count.applications}
               </div>
               <div className="mt-1 text-xs text-ink-subtle" data-numeric>
                 {t("periods.editedLabel")}: {formatLastEdit(lastEdits.get(p.id), p.updatedAt)}

@@ -59,7 +59,12 @@ function parse(formData: FormData) {
     throw new Error("Лимит выбора должен быть от 1 до 20.");
   }
 
-  return { name, startDate, endDate, windowStart, windowEnd, maxSelections };
+  const maxCoinRedemptions = Number.parseInt(String(formData.get("maxCoinRedemptions") ?? "1"), 10);
+  if (!Number.isFinite(maxCoinRedemptions) || maxCoinRedemptions < 0 || maxCoinRedemptions > 20) {
+    throw new Error("Лимит покупок за монеты должен быть от 0 до 20.");
+  }
+
+  return { name, startDate, endDate, windowStart, windowEnd, maxSelections, maxCoinRedemptions };
 }
 
 export async function createPeriod(

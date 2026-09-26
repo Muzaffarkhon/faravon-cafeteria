@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { spendCoins, reverseSpend, CoinWalletError } from "@/lib/coin-wallet";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
+import { resolveSelectionContext } from "@/lib/selection";
 
 export class CoinRedemptionError extends Error {}
 
@@ -17,8 +18,21 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
     where: { id: redemptionId },
     include: { benefitCard: true },
   });
-  const period = await db.period.findFirst({ orderBy: { startDate: "desc" } });
-  if (!period) throw new CoinRedemptionError("Нет ни одного периода в системе — не из чего сформировать купон.");
+
+  const ctx = await resolveSelectionContext();
+  const period = ctx.targetPeriod;
+  if (!period) throw new CoinRedemptionError("Нет открытого периода для выбора льгот — не из чего сформировать купон.");
+
+  const usedCount = await db.applicationItem.count({
+    where: {
+      viaCoins: true,
+      application: { employeeId: redemption.employeeId, periodId: period.id },
+      status: { notIn: ["CANCELLED", "REJECTED"] },
+    },
+  });
+  if (usedCount >= period.maxCoinRedemptions) {
+    throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${period.maxCoinRedemptions}) уже использован.`);
+  }
 
   const application = await db.application.upsert({
     where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
@@ -26,7 +40,7 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
     update: {},
   });
   const item = await db.applicationItem.create({
-    data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED" },
+    data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
   });
 
   const coupon = await formCouponForItem(item.id, actorId);

@@ -113,7 +113,7 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
   switch (metric) {
     case "APPLICATIONS_SUBMITTED":
       return db.applicationItem.count({
-        where: { application: { is: { employeeId } }, status: { not: "DRAFT" }, createdAt: { gte: since } },
+        where: { application: { is: { employeeId } }, status: { not: "DRAFT" }, viaCoins: false, createdAt: { gte: since } },
       });
     case "COUPONS_USED":
       return db.coupon.count({ where: { employeeId, status: "USED", updatedAt: { gte: since } } });

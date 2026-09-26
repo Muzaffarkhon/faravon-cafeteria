@@ -386,6 +386,7 @@ model Period {
   windowEnd      DateTime
   status         PeriodStatus @default(DRAFT)
   maxSelections  Int          @default(4)
+  maxCoinRedemptions Int      @default(1)
   windowOpenNotifiedAt   DateTime? // §5.10: разослано «окно выбора открыто»
   windowClosingNotifiedAt DateTime? // §5.10: разослано напоминание «закроется через 3 дня»
   createdAt      DateTime     @default(now())
@@ -418,6 +419,7 @@ model ApplicationItem {
   card          BenefitCard @relation(fields: [cardId], references: [id])
   cardId        String
   status        ItemStatus  @default(DRAFT)
+  viaCoins      Boolean     @default(false)
   decisionComment String?
   contactPhone  String?     // §такси: номер, который сотрудник указал при выборе PHONE_PROMO-льготы (промокод уйдёт на него)
   decidedBy     User?       @relation("DecidedBy", fields: [decidedById], references: [id])

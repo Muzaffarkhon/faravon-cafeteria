@@ -14,6 +14,7 @@ export type PeriodValues = {
   windowStart: Date | string;
   windowEnd: Date | string;
   maxSelections: number;
+  maxCoinRedemptions: number;
 };
 
 // Душанбе: UTC+5, без перехода на летнее время (см. TZ в actions.ts). Даты
@@ -74,16 +75,28 @@ export function PeriodForm({
         {t("periods.form.windowHint")}
       </p>
 
-      <Field label={t("periods.form.maxSelections")} htmlFor="maxSelections">
-        <Input
-          id="maxSelections"
-          type="number"
-          name="maxSelections"
-          min={1}
-          max={20}
-          defaultValue={initial?.maxSelections ?? 4}
-        />
-      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label={t("periods.form.maxSelections")} htmlFor="maxSelections">
+          <Input
+            id="maxSelections"
+            type="number"
+            name="maxSelections"
+            min={1}
+            max={20}
+            defaultValue={initial?.maxSelections ?? 4}
+          />
+        </Field>
+        <Field label={t("periods.form.maxCoinRedemptions")} htmlFor="maxCoinRedemptions" hint={t("periods.form.maxCoinRedemptionsHint")}>
+          <Input
+            id="maxCoinRedemptions"
+            type="number"
+            name="maxCoinRedemptions"
+            min={0}
+            max={20}
+            defaultValue={initial?.maxCoinRedemptions ?? 1}
+          />
+        </Field>
+      </div>
 
       {state.error && (
         <p className="rounded-md bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">

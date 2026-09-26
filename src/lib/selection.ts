@@ -121,8 +121,8 @@ export async function getApplicationWithItems(employeeId: string, periodId: stri
   });
 }
 
-export function countAgainstLimit(items: { status: string }[]) {
-  return items.filter((i) => ACTIVE_FOR_LIMIT.includes(i.status as never)).length;
+export function countAgainstLimit(items: { status: string; viaCoins?: boolean }[]) {
+  return items.filter((i) => ACTIVE_FOR_LIMIT.includes(i.status as never) && !i.viaCoins).length;
 }
 
 /** Карточки, отмеченные сотрудником для автовыбора (§5) — для состояния переключателя на витрине. */
@@ -170,7 +170,7 @@ export async function ensureAutoPicks(
     async (tx) => {
       const current = await tx.applicationItem.findMany({
         where: { applicationId: app.id },
-        select: { status: true },
+        select: { status: true, viaCoins: true },
       });
       let remaining = period.maxSelections - countAgainstLimit(current);
       if (remaining <= 0) return;

@@ -596,6 +596,8 @@ export const DICT = {
     "periods.form.windowEnd": "Окно выбора: по",
     "periods.form.windowHint": "Окно выбора обычно открывается в предыдущем месяце (до начала периода). Если сотрудник выберет льготу уже после старта периода, выбор автоматически перенесётся на следующий месяц.",
     "periods.form.maxSelections": "Лимит выбора льгот",
+    "periods.form.maxCoinRedemptions": "Лимит покупок за монеты",
+    "periods.form.maxCoinRedemptionsHint": "Сколько льгот сотрудник может купить за Farovon Coin в этом периоде (не считается в обычный лимит выше).",
     "periods.form.cancel": "Отмена",
 
     "sla.title": "SLA-эскалации",
@@ -1974,6 +1976,8 @@ export const DICT = {
     "periods.form.windowEnd": "Равзанаи интихоб: то",
     "periods.form.windowHint": "Равзанаи интихоб одатан дар моҳи гузашта (пеш аз оғози давра) кушода мешавад. Агар корманд имтиёзро пас аз оғози давра интихоб кунад, интихоб худкор ба моҳи оянда мегузарад.",
     "periods.form.maxSelections": "Ҳадди интихоби имтиёзҳо",
+    "periods.form.maxCoinRedemptions": "Ҳадди хариди бо тангаҳо",
+    "periods.form.maxCoinRedemptionsHint": "Дар ин давра ходим бо Farovon Coin чанд имтиёз харида метавонад (дар ҳадди муқаррарии боло ҳисоб намешавад).",
     "periods.form.cancel": "Бекор",
 
     "sla.title": "Эскалатсияи SLA",
@@ -3352,6 +3356,8 @@ export const DICT = {
     "periods.form.windowEnd": "Tanlov oynasi: gacha",
     "periods.form.windowHint": "Tanlov oynasi odatda oldingi oyda (davr boshlanishidan oldin) ochiladi. Agar xodim imtiyozni davr boshlangandan keyin tanlasa, tanlov avtomatik keyingi oyga o'tkaziladi.",
     "periods.form.maxSelections": "Imtiyoz tanlash limiti",
+    "periods.form.maxCoinRedemptions": "Tangalar bilan xarid limiti",
+    "periods.form.maxCoinRedemptionsHint": "Bu davrda xodim Farovon Coin bilan nechta imtiyoz sotib olishi mumkin (yuqoridagi oddiy limitga kirmaydi).",
     "periods.form.cancel": "Bekor qilish",
 
     "sla.title": "SLA eskalatsiyalari",
