@@ -27,6 +27,8 @@ export type CardValues = {
   /** Когда карточку объявили в утренней рассылке; null — ещё нет. */
   announcedAt?: Date | null;
   partnerId: string | null;
+  coinPrice?: number | null;
+  coinRedemptionMode?: string | null;
   translations?: Partial<Record<"tg" | "uz", Record<string, string>>> | null;
 };
 
@@ -174,6 +176,25 @@ export function CardForm({
               <span className="block text-xs text-ink-muted">{t("cards.form.groupWavesHint")}</span>
             </span>
           </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t("cards.form.coinPrice")} htmlFor="coinPrice" hint={t("cards.form.coinPriceHint")}>
+              <Input
+                id="coinPrice"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                name="coinPrice"
+                defaultValue={initial?.coinPrice ?? ""}
+                placeholder={t("cards.form.coinPricePlaceholder")}
+              />
+            </Field>
+            <Field label={t("cards.form.coinRedemptionMode")} htmlFor="coinRedemptionMode" hint={t("cards.form.coinRedemptionModeHint")}>
+              <Select id="coinRedemptionMode" name="coinRedemptionMode" defaultValue={initial?.coinRedemptionMode ?? "INSTANT"}>
+                <option value="INSTANT">{t("cards.form.coinModeInstant")}</option>
+                <option value="REQUEST">{t("cards.form.coinModeRequest")}</option>
+              </Select>
+            </Field>
+          </div>
         </>
       )}
 
