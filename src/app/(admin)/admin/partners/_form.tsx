@@ -174,14 +174,20 @@ export function PartnerForm({
         </Select>
       </Field>
 
-      <Field label={t("partners.form.discountType")} htmlFor="discountType">
+      <Field label={t("partners.form.discountType")} htmlFor="discountType" hint={t("partners.form.discountTypeHint")}>
         <Input id="discountType" name="discountType" defaultValue={initial?.discountType ?? ""} />
       </Field>
 
       <Field
         label={t("partners.form.terms")}
         htmlFor="terms"
-        hint="Ctrl+B — жирный, Ctrl+I — курсив, Ctrl+U — подчёркнутый, Ctrl+Shift+X — зачёркнутый, Ctrl+Alt+1 — заголовок строки"
+        hint={
+          <>
+            {t("partners.form.termsHint")}
+            <br />
+            Ctrl+B — жирный, Ctrl+I — курсив, Ctrl+U — подчёркнутый, Ctrl+Shift+X — зачёркнутый, Ctrl+Alt+1 — заголовок строки
+          </>
+        }
       >
         <RichTextarea
           id="terms"
