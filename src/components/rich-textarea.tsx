@@ -3,7 +3,9 @@
 import type { ComponentProps, KeyboardEvent } from "react";
 import { Textarea } from "./ui";
 
-const WRAP: Record<string, string> = { b: "**", i: "_", u: "__" };
+// Ключи по e.code (физическая клавиша), а не e.key — иначе Ctrl+B/I/U не
+// сработает при русской/таджикской раскладке (e.key даёт кириллицу).
+const WRAP: Record<string, string> = { KeyB: "**", KeyI: "_", KeyU: "__" };
 
 function setNativeValue(el: HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
@@ -42,13 +44,13 @@ function toggleStrikethrough(el: HTMLTextAreaElement) {
 export function RichTextarea(props: ComponentProps<typeof Textarea>) {
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && !e.shiftKey && !e.altKey && WRAP[e.key.toLowerCase()]) {
+    if (mod && !e.shiftKey && !e.altKey && WRAP[e.code]) {
       e.preventDefault();
-      wrapSelection(e.currentTarget, WRAP[e.key.toLowerCase()]);
-    } else if (mod && e.shiftKey && e.key.toLowerCase() === "x") {
+      wrapSelection(e.currentTarget, WRAP[e.code]);
+    } else if (mod && e.shiftKey && e.code === "KeyX") {
       e.preventDefault();
       toggleStrikethrough(e.currentTarget);
-    } else if (mod && e.altKey && e.key === "1") {
+    } else if (mod && e.altKey && e.code === "Digit1") {
       e.preventDefault();
       toggleHeading(e.currentTarget);
     }
