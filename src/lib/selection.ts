@@ -245,12 +245,14 @@ export async function getPreviousPeriodPicks(
     where: {
       employeeId,
       period: { startDate: { lt: beforeStartDate } },
-      items: { some: { status: { in: [...GROUP_ISSUE_STATUSES] } } },
+      // viaCoins: false — купленная за монеты льгота не должна предлагаться как
+      // "выбрать как в прошлый раз" (это бесплатный повтор выбора, а не покупка).
+      items: { some: { status: { in: [...GROUP_ISSUE_STATUSES] }, viaCoins: false } },
     },
     orderBy: { period: { startDate: "desc" } },
     include: {
       items: {
-        where: { status: { in: [...GROUP_ISSUE_STATUSES] } },
+        where: { status: { in: [...GROUP_ISSUE_STATUSES] }, viaCoins: false },
         include: { card: { select: { id: true, title: true, block: true, status: true, isActive: true, archivedAt: true } } },
       },
     },

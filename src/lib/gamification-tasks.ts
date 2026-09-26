@@ -120,7 +120,12 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
         where: { application: { is: { employeeId } }, status: { not: "DRAFT" }, viaCoins: false, createdAt: { gte: since } },
       });
     case "COUPONS_USED":
-      return db.coupon.count({ where: { employeeId, status: "USED", updatedAt: { gte: since } } });
+      // item.viaCoins: false — купон, выданный за покупку самих монет, не должен
+      // засчитываться в задачу на использование купонов (тот же путь фарма, что
+      // и у APPLICATIONS_SUBMITTED).
+      return db.coupon.count({
+        where: { employeeId, status: "USED", updatedAt: { gte: since }, item: { viaCoins: false } },
+      });
     case "FEEDBACK_GIVEN":
       return db.satisfactionResponse.count({ where: { employeeId, createdAt: { gte: since } } });
   }
