@@ -7,6 +7,8 @@ import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
+import { getCoinBalance } from "@/lib/coin-wallet";
+import { getTotalCashbackBalance } from "@/lib/cashback";
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
@@ -104,6 +106,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const locale = await getLocale();
   const gamificationEnabled = await getGamificationEnabled();
+  // Баланс монет и совокупный кешбек — в закреплённой шапке, снаружи их
+  // собственных страниц (/gamification, /applications), чтобы были видны
+  // сразу, без перехода.
+  const [coinBalance, cashbackTotal] = session.employee
+    ? await Promise.all([
+        gamificationEnabled ? getCoinBalance(session.employee.id) : Promise.resolve(null),
+        getTotalCashbackBalance(session.employee.id),
+      ])
+    : [null, null];
   const allGroups = buildNavGroups({
     roles,
     hasEmployee: !!session.employee,
@@ -129,6 +140,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         roleLabel={roleLabel}
         displayName={displayName}
         selectionStat={selectionStat}
+        coinBalance={coinBalance}
+        cashbackTotal={cashbackTotal}
         adminHref={hasAdminAccess ? "/admin" : undefined}
         locale={locale}
         backdrop={

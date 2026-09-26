@@ -340,6 +340,12 @@ export async function getEmployeeCashback(employeeId: string) {
   });
 }
 
+/** Совокупный баланс кешбека сотрудника по всем партнёрам (диры) — для шапки. */
+export async function getTotalCashbackBalance(employeeId: string): Promise<number> {
+  const result = await db.cashbackAccount.aggregate({ where: { employeeId }, _sum: { balance: true } });
+  return result._sum.balance ?? 0;
+}
+
 /** Есть ли у сотрудника смысл показывать код для кассы (счёт или действующий купон-кешбек). */
 export async function employeeHasCashback(employeeId: string): Promise<boolean> {
   const [accounts, coupons] = await Promise.all([
