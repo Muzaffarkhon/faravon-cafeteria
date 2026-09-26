@@ -20,8 +20,10 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
   const period = await db.period.findFirst({ orderBy: { startDate: "desc" } });
   if (!period) throw new CoinRedemptionError("Нет ни одного периода в системе — не из чего сформировать купон.");
 
-  const application = await db.application.create({
-    data: { employeeId: redemption.employeeId, periodId: period.id },
+  const application = await db.application.upsert({
+    where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
+    create: { employeeId: redemption.employeeId, periodId: period.id },
+    update: {},
   });
   const item = await db.applicationItem.create({
     data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED" },
@@ -34,6 +36,34 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
     where: { id: redemptionId },
     data: { couponId: coupon.id, status: "FULFILLED" },
   });
+}
+
+/**
+ * Оборачивает fulfillRedemption: при падении возвращает списанные монеты,
+ * переводит заявку в REJECTED (в enum нет отдельного статуса сбоя) и
+ * пробрасывает ошибку дальше, чтобы вызывающий код не решил, что всё прошло успешно.
+ */
+async function fulfillOrCompensate(redemptionId: string, actorId: string): Promise<void> {
+  try {
+    await fulfillRedemption(redemptionId, actorId);
+  } catch (e) {
+    await reverseSpend({
+      opKey: `redemption:${redemptionId}`,
+      reason: "Не удалось сформировать купон — монеты возвращены",
+    });
+    await db.coinRedemption.update({
+      where: { id: redemptionId },
+      data: { status: "REJECTED", decidedById: actorId, decidedAt: new Date() },
+    });
+    await audit({
+      actorId,
+      action: "COIN_REDEMPTION_FULFILLMENT_FAILED",
+      entityType: "CoinRedemption",
+      entityId: redemptionId,
+    });
+    if (e instanceof Error) throw new CoinRedemptionError(e.message);
+    throw new CoinRedemptionError("Не удалось сформировать купон.");
+  }
 }
 
 /** Покупка карточки за монеты. INSTANT — сразу выдаёт купон. REQUEST — эскроу, ждёт C&B. */
@@ -81,7 +111,7 @@ export async function redeemWithCoins(params: {
   }
 
   if (card.coinRedemptionMode === "INSTANT") {
-    await fulfillRedemption(redemption.id, params.actorId);
+    await fulfillOrCompensate(redemption.id, params.actorId);
     await audit({ actorId: params.actorId, action: "COIN_REDEMPTION_FULFILLED", entityType: "CoinRedemption", entityId: redemption.id });
     return { redemptionId: redemption.id, status: "FULFILLED" };
   }
@@ -100,7 +130,7 @@ export async function decideCoinRedemption(params: {
   if (redemption.status !== "PENDING") throw new CoinRedemptionError("Заявка уже обработана.");
 
   if (params.decision === "APPROVE") {
-    await fulfillRedemption(redemption.id, params.actorId);
+    await fulfillOrCompensate(redemption.id, params.actorId);
     await db.coinRedemption.update({
       where: { id: redemption.id },
       data: { decidedById: params.actorId, decidedAt: new Date() },
