@@ -113,9 +113,8 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
     add("cabinet", t("nav.cabinet"), {
       href: "/gamification",
       label: t("nav.gamification"),
-      desc: "баллы и достижения",
+      desc: "задачи и монеты Farovon Coin",
       icon: ICONS.gamification,
-      soon: true,
     });
   }
 
