@@ -6,6 +6,7 @@ import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
@@ -102,6 +103,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const locale = await getLocale();
+  const gamificationEnabled = await getGamificationEnabled();
   const allGroups = buildNavGroups({
     roles,
     hasEmployee: !!session.employee,
@@ -109,6 +111,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isTaxiContractor,
     badges,
     locale,
+    gamificationEnabled,
   });
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
   // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».

@@ -7,7 +7,9 @@ import { Badge, Card, EmptyState, SectionTitle, Table, type BadgeTone } from "@/
 import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
 import { TaskForm } from "./_task-form";
+import { GamificationEnabledToggle } from "./_enabled-toggle";
 import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption } from "./actions";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,7 @@ export default async function GamificationAdminPage() {
   const locale = await getLocale();
   const t = await getTranslator();
 
-  const [tasks, pendingManual, pendingRequests] = await Promise.all([
+  const [tasks, pendingManual, pendingRequests, enabled] = await Promise.all([
     db.gamificationTask.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     db.employeeTask.findMany({
       where: { status: "IN_PROGRESS", task: { is: { verification: "MANUAL" } } },
@@ -37,6 +39,7 @@ export default async function GamificationAdminPage() {
       include: { employee: { select: { fullName: true } }, benefitCard: { select: { title: true } } },
       orderBy: { createdAt: "asc" },
     }),
+    getGamificationEnabled(),
   ]);
 
   return (
@@ -44,6 +47,8 @@ export default async function GamificationAdminPage() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("gamificationAdmin.title")}</h1>
       </header>
+
+      <GamificationEnabledToggle enabled={enabled} locale={locale} />
 
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("gamificationAdmin.newTaskSection")}</SectionTitle>

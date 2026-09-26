@@ -607,6 +607,18 @@ model SatisfactionSettings {
   updatedAt  DateTime @updatedAt
 }
 
+/// Рубильник геймификации (§ Farovon Coins) — одна строка-синглтон (id
+/// всегда "default"), default(false) — на любой новой/свежедеплоенной среде
+/// фича выключена, пока C&B не включит её на /admin/gamification. Пока
+/// выключена: страница сотрудника /gamification недоступна (редирект),
+/// пункт меню скрыт, cron-пересчёт задач и все действия (join/buy/complete/
+/// approve) отклоняются на уровне библиотеки — не только UI.
+model GamificationSettings {
+  id        String   @id @default("default")
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
 /// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —
 /// необязательный комментарий. Показывается сотруднику после погашения
 /// купона у партнёра (реальный опыт использования льготы), повторно — не

@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { spendCoins, reverseSpend, CoinWalletError } from "@/lib/coin-wallet";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { resolveSelectionContext, ensureAutoPicks } from "@/lib/selection";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 
 export class CoinRedemptionError extends Error {}
 
@@ -131,6 +132,7 @@ export async function redeemWithCoins(params: {
   benefitCardId: string;
   actorId: string;
 }): Promise<{ redemptionId: string; status: "FULFILLED" | "PENDING" }> {
+  if (!(await getGamificationEnabled())) throw new CoinRedemptionError("Функция геймификации временно отключена.");
   const card = await db.benefitCard.findUniqueOrThrow({
     where: { id: params.benefitCardId },
     include: { partner: { select: { deliveryMode: true } } },
@@ -202,6 +204,7 @@ export async function decideCoinRedemption(params: {
   decision: "APPROVE" | "REJECT";
   actorId: string;
 }): Promise<void> {
+  if (!(await getGamificationEnabled())) throw new CoinRedemptionError("Функция геймификации временно отключена.");
   // Атомарный claim по PENDING (updateMany, не findUnique+update) — иначе два
   // параллельных клика "Одобрить"/"Отклонить" на одну заявку оба прошли бы
   // проверку статуса до того, как любой из них его сменит, и купон/возврат

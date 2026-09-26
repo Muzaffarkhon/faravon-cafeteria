@@ -61,10 +61,14 @@ export type NavContext = {
   badges?: NavBadges;
   /** Язык интерфейса — переведены пока только эти 4 пункта «Кабинета» сотрудника. */
   locale?: Locale;
+  /** Рубильник геймификации (GamificationSettings.enabled) — пока выключен,
+   *  пункт меню сотрудника скрыт (страница и так редиректит на /). Админский
+   *  пункт /admin/gamification не гейтится — он нужен C&B, чтобы включить фичу. */
+  gamificationEnabled?: boolean;
 };
 
 export function buildNavGroups(ctx: NavContext): NavGroup[] {
-  const { roles, hasEmployee, partnerId, isTaxiContractor } = ctx;
+  const { roles, hasEmployee, partnerId, isTaxiContractor, gamificationEnabled = false } = ctx;
   const b = ctx.badges ?? {};
   const t = (key: TKey) => translate(ctx.locale ?? "ru", key);
 
@@ -110,12 +114,14 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "объявления компании",
       icon: ICONS.bell,
     });
-    add("cabinet", t("nav.cabinet"), {
-      href: "/gamification",
-      label: t("nav.gamification"),
-      desc: "задачи и монеты Farovon Coin",
-      icon: ICONS.gamification,
-    });
+    if (gamificationEnabled) {
+      add("cabinet", t("nav.cabinet"), {
+        href: "/gamification",
+        label: t("nav.gamification"),
+        desc: "задачи и монеты Farovon Coin",
+        icon: ICONS.gamification,
+      });
+    }
   }
 
   if (canDecide)

@@ -1347,6 +1347,10 @@ export const DICT = {
     "providerTaxi.sentSuffix": "получатель(ей). Статус доставки — в таблице ниже.",
 
     "gamificationAdmin.title": "Геймификация",
+    "gamificationAdmin.enabledLabel": "Геймификация включена",
+    "gamificationAdmin.enabledHint": "Пока выключено — страница /gamification недоступна сотрудникам, пункт меню скрыт, начисление и трата монет отключены.",
+    "gamificationAdmin.save": "Сохранить",
+    "gamificationAdmin.saved": "Сохранено",
     "gamificationAdmin.newTaskSection": "Новая задача",
     "gamificationAdmin.tasksSection": "Задачи",
     "gamificationAdmin.tasksEmpty": "Задач пока нет.",
@@ -2729,6 +2733,10 @@ export const DICT = {
     "providerTaxi.sentSuffix": "гиранда. Ҳолати расонидан — дар ҷадвали поён.",
 
     "gamificationAdmin.title": "Геймификатсия",
+    "gamificationAdmin.enabledLabel": "Геймификатсия фаъол аст",
+    "gamificationAdmin.enabledHint": "То хомӯш аст — саҳифаи /gamification барои кормандон дастнорас аст, банди меню пинҳон аст, ҳисоб ва харҷи тангаҳо хомӯш аст.",
+    "gamificationAdmin.save": "Нигоҳ доштан",
+    "gamificationAdmin.saved": "Нигоҳ дошта шуд",
     "gamificationAdmin.newTaskSection": "Вазифаи нав",
     "gamificationAdmin.tasksSection": "Вазифаҳо",
     "gamificationAdmin.tasksEmpty": "Ҳанӯз вазифае нест.",
@@ -4111,6 +4119,10 @@ export const DICT = {
     "providerTaxi.sentSuffix": "qabul qiluvchi(lar). Yetkazib berish holati — quyidagi jadvalda.",
 
     "gamificationAdmin.title": "Gamifikatsiya",
+    "gamificationAdmin.enabledLabel": "Gamifikatsiya yoqilgan",
+    "gamificationAdmin.enabledHint": "O'chiq bo'lganda — /gamification sahifasi xodimlarga yopiq, menyu bandi yashirin, tangalarni hisoblash va sarflash o'chirilgan.",
+    "gamificationAdmin.save": "Saqlash",
+    "gamificationAdmin.saved": "Saqlandi",
     "gamificationAdmin.newTaskSection": "Yangi vazifa",
     "gamificationAdmin.tasksSection": "Vazifalar",
     "gamificationAdmin.tasksEmpty": "Hozircha vazifalar yo'q.",

@@ -7,6 +7,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
 import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function GamificationPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!session.employee) redirect("/");
+  if (!(await getGamificationEnabled())) redirect("/");
   const t = await getTranslator();
   const employeeId = session.employee.id;
 

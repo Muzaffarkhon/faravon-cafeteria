@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { creditCoins } from "@/lib/coin-wallet";
 import { redeemWithCoins } from "@/lib/coin-redemption";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 import type { GamificationAutoMetric } from "@prisma/client";
 
 export class GamificationTaskError extends Error {}
@@ -42,6 +43,7 @@ export function listEmployeeTasks(employeeId: string) {
 }
 
 export async function joinTask(params: { employeeId: string; taskId: string; prizeCardId?: string | null }): Promise<void> {
+  if (!(await getGamificationEnabled())) throw new GamificationTaskError("Функция геймификации временно отключена.");
   const task = await db.gamificationTask.findUnique({ where: { id: params.taskId } });
   if (!task || !task.isActive) throw new GamificationTaskError("Задача недоступна.");
   const now = new Date();
@@ -103,6 +105,7 @@ async function rewardCompletedTask(employeeTaskId: string): Promise<void> {
 
 /** C&B вручную отмечает задачу выполненной (verification = MANUAL). */
 export async function completeEmployeeTaskManual(params: { employeeTaskId: string; actorId: string }): Promise<void> {
+  if (!(await getGamificationEnabled())) throw new GamificationTaskError("Функция геймификации временно отключена.");
   const et = await db.employeeTask.findUniqueOrThrow({ where: { id: params.employeeTaskId }, include: { task: true } });
   if (et.task.verification !== "MANUAL") throw new GamificationTaskError("Эта задача проверяется автоматически.");
 
@@ -139,6 +142,7 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
 
 /** Пересчёт прогресса всех AUTO-задач в работе. Вызывается cron-роутом раз в сутки. */
 export async function recomputeAutoTasks(): Promise<{ checked: number; completed: number; failed: number }> {
+  if (!(await getGamificationEnabled())) return { checked: 0, completed: 0, failed: 0 };
   const inProgress = await db.employeeTask.findMany({
     where: { status: "IN_PROGRESS", task: { is: { verification: "AUTO" } } },
     include: { task: true },

@@ -9,8 +9,20 @@ import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { completeEmployeeTaskManual, GamificationTaskError } from "@/lib/gamification-tasks";
 import { decideCoinRedemption, CoinRedemptionError } from "@/lib/coin-redemption";
+import { setGamificationEnabled } from "@/lib/gamification-settings";
 
 export type TaskFormState = { error?: string };
+export type ToggleFormState = { ok?: boolean; error?: string };
+
+/** Рубильник геймификации — вкл/выкл всей фичи без релиза кода. */
+export async function saveGamificationEnabled(_prev: ToggleFormState, formData: FormData): Promise<ToggleFormState> {
+  const s = await requireSession();
+  assertCan(s.roles, "gamification.manage");
+  const enabled = formData.get("enabled") === "on";
+  await setGamificationEnabled(s.user.id, enabled);
+  revalidatePath("/admin/gamification");
+  return { ok: true };
+}
 
 const VERIFICATIONS: GamificationVerification[] = ["MANUAL", "AUTO"];
 const METRICS: GamificationAutoMetric[] = ["APPLICATIONS_SUBMITTED", "COUPONS_USED", "FEEDBACK_GIVEN"];
