@@ -9,7 +9,7 @@ import { ActionForm } from "@/components/action-form";
 import { TaskForm } from "./_task-form";
 import { GamificationEnabledToggle } from "./_enabled-toggle";
 import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption } from "./actions";
-import { getGamificationEnabled } from "@/lib/gamification-settings";
+import { getGamificationEnabled, getDailyBonusCoins } from "@/lib/gamification-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export default async function GamificationAdminPage() {
   const locale = await getLocale();
   const t = await getTranslator();
 
-  const [tasks, pendingManual, pendingRequests, enabled, departmentRows] = await Promise.all([
+  const [tasks, pendingManual, pendingRequests, enabled, dailyBonusCoins, departmentRows] = await Promise.all([
     db.gamificationTask.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     db.employeeTask.findMany({
       where: { status: "IN_PROGRESS", task: { is: { verification: "MANUAL" } } },
@@ -40,6 +40,7 @@ export default async function GamificationAdminPage() {
       orderBy: { createdAt: "asc" },
     }),
     getGamificationEnabled(),
+    getDailyBonusCoins(),
     // Тот же паттерн, что в /admin/news — список отделов для Select, не
     // свободный ввод (опечатка в свободном тексте → задача не находит ни
     // одного сотрудника, ошибка не заметна сразу).
@@ -58,7 +59,7 @@ export default async function GamificationAdminPage() {
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("gamificationAdmin.title")}</h1>
       </header>
 
-      <GamificationEnabledToggle enabled={enabled} locale={locale} />
+      <GamificationEnabledToggle enabled={enabled} dailyBonusCoins={dailyBonusCoins} locale={locale} />
 
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("gamificationAdmin.newTaskSection")}</SectionTitle>
@@ -92,7 +93,7 @@ export default async function GamificationAdminPage() {
                     <td>{task.scope === "ALL" ? t("gamificationAdmin.scopeAll") : task.scope === "DEPARTMENT" ? task.department : t("gamificationAdmin.scopeSpecific")}</td>
                     <td>
                       <ActionForm action={toggleTaskActive.bind(null, task.id, !task.isActive)}>
-                        <SubmitButton className="text-sm underline disabled:cursor-not-allowed disabled:opacity-50">
+                        <SubmitButton variant={task.isActive ? "secondary" : "soft"} size="sm">
                           {task.isActive ? t("gamificationAdmin.deactivate") : t("gamificationAdmin.activate")}
                         </SubmitButton>
                       </ActionForm>
@@ -131,7 +132,7 @@ export default async function GamificationAdminPage() {
                     <td data-numeric>{et.task.coinReward}</td>
                     <td>
                       <ActionForm action={completeTaskManually.bind(null, et.id)}>
-                        <SubmitButton className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50">
+                        <SubmitButton variant="soft" size="sm">
                           {t("gamificationAdmin.confirmCompletion")}
                         </SubmitButton>
                       </ActionForm>
@@ -169,14 +170,14 @@ export default async function GamificationAdminPage() {
                     <td>
                       <Badge tone={REDEMPTION_STATUS_TONE[r.status] ?? "neutral"}>{r.status}</Badge>
                     </td>
-                    <td className="space-x-3">
+                    <td className="space-x-2">
                       <ActionForm className="inline" action={decideRedemption.bind(null, r.id, "APPROVE")}>
-                        <SubmitButton className="text-sm font-medium text-success underline disabled:cursor-not-allowed disabled:opacity-50">
+                        <SubmitButton variant="success" size="sm">
                           {t("gamificationAdmin.approve")}
                         </SubmitButton>
                       </ActionForm>
                       <ActionForm className="inline" action={decideRedemption.bind(null, r.id, "REJECT")}>
-                        <SubmitButton className="text-sm font-medium text-danger underline disabled:cursor-not-allowed disabled:opacity-50">
+                        <SubmitButton variant="danger" size="sm">
                           {t("gamificationAdmin.reject")}
                         </SubmitButton>
                       </ActionForm>

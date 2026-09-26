@@ -614,9 +614,11 @@ model SatisfactionSettings {
 /// пункт меню скрыт, cron-пересчёт задач и все действия (join/buy/complete/
 /// approve) отклоняются на уровне библиотеки — не только UI.
 model GamificationSettings {
-  id        String   @id @default("default")
-  enabled   Boolean  @default(false)
-  updatedAt DateTime @updatedAt
+  id              String   @id @default("default")
+  enabled         Boolean  @default(false)
+  /// Монет за ежедневный визит (ручной сбор на /gamification, § daily bonus). 0 — бонус выключен.
+  dailyBonusCoins Int      @default(5)
+  updatedAt       DateTime @updatedAt
 }
 
 /// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —

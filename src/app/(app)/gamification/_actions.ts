@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { joinTask, GamificationTaskError } from "@/lib/gamification-tasks";
 import { redeemWithCoins, CoinRedemptionError } from "@/lib/coin-redemption";
+import { claimDailyBonus, DailyBonusError } from "@/lib/daily-bonus";
 
 export async function joinTaskAction(taskId: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
@@ -15,6 +16,20 @@ export async function joinTaskAction(taskId: string, _prev: ActionResult, formDa
       await joinTask({ employeeId: s.employee.id, taskId, prizeCardId });
     } catch (e) {
       if (e instanceof GamificationTaskError) throw new Error(e.message);
+      throw e;
+    }
+    revalidatePath("/gamification");
+  });
+}
+
+export async function claimDailyBonusAction(_prev: ActionResult, _formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    if (!s.employee) throw new Error("Доступно только сотрудникам.");
+    try {
+      await claimDailyBonus(s.employee.id);
+    } catch (e) {
+      if (e instanceof DailyBonusError) throw new Error(e.message);
       throw e;
     }
     revalidatePath("/gamification");
