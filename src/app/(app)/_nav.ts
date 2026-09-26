@@ -105,6 +105,12 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.inbox,
     });
     add("cabinet", t("nav.cabinet"), {
+      href: "/news",
+      label: "Новости",
+      desc: "объявления компании",
+      icon: ICONS.bell,
+    });
+    add("cabinet", t("nav.cabinet"), {
       href: "/gamification",
       label: t("nav.gamification"),
       desc: "баллы и достижения",
