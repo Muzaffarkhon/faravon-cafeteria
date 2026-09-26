@@ -7,11 +7,6 @@ import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { updateTextBlock, type TextFormState } from "./actions";
 
-const TEXT_TRANSLATION_FIELDS = [
-  { name: "title", label: "Заголовок" },
-  { name: "content", label: "Текст", multiline: true },
-];
-
 export function TextBlockForm({
   blockKey,
   title,
@@ -28,6 +23,10 @@ export function TextBlockForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const action = updateTextBlock.bind(null, blockKey);
   const [state, formAction, pending] = useActionState<TextFormState, FormData>(action, {});
+  const textTranslationFields = [
+    { name: "title", label: "Заголовок", sourceId: `${blockKey}-title` },
+    { name: "content", label: "Текст", multiline: true, sourceId: `${blockKey}-content` },
+  ];
 
   return (
     <form
@@ -42,7 +41,7 @@ export function TextBlockForm({
         <Field label={t("texts.contentLabel")} htmlFor={`${blockKey}-content`} required>
           <Textarea id={`${blockKey}-content`} name="content" defaultValue={content} rows={4} required />
         </Field>
-        <TranslationFields fields={TEXT_TRANSLATION_FIELDS} initial={translations} />
+        <TranslationFields fields={textTranslationFields} initial={translations} />
       </div>
 
       <div className="mt-3 flex items-center gap-3">

@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { PARTNER_STATUSES, partnerStatusLabel } from "@/lib/labels";
 import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { RichTextarea } from "@/components/rich-textarea";
+import { FormattedText } from "@/components/formatted-text";
 import { TranslationFields } from "@/components/translation-fields";
 import { ImageUploadField } from "@/app/(app)/_components/image-upload-field";
 import { loginFromPartnerName } from "@/lib/translit";
@@ -56,6 +58,7 @@ export function PartnerForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
   const [name, setName] = useState(initial?.name ?? "");
+  const [terms, setTerms] = useState(initial?.terms ?? "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
   const [makeAccount, setMakeAccount] = useState(!initial);
   const [contractorLogin, setContractorLogin] = useState("");
@@ -171,13 +174,39 @@ export function PartnerForm({
         </Select>
       </Field>
 
-      <Field label={t("partners.form.discountType")} htmlFor="discountType">
+      <Field label={t("partners.form.discountType")} htmlFor="discountType" hint={t("partners.form.discountTypeHint")}>
         <Input id="discountType" name="discountType" defaultValue={initial?.discountType ?? ""} />
       </Field>
 
-      <Field label={t("partners.form.terms")} htmlFor="terms">
-        <Textarea id="terms" name="terms" defaultValue={initial?.terms ?? ""} rows={2} />
+      <Field
+        label={t("partners.form.terms")}
+        htmlFor="terms"
+        hint={
+          <>
+            {t("partners.form.termsHint")}
+            <br />
+            Ctrl+B — жирный, Ctrl+I — курсив, Ctrl+U — подчёркнутый, Ctrl+Shift+X — зачёркнутый, Ctrl+Alt+1 — заголовок строки
+          </>
+        }
+      >
+        <RichTextarea
+          id="terms"
+          name="terms"
+          value={terms}
+          onChange={(e) => setTerms(e.target.value)}
+          rows={3}
+        />
       </Field>
+      {terms.trim() && (
+        <div className="rounded-xl border border-line-subtle bg-surface-muted/50 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
+            Предпросмотр (как увидит сотрудник)
+          </p>
+          <div className="mt-1.5 text-sm leading-6 text-ink">
+            <FormattedText text={terms} />
+          </div>
+        </div>
+      )}
 
       <p className="pt-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">
         {t("partners.form.whereToGoTitle")}
