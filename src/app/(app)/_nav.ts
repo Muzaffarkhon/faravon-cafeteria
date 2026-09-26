@@ -105,6 +105,12 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.inbox,
     });
     add("cabinet", t("nav.cabinet"), {
+      href: "/news",
+      label: "Новости",
+      desc: "объявления компании",
+      icon: ICONS.bell,
+    });
+    add("cabinet", t("nav.cabinet"), {
       href: "/gamification",
       label: t("nav.gamification"),
       desc: "баллы и достижения",
@@ -159,6 +165,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.cards"),
       desc: "программы признания, витрина заботы, реестр гибких льгот",
       icon: ICONS.cards,
+    });
+  if (canManageCards)
+    add("catalog", t("nav.catalog"), {
+      href: "/admin/news",
+      label: "Новости",
+      desc: "объявления с попапом на витрине и рассылкой в бот",
+      icon: ICONS.bell,
     });
   if (can(roles, "partners.manage"))
     add("catalog", t("nav.catalog"), {

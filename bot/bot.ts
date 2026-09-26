@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { linkByPhone, reissueOtp, SafeLinkError, isKnownTelegramId } from "./link";
 import { startNotificationLoop } from "./notifications";
+import { platformUrl } from "../src/lib/platform-url";
 
 // --- минимальная загрузка .env (Prisma грузит свой, но токен бота — здесь) ---
 try {
@@ -20,7 +21,7 @@ try {
 }
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const PLATFORM_URL = process.env.PLATFORM_URL || "http://localhost:3001";
+const PLATFORM_URL = platformUrl() || "http://localhost:3001";
 
 if (!TOKEN) {
   console.error("TELEGRAM_BOT_TOKEN не задан в .env — Telegram-бот не запущен.");

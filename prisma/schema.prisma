@@ -188,6 +188,7 @@ model User {
   auditLogs       AuditLog[]
   cashierLinks    CashierLink[]
   notifications   Notification[]
+  newsReads       NewsRead[]
   decisions       ApplicationItem[]      @relation("DecidedBy")
   cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
@@ -723,6 +724,42 @@ model TextBlock {
   /// Переводы { tg?: { title?, content? }, uz?: { ... } } — см. Partner.translations.
   translations Json?
   updatedAt DateTime @updatedAt
+}
+
+/// Новости: попап на витрине сотрудника + лента + рассылка в Telegram.
+model News {
+  id             String     @id @default(cuid())
+  title          String
+  /// Markdown-подобная разметка — см. FormattedText.
+  body           String
+  imageUrl       String?
+  status         String     @default("DRAFT") // DRAFT | PUBLISHED
+  /// { department?, position? } — тот же смысл, что AudienceFilters в рассылках. null/{} = все сотрудники.
+  audience       Json?
+  /// { tg?: { title?, body? }, uz?: { ... } } — см. Partner.translations.
+  translations   Json?
+  publishedAt    DateTime?
+  telegramSentAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  reads          NewsRead[]
+
+  @@index([status, publishedAt])
+}
+
+/// Факт прочтения новости конкретным сотрудником — пишется только по кнопке
+/// «Понятно». Закрытие крестиком в NewsRead не попадает (см. спеку).
+model NewsRead {
+  id     String   @id @default(cuid())
+  newsId String
+  userId String
+  readAt DateTime @default(now())
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@index([userId])
 }
 
 /// Редактируемые шаблоны текстов уведомлений (§5.10). `event` совпадает с

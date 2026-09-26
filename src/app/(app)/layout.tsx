@@ -9,6 +9,8 @@ import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selectio
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
+import { NewsPopup } from "./_news-popup";
+import { getPendingNewsFor } from "./_news-query";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getAdminNav } from "./_admin-nav";
@@ -80,6 +82,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
   let selectionStat: { used: number; drafts: number; max: number } | null = null;
+  const pendingNews = session.employee
+    ? await getPendingNewsFor(session.user.id, {
+        department: session.employee.department,
+        position: session.employee.position,
+      })
+    : null;
   if (session.employee) {
     const sctx = await resolveSelectionContext();
     if (sctx.targetPeriod) {
@@ -112,6 +120,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       {canManageSupport && <SupportAlert />}
+      {pendingNews && <NewsPopup news={pendingNews} />}
       <AppShell
         groups={groups}
         roleLabel={roleLabel}

@@ -16,7 +16,7 @@
  * Только для браузера.
  */
 
-export type UploadPurpose = "card" | "banner";
+export type UploadPurpose = "card" | "banner" | "news";
 
 export type GuardedUpload = {
   /** URL загруженного файла либо исключение с понятным текстом. */
