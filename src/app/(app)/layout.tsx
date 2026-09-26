@@ -5,10 +5,13 @@ import { ROLE_LABELS, can } from "@/lib/rbac";
 import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
-import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
+import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
+import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
+import { NewsPopup } from "./_news-popup";
+import { getPendingNewsFor } from "./_news-query";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getAdminNav } from "./_admin-nav";
@@ -80,13 +83,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
   let selectionStat: { used: number; drafts: number; max: number } | null = null;
+  const pendingNews = session.employee
+    ? await getPendingNewsFor(session.user.id, {
+        department: session.employee.department,
+        position: session.employee.position,
+      })
+    : null;
   if (session.employee) {
     const sctx = await resolveSelectionContext();
     if (sctx.targetPeriod) {
       const appw = await getApplicationWithItems(session.employee.id, sctx.targetPeriod.id);
       const its = appw?.items ?? [];
       selectionStat = {
-        used: its.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status)).length,
+        used: countAgainstLimit(its),
         drafts: its.filter((i) => i.status === "DRAFT").length,
         max: sctx.targetPeriod.maxSelections,
       };
@@ -94,6 +103,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const locale = await getLocale();
+  const gamificationEnabled = await getGamificationEnabled();
   const allGroups = buildNavGroups({
     roles,
     hasEmployee: !!session.employee,
@@ -101,6 +111,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isTaxiContractor,
     badges,
     locale,
+    gamificationEnabled,
   });
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
   // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».
@@ -112,6 +123,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       {canManageSupport && <SupportAlert />}
+      {pendingNews && <NewsPopup news={pendingNews} />}
       <AppShell
         groups={groups}
         roleLabel={roleLabel}

@@ -10,6 +10,7 @@ import {
   getPreviousPeriodPicks,
   getAutoPickedCardIds,
   ensureAutoPicks,
+  countAgainstLimit,
 } from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
@@ -207,6 +208,7 @@ export default async function OverviewPage() {
   const items = application?.items ?? [];
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
+  const usedForLimit = countAgainstLimit(activeItems);
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
   const maxSelections = targetPeriod?.maxSelections ?? period?.maxSelections ?? 4;
 
@@ -499,7 +501,8 @@ export default async function OverviewPage() {
           }))}
           selectedIds={selectedIds}
           previousPicks={previousPicks}
-          atSelectionLimit={selectedIds.length >= maxSelections}
+          atSelectionLimit={usedForLimit >= maxSelections}
+          usedForLimit={usedForLimit}
           draftCount={draftCount}
           maxSelections={maxSelections}
           windowOpen={windowOpen}

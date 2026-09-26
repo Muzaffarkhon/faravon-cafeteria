@@ -14,6 +14,7 @@ import { getLocale, getTranslator } from "@/lib/i18n";
 import { ServiceAccountRow } from "./_account";
 import { EmployeeArchiveButton } from "./_archive-button";
 import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
+import { EmployeeEditButton } from "./_edit-modal";
 import { RowContextMenu } from "./_row-menu";
 import { ALL_ROLES } from "./roles";
 
@@ -301,12 +302,7 @@ export default async function UsersPage({
                 </td>
                 <td>
                   <div className="flex items-center justify-end gap-2">
-                    <Link
-                      href={`/admin/users/${e.id}`}
-                      className={buttonClass({ variant: "secondary", size: "sm" })}
-                    >
-                      {t("users.open")}
-                    </Link>
+                    <EmployeeEditButton id={e.id} label={t("users.open")} locale={locale} />
                     <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} locale={locale} />
                     <RowContextMenu
                       kind="employee"

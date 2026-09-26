@@ -149,6 +149,9 @@ model Employee {
   cardLikes             CardLike[]
   cashbackAccounts      CashbackAccount[]
   autoPicks             AutoPick[]
+  coinAccount      CoinAccount?
+  employeeTasks    EmployeeTask[]
+  coinRedemptions  CoinRedemption[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -188,6 +191,7 @@ model User {
   auditLogs       AuditLog[]
   cashierLinks    CashierLink[]
   notifications   Notification[]
+  newsReads       NewsRead[]
   decisions       ApplicationItem[]      @relation("DecidedBy")
   cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
   templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
@@ -291,6 +295,9 @@ model BenefitCard {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  coinPrice          Int?
+  coinRedemptionMode CoinRedemptionMode?
+
   partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
@@ -298,6 +305,7 @@ model BenefitCard {
   versions BenefitCardVersion[]
   likes    CardLike[]
   autoPicks AutoPick[]
+  coinRedemptions CoinRedemption[]
 
   @@index([archivedAt])
 }
@@ -378,6 +386,7 @@ model Period {
   windowEnd      DateTime
   status         PeriodStatus @default(DRAFT)
   maxSelections  Int          @default(4)
+  maxCoinRedemptions Int      @default(1)
   windowOpenNotifiedAt   DateTime? // §5.10: разослано «окно выбора открыто»
   windowClosingNotifiedAt DateTime? // §5.10: разослано напоминание «закроется через 3 дня»
   createdAt      DateTime     @default(now())
@@ -410,6 +419,7 @@ model ApplicationItem {
   card          BenefitCard @relation(fields: [cardId], references: [id])
   cardId        String
   status        ItemStatus  @default(DRAFT)
+  viaCoins      Boolean     @default(false)
   decisionComment String?
   contactPhone  String?     // §такси: номер, который сотрудник указал при выборе PHONE_PROMO-льготы (промокод уйдёт на него)
   decidedBy     User?       @relation("DecidedBy", fields: [decidedById], references: [id])
@@ -597,6 +607,18 @@ model SatisfactionSettings {
   updatedAt  DateTime @updatedAt
 }
 
+/// Рубильник геймификации (§ Farovon Coins) — одна строка-синглтон (id
+/// всегда "default"), default(false) — на любой новой/свежедеплоенной среде
+/// фича выключена, пока C&B не включит её на /admin/gamification. Пока
+/// выключена: страница сотрудника /gamification недоступна (редирект),
+/// пункт меню скрыт, cron-пересчёт задач и все действия (join/buy/complete/
+/// approve) отклоняются на уровне библиотеки — не только UI.
+model GamificationSettings {
+  id        String   @id @default("default")
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
 /// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —
 /// необязательный комментарий. Показывается сотруднику после погашения
 /// купона у партнёра (реальный опыт использования льготы), повторно — не
@@ -725,6 +747,42 @@ model TextBlock {
   updatedAt DateTime @updatedAt
 }
 
+/// Новости: попап на витрине сотрудника + лента + рассылка в Telegram.
+model News {
+  id             String     @id @default(cuid())
+  title          String
+  /// Markdown-подобная разметка — см. FormattedText.
+  body           String
+  imageUrl       String?
+  status         String     @default("DRAFT") // DRAFT | PUBLISHED
+  /// { department?, position? } — тот же смысл, что AudienceFilters в рассылках. null/{} = все сотрудники.
+  audience       Json?
+  /// { tg?: { title?, body? }, uz?: { ... } } — см. Partner.translations.
+  translations   Json?
+  publishedAt    DateTime?
+  telegramSentAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  reads          NewsRead[]
+
+  @@index([status, publishedAt])
+}
+
+/// Факт прочтения новости конкретным сотрудником — пишется только по кнопке
+/// «Понятно». Закрытие крестиком в NewsRead не попадает (см. спеку).
+model NewsRead {
+  id     String   @id @default(cuid())
+  newsId String
+  userId String
+  readAt DateTime @default(now())
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+  @@index([userId])
+}
+
 /// Редактируемые шаблоны текстов уведомлений (§5.10). `event` совпадает с
 /// Notification.event. В `body` — плейсхолдеры вида {employee}, {card}; блок
 /// [[ ... {x} ... ]] выкидывается целиком, если {x} пустой. Если строки нет —
@@ -822,4 +880,143 @@ model CashierLink {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+enum TaskScope {
+  ALL
+  DEPARTMENT
+  SPECIFIC
+}
+
+enum GamificationVerification {
+  MANUAL
+  AUTO
+}
+
+/// Метрики, которые можно вычислить из уже существующих данных приложения —
+/// без интеграции с табельным учётом (его в проекте нет).
+enum GamificationAutoMetric {
+  APPLICATIONS_SUBMITTED
+  COUPONS_USED
+  FEEDBACK_GIVEN
+}
+
+enum EmployeeTaskStatus {
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+enum CoinEntryKind {
+  EARNED
+  SPENT
+  REVERSED
+}
+
+enum CoinRedemptionMode {
+  INSTANT
+  REQUEST
+}
+
+enum CoinRedemptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+/// Шаблон задачи геймификации, создаёт C&B. Сотрудник «берёт» задачу в работу
+/// (EmployeeTask), после чего прогресс проверяется либо вручную C&B, либо
+/// автоматически cron-роутом (см. src/lib/gamification-tasks.ts).
+model GamificationTask {
+  id           String                    @id @default(cuid())
+  seq          Int                       @unique @default(autoincrement())
+  title        String
+  description  String
+  coinReward   Int
+  verification GamificationVerification
+  autoMetric   GamificationAutoMetric?
+  targetValue  Int?
+  scope        TaskScope                 @default(ALL)
+  department   String?
+  employeeIds  String[]                  @default([])
+  startsAt     DateTime                  @default(now())
+  endsAt       DateTime?
+  isActive     Boolean                   @default(true)
+  createdById  String
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  employeeTasks EmployeeTask[]
+
+  @@index([isActive, startsAt])
+}
+
+/// Задача, которую сотрудник взял в работу. Уникальность по паре —
+/// нельзя взять одну и ту же задачу дважды.
+model EmployeeTask {
+  id            String             @id @default(cuid())
+  employee      Employee           @relation(fields: [employeeId], references: [id])
+  employeeId    String
+  task          GamificationTask   @relation(fields: [taskId], references: [id])
+  taskId        String
+  status        EmployeeTaskStatus @default(IN_PROGRESS)
+  progressValue Int                @default(0)
+  prizeCardId   String?
+  joinedAt      DateTime           @default(now())
+  completedAt   DateTime?
+  confirmedById String?
+
+  @@unique([employeeId, taskId])
+  @@index([status])
+}
+
+/// Баланс монет сотрудника — один счёт на сотрудника (в отличие от кешбека,
+/// монеты не привязаны к партнёру).
+model CoinAccount {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String   @unique
+  balance    Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  entries CoinEntry[]
+}
+
+/// Журнал операций по монетам: баланс = сумма EARNED − сумма SPENT + сумма
+/// REVERSED-компенсаций. opKey защищает от повторного начисления/списания.
+model CoinEntry {
+  id              String        @id @default(cuid())
+  account         CoinAccount   @relation(fields: [accountId], references: [id])
+  accountId       String
+  kind            CoinEntryKind
+  amount          Int
+  reason          String
+  taskId          String?
+  redemptionId    String?
+  opKey           String        @unique
+  reversesEntryId String?       @unique
+  createdAt       DateTime      @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+/// Покупка карточки-льготы за монеты. INSTANT выполняется сразу (fulfillCoinRedemption
+/// вызывается синхронно), REQUEST ждёт решения C&B.
+model CoinRedemption {
+  id            String                @id @default(cuid())
+  employee      Employee              @relation(fields: [employeeId], references: [id])
+  employeeId    String
+  benefitCard   BenefitCard           @relation(fields: [benefitCardId], references: [id])
+  benefitCardId String
+  coinCost      Int
+  mode          CoinRedemptionMode
+  status        CoinRedemptionStatus  @default(PENDING)
+  couponId      String?
+  decidedById   String?
+  decidedAt     DateTime?
+  createdAt     DateTime              @default(now())
+
+  @@index([employeeId])
+  @@index([status])
 }

@@ -11,6 +11,7 @@ import { BOT_URL } from "@/lib/broadcast-templates";
 import { LOCALES, type Locale } from "@/lib/i18n/shared";
 import { formatNotificationText, templateMapFromRows } from "@/lib/notification-format";
 import { sendTelegramDetailed } from "@/lib/notification-delivery";
+import { platformUrl } from "@/lib/platform-url";
 
 export type BroadcastState = { sent?: number; failed?: number; error?: string };
 
@@ -31,7 +32,7 @@ export async function sendBroadcast(
   assertCan(session.roles, "cards.manage");
 
   // Плейсхолдеры шаблонов подставляем при отправке, чтобы в текстах не хардкодить адрес сайта.
-  const siteUrl = (process.env.PLATFORM_URL || "").trim().replace(/\/+$/, "");
+  const siteUrl = platformUrl() || "";
 
   // Русский текст обязателен; перевод, которого нет, заменяется русским.
   const texts = {} as Record<Locale, string>;

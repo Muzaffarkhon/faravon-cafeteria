@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma, type BenefitMode, type Block, type CardStatus } from "@prisma/client";
+import { Prisma, type BenefitMode, type Block, type CardStatus, type CoinRedemptionMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -44,6 +44,19 @@ function parse(formData: FormData) {
     if (cashbackPercent < 1 || cashbackPercent > 100) throw new Error("Процент кешбека — от 1 до 100.");
   }
 
+  const coinPriceRaw = String(formData.get("coinPrice") ?? "").trim();
+  let coinPrice: number | null = null;
+  let coinRedemptionMode: CoinRedemptionMode | null = null;
+  if (coinPriceRaw) {
+    const parsed = Number.parseInt(coinPriceRaw, 10);
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error("Цена в монетах должна быть положительным целым числом.");
+    if (minRaw > 1) throw new Error("Групповые льготы (минимум участников > 1) нельзя продавать за монеты.");
+    const modeRaw = String(formData.get("coinRedemptionMode") ?? "INSTANT");
+    if (modeRaw !== "INSTANT" && modeRaw !== "REQUEST") throw new Error("Некорректный режим покупки за монеты.");
+    coinPrice = parsed;
+    coinRedemptionMode = modeRaw;
+  }
+
   let translations: object | null = null;
   try {
     const parsed = JSON.parse(String(formData.get("translations") ?? "{}"));
@@ -67,6 +80,8 @@ function parse(formData: FormData) {
     cashbackPercent,
     groupWaves: formData.get("groupWaves") === "on",
     partnerId,
+    coinPrice,
+    coinRedemptionMode,
     translations: (translations ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };
 }

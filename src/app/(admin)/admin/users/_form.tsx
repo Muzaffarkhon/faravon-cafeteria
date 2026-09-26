@@ -26,6 +26,7 @@ export function EmployeeForm({
   initial,
   submitLabel,
   withAccount = false,
+  onCancel,
   locale,
 }: {
   action: (s: EmployeeFormState, fd: FormData) => Promise<EmployeeFormState>;
@@ -33,6 +34,8 @@ export function EmployeeForm({
   submitLabel: string;
   /** показать блок «создать учётную запись» (только на странице создания) */
   withAccount?: boolean;
+  /** если задано — «Отмена» вызывает это вместо перехода на /admin/users (нужно в модалке). */
+  onCancel?: () => void;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -206,9 +209,15 @@ export function EmployeeForm({
         <Button type="submit" loading={pending}>
           {submitLabel}
         </Button>
-        <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
-          {t("users.form.cancel")}
-        </Link>
+        {onCancel ? (
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            {t("users.form.cancel")}
+          </Button>
+        ) : (
+          <Link href="/admin/users" className={buttonClass({ variant: "secondary" })}>
+            {t("users.form.cancel")}
+          </Link>
+        )}
       </div>
     </form>
   );

@@ -61,10 +61,14 @@ export type NavContext = {
   badges?: NavBadges;
   /** Язык интерфейса — переведены пока только эти 4 пункта «Кабинета» сотрудника. */
   locale?: Locale;
+  /** Рубильник геймификации (GamificationSettings.enabled) — пока выключен,
+   *  пункт меню сотрудника скрыт (страница и так редиректит на /). Админский
+   *  пункт /admin/gamification не гейтится — он нужен C&B, чтобы включить фичу. */
+  gamificationEnabled?: boolean;
 };
 
 export function buildNavGroups(ctx: NavContext): NavGroup[] {
-  const { roles, hasEmployee, partnerId, isTaxiContractor } = ctx;
+  const { roles, hasEmployee, partnerId, isTaxiContractor, gamificationEnabled = false } = ctx;
   const b = ctx.badges ?? {};
   const t = (key: TKey) => translate(ctx.locale ?? "ru", key);
 
@@ -105,12 +109,19 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       icon: ICONS.inbox,
     });
     add("cabinet", t("nav.cabinet"), {
-      href: "/gamification",
-      label: t("nav.gamification"),
-      desc: "баллы и достижения",
-      icon: ICONS.gamification,
-      soon: true,
+      href: "/news",
+      label: "Новости",
+      desc: "объявления компании",
+      icon: ICONS.bell,
     });
+    if (gamificationEnabled) {
+      add("cabinet", t("nav.cabinet"), {
+        href: "/gamification",
+        label: t("nav.gamification"),
+        desc: "задачи и монеты Farovon Coin",
+        icon: ICONS.gamification,
+      });
+    }
   }
 
   if (canDecide)
@@ -159,6 +170,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.cards"),
       desc: "программы признания, витрина заботы, реестр гибких льгот",
       icon: ICONS.cards,
+    });
+  if (canManageCards)
+    add("catalog", t("nav.catalog"), {
+      href: "/admin/news",
+      label: "Новости",
+      desc: "объявления с попапом на витрине и рассылкой в бот",
+      icon: ICONS.bell,
     });
   if (can(roles, "partners.manage"))
     add("catalog", t("nav.catalog"), {
@@ -279,6 +297,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.satisfaction"),
       desc: "опрос удовлетворённости: вкл/выкл, периодичность, оценки и отзывы",
       icon: ICONS.star,
+    });
+  if (can(roles, "gamification.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/gamification",
+      label: t("nav.gamification"),
+      desc: "задачи, монеты, заявки на покупку за монеты",
+      icon: ICONS.gamification,
     });
   if (can(roles, "periods.manage"))
     add("admin", t("nav.adminGroup"), {

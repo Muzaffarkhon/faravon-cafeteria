@@ -15,7 +15,7 @@ const MAX_SOURCE_BYTES = 25 * 1024 * 1024; // исходник до сжатия
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
-type Purpose = "card" | "banner";
+type Purpose = "card" | "banner" | "news";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));

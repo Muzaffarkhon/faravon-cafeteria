@@ -50,6 +50,7 @@ export function FlexSelection({
   selectedIds,
   previousPicks = [],
   atSelectionLimit = false,
+  usedForLimit,
   draftCount,
   maxSelections,
   windowOpen,
@@ -62,6 +63,7 @@ export function FlexSelection({
   /** «Выбрать как в прошлый раз» (§4) — льготы из последнего прошлого периода, ещё не выбранные сейчас. */
   previousPicks?: { cardId: string; title: string }[];
   atSelectionLimit?: boolean;
+  usedForLimit: number;
   draftCount: number;
   maxSelections: number;
   windowOpen: boolean;
@@ -147,7 +149,7 @@ export function FlexSelection({
     window.addEventListener("hashchange", focus);
     return () => window.removeEventListener("hashchange", focus);
   }, [cards]);
-  const usedCount = selectedIds.length;
+  const usedCount = usedForLimit;
   const submitting = busyId === "submit";
   const barVisible = windowOpen && hasSubmittable && draftCount > 0;
 

@@ -18,6 +18,7 @@
  */
 
 import { COUNT_NOUN, DEFAULT_TEMPLATES_I18N, GROUP_WORD } from "./notification-i18n";
+import { platformUrl } from "./platform-url";
 import type { Locale } from "./i18n/shared";
 
 /** Экранирование для Telegram HTML (parse_mode=HTML): только &, <, > значимы. */
@@ -37,13 +38,13 @@ export function grantMessage(
   /** false — диалог уже идёт (чат поддержки), приветствие лишнее. */
   greet = true,
 ): string {
-  const platformUrl = process.env.PLATFORM_URL || "";
+  const base = platformUrl();
   return (
     (greet ? `Здравствуйте, ${escHtml(fullName)}!\n\n` : "") +
     `🔑 Логин: <code>${escHtml(login)}</code>\n` +
     `🔒 Одноразовый пароль: <code>${escHtml(otp)}</code>\n\n` +
     `Пароль действует 24 часа и на один вход. При первом входе задайте постоянный пароль.\n` +
-    (platformUrl ? `Вход: ${platformUrl}/login` : "")
+    (base ? `Вход: ${base}/login` : "")
   );
 }
 
@@ -250,7 +251,7 @@ function buildVars(event: string, payload: Record<string, unknown>, locale: Loca
   if (locale !== "ru" && vars.group) vars.group = GROUP_WORD[locale];
   // Доступен во всех шаблонах как {siteUrl} — если PLATFORM_URL не задан,
   // пустой, и блоки [[ ... {siteUrl} ... ]] в шаблонах сами исчезают.
-  vars.siteUrl = process.env.PLATFORM_URL || "";
+  vars.siteUrl = platformUrl() || "";
   return vars;
 }
 

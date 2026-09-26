@@ -101,7 +101,7 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
       async (tx) => {
         const current = await tx.applicationItem.findMany({
           where: { applicationId: app.id },
-          select: { status: true },
+          select: { status: true, viaCoins: true },
         });
         if (countAgainstLimit(current) >= period.maxSelections) {
           throw new Error(`Можно выбрать не более ${period.maxSelections} льгот.`);
