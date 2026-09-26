@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui";
+import { FormattedText } from "@/components/formatted-text";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 
@@ -144,7 +145,7 @@ export function CardDetailsButton({ card, locale }: { card: CardDetails; locale:
                     <div className="mt-1.5 space-y-1.5 text-sm leading-6 text-ink">
                       {card.discountType && <p className="font-semibold">{card.discountType}</p>}
                       {card.condition && <p>{card.condition}</p>}
-                      {card.terms && <p>{card.terms}</p>}
+                      {card.terms && <FormattedText text={card.terms} />}
                     </div>
                   </div>
                 )}
