@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyEmployee } from "@/lib/notify";
 import { generateCouponNumber } from "@/lib/coupon";
-import { groupApprovedCount } from "@/lib/selection";
+import { isItemWaveReady } from "@/lib/selection";
 import { assertTransition } from "@/lib/application-workflow";
 
 /**
@@ -84,8 +84,8 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
 
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
-    const have = await groupApprovedCount(coupon.item.cardId, coupon.periodId);
-    if (have < min) return false;
+    const ready = await isItemWaveReady(coupon.item.cardId, coupon.periodId, coupon.itemId, min);
+    if (!ready) return false;
   }
 
   // Атомарный переход купона + позиции в одной транзакции: иначе падение между

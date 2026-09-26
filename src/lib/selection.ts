@@ -283,3 +283,38 @@ export async function groupApprovedCount(cardId: string, periodId: string): Prom
   });
   return rows[0]?._count._all ?? 0;
 }
+
+/**
+ * Готова ли к выдаче ВОЛНА конкретной позиции (§ groupWaves): при
+ * minParticipants > 1 купоны выдаются партиями по min, в порядке подачи
+ * (seq) — «кто раньше выбрал, тот в более ранней волне». Раньше это
+ * проверялось общим счётчиком одобренных (groupApprovedCount ≥ min), из-за
+ * чего после набора самой первой волны условие оставалось истинным навсегда
+ * и купоны следующих (ещё не набравшихся) волн выдавались сразу же —
+ * см. хендоф от 27 сентября про «Бассейн «Сугдиён»».
+ */
+export async function isItemWaveReady(
+  cardId: string,
+  periodId: string,
+  itemId: string,
+  min: number,
+): Promise<boolean> {
+  if (min <= 1) return true;
+  const rows = await db.applicationItem.findMany({
+    where: { cardId, status: { in: [...GROUP_ISSUE_STATUSES] }, application: { is: { periodId } } },
+    select: { id: true },
+    orderBy: { seq: "asc" },
+  });
+  const rank = rows.findIndex((r) => r.id === itemId) + 1; // 1-indexed, 0 — не найдена
+  if (rank === 0) return false;
+  const completedThroughRank = Math.floor(rows.length / min) * min;
+  return rank <= completedThroughRank;
+}
+
+/** Прогресс текущей (последней, ещё не обязательно полной) волны — для сообщений C&B. */
+export async function currentWaveProgress(cardId: string, periodId: string, min: number): Promise<number> {
+  if (min <= 1) return 0;
+  const have = await groupApprovedCount(cardId, periodId);
+  const inWave = have - Math.floor((have - 1) / min) * min;
+  return have <= 0 ? 0 : inWave;
+}
