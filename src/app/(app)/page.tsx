@@ -157,7 +157,11 @@ export default async function OverviewPage() {
     db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
     db.benefitCard.findMany({ where: { block: "CARE", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
     db.benefitCard.findMany({
-      where: { block: "FLEX", status: "PUBLISHED", archivedAt: null },
+      // coinPrice: null — карточка с назначенной ценой в монетах доступна
+      // ТОЛЬКО через покупку за монеты (/gamification), не через обычный
+      // бесплатный выбор льгот (иначе смысл покупки за монеты пропадает —
+      // сотрудник просто выбрал бы её бесплатно тем же способом).
+      where: { block: "FLEX", status: "PUBLISHED", archivedAt: null, coinPrice: null },
       orderBy: { sortOrder: "asc" },
       include: { partner: true },
     }),

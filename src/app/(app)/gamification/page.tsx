@@ -8,6 +8,7 @@ import { ActionForm } from "@/components/action-form";
 import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
+import { safeImageSrc } from "@/lib/safe-url";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
@@ -116,7 +117,16 @@ export default async function GamificationPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {shopCards.map((card) => (
-              <Card key={card.id} className="space-y-2 p-4">
+              <Card key={card.id} className="space-y-2 overflow-hidden p-4">
+                {safeImageSrc(card.imageUrl) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={safeImageSrc(card.imageUrl)!}
+                    alt=""
+                    loading="lazy"
+                    className="-mx-4 -mt-4 mb-1 h-32 w-[calc(100%+2rem)] object-cover"
+                  />
+                )}
                 <p className="font-semibold text-ink">{card.title}</p>
                 <p className="text-sm font-medium text-primary-strong">
                   {card.coinPrice} {t("gamification.coinUnit")}

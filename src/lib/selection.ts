@@ -157,7 +157,11 @@ export async function ensureAutoPicks(
         c.status === "PUBLISHED" &&
         c.isActive &&
         !c.archivedAt &&
-        c.partner?.deliveryMode !== "PHONE_PROMO",
+        c.partner?.deliveryMode !== "PHONE_PROMO" &&
+        // coinPrice != null — карточка стала эксклюзивом магазина за монеты
+        // (см. (app)/page.tsx), бесплатный автовыбор её больше не подхватывает,
+        // даже если сотрудник включил автовыбор до того, как ей назначили цену.
+        !c.coinPrice,
     );
   if (!eligible.length) return;
 
