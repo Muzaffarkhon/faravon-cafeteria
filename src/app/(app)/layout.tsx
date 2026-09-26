@@ -5,7 +5,7 @@ import { ROLE_LABELS, can } from "@/lib/rbac";
 import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
-import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
+import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
@@ -94,7 +94,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       const appw = await getApplicationWithItems(session.employee.id, sctx.targetPeriod.id);
       const its = appw?.items ?? [];
       selectionStat = {
-        used: its.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status)).length,
+        used: countAgainstLimit(its),
         drafts: its.filter((i) => i.status === "DRAFT").length,
         max: sctx.targetPeriod.maxSelections,
       };

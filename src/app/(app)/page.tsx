@@ -10,6 +10,7 @@ import {
   getPreviousPeriodPicks,
   getAutoPickedCardIds,
   ensureAutoPicks,
+  countAgainstLimit,
 } from "@/lib/selection";
 import { Card } from "@/components/ui";
 import { safeLinkHref, safeImageSrc } from "@/lib/safe-url";
@@ -200,16 +201,14 @@ export default async function OverviewPage() {
   // Автовыбор (§5): заявки на период ещё нет — первое обращение сотрудника
   // после открытия окна. Применяем сохранённые льготы один раз здесь, а не
   // при каждом заходе (иначе вернули бы то, что сотрудник сам убрал).
-  // Заявка может уже существовать только из-за покупки за монеты — в этом
-  // случае обычный авто-подбор всё равно должен применяться.
-  const hasRealSelection = application?.items.some((i) => !i.viaCoins) ?? false;
-  if (!hasRealSelection && windowOpen && targetPeriod) {
+  if (!application && windowOpen && targetPeriod) {
     await ensureAutoPicks(emp.id, targetPeriod);
     application = await getApplicationWithItems(emp.id, targetPeriod.id);
   }
   const items = application?.items ?? [];
   const activeItems = items.filter((i) => !["CANCELLED", "REJECTED"].includes(i.status));
   const selectedIds = activeItems.map((i) => i.cardId);
+  const usedForLimit = countAgainstLimit(activeItems);
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
   const maxSelections = targetPeriod?.maxSelections ?? period?.maxSelections ?? 4;
 
@@ -502,7 +501,8 @@ export default async function OverviewPage() {
           }))}
           selectedIds={selectedIds}
           previousPicks={previousPicks}
-          atSelectionLimit={selectedIds.length >= maxSelections}
+          atSelectionLimit={usedForLimit >= maxSelections}
+          usedForLimit={usedForLimit}
           draftCount={draftCount}
           maxSelections={maxSelections}
           windowOpen={windowOpen}

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { spendCoins, reverseSpend, CoinWalletError } from "@/lib/coin-wallet";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
-import { resolveSelectionContext } from "@/lib/selection";
+import { resolveSelectionContext, ensureAutoPicks } from "@/lib/selection";
 
 export class CoinRedemptionError extends Error {}
 
@@ -34,11 +34,18 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
     throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${period.maxCoinRedemptions}) уже использован.`);
   }
 
-  const application = await db.application.upsert({
+  const existingApp = await db.application.findUnique({
     where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
-    create: { employeeId: redemption.employeeId, periodId: period.id },
-    update: {},
   });
+  if (!existingApp && ctx.windowOpen && !ctx.missingNextPeriod) {
+    await ensureAutoPicks(redemption.employeeId, period);
+  }
+  const application = existingApp
+    ?? (await db.application.upsert({
+      where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
+      create: { employeeId: redemption.employeeId, periodId: period.id },
+      update: {},
+    }));
   const item = await db.applicationItem.create({
     data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
   });
