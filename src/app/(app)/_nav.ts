@@ -160,6 +160,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "программы признания, витрина заботы, реестр гибких льгот",
       icon: ICONS.cards,
     });
+  if (canManageCards)
+    add("catalog", t("nav.catalog"), {
+      href: "/admin/news",
+      label: "Новости",
+      desc: "объявления с попапом на витрине и рассылкой в бот",
+      icon: ICONS.bell,
+    });
   if (can(roles, "partners.manage"))
     add("catalog", t("nav.catalog"), {
       href: "/admin/partners",
