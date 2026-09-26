@@ -7,7 +7,14 @@ async function main() {
   const h = await bcrypt.hash("Password1", 12);
   await db.user.updateMany({
     where: { login: { in: ["ivanov", "petrova", "sidorov"] } },
-    data: { passwordHash: h, mustChangePassword: false, otpExpiresAt: null, failedLoginCount: 0, lockedUntil: null },
+    data: {
+      passwordHash: h,
+      mustChangePassword: false,
+      otpExpiresAt: null,
+      failedLoginCount: 0,
+      lockedUntil: null,
+      isActive: true,
+    },
   });
   await db.employee.updateMany({
     where: {
@@ -15,7 +22,7 @@ async function main() {
         in: ["Иванов Иван Иванович", "Петрова Мария Сергеевна", "Сидоров Пётр Алексеевич"],
       },
     },
-    data: { telegramId: null },
+    data: { telegramId: null, isActive: true, archivedAt: null },
   });
   await db.identificationCode.deleteMany({});
   await db.auditLog.deleteMany({
