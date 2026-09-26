@@ -27,7 +27,7 @@ export default async function GamificationAdminPage() {
   const locale = await getLocale();
   const t = await getTranslator();
 
-  const [tasks, pendingManual, pendingRequests, enabled] = await Promise.all([
+  const [tasks, pendingManual, pendingRequests, enabled, departmentRows] = await Promise.all([
     db.gamificationTask.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     db.employeeTask.findMany({
       where: { status: "IN_PROGRESS", task: { is: { verification: "MANUAL" } } },
@@ -40,7 +40,17 @@ export default async function GamificationAdminPage() {
       orderBy: { createdAt: "asc" },
     }),
     getGamificationEnabled(),
+    // Тот же паттерн, что в /admin/news — список отделов для Select, не
+    // свободный ввод (опечатка в свободном тексте → задача не находит ни
+    // одного сотрудника, ошибка не заметна сразу).
+    db.employee.findMany({
+      where: { isActive: true, archivedAt: null },
+      select: { department: true },
+      distinct: ["department"],
+      orderBy: { department: "asc" },
+    }),
   ]);
+  const departments = departmentRows.map((d) => d.department);
 
   return (
     <div data-wide className="space-y-6">
@@ -53,7 +63,7 @@ export default async function GamificationAdminPage() {
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("gamificationAdmin.newTaskSection")}</SectionTitle>
         <Card className="max-w-xl p-4">
-          <TaskForm action={createGamificationTask} locale={locale} />
+          <TaskForm action={createGamificationTask} locale={locale} departments={departments} />
         </Card>
       </section>
 
