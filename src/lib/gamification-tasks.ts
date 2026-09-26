@@ -98,13 +98,17 @@ async function rewardCompletedTask(employeeTaskId: string): Promise<void> {
 /** C&B вручную отмечает задачу выполненной (verification = MANUAL). */
 export async function completeEmployeeTaskManual(params: { employeeTaskId: string; actorId: string }): Promise<void> {
   const et = await db.employeeTask.findUniqueOrThrow({ where: { id: params.employeeTaskId }, include: { task: true } });
-  if (et.status !== "IN_PROGRESS") throw new GamificationTaskError("Задача уже закрыта.");
   if (et.task.verification !== "MANUAL") throw new GamificationTaskError("Эта задача проверяется автоматически.");
 
-  await db.employeeTask.update({
-    where: { id: et.id },
+  // Атомарный claim по IN_PROGRESS — иначе двойной клик "Подтвердить" мог бы
+  // дважды пройти rewardCompletedTask (двойное начисление монет само по себе
+  // idempotent по opKey, но двойная покупка выбранного заранее приза — нет).
+  const claimed = await db.employeeTask.updateMany({
+    where: { id: et.id, status: "IN_PROGRESS" },
     data: { status: "COMPLETED", completedAt: new Date(), confirmedById: params.actorId },
   });
+  if (claimed.count === 0) throw new GamificationTaskError("Задача уже закрыта.");
+
   await rewardCompletedTask(et.id);
   await audit({ actorId: params.actorId, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id });
 }
@@ -134,18 +138,20 @@ export async function recomputeAutoTasks(): Promise<{ checked: number; completed
     if (!et.task.autoMetric || et.task.targetValue == null) continue;
     const progressValue = await computeAutoProgress(et.task.autoMetric, et.employeeId, et.joinedAt);
     const reachedTarget = progressValue >= et.task.targetValue;
-    await db.employeeTask.update({
-      where: { id: et.id },
-      data: {
-        progressValue,
-        ...(reachedTarget ? { status: "COMPLETED", completedAt: new Date() } : {}),
-      },
-    });
-    if (reachedTarget) {
-      completed += 1;
-      await rewardCompletedTask(et.id);
-      await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
+    if (!reachedTarget) {
+      await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
+      continue;
     }
+    // Атомарный claim по IN_PROGRESS — на случай перекрывающихся запусков
+    // cron-роута (см. rewardCompletedTask: двойная покупка приза не idempotent).
+    const claimed = await db.employeeTask.updateMany({
+      where: { id: et.id, status: "IN_PROGRESS" },
+      data: { progressValue, status: "COMPLETED", completedAt: new Date() },
+    });
+    if (claimed.count === 0) continue;
+    completed += 1;
+    await rewardCompletedTask(et.id);
+    await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
   }
   return { checked: inProgress.length, completed };
 }

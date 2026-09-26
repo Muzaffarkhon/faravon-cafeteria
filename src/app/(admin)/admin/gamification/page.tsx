@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, SectionTitle, Table, type BadgeTone } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { TaskForm } from "./_task-form";
 import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption } from "./actions";
 
@@ -82,9 +83,9 @@ export default async function GamificationAdminPage() {
                     <td>{task.scope === "ALL" ? t("gamificationAdmin.scopeAll") : task.scope === "DEPARTMENT" ? task.department : t("gamificationAdmin.scopeSpecific")}</td>
                     <td>
                       <form action={asFormAction(toggleTaskActive.bind(null, task.id, !task.isActive))}>
-                        <button type="submit" className="text-sm underline">
+                        <SubmitButton className="text-sm underline disabled:cursor-not-allowed disabled:opacity-50">
                           {task.isActive ? t("gamificationAdmin.deactivate") : t("gamificationAdmin.activate")}
-                        </button>
+                        </SubmitButton>
                       </form>
                     </td>
                   </tr>
@@ -121,9 +122,9 @@ export default async function GamificationAdminPage() {
                     <td data-numeric>{et.task.coinReward}</td>
                     <td>
                       <form action={asFormAction(completeTaskManually.bind(null, et.id))}>
-                        <button type="submit" className="text-sm font-medium text-primary-strong underline">
+                        <SubmitButton className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.confirmCompletion")}
-                        </button>
+                        </SubmitButton>
                       </form>
                     </td>
                   </tr>
@@ -161,14 +162,14 @@ export default async function GamificationAdminPage() {
                     </td>
                     <td className="space-x-3">
                       <form className="inline" action={asFormAction(decideRedemption.bind(null, r.id, "APPROVE"))}>
-                        <button type="submit" className="text-sm font-medium text-success underline">
+                        <SubmitButton className="text-sm font-medium text-success underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.approve")}
-                        </button>
+                        </SubmitButton>
                       </form>
                       <form className="inline" action={asFormAction(decideRedemption.bind(null, r.id, "REJECT"))}>
-                        <button type="submit" className="text-sm font-medium text-danger underline">
+                        <SubmitButton className="text-sm font-medium text-danger underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.reject")}
-                        </button>
+                        </SubmitButton>
                       </form>
                     </td>
                   </tr>

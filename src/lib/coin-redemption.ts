@@ -7,6 +7,17 @@ import { resolveSelectionContext, ensureAutoPicks } from "@/lib/selection";
 
 export class CoinRedemptionError extends Error {}
 
+/** Сколько покупок за монеты в этом периоде уже "заняты" (не CANCELLED/REJECTED). */
+async function countCommittedCoinRedemptions(employeeId: string, periodId: string): Promise<number> {
+  return db.applicationItem.count({
+    where: {
+      viaCoins: true,
+      application: { employeeId, periodId },
+      status: { notIn: ["CANCELLED", "REJECTED"] },
+    },
+  });
+}
+
 /**
  * Синтезирует Application + ApplicationItem (в статусе APPROVED, как будто
  * C&B уже одобрил выбор) под самую свежую запись Period — это позволяет
@@ -23,17 +34,6 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
   const period = ctx.targetPeriod;
   if (!period) throw new CoinRedemptionError("Нет открытого периода для выбора льгот — не из чего сформировать купон.");
 
-  const usedCount = await db.applicationItem.count({
-    where: {
-      viaCoins: true,
-      application: { employeeId: redemption.employeeId, periodId: period.id },
-      status: { notIn: ["CANCELLED", "REJECTED"] },
-    },
-  });
-  if (usedCount >= period.maxCoinRedemptions) {
-    throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${period.maxCoinRedemptions}) уже использован.`);
-  }
-
   const existingApp = await db.application.findUnique({
     where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
   });
@@ -46,17 +46,43 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
       create: { employeeId: redemption.employeeId, periodId: period.id },
       update: {},
     }));
-  const item = await db.applicationItem.create({
-    data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
-  });
 
-  const coupon = await formCouponForItem(item.id, actorId);
-  await issueCouponIfReady(coupon.id, actorId);
+  // Счёт + создание позиции в одной сериализуемой транзакции — иначе два
+  // параллельных redeemWithCoins для одного сотрудника могли бы оба пройти
+  // проверку лимита до того, как любой из них создаст свою позицию.
+  const item = await db.$transaction(
+    async (tx) => {
+      const usedCount = await tx.applicationItem.count({
+        where: {
+          viaCoins: true,
+          application: { employeeId: redemption.employeeId, periodId: period.id },
+          status: { notIn: ["CANCELLED", "REJECTED"] },
+        },
+      });
+      if (usedCount >= period.maxCoinRedemptions) {
+        throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${period.maxCoinRedemptions}) уже использован.`);
+      }
+      return tx.applicationItem.create({
+        data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
+      });
+    },
+    { isolationLevel: "Serializable" },
+  );
 
-  await db.coinRedemption.update({
-    where: { id: redemptionId },
-    data: { couponId: coupon.id, status: "FULFILLED" },
-  });
+  try {
+    const coupon = await formCouponForItem(item.id, actorId);
+    await issueCouponIfReady(coupon.id, actorId);
+
+    await db.coinRedemption.update({
+      where: { id: redemptionId },
+      data: { couponId: coupon.id, status: "FULFILLED" },
+    });
+  } catch (e) {
+    // Купон не сформировался — снимаем позицию, иначе она бы навсегда занимала
+    // слот maxCoinRedemptions, хотя покупка не состоялась (монеты вернёт вызывающий).
+    await db.applicationItem.update({ where: { id: item.id }, data: { status: "CANCELLED" } }).catch(() => {});
+    throw e;
+  }
 }
 
 /**
@@ -107,6 +133,17 @@ export async function redeemWithCoins(params: {
     throw new CoinRedemptionError("Эта льгота выдаётся по номеру телефона, купон не формируется.");
   }
 
+  // Ранняя проверка лимита (best-effort — окончательная проверка внутри
+  // fulfillRedemption, в транзакции): не тратим монеты впустую, если лимит
+  // на этот период уже занят уже подтверждёнными покупками.
+  const ctx = await resolveSelectionContext();
+  if (ctx.targetPeriod) {
+    const used = await countCommittedCoinRedemptions(params.employeeId, ctx.targetPeriod.id);
+    if (used >= ctx.targetPeriod.maxCoinRedemptions) {
+      throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${ctx.targetPeriod.maxCoinRedemptions}) уже использован.`);
+    }
+  }
+
   const redemption = await db.coinRedemption.create({
     data: {
       employeeId: params.employeeId,
@@ -147,22 +184,23 @@ export async function decideCoinRedemption(params: {
   decision: "APPROVE" | "REJECT";
   actorId: string;
 }): Promise<void> {
-  const redemption = await db.coinRedemption.findUniqueOrThrow({ where: { id: params.redemptionId } });
-  if (redemption.status !== "PENDING") throw new CoinRedemptionError("Заявка уже обработана.");
+  // Атомарный claim по PENDING (updateMany, не findUnique+update) — иначе два
+  // параллельных клика "Одобрить"/"Отклонить" на одну заявку оба прошли бы
+  // проверку статуса до того, как любой из них его сменит, и купон/возврат
+  // монет мог бы случиться дважды. CoinRedemptionStatus.APPROVED раньше нигде
+  // не проставлялся — используем его здесь как маркер "уже забрано в обработку".
+  const claimStatus = params.decision === "APPROVE" ? "APPROVED" : "REJECTED";
+  const claimed = await db.coinRedemption.updateMany({
+    where: { id: params.redemptionId, status: "PENDING" },
+    data: { status: claimStatus, decidedById: params.actorId, decidedAt: new Date() },
+  });
+  if (claimed.count === 0) throw new CoinRedemptionError("Заявка уже обработана.");
 
   if (params.decision === "APPROVE") {
-    await fulfillOrCompensate(redemption.id, params.actorId);
-    await db.coinRedemption.update({
-      where: { id: redemption.id },
-      data: { decidedById: params.actorId, decidedAt: new Date() },
-    });
-    await audit({ actorId: params.actorId, action: "COIN_REDEMPTION_APPROVED", entityType: "CoinRedemption", entityId: redemption.id });
+    await fulfillOrCompensate(params.redemptionId, params.actorId);
+    await audit({ actorId: params.actorId, action: "COIN_REDEMPTION_APPROVED", entityType: "CoinRedemption", entityId: params.redemptionId });
   } else {
-    await reverseSpend({ opKey: `redemption:${redemption.id}`, reason: "Заявка на покупку за монеты отклонена" });
-    await db.coinRedemption.update({
-      where: { id: redemption.id },
-      data: { status: "REJECTED", decidedById: params.actorId, decidedAt: new Date() },
-    });
-    await audit({ actorId: params.actorId, action: "COIN_REDEMPTION_REJECTED", entityType: "CoinRedemption", entityId: redemption.id });
+    await reverseSpend({ opKey: `redemption:${params.redemptionId}`, reason: "Заявка на покупку за монеты отклонена" });
+    await audit({ actorId: params.actorId, action: "COIN_REDEMPTION_REJECTED", entityType: "CoinRedemption", entityId: params.redemptionId });
   }
 }

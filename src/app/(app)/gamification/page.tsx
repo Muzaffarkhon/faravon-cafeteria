@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, SectionTitle, Table } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
@@ -58,9 +59,9 @@ export default async function GamificationPage() {
                   +{task.coinReward} {t("gamification.coinUnit")}
                 </p>
                 <form action={asFormAction(joinTaskAction.bind(null, task.id, null))}>
-                  <button type="submit" className="text-sm font-medium text-primary-strong underline">
+                  <SubmitButton className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50">
                     {t("gamification.joinTask")}
-                  </button>
+                  </SubmitButton>
                 </form>
               </Card>
             ))}
@@ -113,13 +114,12 @@ export default async function GamificationPage() {
                   {card.coinPrice} {t("gamification.coinUnit")}
                 </p>
                 <form action={asFormAction(buyWithCoinsAction.bind(null, card.id))}>
-                  <button
-                    type="submit"
+                  <SubmitButton
                     disabled={balance < (card.coinPrice ?? Infinity)}
                     className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {card.coinRedemptionMode === "REQUEST" ? t("gamification.buyRequest") : t("gamification.buyInstant")}
-                  </button>
+                  </SubmitButton>
                 </form>
               </Card>
             ))}
