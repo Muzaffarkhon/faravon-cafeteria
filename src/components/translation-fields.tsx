@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Field, Input, Textarea } from "./ui";
+import { RichTextarea } from "./rich-textarea";
 
 type FieldDef = { name: string; label: string; multiline?: boolean };
 type Translations = Partial<Record<"tg" | "uz", Record<string, string>>>;
@@ -58,7 +59,7 @@ export function TranslationFields({
               {fields.map((f) => (
                 <Field key={f.name} label={f.label} htmlFor={`tr-${loc}-${f.name}`}>
                   {f.multiline ? (
-                    <Textarea
+                    <RichTextarea
                       id={`tr-${loc}-${f.name}`}
                       rows={2}
                       value={value[loc]?.[f.name] ?? ""}
