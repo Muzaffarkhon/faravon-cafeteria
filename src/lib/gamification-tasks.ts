@@ -7,9 +7,8 @@ import type { GamificationAutoMetric } from "@prisma/client";
 
 export class GamificationTaskError extends Error {}
 
-function scopeWhere(employee: { id: string; department: string }) {
+function scopeMatches(employee: { id: string; department: string }) {
   return {
-    isActive: true,
     OR: [
       { scope: "ALL" as const },
       { scope: "DEPARTMENT" as const, department: employee.department },
@@ -24,10 +23,10 @@ export async function listAvailableTasksForEmployee(employeeId: string) {
   const now = new Date();
   return db.gamificationTask.findMany({
     where: {
-      ...scopeWhere(employee),
+      isActive: true,
       startsAt: { lte: now },
-      OR: [{ endsAt: null }, { endsAt: { gte: now } }],
       employeeTasks: { none: { employeeId } },
+      AND: [scopeMatches(employee), { OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
     },
     orderBy: { createdAt: "desc" },
   });
@@ -45,6 +44,16 @@ export function listEmployeeTasks(employeeId: string) {
 export async function joinTask(params: { employeeId: string; taskId: string; prizeCardId?: string | null }): Promise<void> {
   const task = await db.gamificationTask.findUnique({ where: { id: params.taskId } });
   if (!task || !task.isActive) throw new GamificationTaskError("Задача недоступна.");
+  const now = new Date();
+  if (task.startsAt > now || (task.endsAt && task.endsAt < now)) {
+    throw new GamificationTaskError("Задача недоступна.");
+  }
+  const employee = await db.employee.findUniqueOrThrow({ where: { id: params.employeeId }, select: { id: true, department: true } });
+  const inScope =
+    task.scope === "ALL" ||
+    (task.scope === "DEPARTMENT" && task.department === employee.department) ||
+    (task.scope === "SPECIFIC" && task.employeeIds.includes(employee.id));
+  if (!inScope) throw new GamificationTaskError("Задача недоступна.");
   if (params.prizeCardId) {
     const card = await db.benefitCard.findUnique({ where: { id: params.prizeCardId }, select: { coinPrice: true } });
     if (!card?.coinPrice) throw new GamificationTaskError("Выбранный приз не продаётся за монеты.");
