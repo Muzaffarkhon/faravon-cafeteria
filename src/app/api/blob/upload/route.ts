@@ -30,6 +30,7 @@ const MAX_BYTES = 2 * 1024 * 1024; // 2 МБ
 const PURPOSE_PERMISSION: Record<string, Permission> = {
   card: "cards.manage",
   banner: "partners.manage",
+  news: "cards.manage",
 };
 
 /** Нормализует произвольный purpose и возвращает нужное право. */
@@ -39,6 +40,12 @@ function resolvePurpose(raw: string | null | undefined): {
 } {
   const purpose = raw && PURPOSE_PERMISSION[raw] ? raw : "card";
   return { purpose, permission: PURPOSE_PERMISSION[purpose] };
+}
+
+function auditLabelsFor(purpose: string): { action: string; entityType: string } {
+  if (purpose === "banner") return { action: "BANNER_IMAGE_UPLOADED", entityType: "PartnerBanner" };
+  if (purpose === "news") return { action: "NEWS_IMAGE_UPLOADED", entityType: "News" };
+  return { action: "CARD_IMAGE_UPLOADED", entityType: "BenefitCard" };
 }
 
 /** UNAUTHENTICATED → 401, FORBIDDEN → 403, остальное → 400. */
@@ -109,11 +116,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       await audit({
         actorId: s.user.id,
-        action:
-          purpose === "banner"
-            ? "BANNER_IMAGE_UPLOADED"
-            : "CARD_IMAGE_UPLOADED",
-        entityType: purpose === "banner" ? "PartnerBanner" : "BenefitCard",
+        ...auditLabelsFor(purpose),
         entityId: "-",
         newValue: { url: blob.url },
       });
@@ -165,13 +168,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           /* ignore */
         }
         if (userId) {
-          await audit({
-            actorId: userId,
-            action: purpose === "banner" ? "BANNER_IMAGE_UPLOADED" : "CARD_IMAGE_UPLOADED",
-            entityType: purpose === "banner" ? "PartnerBanner" : "BenefitCard",
-            entityId: "-",
-            newValue: { url: blob.url },
-          });
+          await audit({ actorId: userId, ...auditLabelsFor(purpose), entityId: "-", newValue: { url: blob.url } });
         }
       },
     });
