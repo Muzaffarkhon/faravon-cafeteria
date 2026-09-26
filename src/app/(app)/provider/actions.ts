@@ -16,6 +16,7 @@ import {
 import { db } from "@/lib/db";
 import { applyCashback, CashbackError, getCashbackState } from "@/lib/cashback";
 import { signOpToken, verifyOpToken } from "@/lib/op-token";
+import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 /** Данные кассы для льготы-кешбека: баланс сотрудника у партнёра и правила начисления. */
 export type CashbackView = {
@@ -179,7 +180,13 @@ export async function redeemCoupon(number: string): Promise<RedeemResult> {
   assertCan(s.roles, "coupons.confirm");
   const t = await getTranslator();
   try {
-    await redeemCouponByNumber(number, s.user.id, s.user.partnerId);
+    const coupon = await redeemCouponByNumber(number, s.user.id, s.user.partnerId);
+    // Мгновенная проверка авто-задач геймификации на метрику COUPONS_USED —
+    // не дожидаясь ночного крона (см. lib/gamification-tasks.ts). Вызов здесь,
+    // а не внутри coupon.ts — иначе получился бы циклический импорт
+    // (gamification-tasks.ts уже зависит от coupon-flow.ts, который зависит
+    // от coupon.ts).
+    await checkAutoTasksForEmployee(coupon.employeeId, "COUPONS_USED").catch(() => {});
     revalidatePath("/provider");
     return { ok: true };
   } catch (e) {

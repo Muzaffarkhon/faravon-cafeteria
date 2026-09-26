@@ -17,6 +17,7 @@ import {
   isWithinCancelWindow,
 } from "@/lib/selection";
 import { submitSatisfactionResponse } from "@/lib/satisfaction";
+import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 async function employeeContext() {
   const s = await requireSession();
@@ -195,6 +196,10 @@ async function submitSelectionImpl() {
       count: drafts.length,
     },
   });
+
+  // Мгновенная проверка авто-задач геймификации на метрику
+  // APPLICATIONS_SUBMITTED — не дожидаясь ночного крона.
+  await checkAutoTasksForEmployee(employee.id, "APPLICATIONS_SUBMITTED").catch(() => {});
 
   revalidatePath("/", "layout");
   revalidatePath("/applications");
