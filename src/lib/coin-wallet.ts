@@ -99,20 +99,25 @@ export async function reverseSpend(params: { opKey: string; reason: string }): P
   const already = await db.coinEntry.findUnique({ where: { opKey: reverseKey } });
   if (already) return;
 
-  await db.$transaction(async (tx) => {
-    await tx.coinAccount.update({ where: { id: spent.accountId }, data: { balance: { increment: spent.amount } } });
-    await tx.coinEntry.create({
-      data: {
-        accountId: spent.accountId,
-        kind: "REVERSED",
-        amount: spent.amount,
-        reason: params.reason,
-        redemptionId: spent.redemptionId,
-        opKey: reverseKey,
-        reversesEntryId: spent.id,
-      },
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.coinAccount.update({ where: { id: spent.accountId }, data: { balance: { increment: spent.amount } } });
+      await tx.coinEntry.create({
+        data: {
+          accountId: spent.accountId,
+          kind: "REVERSED",
+          amount: spent.amount,
+          reason: params.reason,
+          redemptionId: spent.redemptionId,
+          opKey: reverseKey,
+          reversesEntryId: spent.id,
+        },
+      });
     });
-  });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return; // параллельный дубль — уже возвращено
+    throw e;
+  }
 }
 
 export function listCoinEntries(employeeId: string, take = 20) {
