@@ -126,6 +126,12 @@ export async function redeemWithCoins(params: {
   if (!card.coinPrice || !card.coinRedemptionMode) {
     throw new CoinRedemptionError("Эта карточка не продаётся за монеты.");
   }
+  // Раньше проверялся только UI-фильтр магазина (coinPrice not null + isActive +
+  // PUBLISHED + archivedAt null) — прямой вызов action мог купить архивную/DRAFT
+  // карточку в обход витрины.
+  if (card.status !== "PUBLISHED" || !card.isActive || card.archivedAt) {
+    throw new CoinRedemptionError("Эта льгота сейчас недоступна для покупки.");
+  }
   if (card.minParticipants > 1) {
     throw new CoinRedemptionError("Групповые льготы нельзя купить за монеты.");
   }

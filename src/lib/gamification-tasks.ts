@@ -55,8 +55,14 @@ export async function joinTask(params: { employeeId: string; taskId: string; pri
     (task.scope === "SPECIFIC" && task.employeeIds.includes(employee.id));
   if (!inScope) throw new GamificationTaskError("Задача недоступна.");
   if (params.prizeCardId) {
-    const card = await db.benefitCard.findUnique({ where: { id: params.prizeCardId }, select: { coinPrice: true } });
+    const card = await db.benefitCard.findUnique({
+      where: { id: params.prizeCardId },
+      select: { coinPrice: true, status: true, isActive: true, archivedAt: true },
+    });
     if (!card?.coinPrice) throw new GamificationTaskError("Выбранный приз не продаётся за монеты.");
+    if (card.status !== "PUBLISHED" || !card.isActive || card.archivedAt) {
+      throw new GamificationTaskError("Выбранный приз сейчас недоступен.");
+    }
   }
   const existing = await db.employeeTask.findUnique({
     where: { employeeId_taskId: { employeeId: params.employeeId, taskId: params.taskId } },
@@ -132,31 +138,46 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
 }
 
 /** Пересчёт прогресса всех AUTO-задач в работе. Вызывается cron-роутом раз в сутки. */
-export async function recomputeAutoTasks(): Promise<{ checked: number; completed: number }> {
+export async function recomputeAutoTasks(): Promise<{ checked: number; completed: number; failed: number }> {
   const inProgress = await db.employeeTask.findMany({
     where: { status: "IN_PROGRESS", task: { is: { verification: "AUTO" } } },
     include: { task: true },
   });
 
   let completed = 0;
+  let failed = 0;
   for (const et of inProgress) {
     if (!et.task.autoMetric || et.task.targetValue == null) continue;
-    const progressValue = await computeAutoProgress(et.task.autoMetric, et.employeeId, et.joinedAt);
-    const reachedTarget = progressValue >= et.task.targetValue;
-    if (!reachedTarget) {
-      await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
-      continue;
+    // try/catch на итерацию — иначе один сотрудник со сбоем (например,
+    // недостаточно монет на автопокупку заранее выбранного приза) прерывал бы
+    // весь суточный прогон, оставляя непроверенными всех остальных в списке.
+    try {
+      const progressValue = await computeAutoProgress(et.task.autoMetric, et.employeeId, et.joinedAt);
+      const reachedTarget = progressValue >= et.task.targetValue;
+      if (!reachedTarget) {
+        await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
+        continue;
+      }
+      // Атомарный claim по IN_PROGRESS — на случай перекрывающихся запусков
+      // cron-роута (см. rewardCompletedTask: двойная покупка приза не idempotent).
+      const claimed = await db.employeeTask.updateMany({
+        where: { id: et.id, status: "IN_PROGRESS" },
+        data: { progressValue, status: "COMPLETED", completedAt: new Date() },
+      });
+      if (claimed.count === 0) continue;
+      completed += 1;
+      await rewardCompletedTask(et.id);
+      await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
+    } catch (e) {
+      failed += 1;
+      await audit({
+        actorId: null,
+        action: "GAMIFICATION_TASK_AUTO_FAILED",
+        entityType: "EmployeeTask",
+        entityId: et.id,
+        newValue: { error: e instanceof Error ? e.message : String(e) },
+      }).catch(() => {});
     }
-    // Атомарный claim по IN_PROGRESS — на случай перекрывающихся запусков
-    // cron-роута (см. rewardCompletedTask: двойная покупка приза не idempotent).
-    const claimed = await db.employeeTask.updateMany({
-      where: { id: et.id, status: "IN_PROGRESS" },
-      data: { progressValue, status: "COMPLETED", completedAt: new Date() },
-    });
-    if (claimed.count === 0) continue;
-    completed += 1;
-    await rewardCompletedTask(et.id);
-    await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
   }
-  return { checked: inProgress.length, completed };
+  return { checked: inProgress.length, completed, failed };
 }

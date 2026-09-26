@@ -1,6 +1,11 @@
 /**
  * Сквозной прогон геймификации: задача (ручная) → монеты → покупка за монеты.
  * Запуск: npx tsx scripts/gamification-e2e.ts
+ *
+ * Откат — только точечный, по ID/opKey записей, которые создал сам прогон.
+ * Раньше очистка была широкой (deleteMany по employeeId/cardId, снос всего
+ * CoinAccount) и стирала реальные данные ivanov/карточки, если они уже
+ * существовали до теста — небезопасно повторно запускать на проде.
  */
 import { PrismaClient } from "@prisma/client";
 import { joinTask, completeEmployeeTaskManual } from "../src/lib/gamification-tasks";
@@ -29,10 +34,27 @@ async function main() {
   assert(ivanov, "сотрудник ivanov существует");
   const admin = await db.user.findFirst({ where: { roles: { has: "C_AND_B" } } });
   assert(admin, "есть пользователь C&B");
+  // coinPrice: null — карточка ещё не продаётся за монеты, иначе тест временно
+  // подменил бы реальную цену/режим живого предложения магазина.
   const card = await db.benefitCard.findFirst({
-    where: { block: "FLEX", status: "PUBLISHED", isActive: true, minParticipants: 1, partner: { deliveryMode: { not: "PHONE_PROMO" } } },
+    where: {
+      block: "FLEX",
+      status: "PUBLISHED",
+      isActive: true,
+      archivedAt: null,
+      minParticipants: 1,
+      coinPrice: null,
+      partner: { deliveryMode: { not: "PHONE_PROMO" } },
+    },
   });
-  assert(card, "есть подходящая FLEX-карточка (minParticipants=1, не PHONE_PROMO)");
+  assert(card, "есть подходящая FLEX-карточка (minParticipants=1, не PHONE_PROMO, ещё не продаётся за монеты)");
+
+  // Снимок состояния ДО теста — восстанавливаем в конце точно к нему, а не
+  // сносим общие записи (баланс/история монет могли принадлежать реальному
+  // использованию ivanov, не только этому прогону).
+  const accountExisted = !!(await db.coinAccount.findUnique({ where: { employeeId: ivanov!.id } }));
+  const balanceBefore = await getCoinBalance(ivanov!.id);
+  ok(`снимок до теста: account=${accountExisted ? "есть" : "нет"}, баланс=${balanceBefore}`);
 
   head("Создать тестовую задачу (MANUAL)");
   const task = await db.gamificationTask.create({
@@ -60,19 +82,29 @@ async function main() {
 
   const redemption = await db.coinRedemption.findUniqueOrThrow({ where: { id: result.redemptionId } });
   assert(!!redemption.couponId, "у заявки на покупку есть привязанный купон");
-  const coupon = await db.coupon.findUnique({ where: { id: redemption.couponId! } });
-  assert(coupon?.status === "ISSUED", "купон выдан (status = ISSUED)");
+  const coupon = await db.coupon.findUniqueOrThrow({ where: { id: redemption.couponId! } });
+  assert(coupon.status === "ISSUED", "купон выдан (status = ISSUED)");
 
-  head("Откат тестовых данных");
-  await db.coupon.delete({ where: { id: coupon!.id } });
+  head("Откат тестовых данных (точечно, по ID/opKey этого прогона)");
+  await db.coupon.delete({ where: { id: coupon.id } });
+  await db.applicationItem.delete({ where: { id: coupon.itemId } });
   await db.coinRedemption.delete({ where: { id: redemption.id } });
-  await db.applicationItem.deleteMany({ where: { cardId: card!.id, application: { employeeId: ivanov!.id }, coupon: null } });
-  await db.coinEntry.deleteMany({ where: { account: { is: { employeeId: ivanov!.id } } } });
-  await db.coinAccount.deleteMany({ where: { employeeId: ivanov!.id } });
+  // Только 2 записи, созданные этим прогоном (opKey уникален на редемпшн/задачу) —
+  // не трогаем остальную историю монет ivanov.
+  await db.coinEntry.deleteMany({
+    where: { opKey: { in: [`task-reward:${et.id}`, `redemption:${redemption.id}`] } },
+  });
+  if (accountExisted) {
+    await db.coinAccount.update({ where: { employeeId: ivanov!.id }, data: { balance: balanceBefore } });
+  } else {
+    await db.coinAccount.deleteMany({ where: { employeeId: ivanov!.id } });
+  }
   await db.employeeTask.delete({ where: { id: et.id } });
   await db.gamificationTask.delete({ where: { id: task.id } });
   await db.benefitCard.update({ where: { id: card!.id }, data: { coinPrice: null, coinRedemptionMode: null } });
-  ok("тестовые данные удалены");
+  const balanceAfterRollback = await getCoinBalance(ivanov!.id);
+  assert(balanceAfterRollback === balanceBefore, `баланс восстановлен в точности (было ${balanceBefore}, стало ${balanceAfterRollback})`);
+  ok("тестовые данные удалены точечно");
 
   console.log("\n✅ Все проверки пройдены.");
 }

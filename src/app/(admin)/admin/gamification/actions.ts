@@ -69,7 +69,7 @@ export async function createGamificationTask(_prev: TaskFormState, formData: For
   return {};
 }
 
-export async function toggleTaskActive(taskId: string, isActive: boolean): Promise<ActionResult> {
+export async function toggleTaskActive(taskId: string, isActive: boolean, _prev: ActionResult, _formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "gamification.manage");
@@ -79,7 +79,7 @@ export async function toggleTaskActive(taskId: string, isActive: boolean): Promi
   });
 }
 
-export async function completeTaskManually(employeeTaskId: string): Promise<ActionResult> {
+export async function completeTaskManually(employeeTaskId: string, _prev: ActionResult, _formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "gamification.manage");
@@ -93,7 +93,7 @@ export async function completeTaskManually(employeeTaskId: string): Promise<Acti
   });
 }
 
-export async function decideRedemption(redemptionId: string, decision: "APPROVE" | "REJECT"): Promise<ActionResult> {
+export async function decideRedemption(redemptionId: string, decision: "APPROVE" | "REJECT", _prev: ActionResult, _formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "gamification.manage");

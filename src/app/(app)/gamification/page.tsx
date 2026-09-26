@@ -2,21 +2,14 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n";
-import { Badge, Card, EmptyState, SectionTitle, Table } from "@/components/ui";
+import { Badge, Card, EmptyState, SectionTitle, Table, Select } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { ActionForm } from "@/components/action-form";
 import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
-import type { ActionResult } from "@/lib/action-result";
 
 export const dynamic = "force-dynamic";
-
-/** <form action> требует () => void | Promise<void> — оборачиваем ActionResult-действия. */
-function asFormAction(fn: () => Promise<ActionResult>) {
-  return async () => {
-    await fn();
-  };
-}
 
 export default async function GamificationPage() {
   const session = await getSession();
@@ -58,11 +51,24 @@ export default async function GamificationPage() {
                 <p className="text-sm font-medium text-primary-strong">
                   +{task.coinReward} {t("gamification.coinUnit")}
                 </p>
-                <form action={asFormAction(joinTaskAction.bind(null, task.id, null))}>
+                <ActionForm action={joinTaskAction.bind(null, task.id)} className="space-y-2">
+                  {shopCards.length > 0 && (
+                    <label className="block text-xs text-ink-muted">
+                      {t("gamification.prizeCardLabel")}
+                      <Select name="prizeCardId" defaultValue="" className="mt-1">
+                        <option value="">{t("gamification.prizeCardNone")}</option>
+                        {shopCards.map((card) => (
+                          <option key={card.id} value={card.id}>
+                            {card.title} — {card.coinPrice} {t("gamification.coinUnit")}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )}
                   <SubmitButton className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50">
                     {t("gamification.joinTask")}
                   </SubmitButton>
-                </form>
+                </ActionForm>
               </Card>
             ))}
           </div>
@@ -113,14 +119,14 @@ export default async function GamificationPage() {
                 <p className="text-sm font-medium text-primary-strong">
                   {card.coinPrice} {t("gamification.coinUnit")}
                 </p>
-                <form action={asFormAction(buyWithCoinsAction.bind(null, card.id))}>
+                <ActionForm action={buyWithCoinsAction.bind(null, card.id)}>
                   <SubmitButton
                     disabled={balance < (card.coinPrice ?? Infinity)}
                     className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {card.coinRedemptionMode === "REQUEST" ? t("gamification.buyRequest") : t("gamification.buyInstant")}
                   </SubmitButton>
-                </form>
+                </ActionForm>
               </Card>
             ))}
           </div>

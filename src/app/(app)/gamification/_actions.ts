@@ -6,10 +6,11 @@ import { runAction, type ActionResult } from "@/lib/action-result";
 import { joinTask, GamificationTaskError } from "@/lib/gamification-tasks";
 import { redeemWithCoins, CoinRedemptionError } from "@/lib/coin-redemption";
 
-export async function joinTaskAction(taskId: string, prizeCardId: string | null): Promise<ActionResult> {
+export async function joinTaskAction(taskId: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     if (!s.employee) throw new Error("Доступно только сотрудникам.");
+    const prizeCardId = String(formData.get("prizeCardId") ?? "").trim() || null;
     try {
       await joinTask({ employeeId: s.employee.id, taskId, prizeCardId });
     } catch (e) {
@@ -20,7 +21,7 @@ export async function joinTaskAction(taskId: string, prizeCardId: string | null)
   });
 }
 
-export async function buyWithCoinsAction(benefitCardId: string): Promise<ActionResult> {
+export async function buyWithCoinsAction(benefitCardId: string, _prev: ActionResult, _formData: FormData): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireSession();
     if (!s.employee) throw new Error("Доступно только сотрудникам.");

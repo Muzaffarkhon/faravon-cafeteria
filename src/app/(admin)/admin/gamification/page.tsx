@@ -5,17 +5,11 @@ import { can } from "@/lib/rbac";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
+import { ActionForm } from "@/components/action-form";
 import { TaskForm } from "./_task-form";
 import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-/** <form action> требует () => void | Promise<void> — оборачиваем ActionResult-действия. */
-function asFormAction(fn: () => Promise<unknown>) {
-  return async () => {
-    await fn();
-  };
-}
 
 const REDEMPTION_STATUS_TONE: Record<string, BadgeTone> = {
   PENDING: "warning",
@@ -82,11 +76,11 @@ export default async function GamificationAdminPage() {
                     <td>{task.verification === "AUTO" ? `${t("gamificationAdmin.auto")} · ${task.autoMetric} ≥ ${task.targetValue}` : t("gamificationAdmin.manual")}</td>
                     <td>{task.scope === "ALL" ? t("gamificationAdmin.scopeAll") : task.scope === "DEPARTMENT" ? task.department : t("gamificationAdmin.scopeSpecific")}</td>
                     <td>
-                      <form action={asFormAction(toggleTaskActive.bind(null, task.id, !task.isActive))}>
+                      <ActionForm action={toggleTaskActive.bind(null, task.id, !task.isActive)}>
                         <SubmitButton className="text-sm underline disabled:cursor-not-allowed disabled:opacity-50">
                           {task.isActive ? t("gamificationAdmin.deactivate") : t("gamificationAdmin.activate")}
                         </SubmitButton>
-                      </form>
+                      </ActionForm>
                     </td>
                   </tr>
                 ))}
@@ -121,11 +115,11 @@ export default async function GamificationAdminPage() {
                     <td>{et.task.title}</td>
                     <td data-numeric>{et.task.coinReward}</td>
                     <td>
-                      <form action={asFormAction(completeTaskManually.bind(null, et.id))}>
+                      <ActionForm action={completeTaskManually.bind(null, et.id)}>
                         <SubmitButton className="text-sm font-medium text-primary-strong underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.confirmCompletion")}
                         </SubmitButton>
-                      </form>
+                      </ActionForm>
                     </td>
                   </tr>
                 ))}
@@ -161,16 +155,16 @@ export default async function GamificationAdminPage() {
                       <Badge tone={REDEMPTION_STATUS_TONE[r.status] ?? "neutral"}>{r.status}</Badge>
                     </td>
                     <td className="space-x-3">
-                      <form className="inline" action={asFormAction(decideRedemption.bind(null, r.id, "APPROVE"))}>
+                      <ActionForm className="inline" action={decideRedemption.bind(null, r.id, "APPROVE")}>
                         <SubmitButton className="text-sm font-medium text-success underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.approve")}
                         </SubmitButton>
-                      </form>
-                      <form className="inline" action={asFormAction(decideRedemption.bind(null, r.id, "REJECT"))}>
+                      </ActionForm>
+                      <ActionForm className="inline" action={decideRedemption.bind(null, r.id, "REJECT")}>
                         <SubmitButton className="text-sm font-medium text-danger underline disabled:cursor-not-allowed disabled:opacity-50">
                           {t("gamificationAdmin.reject")}
                         </SubmitButton>
-                      </form>
+                      </ActionForm>
                     </td>
                   </tr>
                 ))}
