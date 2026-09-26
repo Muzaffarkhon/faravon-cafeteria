@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { spendCoins, reverseSpend, CoinWalletError } from "@/lib/coin-wallet";
@@ -20,7 +21,8 @@ async function countCommittedCoinRedemptions(employeeId: string, periodId: strin
 
 /**
  * Синтезирует Application + ApplicationItem (в статусе APPROVED, как будто
- * C&B уже одобрил выбор) под самую свежую запись Period — это позволяет
+ * C&B уже одобрил выбор) под период из `resolveSelectionContext().targetPeriod`
+ * (текущий, если ещё не начался, иначе следующий) — это позволяет
  * переиспользовать существующий формирователь купона без изменений в модели
  * Coupon (которая всегда ссылается на ApplicationItem).
  */
@@ -62,9 +64,19 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
       if (usedCount >= period.maxCoinRedemptions) {
         throw new CoinRedemptionError(`Лимит покупок за монеты на этот период (${period.maxCoinRedemptions}) уже использован.`);
       }
-      return tx.applicationItem.create({
-        data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
-      });
+      try {
+        return await tx.applicationItem.create({
+          data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
+        });
+      } catch (e) {
+        // @@unique([applicationId, cardId]) — эта льгота уже выбрана в периоде
+        // обычным способом (DRAFT/PENDING/APPROVED...). Без перехвата сотрудник
+        // увидел бы сырое сообщение Prisma про constraint violation.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new CoinRedemptionError("Эта льгота уже выбрана в этом периоде обычным способом — купить её ещё и за монеты нельзя.");
+        }
+        throw e;
+      }
     },
     { isolationLevel: "Serializable" },
   );
