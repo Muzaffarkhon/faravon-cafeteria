@@ -25,6 +25,7 @@ export function NewsPopup({ news }: { news: PendingNews }) {
     } catch {
       /* приватный режим / storage недоступен — просто показываем попап */
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
   }, [news.id]);
 
