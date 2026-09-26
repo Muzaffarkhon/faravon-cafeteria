@@ -293,6 +293,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "опрос удовлетворённости: вкл/выкл, периодичность, оценки и отзывы",
       icon: ICONS.star,
     });
+  if (can(roles, "gamification.manage"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/gamification",
+      label: t("nav.gamification"),
+      desc: "задачи, монеты, заявки на покупку за монеты",
+      icon: ICONS.gamification,
+    });
   if (can(roles, "periods.manage"))
     add("admin", t("nav.adminGroup"), {
       href: "/admin/sandbox",
