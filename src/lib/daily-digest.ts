@@ -1,6 +1,8 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { taxiRecipientsForPartner } from "@/lib/taxi";
+import { dushanbeDateKey } from "@/lib/dushanbe-date";
 
 /**
  * Ежедневный отчёт по заявкам (§12): в начале рабочего дня C&B и подрядчики
@@ -81,10 +83,27 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
       continue;
     }
 
-    await db.notification.create({
-      data: { userId: u.id, event: "DAILY_DIGEST", channel: "TELEGRAM", payload: { text } },
-    });
-    queued++;
+    // dedupeKey — настоящая защита от дубля (уникальный индекс в БД): проверка
+    // sentToday выше не атомарна и не спасает, если два крона (напр. боевого и
+    // тестового окружений, у них общая БД) стартуют в одну и ту же минуту.
+    try {
+      await db.notification.create({
+        data: {
+          userId: u.id,
+          event: "DAILY_DIGEST",
+          channel: "TELEGRAM",
+          payload: { text },
+          dedupeKey: `daily-digest:${u.id}:${dushanbeDateKey(now)}`,
+        },
+      });
+      queued++;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        skipped++; // параллельный запуск уже создал сегодняшний дайджест этому пользователю
+        continue;
+      }
+      throw e;
+    }
   }
 
   return { queued, skipped };

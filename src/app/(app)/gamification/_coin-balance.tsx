@@ -81,6 +81,6 @@ export function CoinBalance({ balance, coinUnit }: { balance: number; coinUnit: 
 }
 
 function cxBadge(gaining: boolean): string {
-  const base = "rounded-full bg-primary-soft px-4 py-1.5 text-sm font-bold text-primary-strong";
+  const base = "whitespace-nowrap rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary-strong sm:px-4 sm:py-1.5 sm:text-sm";
   return gaining ? `${base} animate-coin-gain` : base;
 }

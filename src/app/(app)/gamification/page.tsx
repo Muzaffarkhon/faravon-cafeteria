@@ -39,9 +39,11 @@ export default async function GamificationPage() {
   return (
     <div className="space-y-6">
       <section className="space-y-4 rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">{t("gamification.title")}</h1>
-          <CoinBalance balance={balance} coinUnit={t("gamification.coinUnit")} />
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="font-display text-lg font-bold text-on-brand sm:text-2xl">{t("gamification.title")}</h1>
+          <div className="shrink-0">
+            <CoinBalance balance={balance} coinUnit={t("gamification.coinUnit")} />
+          </div>
         </div>
         {dailyBonus.available && (
           <DailyBonusCard

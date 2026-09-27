@@ -113,12 +113,12 @@ export function AppShell({
   const moreActive = moreItems.some((it) => isActive(it.href));
   const moreBadge = moreItems.reduce((n, it) => n + (it.badge ?? 0), 0);
 
-  // Нижняя навигация (мобайл) вмещает не более 4 вкладок (включая «Ещё»).
-  // Раньше «лишние» пункты «Кабинета»/«Работы» сверх этого лимита просто
-  // пропадали — не попадали ни на панель, ни в «Ещё» (баг, из-за которого
-  // «Геймификация», пятый пункт «Кабинета», была недостижима на мобильном).
+  // Нижняя навигация (мобайл) вмещает не более 5 вкладок (включая «Ещё») —
+  // без подписей под иконками (см. рендер ниже) 5 иконок помещаются в ряд
+  // даже на узких экранах. Раньше лимит был 4, из-за чего «Геймификация»,
+  // пятый пункт «Кабинета», была недостижима на мобильном без «Ещё».
   // На десктопе такой проблемы нет — там вкладки не обрезаются (прокрутка).
-  const BOTTOM_TAB_LIMIT = 4;
+  const BOTTOM_TAB_LIMIT = 5;
   const bottomReservesMoreSlot = moreGroups.length > 0 || primary.length > BOTTOM_TAB_LIMIT;
   const bottomPrimary = primary.slice(0, bottomReservesMoreSlot ? BOTTOM_TAB_LIMIT - 1 : BOTTOM_TAB_LIMIT);
   const bottomOverflow = primary.slice(bottomPrimary.length);
@@ -430,15 +430,17 @@ export function AppShell({
               key={it.href}
               href={it.href}
               onClick={closeMenus}
+              title={it.label}
+              aria-label={it.label}
               className={cx(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition-colors",
+                "relative flex flex-1 items-center justify-center py-3 transition-colors",
                 active ? "text-primary" : "text-ink-muted",
               )}
             >
-              <Icon path={it.icon} className="h-5 w-5" />
-              <span className="max-w-full truncate px-1">{it.label}</span>
+              <Icon path={it.icon} className="h-6 w-6" />
+              <span className="sr-only">{it.label}</span>
               {it.badge ? (
-                <span className="absolute right-[22%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="absolute right-[28%] top-2 h-1.5 w-1.5 rounded-full bg-primary" />
               ) : null}
             </Link>
           );
@@ -447,14 +449,16 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
+            title={t("nav.more")}
+            aria-label={t("nav.more")}
             className={cx(
-              "relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition-colors",
+              "relative flex flex-1 cursor-pointer items-center justify-center py-3 transition-colors",
               mobileMoreActive || moreOpen ? "text-primary" : "text-ink-muted",
             )}
           >
-            <Icon path={I.more} className="h-5 w-5" />
-            <span>{t("nav.more")}</span>
-            {mobileMoreBadge > 0 && <span className="absolute right-[28%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />}
+            <Icon path={I.more} className="h-6 w-6" />
+            <span className="sr-only">{t("nav.more")}</span>
+            {mobileMoreBadge > 0 && <span className="absolute right-[34%] top-2 h-1.5 w-1.5 rounded-full bg-primary" />}
           </button>
         )}
       </nav>
