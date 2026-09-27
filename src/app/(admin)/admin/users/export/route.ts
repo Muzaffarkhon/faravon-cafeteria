@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { audit } from "@/lib/audit";
+import { buildEmployeeFilter } from "@/lib/employee-filters";
 
 function styleHeader(row: ExcelJS.Row) {
   row.font = { bold: true, color: { argb: "FF1E293B" } };
@@ -27,11 +28,12 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   if (!can(session.roles, "users.manage")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
-  const view = req.nextUrl.searchParams.get("view");
-  const isArchive = view === "archive";
+  const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
+  const isArchive = sp.view === "archive";
+  const { where } = buildEmployeeFilter(sp, isArchive);
 
   const employees = await db.employee.findMany({
-    where: isArchive ? { archivedAt: { not: null } } : { archivedAt: null },
+    where,
     include: {
       user: {
         select: {

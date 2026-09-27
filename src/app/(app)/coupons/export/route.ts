@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
-import { listCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
+import { listCouponRegistry, buildCouponFilters } from "@/lib/coupon-registry";
 
 const d = (v: Date | null | undefined) => (v ? v.toISOString().slice(0, 10) : "");
 
@@ -13,14 +13,10 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   if (!can(session.roles, "coupons.manage")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
-  const q = req.nextUrl.searchParams;
-  const periodId = q.get("period") || undefined;
-  const statusRaw = q.get("status") || "";
-  const status = isCouponStatus(statusRaw) ? statusRaw : undefined;
-  const partnerId = q.get("partner") || undefined;
-  const employeeQuery = q.get("emp") || undefined;
+  const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
+  const { periodId, status, partnerId, extraWhere } = buildCouponFilters(sp);
 
-  const coupons = await listCouponRegistry({ periodId, status, partnerId, employeeQuery });
+  const coupons = await listCouponRegistry({ periodId, status, partnerId, extraWhere });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Кафетерий льгот «Фаровон»";
