@@ -237,7 +237,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       ],
     });
   if (canUsers) {
-    const usersChildren: NavItem[] = [];
+    const usersChildren: { href: string; label: string }[] = [];
     if (canAccess) {
       usersChildren.push({ href: "/admin/access", label: t("nav.access") });
       usersChildren.push({ href: "/admin/access/employees", label: t("nav.identification") });

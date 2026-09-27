@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { getTranslator } from "@/lib/i18n";
+import { getLocale, getTranslator } from "@/lib/i18n";
+import { localize } from "@/lib/localize";
 import { Badge, Card, EmptyState, SectionTitle, Table, Select, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
@@ -14,6 +15,7 @@ import { safeImageSrc } from "@/lib/safe-url";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
 import { CoinBalance } from "./_coin-balance";
 import { DailyBonusCard } from "./_daily-bonus";
+import { CardDetailsButton } from "../_components/card-details";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +25,10 @@ export default async function GamificationPage() {
   if (!session.employee) redirect("/");
   if (!(await getGamificationEnabled())) redirect("/");
   const t = await getTranslator();
+  const locale = await getLocale();
   const employeeId = session.employee.id;
 
-  const [available, mine, balance, entries, shopCards, dailyBonus] = await Promise.all([
+  const [available, mine, balance, entries, shopCardsRaw, dailyBonus] = await Promise.all([
     listAvailableTasksForEmployee(employeeId),
     listEmployeeTasks(employeeId),
     getCoinBalance(employeeId),
@@ -33,9 +36,26 @@ export default async function GamificationPage() {
     db.benefitCard.findMany({
       where: { coinPrice: { not: null }, isActive: true, status: "PUBLISHED", archivedAt: null },
       orderBy: { coinPrice: "asc" },
+      include: { partner: true },
     }),
     getDailyBonusStatus(employeeId),
   ]);
+
+  const shopCards = shopCardsRaw.map((c) => ({
+    ...c,
+    title: localize(c.title, c.translations, locale, "title"),
+    description: localize(c.description, c.translations, locale, "description"),
+    condition: localize(c.condition, c.translations, locale, "condition"),
+    partner: c.partner
+      ? {
+          ...c.partner,
+          name: localize(c.partner.name, c.partner.translations, locale, "name"),
+          discountType: localize(c.partner.discountType, c.partner.translations, locale, "discountType"),
+          terms: localize(c.partner.terms, c.partner.translations, locale, "terms"),
+          contactPerson: localize(c.partner.contactPerson, c.partner.translations, locale, "contactPerson"),
+        }
+      : c.partner,
+  }));
 
   // Карточки, уже выбранные обычным способом (не за монеты) в целевом периоде —
   // fulfillRedemption всё равно бы их отклонил (unique [applicationId, cardId]),
@@ -188,6 +208,21 @@ export default async function GamificationPage() {
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3">
                     <p className="line-clamp-2 text-sm font-semibold text-ink">{card.title}</p>
+                    <CardDetailsButton
+                      card={{
+                        title: card.title,
+                        description: card.description,
+                        condition: card.condition,
+                        partnerName: card.partner?.name ?? null,
+                        address: card.partner?.address ?? null,
+                        workingHours: card.partner?.workingHours ?? null,
+                        discountType: card.partner?.discountType ?? null,
+                        terms: card.partner?.terms ?? null,
+                        contactPerson: card.partner?.contactPerson ?? null,
+                        contacts: card.partner?.contacts ?? null,
+                      }}
+                      locale={locale}
+                    />
                     <div className="mt-auto">
                       {affordable ? (
                         <ActionForm action={buyWithCoinsAction.bind(null, card.id)}>
