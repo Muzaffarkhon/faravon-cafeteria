@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { createCoupon, issueCoupon, deleteCoupon, rejectAwaitingItem } from "./actions";
+import { createCoupon, issueCoupon, deleteCoupon, rejectAwaitingItem, forceRedeemCoupon } from "./actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 function ActionButton({
@@ -148,6 +148,69 @@ export function RejectAwaitingButton({
           </div>
         }
         onConfirm={handleReject}
+        onClose={() => !pending && setOpen(false)}
+      />
+    </>
+  );
+}
+
+export function ForceRedeemCouponButton({
+  couponId,
+  couponNumber,
+  locale,
+}: {
+  couponId: string;
+  couponNumber: string;
+  locale: Locale;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = () => {
+    setError(null);
+    start(async () => {
+      try {
+        const r = await forceRedeemCoupon(couponId);
+        if (r?.error) {
+          setError(r.error);
+        } else {
+          setOpen(false);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t("coupons.forceRedeemError"));
+      }
+    });
+  };
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" disabled={pending} onClick={() => setOpen(true)}>
+        {t("coupons.forceRedeem")}
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        title={t("coupons.forceRedeemConfirmTitle")}
+        tone="danger"
+        confirmLabel={t("coupons.forceRedeem")}
+        busy={pending}
+        message={
+          <div className="space-y-2">
+            <p>
+              {t("coupons.forceRedeemConfirmMessage")}{" "}
+              <strong className="font-mono text-ink">№ {couponNumber}</strong>?
+            </p>
+            <p className="text-xs text-ink-subtle">{t("coupons.forceRedeemConfirmHint")}</p>
+            {error && (
+              <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={handleConfirm}
         onClose={() => !pending && setOpen(false)}
       />
     </>

@@ -9,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { groupApprovedCount, isItemWaveReady, currentWaveProgress } from "@/lib/selection";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
+import { redeemCouponByNumber } from "@/lib/coupon";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
 function revalidateAll() {
@@ -248,6 +249,29 @@ export async function bulkIssueCoupons(couponIds: string[]): Promise<ActionResul
       return { notice: `Выдано: ${issued} из ${couponIds.length}. Ошибки: ${failures.join("; ")}` };
     }
     return { notice: `Выдано купонов: ${issued}.` };
+  });
+}
+
+/**
+ * Принудительно погасить выданный купон (ISSUED → USED) от лица C&B — в обход
+ * подрядчика (/provider), когда сам партнёр физически не может это сделать
+ * (например, пожилой сотрудник партнёра не умеет пользоваться продуктом, и
+ * ему просто выдают список купонов на бумаге). Кешбек-льготы сюда не входят:
+ * там нужна сумма покупки (см. lib/cashback.ts, submitCashback).
+ */
+export async function forceRedeemCoupon(couponId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "coupons.manage");
+
+    const coupon = await db.coupon.findUnique({ where: { id: couponId }, select: { number: true } });
+    if (!coupon) throw new Error("Купон не найден.");
+
+    // actorPartnerId = null — тот же путь, что у «глобального» подрядчика:
+    // партнёрская принадлежность купона не проверяется.
+    await redeemCouponByNumber(coupon.number, s.user.id, null, true);
+
+    revalidateAll();
   });
 }
 
