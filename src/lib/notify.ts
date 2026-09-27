@@ -73,6 +73,14 @@ export async function notifyApprovers(params: {
   event: string;
   payload?: Prisma.InputJsonValue;
   channel?: string;
+  /**
+   * Префикс идемпотентного ключа (без userId — он добавится на каждого
+   * получателя отдельно). Например `application-submitted:${applicationId}` —
+   * повторный вызов для той же заявки (двойной клик, гонка тестового и
+   * боевого окружений) не задублирует уведомление: createMany с
+   * skipDuplicates просто пропустит уже существующие dedupeKey.
+   */
+  dedupeKeyPrefix?: string;
 }) {
   // Notify C&B admins instead of legacy APPROVER role
   const approvers = await db.user.findMany({
@@ -86,7 +94,9 @@ export async function notifyApprovers(params: {
       event: params.event,
       channel: params.channel ?? "TELEGRAM",
       payload: params.payload,
+      dedupeKey: params.dedupeKeyPrefix ? `${params.dedupeKeyPrefix}:${u.id}` : undefined,
     })),
+    skipDuplicates: true,
   });
   flushTelegram();
 }
