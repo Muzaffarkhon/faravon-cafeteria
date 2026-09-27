@@ -221,6 +221,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
   // верхнеуровневым пунктом, чтобы не потерять доступ.
   const canUsers = can(roles, "users.manage");
   const canAccess = can(roles, "access.manage");
+  const canSessions = can(roles, "sessions.view");
   const canPeriods = can(roles, "periods.manage");
 
   if (canManageCards)
@@ -235,19 +236,21 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
         { href: "/admin/texts", label: t("nav.texts") },
       ],
     });
-  if (canUsers)
+  if (canUsers) {
+    const usersChildren: { href: string; label: string }[] = [];
+    if (canAccess) {
+      usersChildren.push({ href: "/admin/access", label: t("nav.access") });
+      usersChildren.push({ href: "/admin/access/employees", label: t("nav.identification") });
+    }
+    if (canSessions) usersChildren.push({ href: "/admin/sessions", label: t("nav.sessions") });
     add("admin", t("nav.adminGroup"), {
       href: "/admin/users",
       label: t("nav.users"),
       desc: "справочник сотрудников, учётные записи, роли, архив",
       icon: ICONS.users,
-      children: canAccess
-        ? [
-            { href: "/admin/access", label: t("nav.access") },
-            { href: "/admin/access/employees", label: t("nav.identification") },
-          ]
-        : undefined,
+      children: usersChildren.length ? usersChildren : undefined,
     });
+  }
   if (canAccess && !canUsers)
     add("admin", t("nav.adminGroup"), {
       href: "/admin/access",
@@ -255,6 +258,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "коды идентификации для Telegram-бота, привязка Telegram",
       icon: ICONS.access,
       children: [{ href: "/admin/access/employees", label: t("nav.identification") }],
+    });
+  if (canSessions && !canUsers)
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/sessions",
+      label: t("nav.sessions"),
+      desc: "кто сейчас на сайте: устройство, браузер, город",
+      icon: ICONS.online,
     });
   if (canPeriods)
     add("admin", t("nav.adminGroup"), {
@@ -284,13 +294,6 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.audit"),
       desc: "история действий: кто, что и когда изменял, согласования, входы",
       icon: ICONS.history,
-    });
-  if (can(roles, "sessions.view"))
-    add("admin", t("nav.adminGroup"), {
-      href: "/admin/sessions",
-      label: t("nav.sessions"),
-      desc: "кто сейчас на сайте: устройство, браузер, город",
-      icon: ICONS.online,
     });
   if (can(roles, "cashback.manage"))
     add("admin", t("nav.adminGroup"), {
