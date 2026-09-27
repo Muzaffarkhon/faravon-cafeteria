@@ -56,6 +56,7 @@ const ACTION_LABELS: Record<string, string> = {
   COUPON_EXPIRED: "Купон просрочен",
   COUPON_REDEEMED_BY_PROVIDER: "Купон активирован у партнёра",
   COUPON_VISIT_BY_PROVIDER: "Визит по многоразовому купону",
+  COUPON_FORCE_REDEEMED_BY_ADMIN: "Купон погашен принудительно (C&B, в обход партнёра)",
   CASHBACK_APPLIED: "Покупка с кешбеком проведена",
   CASHBACK_REVERSED: "Операция по кешбеку сторнирована",
   CASHBACK_CODE_FAILED: "Неверный код клиента при проведении кешбека",

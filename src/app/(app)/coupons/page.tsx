@@ -19,7 +19,7 @@ import {
   buttonClass,
   type BadgeTone,
 } from "@/components/ui";
-import { IssueCouponButton, DeleteCouponButton } from "./_buttons";
+import { IssueCouponButton, DeleteCouponButton, ForceRedeemCouponButton } from "./_buttons";
 import { BulkIssueProvider, BulkIssueToolbar, CouponSelectCheckbox } from "./_bulk-issue";
 
 const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
@@ -259,6 +259,9 @@ export default async function CouponsPage({
                             ) : (
                               <IssueCouponButton couponId={c.id} locale={locale} />
                             ))}
+                          {c.status === "ISSUED" && !overdue && c.benefitMode !== "CASHBACK" && (
+                            <ForceRedeemCouponButton couponId={c.id} couponNumber={c.number} locale={locale} />
+                          )}
                           <DeleteCouponButton couponId={c.id} couponNumber={c.number} locale={locale} />
                         </div>
                       </td>

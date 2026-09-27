@@ -111,11 +111,16 @@ export async function lookupCouponByEmployeePhone(phone: string, actorPartnerId?
  *
  * `actorPartnerId` — партнёр гасящего подрядчика: если задан, купон другого
  * партнёра активировать нельзя. null (глобальный подрядчик) — ограничения нет.
+ *
+ * `forcedByAdmin` — гашение инициировано C&B в обход подрядчика (см.
+ * forceRedeemCoupon в app/(app)/coupons/actions.ts), а не сканом на кассе
+ * партнёра. Влияет только на подпись действия в журнале аудита.
  */
 export async function redeemCouponByNumber(
   number: string,
   actorId: string,
   actorPartnerId?: string | null,
+  forcedByAdmin = false,
 ) {
   const coupon = await db.coupon.findUnique({
     where: { number: normalizeNumber(number) },
@@ -190,7 +195,11 @@ export async function redeemCouponByNumber(
 
   await audit({
     actorId,
-    action: reusable ? "COUPON_VISIT_BY_PROVIDER" : "COUPON_REDEEMED_BY_PROVIDER",
+    action: forcedByAdmin
+      ? "COUPON_FORCE_REDEEMED_BY_ADMIN"
+      : reusable
+        ? "COUPON_VISIT_BY_PROVIDER"
+        : "COUPON_REDEEMED_BY_PROVIDER",
     entityType: "Coupon",
     entityId: coupon.id,
     oldValue: { status: "ISSUED" },
