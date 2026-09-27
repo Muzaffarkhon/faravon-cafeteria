@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
-import { taxiRecipientsForPartner } from "@/lib/taxi";
+import { type SmartFilterField } from "@/lib/smart-filter";
+import { taxiRecipientsForPartner, buildTaxiSmartFilters } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
 
@@ -44,38 +43,13 @@ export default async function TaxiProviderPage({
     { key: "period", label: "Период", type: "text" },
     { key: "approvedAt", label: "Дата одобрения", type: "date" },
   ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
-  const employeeF = stringFilter(smartValues.employee);
-  if (employeeF) smartFilters.push({ application: { is: { employee: { is: { fullName: employeeF } } } } });
-  const departmentF = stringFilter(smartValues.department);
-  if (departmentF) smartFilters.push({ application: { is: { employee: { is: { department: departmentF } } } } });
-  const phoneF = stringFilter(smartValues.phone);
-  // Показанный телефон — contactPhone (указан сотрудником) либо телефон из профиля (см. lib/taxi.ts).
-  if (phoneF) {
-    smartFilters.push({
-      OR: [{ contactPhone: phoneF }, { application: { is: { employee: { is: { phone: phoneF } } } } }],
-    });
-  }
-  const cardF = stringFilter(smartValues.card);
-  if (cardF) smartFilters.push({ card: { is: { title: cardF } } });
-  const periodF = stringFilter(smartValues.period);
-  if (periodF) smartFilters.push({ application: { is: { period: { is: { name: periodF } } } } });
-  const approvedAtF = dateFilter(smartValues.approvedAt);
-  if (approvedAtF) smartFilters.push({ decidedAt: approvedAtF });
-  const q = (sp.q ?? "").trim();
-  if (q) {
-    smartFilters.push({
-      OR: [
-        { application: { is: { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } } } },
-        { application: { is: { employee: { is: { department: { contains: q, mode: "insensitive" } } } } } },
-        { card: { is: { title: { contains: q, mode: "insensitive" } } } },
-        { contactPhone: { contains: q, mode: "insensitive" } },
-      ],
-    });
-  }
-
+  const smartFilters = buildTaxiSmartFilters(sp);
   const recipients = await taxiRecipientsForPartner(partnerId, smartFilters);
+
+  // Экспорт получает тот же query целиком — тот же срез, что виден в таблице.
+  const exportQuery = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (v) exportQuery.set(k, v);
+  const exportHref = `/provider/taxi/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
   const stats = {
     delivered: recipients.filter((r) => r.promoStatus === "DELIVERED").length,
     blocked: recipients.filter((r) => r.promoStatus === "BLOCKED").length,
@@ -98,7 +72,7 @@ export default async function TaxiProviderPage({
               extraParamKeys={[]}
               presets={[{ id: "all", label: "Все записи", values: null }]}
             />
-            <Link href="/provider/taxi/export" className={buttonClass({ variant: "secondary", size: "sm" })}>
+            <Link href={exportHref} className={buttonClass({ variant: "secondary", size: "sm" })}>
               {t("providerTaxi.export")}
             </Link>
           </div>

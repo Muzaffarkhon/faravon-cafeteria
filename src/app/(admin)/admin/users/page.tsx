@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { EmploymentStatus, Prisma } from "@prisma/client";
+import type { EmploymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { employmentStatusLabel } from "@/lib/labels";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { type SmartFilterField } from "@/lib/smart-filter";
+import { buildEmployeeFilter } from "@/lib/employee-filters";
 import { Badge, Card, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
@@ -81,48 +82,7 @@ export default async function UsersPage({
       ],
     },
   ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const role = ALL_ROLES.find((r) => r === smartValues.role?.v);
-  const empStatus = EMPLOYMENT_STATUSES.find((s) => s === smartValues.emp?.v);
-  const tg = (["yes", "no"] as const).find((v) => v === smartValues.tg?.v);
-  // "acc" объединяет старые чипы (active/off/none) и новое состояние из
-  // умного фильтра (neverLoggedIn) — единая точка правды для статуса учётки.
-  const acc = (["active", "off", "none", "neverLoggedIn"] as const).find(
-    (v) => v === smartValues.account?.v,
-  );
-
-  const empFilters: Prisma.EmployeeWhereInput[] = [];
-  if (role) empFilters.push({ user: { is: { roles: { has: role } } } });
-  if (acc === "active") empFilters.push({ user: { is: { isActive: true } } });
-  if (acc === "off") empFilters.push({ user: { is: { isActive: false } } });
-  if (acc === "none") empFilters.push({ user: null });
-  if (acc === "neverLoggedIn") empFilters.push({ user: { is: { lastLoginAt: null } } });
-  if (empStatus) empFilters.push({ status: empStatus });
-  if (tg) empFilters.push({ telegramId: tg === "yes" ? { not: null } : null });
-  const fullNameF = stringFilter(smartValues.fullName);
-  if (fullNameF) empFilters.push({ fullName: fullNameF });
-  const loginF = stringFilter(smartValues.login);
-  if (loginF) empFilters.push({ user: { is: { login: loginF } } });
-  const deptF = stringFilter(smartValues.department);
-  if (deptF) empFilters.push({ department: deptF });
-  const phoneF = stringFilter(smartValues.phone);
-  if (phoneF) empFilters.push({ phone: phoneF });
-  const lastLoginF = dateFilter(smartValues.lastLogin);
-  if (lastLoginF) empFilters.push({ user: { is: { lastLoginAt: lastLoginF } } });
-
-  const empWhere: Prisma.EmployeeWhereInput = {
-    archivedAt: archiveView ? { not: null } : null,
-    ...(q
-      ? {
-          OR: [
-            { fullName: { contains: q, mode: "insensitive" } },
-            { department: { contains: q, mode: "insensitive" } },
-            { user: { is: { login: { contains: q, mode: "insensitive" } } } },
-          ],
-        }
-      : {}),
-    ...(empFilters.length ? { AND: empFilters } : {}),
-  };
+  const { where: empWhere, role, acc, empStatus, tg, loginF } = buildEmployeeFilter(sp, archiveView);
 
   // Служебные учётки — не сотрудники: у них нет статуса работы, а «без учётки»
   // для них невозможно. По таким фильтрам их просто не показываем.
@@ -172,6 +132,11 @@ export default async function UsersPage({
     return str ? `/admin/users?${str}` : "/admin/users";
   };
 
+  // Экспорт получает тот же query целиком (кроме пагинации) — тот же срез, что виден в таблице.
+  const exportQuery = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (v && k !== "page") exportQuery.set(k, v);
+  const exportHref = `/admin/users/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
+
   return (
     <div data-wide className="space-y-4">
       <div className="flex flex-nowrap items-center justify-end gap-2 overflow-x-auto">
@@ -184,7 +149,7 @@ export default async function UsersPage({
         {!archiveView && (
           <>
             <a
-              href="/admin/users/export"
+              href={exportHref}
               download
               className={cx(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0")}
               title={t("users.exportExcelHint")}

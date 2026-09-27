@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
-import { listCouponRegistry, countCouponRegistry, isCouponStatus } from "@/lib/coupon-registry";
+import { listCouponRegistry, countCouponRegistry, buildCouponFilters } from "@/lib/coupon-registry";
 import { taxiRegistryRows, type PromoStatus } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import type { SmartFilterField } from "@/lib/smart-filter";
 import {
   Badge,
   EmptyState,
@@ -87,41 +86,16 @@ export default async function CouponsPage({
       options: COUPON_STATUSES.map((value) => ({ value, label: couponStatusLabel(locale, value) })),
     },
   ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const periodId = smartValues.period?.v;
-  const status = smartValues.status?.v && isCouponStatus(smartValues.status.v) ? smartValues.status.v : undefined;
-  const partnerId = smartValues.partner?.v;
+  const cf = buildCouponFilters(sp);
+  const { periodId, status, partnerId, q } = cf;
 
-  const smartFilters: Prisma.CouponWhereInput[] = [];
-  const numberF = stringFilter(smartValues.number);
-  if (numberF) smartFilters.push({ number: numberF });
-  const employeeF = stringFilter(smartValues.employee);
-  if (employeeF) smartFilters.push({ employee: { is: { fullName: employeeF } } });
-  const cardF = stringFilter(smartValues.card);
-  if (cardF) smartFilters.push({ item: { is: { card: { is: { title: cardF } } } } });
-  const partnerNameF = stringFilter(smartValues.partnerName);
-  if (partnerNameF) smartFilters.push({ partner: { is: { name: partnerNameF } } });
-  const validUntilF = dateFilter(smartValues.validUntil);
-  if (validUntilF) smartFilters.push({ validUntil: validUntilF });
-  const q = (sp.q ?? "").trim();
-  if (q) {
-    smartFilters.push({
-      OR: [
-        { number: { contains: q, mode: "insensitive" } },
-        { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } },
-        { item: { is: { card: { is: { title: { contains: q, mode: "insensitive" } } } } } },
-        { partner: { is: { name: { contains: q, mode: "insensitive" } } } },
-      ],
-    });
-  }
-
-  const filters = { periodId, status, partnerId, extraWhere: smartFilters };
+  const filters = { periodId, status, partnerId, extraWhere: cf.extraWhere };
   // Купон/QR для PHONE_PROMO (такси) принципиально не формируется — у этих
   // позиций нет статуса/номера купона, поэтому фильтры, завязанные именно на
   // купон (статус, номер, срок действия, льгота, партнёр по названию), для
   // них не применимы. Показываем такси-строки только когда активны только
   // совместимые фильтры (период/партнёр/сотрудник/быстрый поиск).
-  const taxiFiltersCompatible = !status && !numberF && !validUntilF && !cardF && !partnerNameF;
+  const taxiFiltersCompatible = !cf.hasCouponOnlyFilters;
   // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
   // работающий по номеру телефона (промокод рассылает подрядчик). Сама
   // очередь формирования купонов вынесена на отдельную страницу
@@ -137,7 +111,7 @@ export default async function CouponsPage({
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
     taxiFiltersCompatible
-      ? taxiRegistryRows({ periodId, partnerId, employeeQuery: smartValues.employee?.v?.trim() || undefined })
+      ? taxiRegistryRows({ periodId, partnerId, employeeQuery: cf.employeeQuery })
       : Promise.resolve([]),
   ]);
   const qLower = q.toLowerCase();
@@ -157,11 +131,9 @@ export default async function CouponsPage({
     return str ? `/coupons?${str}` : "/coupons";
   };
 
+  // Экспорт получает тот же query целиком (кроме пагинации) — тот же срез, что виден в таблице.
   const exportQuery = new URLSearchParams();
-  if (periodId) exportQuery.set("period", periodId);
-  if (status) exportQuery.set("status", status);
-  if (partnerId) exportQuery.set("partner", partnerId);
-  if (smartValues.employee?.v) exportQuery.set("emp", smartValues.employee.v);
+  for (const [k, v] of Object.entries(sp)) if (v && k !== "page") exportQuery.set(k, v);
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
