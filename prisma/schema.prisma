@@ -198,6 +198,7 @@ model User {
   feedbackHandled Feedback[]             @relation("FeedbackHandler")
   supportReplies  SupportMessage[]
   reportPresets   ReportPreset[]
+  sessions        UserSession[]
 
   @@index([partnerId])
 }
@@ -1021,4 +1022,26 @@ model CoinRedemption {
 
   @@index([employeeId])
   @@index([status])
+}
+
+/// Активная/прошедшая сессия входа (§ "Кто онлайн"). id = sid, зашитый в JWT
+/// (см. createSession в src/lib/auth.ts). Онлайн-статус вычисляется на
+/// чтении: revokedAt IS NULL AND lastSeenAt > now() - 3 минуты
+/// (см. ONLINE_WINDOW_MS в src/lib/user-sessions.ts) — отдельного булева
+/// поля "online" нет, чтобы не рассинхронизировалось с порогом.
+model UserSession {
+  id         String    @id
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  device     String    // "mobile" | "desktop" | "unknown" — грубый разбор User-Agent
+  browser    String?
+  ip         String?
+  city       String?
+  country    String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@index([lastSeenAt])
 }
