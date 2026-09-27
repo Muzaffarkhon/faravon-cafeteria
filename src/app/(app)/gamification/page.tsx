@@ -6,7 +6,7 @@ import { localize } from "@/lib/localize";
 import { Badge, Card, EmptyState, SectionTitle, Table, Select, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
-import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamification-tasks";
+import { listAvailableTasksForEmployee, listEmployeeTasks, getRejoinCooldownRemaining } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { getDailyBonusStatus } from "@/lib/daily-bonus";
@@ -14,6 +14,7 @@ import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selectio
 import { safeImageSrc } from "@/lib/safe-url";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
 import { CoinBalance } from "./_coin-balance";
+import { CancelTaskButton } from "./_cancel-task-button";
 import { DailyBonusCard } from "./_daily-bonus";
 import { CardDetailsButton } from "../_components/card-details";
 
@@ -28,7 +29,7 @@ export default async function GamificationPage() {
   const locale = await getLocale();
   const employeeId = session.employee.id;
 
-  const [available, mine, balance, entries, shopCardsRaw, dailyBonus] = await Promise.all([
+  const [available, mine, balance, entries, shopCardsRaw, dailyBonus, cooldownRemaining] = await Promise.all([
     listAvailableTasksForEmployee(employeeId),
     listEmployeeTasks(employeeId),
     getCoinBalance(employeeId),
@@ -39,6 +40,7 @@ export default async function GamificationPage() {
       include: { partner: true },
     }),
     getDailyBonusStatus(employeeId),
+    getRejoinCooldownRemaining(employeeId),
   ]);
 
   const shopCards = shopCardsRaw.map((c) => ({
@@ -97,6 +99,11 @@ export default async function GamificationPage() {
 
       <section className="space-y-3">
         <SectionTitle className="text-lg" count={available.length}>{t("gamification.availableTasks")}</SectionTitle>
+        {cooldownRemaining != null && (
+          <p className="rounded-[12px] bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-strong">
+            {t("gamification.cooldownNotice")} {Math.ceil(cooldownRemaining / 60_000)} {t("gamification.cooldownMinutes")}
+          </p>
+        )}
         {available.length === 0 ? (
           <EmptyState>{t("gamification.noAvailableTasks")}</EmptyState>
         ) : (
@@ -144,6 +151,7 @@ export default async function GamificationPage() {
                   <th>{t("gamification.colTask")}</th>
                   <th>{t("gamification.colStatus")}</th>
                   <th>{t("gamification.colProgress")}</th>
+                  <th className="text-right">{t("gamification.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,6 +163,11 @@ export default async function GamificationPage() {
                     </td>
                     <td data-numeric>
                       {et.task.verification === "AUTO" && et.task.targetValue ? `${et.progressValue} / ${et.task.targetValue}` : "—"}
+                    </td>
+                    <td className="text-right">
+                      {et.status === "IN_PROGRESS" && (
+                        <CancelTaskButton employeeTaskId={et.id} taskTitle={et.task.title} locale={locale} />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -249,36 +262,53 @@ export default async function GamificationPage() {
       </section>
 
       <section className="space-y-3">
-        <SectionTitle className="text-lg">{t("gamification.history")}</SectionTitle>
-        {entries.length === 0 ? (
-          <EmptyState>{t("gamification.historyEmpty")}</EmptyState>
-        ) : (
-          <Card className="overflow-hidden">
-            <Table stickyHeader>
-              <thead>
-                <tr>
-                  <th>{t("gamification.colWhen")}</th>
-                  <th>{t("gamification.colReason")}</th>
-                  <th>{t("gamification.colAmount")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e) => (
-                  <tr key={e.id}>
-                    <td className="text-ink-muted" data-numeric>
-                      {new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" }).format(e.createdAt)}
-                    </td>
-                    <td>{e.reason}</td>
-                    <td data-numeric className={e.kind === "SPENT" ? "text-danger" : "text-success"}>
-                      {e.kind === "SPENT" ? "-" : "+"}
-                      {e.amount}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
-        )}
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-lg font-bold text-ink [&::-webkit-details-marker]:hidden">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="shrink-0 transition-transform group-open:rotate-90"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+            {t("gamification.history")}
+          </summary>
+          <div className="mt-3">
+            {entries.length === 0 ? (
+              <EmptyState>{t("gamification.historyEmpty")}</EmptyState>
+            ) : (
+              <Card className="overflow-hidden">
+                <Table stickyHeader>
+                  <thead>
+                    <tr>
+                      <th>{t("gamification.colWhen")}</th>
+                      <th>{t("gamification.colReason")}</th>
+                      <th>{t("gamification.colAmount")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((e) => (
+                      <tr key={e.id}>
+                        <td className="text-ink-muted" data-numeric>
+                          {new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" }).format(e.createdAt)}
+                        </td>
+                        <td>{e.reason}</td>
+                        <td data-numeric className={e.kind === "SPENT" ? "text-danger" : "text-success"}>
+                          {e.kind === "SPENT" ? "-" : "+"}
+                          {e.amount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </Card>
+            )}
+          </div>
+        </details>
       </section>
     </div>
   );

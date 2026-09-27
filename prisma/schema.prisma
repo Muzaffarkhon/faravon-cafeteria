@@ -914,6 +914,7 @@ enum EmployeeTaskStatus {
   IN_PROGRESS
   COMPLETED
   EXPIRED
+  CANCELLED
 }
 
 enum CoinEntryKind {
@@ -975,6 +976,12 @@ model EmployeeTask {
   joinedAt      DateTime           @default(now())
   completedAt   DateTime?
   confirmedById String?
+  /// Когда сотрудник отменил задачу (см. cancelTask в gamification-tasks.ts).
+  cancelledAt   DateTime?
+  /// Период льгот (Period.id), открытый на момент отмены — эта же задача
+  /// возвращается в «Доступные» для сотрудника, только когда открыт другой
+  /// период. Обычный String, без relation — как confirmedById выше.
+  cancelledPeriodId String?
 
   @@unique([employeeId, taskId])
   @@index([status])
