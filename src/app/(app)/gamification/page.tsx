@@ -9,6 +9,7 @@ import { listAvailableTasksForEmployee, listEmployeeTasks } from "@/lib/gamifica
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { getDailyBonusStatus } from "@/lib/daily-bonus";
+import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
 import { safeImageSrc } from "@/lib/safe-url";
 import { joinTaskAction, buyWithCoinsAction } from "./_actions";
 import { CoinBalance } from "./_coin-balance";
@@ -35,6 +36,21 @@ export default async function GamificationPage() {
     }),
     getDailyBonusStatus(employeeId),
   ]);
+
+  // Карточки, уже выбранные обычным способом (не за монеты) в целевом периоде —
+  // fulfillRedemption всё равно бы их отклонил (unique [applicationId, cardId]),
+  // но раньше это выяснялось только ПОСЛЕ списания монет и отката (redemption
+  // сразу уходил в REJECTED). Показываем это заранее, вместо кнопки.
+  const targetPeriod = (await resolveSelectionContext()).targetPeriod;
+  const normallySelectedCardIds = new Set<string>();
+  if (targetPeriod) {
+    const app = await getApplicationWithItems(employeeId, targetPeriod.id);
+    for (const item of app?.items ?? []) {
+      if (!item.viaCoins && !["CANCELLED", "REJECTED"].includes(item.status)) {
+        normallySelectedCardIds.add(item.cardId);
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -136,7 +152,8 @@ export default async function GamificationPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {shopCards.map((card) => {
               const price = card.coinPrice ?? 0;
-              const affordable = balance >= price;
+              const alreadySelected = normallySelectedCardIds.has(card.id);
+              const affordable = !alreadySelected && balance >= price;
               const missing = price - balance;
               const image = safeImageSrc(card.imageUrl);
               return (
@@ -178,6 +195,10 @@ export default async function GamificationPage() {
                             {card.coinRedemptionMode === "REQUEST" ? t("gamification.buyRequest") : t("gamification.buyInstant")}
                           </SubmitButton>
                         </ActionForm>
+                      ) : alreadySelected ? (
+                        <p className="rounded-[10px] bg-surface-muted py-2 text-center text-xs font-semibold text-ink-muted">
+                          {t("gamification.alreadySelectedNormally")}
+                        </p>
                       ) : (
                         <p className="rounded-[10px] bg-surface-muted py-2 text-center text-xs font-semibold text-ink-muted">
                           {t("gamification.notEnough")} {missing} {t("gamification.coinUnit")}
