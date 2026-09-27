@@ -223,6 +223,34 @@ async function rejectAwaitingItemImpl(itemId: string) {
   revalidateAll();
 }
 
+/** Принудительно выдать несколько сформированных купонов разом (по чекбоксам в реестре).
+ *  Каждый купон проходит те же проверки, что и одиночная выдача (issueCoupon) — падение
+ *  на одном купоне (например, ещё не набралась групповая волна) не прерывает остальные. */
+export async function bulkIssueCoupons(couponIds: string[]): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "coupons.manage");
+    if (couponIds.length === 0) throw new Error("Ничего не выбрано.");
+
+    let issued = 0;
+    const failures: string[] = [];
+    for (const couponId of couponIds) {
+      try {
+        await issueCouponImpl(couponId);
+        issued += 1;
+      } catch (e) {
+        failures.push(e instanceof Error ? e.message : "Непредвиденная ошибка.");
+      }
+    }
+
+    if (issued === 0) throw new Error(`Не удалось выдать ни одного купона: ${failures[0]}`);
+    if (failures.length > 0) {
+      return { notice: `Выдано: ${issued} из ${couponIds.length}. Ошибки: ${failures.join("; ")}` };
+    }
+    return { notice: `Выдано купонов: ${issued}.` };
+  });
+}
+
 /** Удалить купон (C_AND_B). Связанная позиция возвращается в статус «Одобрено». */
 export async function deleteCoupon(couponId: string): Promise<ActionResult> {
   return runAction(() => deleteCouponImpl(couponId));

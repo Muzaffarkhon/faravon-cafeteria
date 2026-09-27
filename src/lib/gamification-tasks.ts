@@ -4,9 +4,13 @@ import { audit } from "@/lib/audit";
 import { creditCoins } from "@/lib/coin-wallet";
 import { redeemWithCoins } from "@/lib/coin-redemption";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
+import { getCurrentPeriod } from "@/lib/selection";
 import type { GamificationAutoMetric } from "@prisma/client";
 
 export class GamificationTaskError extends Error {}
+
+/** Общий кулдаун после отмены задачи, прежде чем можно взять любую другую (мс). */
+const REJOIN_COOLDOWN_MS = 60 * 60 * 1000;
 
 function scopeMatches(employee: { id: string; department: string }) {
   return {
@@ -18,25 +22,50 @@ function scopeMatches(employee: { id: string; department: string }) {
   };
 }
 
-/** Активные задачи, доступные сотруднику по scope, которые он ещё не взял. */
+/** Активные задачи, доступные сотруднику по scope, которые он ещё не взял (или уже
+ *  отменил, но в текущем периоде — отменённая задача возвращается в список только
+ *  когда открывается другой период льгот). */
 export async function listAvailableTasksForEmployee(employeeId: string) {
   const employee = await db.employee.findUniqueOrThrow({ where: { id: employeeId }, select: { id: true, department: true } });
   const now = new Date();
+  const currentPeriodId = (await getCurrentPeriod())?.id ?? null;
   return db.gamificationTask.findMany({
     where: {
       isActive: true,
       startsAt: { lte: now },
-      employeeTasks: { none: { employeeId } },
+      employeeTasks: {
+        none: {
+          employeeId,
+          OR: [
+            { status: { in: ["IN_PROGRESS", "COMPLETED"] } },
+            { status: "CANCELLED", cancelledPeriodId: currentPeriodId },
+          ],
+        },
+      },
       AND: [scopeMatches(employee), { OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
     },
     orderBy: { createdAt: "desc" },
   });
 }
 
-/** Задачи, которые сотрудник уже взял (в работе или завершённые), с данными шаблона. */
+/** Сколько ещё ждать (мс), прежде чем сотрудник сможет снова взять любую задачу
+ *  после последней отмены; null — кулдауна нет. */
+export async function getRejoinCooldownRemaining(employeeId: string): Promise<number | null> {
+  const last = await db.employeeTask.findFirst({
+    where: { employeeId, status: "CANCELLED" },
+    orderBy: { cancelledAt: "desc" },
+    select: { cancelledAt: true },
+  });
+  if (!last?.cancelledAt) return null;
+  const remaining = last.cancelledAt.getTime() + REJOIN_COOLDOWN_MS - Date.now();
+  return remaining > 0 ? remaining : null;
+}
+
+/** Задачи, которые сотрудник уже взял (в работе или завершённые), с данными шаблона.
+ *  Отменённые сюда не попадают — отмена убирает задачу из «Моих» насовсем. */
 export function listEmployeeTasks(employeeId: string) {
   return db.employeeTask.findMany({
-    where: { employeeId },
+    where: { employeeId, status: { not: "CANCELLED" } },
     include: { task: true },
     orderBy: { joinedAt: "desc" },
   });
@@ -44,6 +73,11 @@ export function listEmployeeTasks(employeeId: string) {
 
 export async function joinTask(params: { employeeId: string; taskId: string; prizeCardId?: string | null }): Promise<void> {
   if (!(await getGamificationEnabled())) throw new GamificationTaskError("Функция геймификации временно отключена.");
+  const cooldown = await getRejoinCooldownRemaining(params.employeeId);
+  if (cooldown != null) {
+    const minutes = Math.ceil(cooldown / 60_000);
+    throw new GamificationTaskError(`После отмены задачи новый выбор доступен через ${minutes} мин.`);
+  }
   const task = await db.gamificationTask.findUnique({ where: { id: params.taskId } });
   if (!task || !task.isActive) throw new GamificationTaskError("Задача недоступна.");
   const now = new Date();
@@ -69,10 +103,45 @@ export async function joinTask(params: { employeeId: string; taskId: string; pri
   const existing = await db.employeeTask.findUnique({
     where: { employeeId_taskId: { employeeId: params.employeeId, taskId: params.taskId } },
   });
-  if (existing) throw new GamificationTaskError("Вы уже взяли эту задачу.");
+  if (existing) {
+    // Отменённая в ПРОШЛОМ периоде задача возвращается: та же строка (уникальность
+    // employeeId+taskId не позволяет создать вторую) переиспользуется как новая попытка.
+    const currentPeriodId = (await getCurrentPeriod())?.id ?? null;
+    if (existing.status !== "CANCELLED" || existing.cancelledPeriodId === currentPeriodId) {
+      throw new GamificationTaskError("Вы уже взяли эту задачу.");
+    }
+    await db.employeeTask.update({
+      where: { id: existing.id },
+      data: {
+        status: "IN_PROGRESS",
+        progressValue: 0,
+        prizeCardId: params.prizeCardId ?? null,
+        joinedAt: new Date(),
+        completedAt: null,
+        confirmedById: null,
+        cancelledAt: null,
+        cancelledPeriodId: null,
+      },
+    });
+    return;
+  }
 
   await db.employeeTask.create({
     data: { employeeId: params.employeeId, taskId: params.taskId, prizeCardId: params.prizeCardId ?? null },
+  });
+}
+
+/** Сотрудник отменяет свою задачу в работе. Убирает её из «Моих» насовсем; в
+ *  «Доступных» она вернётся только когда откроется другой период льгот (см.
+ *  listAvailableTasksForEmployee). Общий кулдаун на выбор новой задачи — 1 час. */
+export async function cancelTask(params: { employeeId: string; employeeTaskId: string }): Promise<void> {
+  const et = await db.employeeTask.findUnique({ where: { id: params.employeeTaskId } });
+  if (!et || et.employeeId !== params.employeeId) throw new GamificationTaskError("Задача не найдена.");
+  if (et.status !== "IN_PROGRESS") throw new GamificationTaskError("Отменить можно только задачу в работе.");
+  const currentPeriodId = (await getCurrentPeriod())?.id ?? null;
+  await db.employeeTask.update({
+    where: { id: et.id },
+    data: { status: "CANCELLED", cancelledAt: new Date(), cancelledPeriodId: currentPeriodId },
   });
 }
 

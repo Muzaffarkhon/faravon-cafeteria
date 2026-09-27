@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import { runAction, type ActionResult } from "@/lib/action-result";
-import { joinTask, GamificationTaskError } from "@/lib/gamification-tasks";
+import { joinTask, cancelTask, GamificationTaskError } from "@/lib/gamification-tasks";
 import { redeemWithCoins, CoinRedemptionError } from "@/lib/coin-redemption";
 import { claimDailyBonus, DailyBonusError } from "@/lib/daily-bonus";
 
@@ -14,6 +14,20 @@ export async function joinTaskAction(taskId: string, _prev: ActionResult, formDa
     const prizeCardId = String(formData.get("prizeCardId") ?? "").trim() || null;
     try {
       await joinTask({ employeeId: s.employee.id, taskId, prizeCardId });
+    } catch (e) {
+      if (e instanceof GamificationTaskError) throw new Error(e.message);
+      throw e;
+    }
+    revalidatePath("/gamification");
+  });
+}
+
+export async function cancelTaskAction(employeeTaskId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    if (!s.employee) throw new Error("Доступно только сотрудникам.");
+    try {
+      await cancelTask({ employeeId: s.employee.id, employeeTaskId });
     } catch (e) {
       if (e instanceof GamificationTaskError) throw new Error(e.message);
       throw e;

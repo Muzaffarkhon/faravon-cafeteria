@@ -21,6 +21,7 @@ import {
   type BadgeTone,
 } from "@/components/ui";
 import { IssueCouponButton, DeleteCouponButton } from "./_buttons";
+import { BulkIssueProvider, BulkIssueToolbar, CouponSelectCheckbox } from "./_bulk-issue";
 
 const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 
@@ -174,9 +175,11 @@ export default async function CouponsPage({
 
       {/* Реестр купонов */}
       <section className="space-y-3">
+        <BulkIssueProvider>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="text-lg" count={couponsTotal + taxiRows.length}>{t("coupons.registryTitle")}</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
+            <BulkIssueToolbar locale={locale} />
             <QuickSearch basePath="/coupons" sp={sp} placeholder="Номер, сотрудник, льгота, партнёр…" />
             <a href={exportHref} className={buttonClass({ size: "sm" })}>
               {t("coupons.exportXlsx")}
@@ -198,6 +201,7 @@ export default async function CouponsPage({
             <Table stickyHeader>
               <thead>
                 <tr>
+                  <th className="w-10" />
                   <th>{t("coupons.colNumber")}</th>
                   <th>{t("coupons.colEmployee")}</th>
                   <th>{t("coupons.colCardPartner")}</th>
@@ -215,6 +219,7 @@ export default async function CouponsPage({
                     const periodEnded = r.periodStatus === "CLOSED" || r.periodEndDate < now;
                     return (
                       <tr key={`taxi-${r.itemId}`}>
+                        <td />
                         <td data-numeric>
                           <div className="font-mono text-sm text-ink">{r.promo ?? "—"}</div>
                           <RowId id={r.itemId} seq={r.seq} className="mt-0.5" />
@@ -245,8 +250,10 @@ export default async function CouponsPage({
                   const displayStatus = overdue ? "EXPIRED" : c.status;
                   const periodEnded = c.period.status === "CLOSED" || c.period.endDate < now;
                   const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
+                  const bulkEligible = c.status === "CREATED" && !phonePromo && !overdue;
                   return (
                     <tr key={c.id}>
+                      <td>{bulkEligible && <CouponSelectCheckbox couponId={c.id} />}</td>
                       <td data-numeric>
                         <div className="font-mono text-sm text-ink">{c.number}</div>
                         <RowId id={c.id} seq={c.seq} className="mt-0.5" />
@@ -290,6 +297,7 @@ export default async function CouponsPage({
             </Table>
           </div>
         )}
+        </BulkIssueProvider>
 
         {pages > 1 && (
           <div className="flex items-center justify-between text-sm">
