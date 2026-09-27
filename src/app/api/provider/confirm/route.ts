@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiGuard } from "@/lib/api-guard";
 import { redeemCouponByNumber } from "@/lib/coupon";
+import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
     if (!number) return NextResponse.json({ error: "Укажите номер купона." }, { status: 400 });
 
     const coupon = await redeemCouponByNumber(number, g.session.user.id, g.session.user.partnerId);
+    await checkAutoTasksForEmployee(coupon.employeeId, "COUPONS_USED").catch(() => {});
     return NextResponse.json({ ok: true, number: coupon.number });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Ошибка";

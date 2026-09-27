@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { completeEmployeeTaskManual, GamificationTaskError } from "@/lib/gamification-tasks";
 import { decideCoinRedemption, CoinRedemptionError } from "@/lib/coin-redemption";
-import { setGamificationEnabled } from "@/lib/gamification-settings";
+import { setGamificationEnabled, setDailyBonusCoins } from "@/lib/gamification-settings";
 
 export type TaskFormState = { error?: string };
 export type ToggleFormState = { ok?: boolean; error?: string };
@@ -19,7 +19,14 @@ export async function saveGamificationEnabled(_prev: ToggleFormState, formData: 
   const s = await requireSession();
   assertCan(s.roles, "gamification.manage");
   const enabled = formData.get("enabled") === "on";
-  await setGamificationEnabled(s.user.id, enabled);
+  const dailyBonusCoins = Number.parseInt(String(formData.get("dailyBonusCoins") ?? ""), 10);
+  if (!Number.isSafeInteger(dailyBonusCoins) || dailyBonusCoins < 0) {
+    return { error: "Монет за визит должно быть целым числом ≥ 0." };
+  }
+  await Promise.all([
+    setGamificationEnabled(s.user.id, enabled),
+    setDailyBonusCoins(s.user.id, dailyBonusCoins),
+  ]);
   revalidatePath("/admin/gamification");
   return { ok: true };
 }

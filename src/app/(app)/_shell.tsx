@@ -9,6 +9,8 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Locale } from "@/lib/i18n/shared";
 import { translate } from "@/lib/i18n/dict";
+import { formatSomoni } from "@/lib/cashback-math";
+import { ICONS } from "./_nav";
 import { logout } from "./actions";
 import { LiveRefresh } from "./_live-refresh";
 
@@ -62,6 +64,8 @@ export function AppShell({
   roleLabel,
   displayName,
   selectionStat,
+  coinBalance,
+  cashbackTotal,
   backdrop,
   adminHref,
   locale,
@@ -73,6 +77,10 @@ export function AppShell({
   displayName?: string;
   /** Счётчики выбора льгот в закреплённой шапке (только у сотрудника). */
   selectionStat?: { used: number; drafts: number; max: number } | null;
+  /** Баланс Farovon Coin в шапке — только если геймификация включена. */
+  coinBalance?: number | null;
+  /** Совокупный кешбек по всем партнёрам (диры) — только если есть счета кешбека. */
+  cashbackTotal?: number | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
@@ -93,7 +101,8 @@ export function AppShell({
   // занимают место в и так тесной строке вкладок — уходят в «Ещё». Иначе при
   // достаточном числе вкладок такой пункт просто обрезался прокруткой без
   // всякого намёка, что он там есть.
-  const primaryAll: NavItem[] = groups.filter((g) => PRIMARY_GROUPS.has(g.id)).flatMap((g) => g.items);
+  const primaryGroups = groups.filter((g) => PRIMARY_GROUPS.has(g.id));
+  const primaryAll: NavItem[] = primaryGroups.flatMap((g) => g.items);
   const primary = primaryAll.filter((it) => !it.soon);
   const soonItems = primaryAll.filter((it) => it.soon);
   const moreGroups: NavGroup[] = groups.filter((g) => !PRIMARY_GROUPS.has(g.id));
@@ -103,6 +112,27 @@ export function AppShell({
   const moreItems = moreGroups.flatMap((g) => g.items);
   const moreActive = moreItems.some((it) => isActive(it.href));
   const moreBadge = moreItems.reduce((n, it) => n + (it.badge ?? 0), 0);
+
+  // Нижняя навигация (мобайл) вмещает не более 4 вкладок (включая «Ещё»).
+  // Раньше «лишние» пункты «Кабинета»/«Работы» сверх этого лимита просто
+  // пропадали — не попадали ни на панель, ни в «Ещё» (баг, из-за которого
+  // «Геймификация», пятый пункт «Кабинета», была недостижима на мобильном).
+  // На десктопе такой проблемы нет — там вкладки не обрезаются (прокрутка).
+  const BOTTOM_TAB_LIMIT = 4;
+  const bottomReservesMoreSlot = moreGroups.length > 0 || primary.length > BOTTOM_TAB_LIMIT;
+  const bottomPrimary = primary.slice(0, bottomReservesMoreSlot ? BOTTOM_TAB_LIMIT - 1 : BOTTOM_TAB_LIMIT);
+  const bottomOverflow = primary.slice(bottomPrimary.length);
+  const mobileMoreGroups: NavGroup[] =
+    bottomOverflow.length === 0
+      ? moreGroups
+      : [
+          ...primaryGroups
+            .map((g) => ({ ...g, items: g.items.filter((it) => bottomOverflow.includes(it)) }))
+            .filter((g) => g.items.length > 0),
+          ...moreGroups,
+        ];
+  const mobileMoreActive = mobileMoreGroups.flatMap((g) => g.items).some((it) => isActive(it.href));
+  const mobileMoreBadge = mobileMoreGroups.flatMap((g) => g.items).reduce((n, it) => n + (it.badge ?? 0), 0);
 
   const closeMenus = () => {
     setMoreOpen(false);
@@ -184,21 +214,47 @@ export function AppShell({
               вправо. Без неё они липнут к логотипу слева, и выпадающие меню (right-0) уезжают за левый край экрана. */}
           <div className="min-w-0 flex-1 sm:hidden" aria-hidden="true" />
 
-          {/* Счётчики выбора льгот — в один ряд с вкладками, справа. */}
-          {selectionStat && (
-            <div className="flex shrink-0 items-center gap-1.5" aria-label="Выбор льгот">
-              <span className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong">
-                <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong/70 md:inline">
-                  {t("shell.selected")}
+          {/* Счётчики — в один ряд с вкладками, справа. Выбор льгот теперь один
+              единый значок (было 2 отдельных — «выбрано» и «черновики»),
+              рядом баланс монет и совокупный кешбек, если они у сотрудника есть. */}
+          {(selectionStat || typeof coinBalance === "number" || (typeof cashbackTotal === "number" && cashbackTotal > 0)) && (
+            <div className="flex shrink-0 items-center gap-1.5">
+              {selectionStat && (
+                <span
+                  className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
+                  aria-label={
+                    selectionStat.drafts > 0
+                      ? `${t("shell.selected")}: ${selectionStat.used}/${selectionStat.max}, ${t("shell.drafts")}: ${selectionStat.drafts}`
+                      : `${t("shell.selected")}: ${selectionStat.used}/${selectionStat.max}`
+                  }
+                >
+                  <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-primary-strong/70 md:inline">
+                    {t("shell.selected")}
+                  </span>
+                  {selectionStat.used}/{selectionStat.max}
+                  {selectionStat.drafts > 0 && <span className="text-primary-strong/70"> · {selectionStat.drafts}</span>}
                 </span>
-                {selectionStat.used}/{selectionStat.max}
-              </span>
-              <span className="rounded-[10px] bg-surface-muted px-2 py-1.5 text-[13px] font-bold tabular-nums text-ink">
-                <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted md:inline">
-                  {t("shell.drafts")}
+              )}
+              {typeof coinBalance === "number" && (
+                <span
+                  className="flex items-center gap-1 rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
+                  aria-label={`${t("gamification.coinUnit")}: ${coinBalance}`}
+                  title={t("gamification.coinUnit")}
+                >
+                  <Icon path={ICONS.gamification} className="h-4 w-4" />
+                  {coinBalance}
                 </span>
-                {selectionStat.drafts}
-              </span>
+              )}
+              {typeof cashbackTotal === "number" && cashbackTotal > 0 && (
+                <span
+                  className="flex items-center gap-1 rounded-[10px] bg-success-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-success-strong"
+                  aria-label={`${t("cashback.title")}: ${formatSomoni(cashbackTotal)} ${t("cashback.currency")}`}
+                  title={t("cashback.title")}
+                >
+                  <Icon path={ICONS.cashback} className="h-4 w-4" />
+                  {formatSomoni(cashbackTotal)}
+                </span>
+              )}
             </div>
           )}
 
@@ -367,7 +423,7 @@ export function AppShell({
         className="sticky bottom-0 z-40 flex border-t border-line bg-surface/95 backdrop-blur sm:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {primary.slice(0, moreGroups.length > 0 ? 3 : 4).map((it) => {
+        {bottomPrimary.map((it) => {
           const active = isActive(it.href);
           return (
             <Link
@@ -387,24 +443,24 @@ export function AppShell({
             </Link>
           );
         })}
-        {moreGroups.length > 0 && (
+        {mobileMoreGroups.length > 0 && (
           <button
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
             className={cx(
               "relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition-colors",
-              moreActive || moreOpen ? "text-primary" : "text-ink-muted",
+              mobileMoreActive || moreOpen ? "text-primary" : "text-ink-muted",
             )}
           >
             <Icon path={I.more} className="h-5 w-5" />
             <span>{t("nav.more")}</span>
-            {moreBadge > 0 && <span className="absolute right-[28%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />}
+            {mobileMoreBadge > 0 && <span className="absolute right-[28%] top-1 h-1.5 w-1.5 rounded-full bg-primary" />}
           </button>
         )}
       </nav>
 
       {/* ── Мобильный лист «Ещё» ── */}
-      {moreOpen && moreGroups.length > 0 && (
+      {moreOpen && mobileMoreGroups.length > 0 && (
         <div className="fixed inset-0 z-50 sm:hidden" role="dialog" aria-modal="true">
           <button
             type="button"
@@ -414,7 +470,7 @@ export function AppShell({
           />
           <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" />
-            {moreGroups.map((g) => (
+            {mobileMoreGroups.map((g) => (
               <div key={g.id} className="mb-3 last:mb-0">
                 <div className="px-1 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-muted">
                   {g.label}

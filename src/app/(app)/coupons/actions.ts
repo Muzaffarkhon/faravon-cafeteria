@@ -7,7 +7,7 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
-import { groupApprovedCount } from "@/lib/selection";
+import { groupApprovedCount, isItemWaveReady, currentWaveProgress } from "@/lib/selection";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { runAction, type ActionResult } from "@/lib/action-result";
 
@@ -51,9 +51,9 @@ async function createCouponImpl(itemId: string) {
       },
     });
     if (item && item.card.minParticipants > 1) {
-      const have = await groupApprovedCount(item.cardId, item.application.periodId);
+      const inWave = await currentWaveProgress(item.cardId, item.application.periodId, item.card.minParticipants);
       return {
-        notice: `Купон сформирован, но пока не выдан: групповая льгота, одобрено ${have} из ${item.card.minParticipants} участников. Он уйдёт сотруднику автоматически, когда одобрят всю группу.`,
+        notice: `Купон сформирован, но пока не выдан: групповая льгота, в текущем наборе ${inWave} из ${item.card.minParticipants} участников. Он уйдёт сотруднику автоматически, когда наберётся его волна.`,
       };
     }
   }
@@ -85,13 +85,14 @@ async function issueCouponImpl(couponId: string) {
   }
   assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
 
-  // Групповая льгота: выдать купон можно только после набора группы (§ minParticipants).
+  // Групповая льгота: выдать купон можно только после набора ЕГО волны (§ minParticipants, § groupWaves).
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
-    const have = await groupApprovedCount(coupon.item.cardId, coupon.periodId);
-    if (have < min) {
+    const ready = await isItemWaveReady(coupon.item.cardId, coupon.periodId, coupon.itemId, min);
+    if (!ready) {
+      const inWave = await currentWaveProgress(coupon.item.cardId, coupon.periodId, min);
       throw new Error(
-        `Групповая льгота «${coupon.item.card.title}»: одобрено ${have} из ${min} участников. Купон можно выдать после того, как одобрят всю группу.`,
+        `Групповая льгота «${coupon.item.card.title}»: в текущем наборе ${inWave} из ${min} участников. Купон можно выдать после того, как наберётся его волна.`,
       );
     }
   }

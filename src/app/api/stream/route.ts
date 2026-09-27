@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { onlineSessionWhere } from "@/lib/user-sessions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +58,13 @@ async function signatureFor(session: Session): Promise<string> {
       db.advertisingRequest.aggregate({ _max: { updatedAt: true } }),
     ]);
     parts.push(`ad:${pending}:${agg._max.updatedAt?.getTime() ?? 0}`);
+  }
+  if (can(roles, "sessions.view")) {
+    const [count, agg] = await Promise.all([
+      db.userSession.count({ where: onlineSessionWhere() }),
+      db.userSession.aggregate({ _max: { lastSeenAt: true }, where: onlineSessionWhere() }),
+    ]);
+    parts.push(`sess:${count}:${agg._max.lastSeenAt?.getTime() ?? 0}`);
   }
   if (session.employee) {
     const employeeId = session.employee.id;

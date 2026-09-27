@@ -140,12 +140,68 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
   }
 }
 
-/** Пересчёт прогресса всех AUTO-задач в работе. Вызывается cron-роутом раз в сутки. */
+type InProgressAutoTask = { id: string; employeeId: string; joinedAt: Date; task: { autoMetric: GamificationAutoMetric | null; targetValue: number | null } };
+
+/**
+ * Проверяет и, если порог достигнут, атомарно завершает ОДНУ авто-задачу.
+ * Общая логика для мгновенной проверки (сразу после события) и ночного
+ * крона (подстраховка на случай, если мгновенный вызов не случился).
+ */
+async function checkAndCompleteAutoTask(et: InProgressAutoTask): Promise<boolean> {
+  if (!et.task.autoMetric || et.task.targetValue == null) return false;
+  const progressValue = await computeAutoProgress(et.task.autoMetric, et.employeeId, et.joinedAt);
+  const reachedTarget = progressValue >= et.task.targetValue;
+  if (!reachedTarget) {
+    await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
+    return false;
+  }
+  // Атомарный claim по IN_PROGRESS — на случай, если мгновенная проверка и
+  // ночной крон (или два мгновенных вызова подряд) пересеклись во времени
+  // (см. rewardCompletedTask: двойная покупка приза не idempotent).
+  const claimed = await db.employeeTask.updateMany({
+    where: { id: et.id, status: "IN_PROGRESS" },
+    data: { progressValue, status: "COMPLETED", completedAt: new Date() },
+  });
+  if (claimed.count === 0) return false;
+  await rewardCompletedTask(et.id);
+  await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
+  return true;
+}
+
+/**
+ * Мгновенная проверка авто-задач сотрудника по ОДНОЙ метрике — вызывается
+ * сразу после события (заявка подана, купон погашен, отзыв оставлен), а не
+ * только ночным кроном. Крон (`recomputeAutoTasks`) остаётся как страховка:
+ * ловит то, что могло быть пропущено (ручная правка в БД, будущий код,
+ * забывший вызвать эту функцию).
+ */
+export async function checkAutoTasksForEmployee(employeeId: string, metric: GamificationAutoMetric): Promise<void> {
+  if (!(await getGamificationEnabled())) return;
+  const inProgress = await db.employeeTask.findMany({
+    where: { employeeId, status: "IN_PROGRESS", task: { is: { verification: "AUTO", autoMetric: metric } } },
+    include: { task: { select: { autoMetric: true, targetValue: true } } },
+  });
+  for (const et of inProgress) {
+    try {
+      await checkAndCompleteAutoTask(et);
+    } catch (e) {
+      await audit({
+        actorId: null,
+        action: "GAMIFICATION_TASK_AUTO_FAILED",
+        entityType: "EmployeeTask",
+        entityId: et.id,
+        newValue: { error: e instanceof Error ? e.message : String(e) },
+      }).catch(() => {});
+    }
+  }
+}
+
+/** Пересчёт прогресса всех AUTO-задач в работе. Вызывается cron-роутом раз в сутки — страховка на случай, если мгновенная проверка (checkAutoTasksForEmployee) не сработала. */
 export async function recomputeAutoTasks(): Promise<{ checked: number; completed: number; failed: number }> {
   if (!(await getGamificationEnabled())) return { checked: 0, completed: 0, failed: 0 };
   const inProgress = await db.employeeTask.findMany({
     where: { status: "IN_PROGRESS", task: { is: { verification: "AUTO" } } },
-    include: { task: true },
+    include: { task: { select: { autoMetric: true, targetValue: true } } },
   });
 
   let completed = 0;
@@ -156,22 +212,7 @@ export async function recomputeAutoTasks(): Promise<{ checked: number; completed
     // недостаточно монет на автопокупку заранее выбранного приза) прерывал бы
     // весь суточный прогон, оставляя непроверенными всех остальных в списке.
     try {
-      const progressValue = await computeAutoProgress(et.task.autoMetric, et.employeeId, et.joinedAt);
-      const reachedTarget = progressValue >= et.task.targetValue;
-      if (!reachedTarget) {
-        await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
-        continue;
-      }
-      // Атомарный claim по IN_PROGRESS — на случай перекрывающихся запусков
-      // cron-роута (см. rewardCompletedTask: двойная покупка приза не idempotent).
-      const claimed = await db.employeeTask.updateMany({
-        where: { id: et.id, status: "IN_PROGRESS" },
-        data: { progressValue, status: "COMPLETED", completedAt: new Date() },
-      });
-      if (claimed.count === 0) continue;
-      completed += 1;
-      await rewardCompletedTask(et.id);
-      await audit({ actorId: null, action: "GAMIFICATION_TASK_COMPLETED", entityType: "EmployeeTask", entityId: et.id, newValue: { auto: true } });
+      if (await checkAndCompleteAutoTask(et)) completed += 1;
     } catch (e) {
       failed += 1;
       await audit({

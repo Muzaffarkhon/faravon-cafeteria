@@ -9,9 +9,11 @@ import type { TaskFormState } from "./actions";
 export function TaskForm({
   action,
   locale,
+  departments,
 }: {
   action: (s: TaskFormState, fd: FormData) => Promise<TaskFormState>;
   locale: Locale;
+  departments: string[];
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [state, formAction, pending] = useActionState(action, {});
@@ -60,7 +62,16 @@ export function TaskForm({
         </Field>
         {scope === "DEPARTMENT" && (
           <Field label={t("gamificationAdmin.form.department")} htmlFor="department" required>
-            <Input id="department" name="department" required />
+            <Select id="department" name="department" defaultValue="" required>
+              <option value="" disabled>
+                {t("gamificationAdmin.form.departmentPlaceholder")}
+              </option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
           </Field>
         )}
         <Field label={t("gamificationAdmin.form.endsAt")} htmlFor="endsAt">

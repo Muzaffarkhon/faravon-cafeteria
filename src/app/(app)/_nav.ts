@@ -40,6 +40,7 @@ export const ICONS = {
   star: "M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z",
   // колба — тестовая среда
   flask: "M9 3h6||M10 3v6.5L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9.5V3||M7.4 14h9.2",
+  online: "M5 13a10 10 0 0 1 14 0||M8.5 16.5a5 5 0 0 1 7 0||M12 20h.01",
 };
 
 /** Счётчики непрочитанного/несделанного. Плиткам «Кабинета» они не нужны. */
@@ -283,6 +284,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.audit"),
       desc: "история действий: кто, что и когда изменял, согласования, входы",
       icon: ICONS.history,
+    });
+  if (can(roles, "sessions.view"))
+    add("admin", t("nav.adminGroup"), {
+      href: "/admin/sessions",
+      label: t("nav.sessions"),
+      desc: "кто сейчас на сайте: устройство, браузер, город",
+      icon: ICONS.online,
     });
   if (can(roles, "cashback.manage"))
     add("admin", t("nav.adminGroup"), {

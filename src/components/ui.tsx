@@ -15,14 +15,14 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
 
 /* ------------------------------------------------------------------ Button --- */
 
-type ButtonVariant =
+export type ButtonVariant =
   | "primary"
   | "secondary"
   | "soft"
   | "ghost"
   | "danger"
   | "success";
-type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg";
 
 const BUTTON_BASE =
   "group/btn relative inline-flex select-none items-center justify-center gap-2 " +

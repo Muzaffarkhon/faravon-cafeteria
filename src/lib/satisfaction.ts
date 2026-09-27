@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 const SETTINGS_ID = "default";
 const MIN_REPEAT_DAYS = 1;
@@ -77,4 +78,7 @@ export async function submitSatisfactionResponse(
   await db.satisfactionResponse.create({
     data: { employeeId, rating, comment: trimmedComment },
   });
+  // Мгновенная проверка авто-задач геймификации на метрику FEEDBACK_GIVEN —
+  // не дожидаясь ночного крона (см. lib/gamification-tasks.ts).
+  await checkAutoTasksForEmployee(employeeId, "FEEDBACK_GIVEN").catch(() => {});
 }
