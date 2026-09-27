@@ -351,15 +351,21 @@ export function AdminShell({
                         {open && (
                           <div className="ml-6 mt-1 space-y-0.5 border-l border-line-subtle pl-2.5">
                             {it.children!.map((c) => {
-                              const childIsActive = isActive(c.href);
-                              return (
+                              const external = /^https?:\/\//.test(c.href);
+                              const childIsActive = !external && isActive(c.href);
+                              const className = cx(
+                                "block truncate rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+                                childIsActive ? "bg-primary text-on-brand" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                              );
+                              return external ? (
+                                <a key={c.href} href={c.href} target="_blank" rel="noopener noreferrer" className={className}>
+                                  {c.label}
+                                </a>
+                              ) : (
                                 <Link
                                   key={c.href}
                                   href={c.href}
-                                  className={cx(
-                                    "block truncate rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
-                                    childIsActive ? "bg-primary text-on-brand" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
-                                  )}
+                                  className={className}
                                   aria-current={childIsActive ? "page" : undefined}
                                 >
                                   {c.label}

@@ -322,6 +322,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.sandbox"),
       desc: "изолированная песочница: свои сотрудники и льготы, боевых данных не касается",
       icon: ICONS.flask,
+      children: [{ href: "https://faravon-cafeteria-test.vercel.app/", label: "Тестовый прод (превью на боевых данных)" }],
     });
 
   return groups;
