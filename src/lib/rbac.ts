@@ -25,6 +25,7 @@ export const DEFAULT_PERMISSIONS = {
   "support.manage": ["C_AND_B"],
   "satisfaction.manage": ["C_AND_B"],
   "gamification.manage": ["C_AND_B"],
+  "sessions.view": ["C_AND_B"],
 } as const satisfies Record<string, Role[]>;
 
 export type Permission = keyof typeof DEFAULT_PERMISSIONS;
@@ -103,6 +104,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "support.manage": "Чат поддержки (когда бот не опознал человека)",
   "satisfaction.manage": "Опрос удовлетворённости",
   "gamification.manage": "Геймификация: задачи, монеты, магазин",
+  "sessions.view": "Кто онлайн: активные сессии сотрудников",
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
