@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Locale } from "@/lib/i18n/shared";
@@ -92,6 +93,8 @@ export function AppShell({
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, startLogout] = useTransition();
   const navScrollRef = useRef<HTMLDivElement>(null);
 
   const isActive = (href: string) =>
@@ -380,15 +383,23 @@ export function AppShell({
                       {t("shell.adminPanel")}
                     </Link>
                   )}
-                  <form action={logout}>
-                    <button
-                      type="submit"
-                      className="flex w-full items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Icon path={I.logout} className="h-5 w-5" />
-                      {t("shell.logout")}
-                    </button>
-                  </form>
+                  <button
+                    type="button"
+                    onClick={() => setLogoutOpen(true)}
+                    className="flex w-full items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
+                  >
+                    <Icon path={I.logout} className="h-5 w-5" />
+                    {t("shell.logout")}
+                  </button>
+                  <ConfirmDialog
+                    open={logoutOpen}
+                    tone="danger"
+                    busy={loggingOut}
+                    title={t("shell.logoutConfirm")}
+                    confirmLabel={t("shell.logout")}
+                    onConfirm={() => startLogout(logout)}
+                    onClose={() => setLogoutOpen(false)}
+                  />
                 </div>
               </>
             )}

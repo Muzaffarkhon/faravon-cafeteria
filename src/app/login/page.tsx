@@ -10,7 +10,9 @@ import { LoginForm } from "./_login-form";
 // «Поделиться контактом» внутри самого Telegram. `?start=support` заводит
 // диалог напрямую в чат поддержки (см. src/app/api/telegram/route.ts) —
 // не нужно самому искать бота и нажимать кнопку внутри переписки.
-const BOT_URL = "https://t.me/cafeteria_farovon_bot";
+// В песочнице TELEGRAM_BOT_USERNAME указывает на отдельного тестового бота,
+// чтобы не задевать реальных сотрудников через боевой вебхук.
+const BOT_URL = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME?.trim() || "cafeteria_farovon_bot"}`;
 
 function TelegramIcon({ className }: { className?: string }) {
   return (
