@@ -163,6 +163,7 @@ export default async function CouponsPage({
                   <th>{t("coupons.colEmployee")}</th>
                   <th>{t("coupons.colCardPartner")}</th>
                   <th>{t("coupons.colPeriod")}</th>
+                  <th>{t("coupons.colIssuedAt")}</th>
                   <th>{t("coupons.colValidUntil")}</th>
                   <th>{t("coupons.colStatus")}</th>
                   <th className="text-right">{t("coupons.colActions")}</th>
@@ -192,6 +193,7 @@ export default async function CouponsPage({
                             <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
                           )}
                         </td>
+                        <td>—</td>
                         <td data-numeric>{r.periodEndDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}</td>
                         <td>
                           <Badge tone={TAXI_STATUS_TONE[r.promoStatus]}>{t(TAXI_STATUS_KEY[r.promoStatus])}</Badge>
@@ -225,6 +227,18 @@ export default async function CouponsPage({
                         {periodEnded && (
                           <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
                         )}
+                      </td>
+                      <td data-numeric className="whitespace-nowrap">
+                        {c.issuedAt
+                          ? c.issuedAt.toLocaleString("ru-RU", {
+                              timeZone: "Asia/Dushanbe",
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
                       </td>
                       <td data-numeric>
                         {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : "—"}
