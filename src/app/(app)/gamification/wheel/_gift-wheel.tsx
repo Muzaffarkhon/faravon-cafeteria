@@ -188,7 +188,10 @@ export function GiftWheel({
             <circle cx={C} cy={C} r={198} fill="none" stroke="var(--primary)" strokeOpacity={0.25} strokeWidth={3} />
             {sectors.map((s, i) => {
               const blocked = !!s.block;
-              const fill = blocked ? "var(--surface-muted)" : i % 2 === 0 ? "var(--brand-500)" : "var(--petal-400)";
+              // Занятый листок красим в заметно серый (не почти белый var(--surface-muted)) —
+              // иначе на светлом фоне колеса (var(--primary-soft)) он сливался с фоном и
+              // почти не читался (жалоба: «уже выбранные купоны листа слишком белые»).
+              const fill = blocked ? "var(--line-strong)" : i % 2 === 0 ? "var(--brand-500)" : "var(--petal-400)";
               const { labelY, fontSize, lineStep } = leaf;
               const text = blockLabel(s.block) ?? (s.kind === "NOTHING" ? t("wheel.nothing") : s.label);
               const lines = wrapLabel(text, leaf.maxChars, leaf.lines);
@@ -196,7 +199,7 @@ export function GiftWheel({
               // Кегль числа монет — чтобы и «+5», и «+1000» помещались в кружок.
               const coinsFont = Math.min(badgeR * 0.72, (badgeR * 1.7) / (coinsText.length * CHAR_W));
               return (
-                <g key={s.id} transform={`rotate(${i * step} ${C} ${C})`} opacity={blocked ? 0.55 : 1}>
+                <g key={s.id} transform={`rotate(${i * step} ${C} ${C})`}>
                   <path d={leaf.d} fill={fill} stroke="var(--surface)" strokeWidth={2} />
                   <circle cx={C} cy={badgeY} r={badgeR} fill="var(--surface)" />
                   {s.kind === "COUPON" && s.imageUrl ? (
@@ -208,6 +211,7 @@ export function GiftWheel({
                       height={badgeR * 2}
                       preserveAspectRatio="xMidYMid slice"
                       clipPath={`url(#${uid}-badge)`}
+                      opacity={blocked ? 0.45 : 1}
                     />
                   ) : s.kind === "COINS" ? (
                     <text x={C} y={badgeY} textAnchor="middle" dominantBaseline="central" fontSize={coinsFont} fontWeight={800} fill="var(--primary)">
