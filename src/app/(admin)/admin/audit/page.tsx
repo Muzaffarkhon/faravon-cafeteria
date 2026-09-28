@@ -105,6 +105,30 @@ const ACTION_LABELS: Record<string, string> = {
   SUPPORT_THREAD_ARCHIVED: "Диалог поддержки архивирован",
   SUPPORT_THREAD_UNARCHIVED: "Диалог поддержки возвращён из архива",
   SUPPORT_THREAD_DELETED: "Диалог поддержки удалён",
+  WHEEL_SPIN: "Прокрутка колеса подарков",
+  WHEEL_COUPON_FAILED: "Выигрыш колеса не выдан — ошибка",
+  WHEEL_SECTOR_CREATED: "Листок колеса добавлен",
+  WHEEL_SECTOR_UPDATED: "Листок колеса изменён",
+  WHEEL_SECTOR_ACTIVATED: "Листок колеса включён",
+  WHEEL_SECTOR_DEACTIVATED: "Листок колеса выключен",
+  WHEEL_SECTOR_DELETED: "Листок колеса удалён",
+  GAMIFICATION_SETTINGS_UPDATED: "Настройки геймификации изменены",
+  GAMIFICATION_TASK_CREATED: "Задание геймификации создано",
+  GAMIFICATION_TASK_ACTIVATED: "Задание геймификации включено",
+  GAMIFICATION_TASK_DEACTIVATED: "Задание геймификации выключено",
+  GAMIFICATION_TASK_COMPLETED: "Задание геймификации выполнено",
+  GAMIFICATION_TASK_AUTO_FAILED: "Задание геймификации провалено автоматически",
+  COIN_REDEMPTION_REQUESTED: "Заявка на списание монет подана",
+  COIN_REDEMPTION_APPROVED: "Заявка на списание монет одобрена",
+  COIN_REDEMPTION_REJECTED: "Заявка на списание монет отклонена",
+  COIN_REDEMPTION_FULFILLED: "Списание монет исполнено",
+  COIN_REDEMPTION_FULFILLMENT_FAILED: "Списание монет — ошибка исполнения",
+  BANNER_IMAGE_UPLOADED: "Изображение баннера загружено",
+  NEWS_IMAGE_UPLOADED: "Изображение новости загружено",
+  CARD_IMAGE_UPLOADED: "Изображение карточки загружено",
+  NEWS_PUBLISHED: "Новость опубликована",
+  NEWS_SENT_TO_BOT: "Новость разослана в бот",
+  BROADCAST_SENT: "Рассылка отправлена",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -129,6 +153,14 @@ const ENTITY_LABELS: Record<string, string> = {
   SlaEscalationRule: "Правило SLA",
   SatisfactionSettings: "Настройки опроса удовлетворённости",
   ReportBuilder: "Конструктор отчётов",
+  WheelSector: "Листок колеса подарков",
+  WheelSpin: "Прокрутка колеса подарков",
+  GamificationSettings: "Настройки геймификации",
+  GamificationTask: "Задание геймификации",
+  EmployeeTask: "Задание сотрудника",
+  CoinRedemption: "Списание монет",
+  News: "Новость",
+  Notification: "Уведомление",
 };
 
 /** Названия полей из JSON-диффа — человеческим языком вместо camelCase. */
@@ -236,6 +268,23 @@ const FIELD_LABELS: Record<string, string> = {
   cardId: "Льгота",
   partnerName: "Партнёр",
   expiresAt: "Действует до",
+  // колесо подарков
+  kind: "Тип приза",
+  prize: "Приз",
+  prizeLabel: "Приз",
+  cost: "Цена прокрутки",
+  weight: "Шанс",
+  quantity: "Количество",
+  wonCount: "Уже выиграно",
+  wheelEnabled: "Колесо включено",
+  wheelSpinCost: "Цена прокрутки",
+};
+
+/** Приз колеса подарков (WheelPrizeKind) — человеческим языком. */
+const WHEEL_PRIZE_KIND_LABELS: Record<string, string> = {
+  COUPON: "Купон",
+  COINS: "Farovon coin",
+  NOTHING: "Пусто",
 };
 
 /** Суммы (в сомони, уже отформатированные) — дописываем валюту. */
@@ -256,6 +305,7 @@ const VALUE_LABEL_MAPS: Record<string, string>[] = [
   PERIOD_STATUS_LABELS,
   EMPLOYMENT_STATUS_LABELS,
   ROLE_LABELS,
+  WHEEL_PRIZE_KIND_LABELS,
 ];
 
 const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
