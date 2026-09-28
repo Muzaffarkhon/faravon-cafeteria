@@ -37,12 +37,18 @@ export function WheelSettingsForm({ enabled, spinCost }: { enabled: boolean; spi
         <span>
           Показывать колесо сотрудникам
           <span className="mt-1 block max-w-sm text-xs font-normal text-ink-muted">
-            Работает, только когда включена сама геймификация. Каждый сотрудник крутит один раз в сутки (по Душанбе).
+            Работает независимо от геймификации — пункт «Колесо подарков» появится в меню сотрудника. Каждый крутит один
+            раз в сутки (по Душанбе).
           </span>
         </span>
       </label>
       <div className="flex flex-wrap items-end gap-4 border-t border-line-subtle pt-4">
-        <Field label="Цена прокрутки, монет" htmlFor="wheelSpinCost" hint="0 — бесплатно" className="w-44">
+        <Field
+          label="Цена прокрутки, монет"
+          htmlFor="wheelSpinCost"
+          hint="0 — бесплатно. Платная прокрутка и листки с монетами имеют смысл при включённой геймификации: без неё монеты негде копить и не видно."
+          className="w-72"
+        >
           <Input id="wheelSpinCost" name="wheelSpinCost" type="number" min={0} step={1} defaultValue={spinCost} />
         </Field>
         <Button type="submit" size="sm" variant="secondary" loading={pending}>

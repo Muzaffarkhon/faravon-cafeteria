@@ -6,9 +6,10 @@ import { ensureRbac } from "@/lib/rbac-load";
 import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
-import { getGamificationEnabled } from "@/lib/gamification-settings";
+import { getGamificationEnabled, getWheelSettings } from "@/lib/gamification-settings";
 import { getCoinBalance } from "@/lib/coin-wallet";
 import { getTotalCashbackBalance } from "@/lib/cashback";
+import { dushanbeDateKey } from "@/lib/dushanbe-date";
 import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
@@ -105,7 +106,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const locale = await getLocale();
-  const gamificationEnabled = await getGamificationEnabled();
+  const [gamificationEnabled, { wheelEnabled }] = await Promise.all([getGamificationEnabled(), getWheelSettings()]);
   // Баланс монет и совокупный кешбек — в закреплённой шапке, снаружи их
   // собственных страниц (/gamification, /applications), чтобы были видны
   // сразу, без перехода.
@@ -124,6 +125,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     locale,
     gamificationEnabled,
   });
+  // Кнопка колеса в шапке — на любой странице, независимо от геймификации.
+  // Точка-подсказка горит, пока сегодняшняя прокрутка не использована.
+  const wheel =
+    wheelEnabled && session.employee
+      ? {
+          href: "/gamification/wheel",
+          available: !(await db.wheelSpin.findUnique({
+            where: { employeeId_dayKey: { employeeId: session.employee.id, dayKey: dushanbeDateKey() } },
+            select: { id: true },
+          })),
+        }
+      : null;
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
   // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».
   const groups = allGroups.filter((g) => g.id === "cabinet" || g.id === "work");
@@ -142,6 +155,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         selectionStat={selectionStat}
         coinBalance={coinBalance}
         cashbackTotal={cashbackTotal}
+        wheel={wheel}
         adminHref={hasAdminAccess ? "/admin" : undefined}
         locale={locale}
         backdrop={

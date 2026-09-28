@@ -64,10 +64,11 @@ async function main() {
   const startedAt = new Date();
 
   await db.wheelSector.updateMany({ where: { id: { in: sectorsBefore.map((s) => s.id) } }, data: { isActive: false } });
+  // Геймификация выключена намеренно: колесо должно работать без неё.
   await db.gamificationSettings.upsert({
     where: { id: "default" },
-    create: { id: "default", enabled: true, wheelEnabled: true, wheelSpinCost: 0 },
-    update: { enabled: true, wheelEnabled: true, wheelSpinCost: 0 },
+    create: { id: "default", enabled: false, wheelEnabled: true, wheelSpinCost: 0 },
+    update: { enabled: false, wheelEnabled: true, wheelSpinCost: 0 },
   });
   // Купон почти гарантированно выбирается первым — так все N бьются за K мест.
   const couponSector = await db.wheelSector.create({

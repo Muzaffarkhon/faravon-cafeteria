@@ -7,7 +7,7 @@ import { creditCoinsTx, spendCoinsTx, reverseSpend, CoinWalletError } from "@/li
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { ensureGrantApplication } from "@/lib/coin-redemption";
 import { resolveSelectionContext } from "@/lib/selection";
-import { getGamificationEnabled, getWheelSettings } from "@/lib/gamification-settings";
+import { getWheelSettings } from "@/lib/gamification-settings";
 import { dushanbeDateKey } from "@/lib/dushanbe-date";
 
 export class WheelError extends Error {}
@@ -125,8 +125,9 @@ export type SpinResult = {
  *   последний купон получит ровно одна, остальные уйдут на повторный выбор.
  */
 export async function spinWheel(employeeId: string, actorId: string): Promise<SpinResult> {
-  const [gamificationOn, settings] = await Promise.all([getGamificationEnabled(), getWheelSettings()]);
-  if (!gamificationOn || !settings.wheelEnabled) throw new WheelError("Колесо подарков сейчас выключено.");
+  // Колесо живёт отдельно от рубильника геймификации — только свой переключатель.
+  const settings = await getWheelSettings();
+  if (!settings.wheelEnabled) throw new WheelError("Колесо подарков сейчас выключено.");
 
   const employee = await db.employee.findUnique({ where: { id: employeeId }, select: { archivedAt: true, status: true } });
   if (!employee || employee.archivedAt || employee.status === "TERMINATED") {
