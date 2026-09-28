@@ -1225,6 +1225,7 @@ export const DICT = {
     "gamification.cooldownMinutes": "мин.",
 
     "wheel.title": "Колесо подарков",
+    "wheel.availableToday": "сегодня можно крутить",
     "wheel.openHint": "Крутите раз в день — купоны партнёров и Farovon Coin",
     "wheel.back": "Назад",
     "wheel.spin": "Крутить",
@@ -2674,6 +2675,7 @@ export const DICT = {
     "gamification.cooldownMinutes": "дақ. дастрас мешавад.",
 
     "wheel.title": "Чархи тӯҳфаҳо",
+    "wheel.availableToday": "имрӯз гардондан мумкин",
     "wheel.openHint": "Рӯзе як бор гардонед — купонҳои шарикон ва Farovon Coin",
     "wheel.back": "Бозгашт",
     "wheel.spin": "Гардондан",
@@ -4123,6 +4125,7 @@ export const DICT = {
     "gamification.cooldownMinutes": "daq. dan keyin mavjud bo'ladi.",
 
     "wheel.title": "Sovg'alar g'ildiragi",
+    "wheel.availableToday": "bugun aylantirish mumkin",
     "wheel.openHint": "Kuniga bir marta aylantiring — hamkor kuponlari va Farovon Coin",
     "wheel.back": "Orqaga",
     "wheel.spin": "Aylantirish",

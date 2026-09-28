@@ -57,6 +57,17 @@ const I = {
   admin: "M4 21V8l8-5 8 5v13||M9 21v-6h6v6",
 };
 
+/** Иконка колеса подарков: обод, 8 спиц и ступица. */
+function WheelIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M12 2.8v18.4M2.8 12h18.4M5.5 5.5l13 13M18.5 5.5l-13 13" strokeWidth="1.3" />
+      <circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** «Рабочие» группы идут прямыми вкладками, остальное — в меню «Ещё». */
 const PRIMARY_GROUPS = new Set(["cabinet", "work"]);
 
@@ -67,6 +78,7 @@ export function AppShell({
   selectionStat,
   coinBalance,
   cashbackTotal,
+  wheel,
   backdrop,
   adminHref,
   locale,
@@ -82,6 +94,8 @@ export function AppShell({
   coinBalance?: number | null;
   /** Совокупный кешбек по всем партнёрам (диры) — только если есть счета кешбека. */
   cashbackTotal?: number | null;
+  /** Колесо подарков включено — кнопка в шапке; available — сегодня ещё не крутил. */
+  wheel?: { href: string; available: boolean } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
@@ -220,6 +234,26 @@ export function AppShell({
           {/* Счётчики — в один ряд с вкладками, справа. Выбор льгот теперь один
               единый значок (было 2 отдельных — «выбрано» и «черновики»),
               рядом баланс монет и совокупный кешбек, если они у сотрудника есть. */}
+          {wheel && (
+            <Link
+              href={wheel.href}
+              onClick={closeMenus}
+              aria-label={wheel.available ? `${t("wheel.title")} — ${t("wheel.availableToday")}` : t("wheel.title")}
+              title={t("wheel.title")}
+              aria-current={isActive(wheel.href) ? "page" : undefined}
+              className={cx(
+                "group/wheel relative flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-bold transition-colors",
+                isActive(wheel.href) ? "bg-primary text-on-brand" : "bg-primary-soft text-primary-strong hover:bg-primary-soft-hover",
+              )}
+            >
+              <WheelIcon className="h-5 w-5 transition-transform duration-700 ease-out group-hover/wheel:rotate-180 motion-reduce:transition-none" />
+              <span className="hidden whitespace-nowrap lg:inline">{t("wheel.title")}</span>
+              {wheel.available && !isActive(wheel.href) && (
+                <span className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" aria-hidden="true" />
+              )}
+            </Link>
+          )}
+
           {(selectionStat || typeof coinBalance === "number" || (typeof cashbackTotal === "number" && cashbackTotal > 0)) && (
             <div className="flex shrink-0 items-center gap-1.5">
               {selectionStat && (

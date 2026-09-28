@@ -18,18 +18,21 @@ export default async function GiftWheelPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!session.employee) redirect("/");
-  if (!(await getGamificationEnabled())) redirect("/");
   const employeeId = session.employee.id;
 
-  const [state, balance, spins, dailyBonus, t, locale] = await Promise.all([
+  // Колесо не зависит от геймификации: без неё скрываем только монетные блоки
+  // (баланс, бонус за визит) и ведём «назад» на витрину.
+  const [state, balance, spins, dailyBonus, gamificationOn, t, locale] = await Promise.all([
     getWheelState(employeeId),
     getCoinBalance(employeeId),
     listWheelSpins(employeeId, 20),
     getDailyBonusStatus(employeeId),
+    getGamificationEnabled(),
     getTranslator(),
     getLocale(),
   ]);
-  if (!state.enabled) redirect("/gamification");
+  if (!state.enabled) redirect("/");
+  const backHref = gamificationOn ? "/gamification" : "/";
 
   const sectors: WheelSectorView[] = state.sectors.map((s) => {
     const card = s.kind === "COUPON" ? s.card : null;
@@ -65,7 +68,7 @@ export default async function GiftWheelPage() {
     <div className="mx-auto max-w-md space-y-6">
       <header className="relative flex items-center justify-center py-1">
         <Link
-          href="/gamification"
+          href={backHref}
           aria-label={t("wheel.back")}
           className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink shadow-sm hover:bg-surface-muted"
         >
@@ -79,10 +82,12 @@ export default async function GiftWheelPage() {
       <GiftWheel sectors={sectors} cost={state.cost} balance={balance} spunToday={state.spunToday} locale={locale} coinUnit={coinUnit} />
 
       <Card className="divide-y divide-line-subtle overflow-hidden">
-        <div className="flex items-center justify-between gap-3 p-4">
-          <CoinBalance balance={balance} coinUnit={coinUnit} />
-        </div>
-        {dailyBonus.available && (
+        {gamificationOn && (
+          <div className="flex items-center justify-between gap-3 p-4">
+            <CoinBalance balance={balance} coinUnit={coinUnit} />
+          </div>
+        )}
+        {gamificationOn && dailyBonus.available && (
           <Link href="/gamification" className="flex items-center justify-between gap-3 p-4 hover:bg-surface-muted">
             <span>
               <span className="block font-semibold text-ink">{t("gamification.dailyBonusTitle")}</span>
