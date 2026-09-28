@@ -494,6 +494,9 @@ export default async function OverviewPage() {
             groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).inWave,
             groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).wave,
             groupHidden: groupHiddenOf(c),
+            // Своя группа уже собрана и купон выдан — счётчик следующей группы ему
+            // не про него (раньше видел «1 / 5, скидка заработает…» при выданном купоне).
+            groupMineIssued: itemStatusByCard.get(c.id) === "COUPON_ISSUED",
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,
             liked: likedCardIds.has(c.id),

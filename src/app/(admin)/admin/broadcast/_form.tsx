@@ -43,6 +43,9 @@ export function BroadcastForm({
       <input type="hidden" name="department" value={filters.department} />
       <input type="hidden" name="position" value={filters.position} />
       <input type="hidden" name="q" value={filters.q} />
+      <input type="hidden" name="cardId" value={filters.cardId} />
+      <input type="hidden" name="periodId" value={filters.periodId} />
+      <input type="hidden" name="cardAudience" value={filters.cardAudience} />
 
       <Field label={t("broadcast.template")} htmlFor="template" hint={t("broadcast.templateHint")}>
         <Select
@@ -85,6 +88,40 @@ export function BroadcastForm({
         <p className="rounded-md bg-warning-soft px-3 py-2 text-xs font-medium text-warning-strong">
           {t("broadcast.fallbackHint")} ({missing.map((l) => l.toUpperCase()).join(", ")})
         </p>
+      )}
+
+      {filters.segment !== "NOT_REGISTERED" && (
+        <div className="space-y-3 rounded-xl border border-line bg-surface p-4">
+          <label className="flex items-start gap-2.5 text-sm font-semibold text-ink">
+            <input
+              type="checkbox"
+              name="askConfirm"
+              defaultChecked={filters.segment === "BY_CARD"}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong accent-[var(--primary)]"
+            />
+            <span>
+              Спросить подтверждение — кнопки «Да / Нет»
+              <span className="mt-1 block text-xs font-normal text-ink-muted">
+                Например: «Вы точно пойдёте?». Ответы появятся в отчёте ниже; при «Нет» бот попросит причину, и диалог
+                продолжится в «Поддержке».
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm font-semibold text-ink">
+            <input
+              type="checkbox"
+              name="couponHint"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong accent-[var(--primary)]"
+            />
+            <span>
+              Добавить напоминание: показать купон на сайте
+              <span className="mt-1 block text-xs font-normal text-ink-muted">
+                В конец сообщения на языке сотрудника: «Для подтверждения купона покажите его партнёру из раздела «Мои
+                заявки и купоны» на сайте» — со ссылкой на этот раздел.
+              </span>
+            </span>
+          </label>
+        </div>
       )}
 
       <Button

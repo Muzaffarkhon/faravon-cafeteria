@@ -38,6 +38,8 @@ type Card = {
   phonePromo: boolean;
   /** статус позиции, если льгота уже использована в периоде (не DRAFT) */
   lockedStatus: string | null;
+  /** Групповая льгота: группа сотрудника собрана, его купон выдан. */
+  groupMineIssued?: boolean;
   /** Лайки (§10): сколько всего и лайкнул ли текущий сотрудник — не привязано к периоду. */
   likeCount: number;
   liked: boolean;
@@ -433,7 +435,15 @@ export function FlexSelection({
                   locale={locale}
                 />
 
-              {c.minParticipants > 1 && !c.groupHidden &&
+              {c.minParticipants > 1 && c.groupMineIssued && (
+                <a
+                  href="/applications"
+                  className="mt-3 block rounded-xl border border-success/25 bg-success-soft/60 p-2.5 text-xs font-semibold text-success-strong hover:bg-success-soft"
+                >
+                  {t("flex.groupMineIssued")} →
+                </a>
+              )}
+              {c.minParticipants > 1 && !c.groupHidden && !c.groupMineIssued &&
                 (() => {
                   const done = c.groupCount >= c.minParticipants;
                   return (
