@@ -11,7 +11,9 @@ import { GamificationEnabledToggle } from "./_enabled-toggle";
 import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption, toggleWheelSector } from "./actions";
 import { getGamificationEnabled, getDailyBonusCoins, getWheelSettings } from "@/lib/gamification-settings";
 import { listWheelSectors, wheelSectorLabel, prizeCardProblem } from "@/lib/wheel";
+import { dushanbeDateKey } from "@/lib/dushanbe-date";
 import { WheelSettingsForm, WheelSectorForm, EditWheelSector, DeleteWheelSectorButton } from "./_wheel-admin";
+import { TabsShell } from "./_tabs";
 
 const WHEEL_KIND_LABEL = { COUPON: "Купон", COINS: "Монеты", NOTHING: "Без приза" } as const;
 
@@ -72,6 +74,8 @@ export default async function GamificationAdminPage() {
       take: 50,
     }),
   ]);
+  // Прокруток сегодня — для контроля наплыва/спама в моменте (§ дневной лимит — 1 на сотрудника).
+  const spinsToday = await db.wheelSpin.count({ where: { dayKey: dushanbeDateKey() } });
   const prizeCards = prizeCardsRaw
     .filter((c) => !prizeCardProblem(c))
     .map((c) => ({ id: c.id, title: c.title, partnerName: c.partner?.name ?? null }));
@@ -79,18 +83,40 @@ export default async function GamificationAdminPage() {
   const nextPosition = Math.max(0, ...wheelSectors.map((s) => s.position)) + 1;
   const fmtDate = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" });
 
-  return (
-    <div data-wide className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("gamificationAdmin.title")}</h1>
-      </header>
+  const activeSectors = wheelSectors.filter((s) => s.isActive).length;
+  const pendingTotal = pendingManual.length + pendingRequests.length;
 
+  // Обзор: тумблер геймификации + беглый счёт по остальным вкладкам — вместо
+  // того чтобы всё это разворачивать здесь же полными таблицами.
+  const overviewPanel = (
+    <>
       <GamificationEnabledToggle enabled={enabled} dailyBonusCoins={dailyBonusCoins} locale={locale} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Прокруток сегодня", value: spinsToday },
+          { label: "Активных листков колеса", value: activeSectors },
+          { label: "Активных заданий", value: tasks.filter((x) => x.isActive).length },
+          { label: "Ждут решения", value: pendingTotal },
+        ].map((stat) => (
+          <Card key={stat.label} className="p-3.5">
+            <div className="text-2xl font-bold tabular-nums text-ink">{stat.value}</div>
+            <div className="text-xs font-semibold text-ink-muted">{stat.label}</div>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
 
-      <section className="space-y-3">
-        <SectionTitle className="text-lg" count={wheelSectors.filter((s) => s.isActive).length}>Колесо подарков</SectionTitle>
-        <WheelSettingsForm enabled={wheelSettings.wheelEnabled} spinCost={wheelSettings.wheelSpinCost} />
-        {wheelSectors.length === 0 ? (
+  const wheelPanel = (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionTitle className="text-lg" count={activeSectors}>Колесо подарков</SectionTitle>
+        <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary-strong">
+          Прокруток сегодня: {spinsToday}
+        </span>
+      </div>
+      <WheelSettingsForm enabled={wheelSettings.wheelEnabled} spinCost={wheelSettings.wheelSpinCost} />
+      {wheelSectors.length === 0 ? (
           <EmptyState>Листков пока нет — добавьте первый ниже.</EmptyState>
         ) : (
           <Card className="overflow-hidden">
@@ -191,7 +217,10 @@ export default async function GamificationAdminPage() {
           </details>
         )}
       </section>
+  );
 
+  const tasksPanel = (
+    <>
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("gamificationAdmin.newTaskSection")}</SectionTitle>
         <Card className="max-w-xl p-4">
@@ -236,7 +265,11 @@ export default async function GamificationAdminPage() {
           </Card>
         )}
       </section>
+    </>
+  );
 
+  const requestsPanel = (
+    <>
       <section className="space-y-3">
         <SectionTitle className="text-lg" count={pendingManual.length}>{t("gamificationAdmin.pendingManualSection")}</SectionTitle>
         {pendingManual.length === 0 ? (
@@ -320,6 +353,24 @@ export default async function GamificationAdminPage() {
           </Card>
         )}
       </section>
+    </>
+  );
+
+  return (
+    <div data-wide className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("gamificationAdmin.title")}</h1>
+      </header>
+
+      <TabsShell
+        tabs={[
+          { id: "overview", label: "Обзор" },
+          { id: "wheel", label: "Колесо подарков", badge: activeSectors },
+          { id: "tasks", label: "Задания", badge: tasks.filter((x) => x.isActive).length },
+          { id: "requests", label: "Заявки", badge: pendingTotal },
+        ]}
+        panels={[overviewPanel, wheelPanel, tasksPanel, requestsPanel]}
+      />
     </div>
   );
 }
