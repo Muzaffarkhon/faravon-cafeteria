@@ -311,6 +311,39 @@ export async function isItemWaveReady(
   return rank <= completedThroughRank;
 }
 
+/**
+ * Волна конкретной позиции (§ groupWaves): все позиции той же ещё
+ * формирующейся волны (для «откатить назад в очередь вместе с ней», см.
+ * rejectAwaitingItemImpl) и признак, что позиция относится к уже
+ * укомплектованной — и потому выданной — волне, а не к текущей.
+ *
+ * Раньше выход участника из группы проверялся по «выдан ли вообще хоть один
+ * купон по этой карточке за период» (db.coupon.count по cardId+periodId), что
+ * не различает волны: после выдачи волны №1 система считала группу «уже
+ * закоммиченной» целиком и либо блокировала выход из ещё формирующейся
+ * волны №2, либо (если проверку проходили) откатывала в очередь CREATED-купоны
+ * чужой, уже завершённой волны. Эта функция считает ранг именно внутри
+ * текущего состава группы, так же как isItemWaveReady.
+ */
+export async function itemWaveMembership(
+  cardId: string,
+  periodId: string,
+  itemId: string,
+  min: number,
+): Promise<{ waveItemIds: string[]; inCommittedWave: boolean }> {
+  const rows = await db.applicationItem.findMany({
+    where: { cardId, status: { in: [...GROUP_ISSUE_STATUSES] }, application: { is: { periodId } } },
+    select: { id: true },
+    orderBy: { seq: "asc" },
+  });
+  const rank = rows.findIndex((r) => r.id === itemId) + 1; // 1-indexed, 0 — не найдена
+  if (rank === 0) return { waveItemIds: [], inCommittedWave: false };
+  const completedThroughRank = Math.floor(rows.length / min) * min;
+  const inCommittedWave = rank <= completedThroughRank;
+  const waveItemIds = rows.slice(completedThroughRank).map((r) => r.id);
+  return { waveItemIds, inCommittedWave };
+}
+
 /** Прогресс текущей (последней, ещё не обязательно полной) волны — для сообщений C&B. */
 export async function currentWaveProgress(cardId: string, periodId: string, min: number): Promise<number> {
   if (min <= 1) return 0;

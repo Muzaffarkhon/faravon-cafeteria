@@ -7,7 +7,7 @@ import { assertCan } from "@/lib/rbac";
 import { assertTransition } from "@/lib/application-workflow";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
-import { groupApprovedCount, isItemWaveReady, currentWaveProgress } from "@/lib/selection";
+import { groupApprovedCount, isItemWaveReady, currentWaveProgress, itemWaveMembership } from "@/lib/selection";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { redeemCouponByNumber } from "@/lib/coupon";
 import { runAction, type ActionResult } from "@/lib/action-result";
@@ -174,20 +174,24 @@ async function rejectAwaitingItemImpl(itemId: string) {
   if (item.card.minParticipants > 1) {
     const count = await groupApprovedCount(item.card.id, item.application.periodId);
     if (count - 1 < item.card.minParticipants) {
-      const committed = await db.coupon.count({
-        where: {
-          periodId: item.application.periodId,
-          item: { is: { cardId: item.card.id } },
-          status: { in: ["ISSUED", "USED"] },
-        },
-      });
-      if (committed > 0) {
+      const { waveItemIds, inCommittedWave } = await itemWaveMembership(
+        item.card.id,
+        item.application.periodId,
+        itemId,
+        item.card.minParticipants,
+      );
+      if (inCommittedWave) {
         throw new Error(
-          `Групповая льгота «${item.card.title}»: без этого участника наберётся ${count - 1} из ${item.card.minParticipants}, а другим сотрудникам купон по этой группе уже выдан — отменить это задним числом нельзя.`,
+          `Групповая льгота «${item.card.title}»: без этого участника наберётся ${count - 1} из ${item.card.minParticipants}, а его волна уже набрана и купон по ней выдан — отменить это задним числом нельзя.`,
         );
       }
       const orphaned = await db.coupon.findMany({
-        where: { status: "CREATED", periodId: item.application.periodId, item: { is: { cardId: item.card.id } } },
+        where: {
+          status: "CREATED",
+          periodId: item.application.periodId,
+          item: { is: { cardId: item.card.id } },
+          itemId: { in: waveItemIds },
+        },
         select: { id: true, itemId: true },
       });
       if (orphaned.length > 0) {
