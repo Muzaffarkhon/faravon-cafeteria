@@ -1,7 +1,7 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
+import type { ItemStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { SEGMENTS, type Segment } from "./broadcast-segments";
+import { SEGMENTS, CARD_AUDIENCES, type Segment, type CardAudience } from "./broadcast-segments";
 import { LOCALES, asLocale, type Locale } from "./i18n/shared";
 
 /**
@@ -9,7 +9,16 @@ import { LOCALES, asLocale, type Locale } from "./i18n/shared";
  * админ видит перед отправкой, совпадало с тем, что реально уйдёт.
  */
 
-export type AudienceFilters = { segment: Segment; department: string; position: string; q: string };
+export type AudienceFilters = {
+  segment: Segment;
+  department: string;
+  position: string;
+  q: string;
+  /** Сегмент BY_CARD: льгота, период и кому из выбравших. */
+  cardId: string;
+  periodId: string;
+  cardAudience: CardAudience;
+};
 
 export type PreviewRow = { key: string; name: string; sub: string; telegram: boolean };
 
@@ -33,13 +42,24 @@ export const PREVIEW_LIMIT = 50;
 export function parseFilters(raw: Record<string, string | string[] | undefined>): AudienceFilters {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const seg = one(raw.segment);
+  const aud = one(raw.cardAudience);
   return {
     segment: (SEGMENTS as readonly string[]).includes(seg) ? (seg as Segment) : "ALL",
     department: one(raw.department).trim(),
     position: one(raw.position).trim(),
     q: one(raw.q).trim().slice(0, 80),
+    cardId: one(raw.cardId).trim(),
+    periodId: one(raw.periodId).trim(),
+    cardAudience: (CARD_AUDIENCES as readonly string[]).includes(aud) ? (aud as CardAudience) : "BOTH",
   };
 }
+
+/** Статусы позиции для «кому из выбравших»: выбрал = подал и не отменено/не отклонено. */
+const CARD_AUDIENCE_STATUSES: Record<CardAudience, ItemStatus[]> = {
+  SELECTED: ["PENDING", "APPROVED", "COUPON_CREATED"],
+  ISSUED: ["COUPON_ISSUED"],
+  BOTH: ["PENDING", "APPROVED", "COUPON_CREATED", "COUPON_ISSUED"],
+};
 
 const countByLocale = (list: Recipient[]) => {
   const r = Object.fromEntries(LOCALES.map((l) => [l, 0])) as Record<Locale, number>;
@@ -116,6 +136,18 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
     // «Выбрал» = есть поданная позиция (не черновик и не отменённая).
     and.push({
       applications: { none: { periodId: period.id, items: { some: { status: { notIn: ["DRAFT", "CANCELLED"] } } } } },
+    });
+  }
+  if (f.segment === "BY_CARD") {
+    if (!f.cardId) return empty("Выберите льготу.");
+    if (!f.periodId) return empty("Выберите период.");
+    and.push({
+      applications: {
+        some: {
+          periodId: f.periodId,
+          items: { some: { cardId: f.cardId, status: { in: CARD_AUDIENCE_STATUSES[f.cardAudience] } } },
+        },
+      },
     });
   }
 

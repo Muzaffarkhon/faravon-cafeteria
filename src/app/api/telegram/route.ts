@@ -7,6 +7,8 @@ import { grantMessage } from "@/lib/notification-format";
 import { safeEqual } from "@/lib/timing-safe";
 import { db } from "@/lib/db";
 import { localeFromTelegram } from "@/lib/i18n/shared";
+import { parseConfirmCallback } from "@/lib/broadcast-confirm-keys";
+import { answerBroadcastConfirm } from "@/lib/broadcast-confirm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -349,6 +351,20 @@ async function handleFaqTap(faqId: string, cb: TgCallbackQuery) {
 async function handleCallback(cb: TgCallbackQuery) {
   await tg("answerCallbackQuery", { callback_query_id: cb.id });
   if (!cb.data || !cb.message) return;
+
+  const confirm = parseConfirmCallback(cb.data);
+  if (confirm) {
+    const reply = await answerBroadcastConfirm({ ...confirm, telegramId: String(cb.from.id) });
+    if (reply === null) return;
+    // Убираем кнопки с сообщения рассылки — ответ дан, второй раз нажимать нечего.
+    await tg("editMessageReplyMarkup", {
+      chat_id: cb.message.chat.id,
+      message_id: cb.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+    await send(cb.message.chat.id, esc(reply));
+    return;
+  }
 
   if (cb.data.startsWith("support:faq:")) {
     await handleFaqTap(cb.data.slice("support:faq:".length), cb);

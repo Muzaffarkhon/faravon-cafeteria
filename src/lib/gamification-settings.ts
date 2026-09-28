@@ -17,6 +17,30 @@ export async function getDailyBonusCoins(): Promise<number> {
   return row?.dailyBonusCoins ?? DEFAULTS.dailyBonusCoins;
 }
 
+export type WheelSettings = { wheelEnabled: boolean; wheelSpinCost: number };
+
+export async function getWheelSettings(): Promise<WheelSettings> {
+  const row = await db.gamificationSettings.findUnique({ where: { id: SETTINGS_ID } });
+  return { wheelEnabled: row?.wheelEnabled ?? false, wheelSpinCost: row?.wheelSpinCost ?? 0 };
+}
+
+export async function setWheelSettings(actorId: string, next: WheelSettings): Promise<void> {
+  const before = await getWheelSettings();
+  await db.gamificationSettings.upsert({
+    where: { id: SETTINGS_ID },
+    create: { id: SETTINGS_ID, ...next },
+    update: next,
+  });
+  await audit({
+    actorId,
+    action: "GAMIFICATION_SETTINGS_UPDATED",
+    entityType: "GamificationSettings",
+    entityId: SETTINGS_ID,
+    oldValue: before,
+    newValue: next,
+  });
+}
+
 export async function setGamificationEnabled(actorId: string, enabled: boolean): Promise<void> {
   const before = await getGamificationEnabled();
   await db.gamificationSettings.upsert({

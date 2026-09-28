@@ -24,28 +24,34 @@ export async function creditCoins(params: {
   if (existing) return;
 
   try {
-    await db.$transaction(async (tx) => {
-      const account = await tx.coinAccount.upsert({
-        where: { employeeId: params.employeeId },
-        create: { employeeId: params.employeeId },
-        update: {},
-      });
-      await tx.coinAccount.update({ where: { id: account.id }, data: { balance: { increment: params.amount } } });
-      await tx.coinEntry.create({
-        data: {
-          accountId: account.id,
-          kind: "EARNED",
-          amount: params.amount,
-          reason: params.reason,
-          taskId: params.taskId,
-          opKey: params.opKey,
-        },
-      });
-    });
+    await db.$transaction((tx) => creditCoinsTx(tx, params));
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return; // параллельный дубль — уже начислено
     throw e;
   }
+}
+
+/** Начисление внутри чужой транзакции — откатывается вместе с ней. */
+export async function creditCoinsTx(
+  tx: Prisma.TransactionClient,
+  params: { employeeId: string; amount: number; reason: string; opKey: string; taskId?: string },
+): Promise<void> {
+  const account = await tx.coinAccount.upsert({
+    where: { employeeId: params.employeeId },
+    create: { employeeId: params.employeeId },
+    update: {},
+  });
+  await tx.coinAccount.update({ where: { id: account.id }, data: { balance: { increment: params.amount } } });
+  await tx.coinEntry.create({
+    data: {
+      accountId: account.id,
+      kind: "EARNED",
+      amount: params.amount,
+      reason: params.reason,
+      taskId: params.taskId,
+      opKey: params.opKey,
+    },
+  });
 }
 
 /** Списание монет. Idempotent по opKey. Баланс не уходит в минус (условный decrement). */
@@ -63,32 +69,38 @@ export async function spendCoins(params: {
   if (existing) return;
 
   try {
-    await db.$transaction(async (tx) => {
-      const account = await tx.coinAccount.upsert({
-        where: { employeeId: params.employeeId },
-        create: { employeeId: params.employeeId },
-        update: {},
-      });
-      const claimed = await tx.coinAccount.updateMany({
-        where: { id: account.id, balance: { gte: params.amount } },
-        data: { balance: { decrement: params.amount } },
-      });
-      if (claimed.count === 0) throw new CoinWalletError("Недостаточно монет на балансе.");
-      await tx.coinEntry.create({
-        data: {
-          accountId: account.id,
-          kind: "SPENT",
-          amount: params.amount,
-          reason: params.reason,
-          redemptionId: params.redemptionId,
-          opKey: params.opKey,
-        },
-      });
-    });
+    await db.$transaction((tx) => spendCoinsTx(tx, params));
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return;
     throw e;
   }
+}
+
+/** Списание внутри чужой транзакции — откатывается вместе с ней. */
+export async function spendCoinsTx(
+  tx: Prisma.TransactionClient,
+  params: { employeeId: string; amount: number; reason: string; opKey: string; redemptionId?: string },
+): Promise<void> {
+  const account = await tx.coinAccount.upsert({
+    where: { employeeId: params.employeeId },
+    create: { employeeId: params.employeeId },
+    update: {},
+  });
+  const claimed = await tx.coinAccount.updateMany({
+    where: { id: account.id, balance: { gte: params.amount } },
+    data: { balance: { decrement: params.amount } },
+  });
+  if (claimed.count === 0) throw new CoinWalletError("Недостаточно монет на балансе.");
+  await tx.coinEntry.create({
+    data: {
+      accountId: account.id,
+      kind: "SPENT",
+      amount: params.amount,
+      reason: params.reason,
+      redemptionId: params.redemptionId,
+      opKey: params.opKey,
+    },
+  });
 }
 
 /** Возврат ранее списанных монет (отказ в REQUEST-покупке). Ищет запись SPENT по opKey. */

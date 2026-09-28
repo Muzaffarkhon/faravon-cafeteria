@@ -8,8 +8,12 @@ import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
 import { TaskForm } from "./_task-form";
 import { GamificationEnabledToggle } from "./_enabled-toggle";
-import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption } from "./actions";
-import { getGamificationEnabled, getDailyBonusCoins } from "@/lib/gamification-settings";
+import { createGamificationTask, toggleTaskActive, completeTaskManually, decideRedemption, toggleWheelSector } from "./actions";
+import { getGamificationEnabled, getDailyBonusCoins, getWheelSettings } from "@/lib/gamification-settings";
+import { listWheelSectors, wheelSectorLabel, prizeCardProblem } from "@/lib/wheel";
+import { WheelSettingsForm, WheelSectorForm, EditWheelSector, DeleteWheelSectorButton } from "./_wheel-admin";
+
+const WHEEL_KIND_LABEL = { COUPON: "Купон", COINS: "Монеты", NOTHING: "Без приза" } as const;
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +57,28 @@ export default async function GamificationAdminPage() {
   ]);
   const departments = departmentRows.map((d) => d.department);
 
+  const [wheelSettings, wheelSectors, prizeCardsRaw, wheelWinners] = await Promise.all([
+    getWheelSettings(),
+    listWheelSectors({ includeInactive: true }),
+    db.benefitCard.findMany({
+      where: { status: "PUBLISHED", isActive: true, archivedAt: null, minParticipants: 1 },
+      include: { partner: { select: { name: true, deliveryMode: true } } },
+      orderBy: { title: "asc" },
+    }),
+    db.wheelSpin.findMany({
+      where: { kind: "COUPON" },
+      include: { employee: { select: { fullName: true, department: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+  const prizeCards = prizeCardsRaw
+    .filter((c) => !prizeCardProblem(c))
+    .map((c) => ({ id: c.id, title: c.title, partnerName: c.partner?.name ?? null }));
+  const activeWeightTotal = wheelSectors.filter((s) => s.isActive).reduce((sum, s) => sum + s.weight, 0);
+  const nextPosition = Math.max(0, ...wheelSectors.map((s) => s.position)) + 1;
+  const fmtDate = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Dushanbe" });
+
   return (
     <div data-wide className="space-y-6">
       <header>
@@ -60,6 +86,111 @@ export default async function GamificationAdminPage() {
       </header>
 
       <GamificationEnabledToggle enabled={enabled} dailyBonusCoins={dailyBonusCoins} locale={locale} />
+
+      <section className="space-y-3">
+        <SectionTitle className="text-lg" count={wheelSectors.filter((s) => s.isActive).length}>Колесо подарков</SectionTitle>
+        <WheelSettingsForm enabled={wheelSettings.wheelEnabled} spinCost={wheelSettings.wheelSpinCost} />
+        {wheelSectors.length === 0 ? (
+          <EmptyState>Листков пока нет — добавьте первый ниже.</EmptyState>
+        ) : (
+          <Card className="overflow-hidden">
+            <Table stickyHeader>
+              <thead>
+                <tr>
+                  <th>Место</th>
+                  <th>Приз</th>
+                  <th>Шанс</th>
+                  <th>Выиграно</th>
+                  <th>Статус</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {wheelSectors.map((s) => {
+                  const label = wheelSectorLabel(s);
+                  const problem = s.kind === "COUPON" && s.card ? prizeCardProblem(s.card) : null;
+                  return (
+                    <tr key={s.id} className={s.isActive ? undefined : "opacity-60"}>
+                      <td data-numeric>{s.position}</td>
+                      <td className="text-ink">
+                        <span className="text-ink-subtle">{WHEEL_KIND_LABEL[s.kind]} · </span>
+                        {label}
+                        {s.kind === "COUPON" && s.card?.partner && <span className="text-ink-subtle"> · {s.card.partner.name}</span>}
+                        {problem && <span className="mt-1 block text-xs font-semibold text-danger">Не разыгрывается: {problem}</span>}
+                      </td>
+                      <td data-numeric title={`Вес ${s.weight}`}>
+                        {s.isActive && activeWeightTotal > 0 ? `${Math.round((s.weight / activeWeightTotal) * 1000) / 10}%` : "—"}
+                      </td>
+                      <td data-numeric>{s.kind === "COUPON" ? `${s.wonCount} из ${s.quantity ?? 0}` : "—"}</td>
+                      <td>
+                        <ActionForm action={toggleWheelSector.bind(null, s.id, !s.isActive)}>
+                          <SubmitButton variant={s.isActive ? "secondary" : "soft"} size="sm">
+                            {s.isActive ? "Убрать с колеса" : "Вернуть на колесо"}
+                          </SubmitButton>
+                        </ActionForm>
+                      </td>
+                      <td className="space-x-2 whitespace-nowrap text-right">
+                        <EditWheelSector
+                          sector={{
+                            id: s.id,
+                            position: s.position,
+                            kind: s.kind,
+                            label: s.label,
+                            weight: s.weight,
+                            coins: s.coins,
+                            cardId: s.cardId,
+                            quantity: s.quantity,
+                            wonCount: s.wonCount,
+                          }}
+                          cards={prizeCards}
+                        />
+                        <DeleteWheelSectorButton sectorId={s.id} label={label} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </Card>
+        )}
+        <p className="text-xs text-ink-muted">
+          Шанс считается от суммы весов листков на колесе. Если купон закончился или сотрудник уже получил эту льготу в
+          периоде, листок остаётся на колесе, но для него не выпадает — поэтому держите хотя бы один листок с монетами
+          или «без приза».
+        </p>
+        <Card className="max-w-2xl p-4">
+          <p className="mb-3 text-sm font-semibold text-ink">Новый листок</p>
+          <WheelSectorForm cards={prizeCards} nextPosition={nextPosition} />
+        </Card>
+        {wheelWinners.length > 0 && (
+          <details className="group">
+            <summary className="cursor-pointer text-sm font-semibold text-ink">Победители — купоны ({wheelWinners.length})</summary>
+            <Card className="mt-3 overflow-hidden">
+              <Table stickyHeader>
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th>Сотрудник</th>
+                    <th>Приз</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wheelWinners.map((w) => (
+                    <tr key={w.id}>
+                      <td data-numeric className="text-ink-muted">{fmtDate.format(w.createdAt)}</td>
+                      <td className="text-ink">
+                        {w.employee.fullName}
+                        <span className="text-ink-subtle"> · {w.employee.department}</span>
+                      </td>
+                      <td>{w.prizeLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+          </details>
+        )}
+      </section>
 
       <section className="space-y-3">
         <SectionTitle className="text-lg">{t("gamificationAdmin.newTaskSection")}</SectionTitle>

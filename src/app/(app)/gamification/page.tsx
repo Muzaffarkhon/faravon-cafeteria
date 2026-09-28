@@ -8,7 +8,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { ActionForm } from "@/components/action-form";
 import { listAvailableTasksForEmployee, listEmployeeTasks, getRejoinCooldownRemaining } from "@/lib/gamification-tasks";
 import { getCoinBalance, listCoinEntries } from "@/lib/coin-wallet";
-import { getGamificationEnabled } from "@/lib/gamification-settings";
+import Link from "next/link";
+import { getGamificationEnabled, getWheelSettings } from "@/lib/gamification-settings";
 import { getDailyBonusStatus } from "@/lib/daily-bonus";
 import { resolveSelectionContext, getApplicationWithItems } from "@/lib/selection";
 import { safeImageSrc } from "@/lib/safe-url";
@@ -29,7 +30,7 @@ export default async function GamificationPage() {
   const locale = await getLocale();
   const employeeId = session.employee.id;
 
-  const [available, mine, balance, entries, shopCardsRaw, dailyBonus, cooldownRemaining] = await Promise.all([
+  const [available, mine, balance, entries, shopCardsRaw, dailyBonus, cooldownRemaining, wheel] = await Promise.all([
     listAvailableTasksForEmployee(employeeId),
     listEmployeeTasks(employeeId),
     getCoinBalance(employeeId),
@@ -41,6 +42,7 @@ export default async function GamificationPage() {
     }),
     getDailyBonusStatus(employeeId),
     getRejoinCooldownRemaining(employeeId),
+    getWheelSettings(),
   ]);
 
   const shopCards = shopCardsRaw.map((c) => ({
@@ -94,6 +96,20 @@ export default async function GamificationPage() {
               claimed: t("gamification.dailyBonusClaimed"),
             }}
           />
+        )}
+        {wheel.wheelEnabled && (
+          <Link
+            href="/gamification/wheel"
+            className="flex items-center justify-between gap-3 rounded-[16px] bg-on-brand px-4 py-3 text-primary transition hover:bg-on-brand/90"
+          >
+            <span>
+              <span className="block text-sm font-bold">{t("wheel.title")}</span>
+              <span className="block text-xs text-ink-muted">{t("wheel.openHint")}</span>
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </Link>
         )}
       </section>
 

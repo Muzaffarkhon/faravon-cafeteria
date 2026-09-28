@@ -90,6 +90,9 @@ export async function sendNewsToBot(id: string): Promise<{ error?: string; sent?
     department: (news.audience as { department?: string } | null)?.department ?? "",
     position: (news.audience as { position?: string } | null)?.position ?? "",
     q: "",
+    cardId: "",
+    periodId: "",
+    cardAudience: "BOTH" as const,
   };
   const audience = await resolveAudience(filters);
   if (audience.error) return { error: audience.error };

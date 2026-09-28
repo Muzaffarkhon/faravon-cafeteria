@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { spendCoins, reverseSpend, CoinWalletError } from "@/lib/coin-wallet";
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
-import { resolveSelectionContext, ensureAutoPicks } from "@/lib/selection";
+import { resolveSelectionContext, ensureAutoPicks, type SelectionContext } from "@/lib/selection";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
 
 export class CoinRedemptionError extends Error {}
@@ -14,9 +14,27 @@ async function countCommittedCoinRedemptions(employeeId: string, periodId: strin
   return db.applicationItem.count({
     where: {
       viaCoins: true,
+      viaWheel: false,
       application: { employeeId, periodId },
       status: { notIn: ["CANCELLED", "REJECTED"] },
     },
+  });
+}
+
+/** Заявка сотрудника на целевой период — под неё кладутся позиции вне обычного выбора
+ *  (покупка за монеты, выигрыш в колесе). Новая заявка в открытое окно сначала получает
+ *  автовыбор, как если бы сотрудник зашёл на витрину. */
+export async function ensureGrantApplication(employeeId: string, ctx: SelectionContext) {
+  const period = ctx.targetPeriod!;
+  const existingApp = await db.application.findUnique({
+    where: { employeeId_periodId: { employeeId, periodId: period.id } },
+  });
+  if (existingApp) return existingApp;
+  if (ctx.windowOpen && !ctx.missingNextPeriod) await ensureAutoPicks(employeeId, period);
+  return db.application.upsert({
+    where: { employeeId_periodId: { employeeId, periodId: period.id } },
+    create: { employeeId, periodId: period.id },
+    update: {},
   });
 }
 
@@ -36,19 +54,7 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
   const ctx = await resolveSelectionContext();
   const period = ctx.targetPeriod;
   if (!period) throw new CoinRedemptionError("Нет открытого периода для выбора льгот — не из чего сформировать купон.");
-
-  const existingApp = await db.application.findUnique({
-    where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
-  });
-  if (!existingApp && ctx.windowOpen && !ctx.missingNextPeriod) {
-    await ensureAutoPicks(redemption.employeeId, period);
-  }
-  const application = existingApp
-    ?? (await db.application.upsert({
-      where: { employeeId_periodId: { employeeId: redemption.employeeId, periodId: period.id } },
-      create: { employeeId: redemption.employeeId, periodId: period.id },
-      update: {},
-    }));
+  const application = await ensureGrantApplication(redemption.employeeId, ctx);
 
   // Счёт + создание позиции в одной сериализуемой транзакции — иначе два
   // параллельных redeemWithCoins для одного сотрудника могли бы оба пройти
@@ -58,6 +64,7 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
       const usedCount = await tx.applicationItem.count({
         where: {
           viaCoins: true,
+          viaWheel: false,
           application: { employeeId: redemption.employeeId, periodId: period.id },
           status: { notIn: ["CANCELLED", "REJECTED"] },
         },

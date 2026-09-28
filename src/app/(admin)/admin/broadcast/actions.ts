@@ -12,6 +12,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/shared";
 import { formatNotificationText, templateMapFromRows } from "@/lib/notification-format";
 import { sendTelegramDetailed } from "@/lib/notification-delivery";
 import { platformUrl } from "@/lib/platform-url";
+import { couponHintText } from "@/lib/broadcast-confirm-keys";
 
 export type BroadcastState = { sent?: number; failed?: number; error?: string };
 
@@ -54,9 +55,21 @@ export async function sendBroadcast(
     if (leftover) return { error: `В тексте на ${LANG_NAME[l]} осталась пометка ${leftover[0]} — заполните её или удалите.` };
     texts[l] = text;
   }
-  const textFor = (l: Locale) => texts[l] || texts.ru;
+  const askConfirm = formData.get("askConfirm") === "on";
+  const couponHint = formData.get("couponHint") === "on";
+  if (couponHint && !siteUrl) {
+    return { error: "Не задан адрес сайта (PLATFORM_URL) — ссылку на раздел купонов не собрать." };
+  }
+  // Напоминание о показе купона — на языке получателя, даже если текст ушёл русским.
+  const textFor = (l: Locale) => {
+    const base = texts[l] || texts.ru;
+    return couponHint ? `${base}\n\n${couponHintText(l, siteUrl)}` : base;
+  };
 
   const filters = parseFilters(Object.fromEntries([...formData.entries()].map(([k, v]) => [k, String(v)])));
+  if ((askConfirm || couponHint) && filters.segment === "NOT_REGISTERED") {
+    return { error: "Кнопки подтверждения и напоминание о купоне — только для сотрудников, не для гостей бота." };
+  }
   const audience = await resolveAudience(filters);
   if (audience.error) return { error: audience.error };
   const recipients = audience.users.length + audience.guests.length;
@@ -99,12 +112,31 @@ export async function sendBroadcast(
       }
     }
   } else {
+    // Рассылка с подтверждением: у каждого получателя своя строка ответа,
+    // её id уходит в кнопки (payload.confirmId → notification-delivery.ts).
+    const confirmIdByUser = new Map<string, string>();
+    if (askConfirm) {
+      const card = filters.segment === "BY_CARD" ? await db.benefitCard.findUnique({ where: { id: filters.cardId }, select: { title: true } }) : null;
+      const campaign = await db.broadcastCampaign.create({
+        data: {
+          title: card?.title ?? texts.ru.replace(/\s+/g, " ").slice(0, 60),
+          text: texts.ru,
+          cardId: filters.segment === "BY_CARD" ? filters.cardId : null,
+          periodId: filters.segment === "BY_CARD" ? filters.periodId : null,
+          cardAudience: filters.segment === "BY_CARD" ? filters.cardAudience : null,
+          createdById: session.user.id,
+        },
+      });
+      await db.broadcastRecipient.createMany({ data: audience.users.map((u) => ({ campaignId: campaign.id, userId: u.id })) });
+      const rows = await db.broadcastRecipient.findMany({ where: { campaignId: campaign.id }, select: { id: true, userId: true } });
+      for (const r of rows) confirmIdByUser.set(r.userId, r.id);
+    }
     await db.notification.createMany({
       data: audience.users.map((u) => ({
         userId: u.id,
         event: "BROADCAST",
         channel: "TELEGRAM",
-        payload: { text: textFor(u.locale) },
+        payload: { text: textFor(u.locale), ...(confirmIdByUser.has(u.id) ? { confirmId: confirmIdByUser.get(u.id) } : {}) },
       })),
     });
     sent = audience.users.length;
@@ -115,7 +147,7 @@ export async function sendBroadcast(
     actorId: session.user.id,
     action: "BROADCAST_SENT",
     entityType: "Notification",
-    newValue: { recipients, sent, failed, segment: filters.segment, filters, byLocale: audience.byLocale, texts },
+    newValue: { recipients, sent, failed, segment: filters.segment, filters, byLocale: audience.byLocale, texts, askConfirm, couponHint },
   });
 
   revalidatePath("/admin/broadcast");

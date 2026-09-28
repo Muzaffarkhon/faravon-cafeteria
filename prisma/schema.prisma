@@ -24,8 +24,8 @@ enum Role {
 
 enum Block {
   RECOGNITION // Программы признания (5.4)
-  CARE        // Витрина заботы (5.5)
-  FLEX        // Реестр гибких льгот (5.6)
+  CARE // Витрина заботы (5.5)
+  FLEX // Реестр гибких льгот (5.6)
 }
 
 enum CardStatus {
@@ -48,12 +48,12 @@ enum PeriodStatus {
 /// Статусы позиции заявки, раздел 5.7
 enum ItemStatus {
   DRAFT
-  PENDING          // На рассмотрении
-  APPROVED         // Одобрено согласующим
-  COUPON_CREATED   // Купон сформирован
-  COUPON_ISSUED    // Купон выдан
-  REJECTED         // Отклонено
-  CANCELLED        // Отменено сотрудником
+  PENDING // На рассмотрении
+  APPROVED // Одобрено согласующим
+  COUPON_CREATED // Купон сформирован
+  COUPON_ISSUED // Купон выдан
+  REJECTED // Отклонено
+  CANCELLED // Отменено сотрудником
 }
 
 /// Режим льготы (карточка): как купон работает у партнёра.
@@ -106,9 +106,9 @@ enum BannerKind {
 
 /// Статус обращения обратной связи (обрабатывает C&B).
 enum FeedbackStatus {
-  NEW    // новое
-  READ   // прочитано
-  NOTED  // принято к сведению
+  NEW // новое
+  READ // прочитано
+  NOTED // принято к сведению
   CLOSED // закрыто
 }
 
@@ -118,27 +118,27 @@ enum SupportThreadStatus {
 }
 
 enum SupportMessageDirection {
-  IN  // от гостя
+  IN // от гостя
   OUT // от C&B
 }
 
 model Employee {
-  id           String           @id @default(cuid())
-  seq          Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
-  fullName     String
-  position     String
-  department   String
-  phone           String?
-  phoneNormalized String?        // последние 9 цифр номера — для быстрого поиска при входе через Telegram
-  phoneSecondary  String?
+  id                       String           @id @default(cuid())
+  seq                      Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
+  fullName                 String
+  position                 String
+  department               String
+  phone                    String?
+  phoneNormalized          String? // последние 9 цифр номера — для быстрого поиска при входе через Telegram
+  phoneSecondary           String?
   phoneSecondaryNormalized String?
-  telegramId   String?          @unique
-  status       EmploymentStatus @default(ACTIVE)
-  terminatedAt DateTime?
-  isActive     Boolean          @default(true)
-  archivedAt   DateTime?        // сотрудник в архиве — скрыт из основного списка, но история сохранена
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  telegramId               String?          @unique
+  status                   EmploymentStatus @default(ACTIVE)
+  terminatedAt             DateTime?
+  isActive                 Boolean          @default(true)
+  archivedAt               DateTime? // сотрудник в архиве — скрыт из основного списка, но история сохранена
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
 
   user                  User?
   applications          Application[]
@@ -149,9 +149,10 @@ model Employee {
   cardLikes             CardLike[]
   cashbackAccounts      CashbackAccount[]
   autoPicks             AutoPick[]
-  coinAccount      CoinAccount?
-  employeeTasks    EmployeeTask[]
-  coinRedemptions  CoinRedemption[]
+  coinAccount           CoinAccount?
+  employeeTasks         EmployeeTask[]
+  coinRedemptions       CoinRedemption[]
+  wheelSpins            WheelSpin[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -161,23 +162,23 @@ model Employee {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  seq               Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
-  login             String    @unique
-  passwordHash      String
-  mustChangePassword Boolean  @default(true)
-  twoFactorEnabled  Boolean   @default(false)
-  isActive          Boolean   @default(true)
-  telegramId        String?   @unique // §11/§12: Telegram-адресат для учёток без Employee (подрядчики, C&B)
-  roles             Role[]    @default([EMPLOYEE])
-  lastLoginAt       DateTime?
-  locale            String?   // язык интерфейса (ru/tg/uz): запоминается при смене языка; рассылки пишут на нём
-  failedLoginCount  Int       @default(0)
-  lockedUntil       DateTime?
-  otpExpiresAt      DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
-  sessionEpoch      Int       @default(0) // §5.1: bump — принудительный выход со всех устройств
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  seq                Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
+  login              String    @unique
+  passwordHash       String
+  mustChangePassword Boolean   @default(true)
+  twoFactorEnabled   Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  telegramId         String?   @unique // §11/§12: Telegram-адресат для учёток без Employee (подрядчики, C&B)
+  roles              Role[]    @default([EMPLOYEE])
+  lastLoginAt        DateTime?
+  locale             String? // язык интерфейса (ru/tg/uz): запоминается при смене языка; рассылки пишут на нём
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  otpExpiresAt       DateTime? // срок действия одноразового пароля, выданного через Telegram-бот (§5.1)
+  sessionEpoch       Int       @default(0) // §5.1: bump — принудительный выход со всех устройств
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   employee   Employee? @relation(fields: [employeeId], references: [id])
   employeeId String?   @unique
@@ -188,17 +189,18 @@ model User {
   partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
-  auditLogs       AuditLog[]
-  cashierLinks    CashierLink[]
-  notifications   Notification[]
-  newsReads       NewsRead[]
-  decisions       ApplicationItem[]      @relation("DecidedBy")
-  cardEdits       BenefitCardVersion[]   @relation("CardVersionEditor")
-  templateEdits   NotificationTemplate[] @relation("NotificationTemplateEditor")
-  feedbackHandled Feedback[]             @relation("FeedbackHandler")
-  supportReplies  SupportMessage[]
-  reportPresets   ReportPreset[]
-  sessions        UserSession[]
+  auditLogs           AuditLog[]
+  cashierLinks        CashierLink[]
+  notifications       Notification[]
+  broadcastRecipients BroadcastRecipient[]
+  newsReads           NewsRead[]
+  decisions           ApplicationItem[]      @relation("DecidedBy")
+  cardEdits           BenefitCardVersion[]   @relation("CardVersionEditor")
+  templateEdits       NotificationTemplate[] @relation("NotificationTemplateEditor")
+  feedbackHandled     Feedback[]             @relation("FeedbackHandler")
+  supportReplies      SupportMessage[]
+  reportPresets       ReportPreset[]
+  sessions            UserSession[]
 
   @@index([partnerId])
 }
@@ -275,26 +277,26 @@ model Partner {
 }
 
 model BenefitCard {
-  id          String     @id @default(cuid())
-  block       Block
-  title       String
-  description String?
-  condition   String?
-  imageUrl    String?
-  category    String?
+  id              String      @id @default(cuid())
+  block           Block
+  title           String
+  description     String?
+  condition       String?
+  imageUrl        String?
+  category        String?
   /// Переводы { tg?: { title?, description?, condition? }, uz?: { ... } } — см. Partner.translations.
-  translations Json?
-  isActive    Boolean    @default(true) // false => метка «скоро»
-  status      CardStatus @default(PUBLISHED)
-  sortOrder   Int        @default(0)
-  minParticipants Int    @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
-  mode        BenefitMode @default(ONE_TIME)
-  cashbackPercent Int    @default(0) // для mode=CASHBACK: % кешбека от оплаченной суммы (1..100)
-  groupWaves  Boolean    @default(false) // true — набор группами: после порога счётчик начинается заново («набор №N»); false — «минимум N»: набрали порог, прогресс скрывается.
-  archivedAt  DateTime?  // карточка в архиве — не показывается сотрудникам и в основном списке
-  announcedAt DateTime?  // когда сотрудникам ушло Telegram-оповещение о новой карточке (null — ещё не объявляли)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  translations    Json?
+  isActive        Boolean     @default(true) // false => метка «скоро»
+  status          CardStatus  @default(PUBLISHED)
+  sortOrder       Int         @default(0)
+  minParticipants Int         @default(1) // групповая скидка: сколько сотрудников должно выбрать льготу, чтобы она заработала. 1 = без порога.
+  mode            BenefitMode @default(ONE_TIME)
+  cashbackPercent Int         @default(0) // для mode=CASHBACK: % кешбека от оплаченной суммы (1..100)
+  groupWaves      Boolean     @default(false) // true — набор группами: после порога счётчик начинается заново («набор №N»); false — «минимум N»: набрали порог, прогресс скрывается.
+  archivedAt      DateTime? // карточка в архиве — не показывается сотрудникам и в основном списке
+  announcedAt     DateTime? // когда сотрудникам ушло Telegram-оповещение о новой карточке (null — ещё не объявляли)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   coinPrice          Int?
   coinRedemptionMode CoinRedemptionMode?
@@ -302,11 +304,12 @@ model BenefitCard {
   partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId String?
 
-  items    ApplicationItem[]
-  versions BenefitCardVersion[]
-  likes    CardLike[]
-  autoPicks AutoPick[]
+  items           ApplicationItem[]
+  versions        BenefitCardVersion[]
+  likes           CardLike[]
+  autoPicks       AutoPick[]
   coinRedemptions CoinRedemption[]
+  wheelSectors    WheelSector[]
 
   @@index([archivedAt])
 }
@@ -348,28 +351,28 @@ model AutoPick {
 /// Последняя версия всегда равна текущей карточке; «восстановление» — это
 /// новое изменение карточки полями выбранной версии (обратимо).
 model BenefitCardVersion {
-  id      String @id @default(cuid())
+  id      String      @id @default(cuid())
   card    BenefitCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
   cardId  String
   version Int
 
   // Снимок полей карточки
-  block       Block
-  title       String
-  description String?
-  condition   String?
-  imageUrl    String?
-  category    String?
-  isActive    Boolean
-  status      CardStatus
-  sortOrder   Int
-  minParticipants Int   @default(1)
-  mode        BenefitMode @default(ONE_TIME)
-  cashbackPercent Int   @default(0)
-  groupWaves  Boolean   @default(false)
-  partnerId   String?
+  block           Block
+  title           String
+  description     String?
+  condition       String?
+  imageUrl        String?
+  category        String?
+  isActive        Boolean
+  status          CardStatus
+  sortOrder       Int
+  minParticipants Int         @default(1)
+  mode            BenefitMode @default(ONE_TIME)
+  cashbackPercent Int         @default(0)
+  groupWaves      Boolean     @default(false)
+  partnerId       String?
 
-  editedBy   User?   @relation("CardVersionEditor", fields: [editedById], references: [id])
+  editedBy   User?    @relation("CardVersionEditor", fields: [editedById], references: [id])
   editedById String?
   reason     String? // "created" | "updated" | "restored:vN"
   createdAt  DateTime @default(now())
@@ -379,19 +382,19 @@ model BenefitCardVersion {
 }
 
 model Period {
-  id             String       @id @default(cuid())
-  name           String
-  startDate      DateTime
-  endDate        DateTime
-  windowStart    DateTime
-  windowEnd      DateTime
-  status         PeriodStatus @default(DRAFT)
-  maxSelections  Int          @default(4)
-  maxCoinRedemptions Int      @default(1)
-  windowOpenNotifiedAt   DateTime? // §5.10: разослано «окно выбора открыто»
+  id                      String       @id @default(cuid())
+  name                    String
+  startDate               DateTime
+  endDate                 DateTime
+  windowStart             DateTime
+  windowEnd               DateTime
+  status                  PeriodStatus @default(DRAFT)
+  maxSelections           Int          @default(4)
+  maxCoinRedemptions      Int          @default(1)
+  windowOpenNotifiedAt    DateTime? // §5.10: разослано «окно выбора открыто»
   windowClosingNotifiedAt DateTime? // §5.10: разослано напоминание «закроется через 3 дня»
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   applications Application[]
   coupons      Coupon[]
@@ -413,29 +416,32 @@ model Application {
 }
 
 model ApplicationItem {
-  id            String     @id @default(cuid())
-  seq           Int        @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  applicationId String
-  card          BenefitCard @relation(fields: [cardId], references: [id])
-  cardId        String
-  status        ItemStatus  @default(DRAFT)
-  viaCoins      Boolean     @default(false)
+  id              String           @id @default(cuid())
+  seq             Int              @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
+  application     Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId   String
+  card            BenefitCard      @relation(fields: [cardId], references: [id])
+  cardId          String
+  status          ItemStatus       @default(DRAFT)
+  viaCoins        Boolean          @default(false)
+  /// Выигрыш в колесе подарков. Такие позиции ставятся с viaCoins=true (не обычный
+  /// выбор: не тратят лимит выбора, не идут в задачи), но не занимают лимит покупок за монеты.
+  viaWheel        Boolean          @default(false)
   decisionComment String?
-  contactPhone  String?     // §такси: номер, который сотрудник указал при выборе PHONE_PROMO-льготы (промокод уйдёт на него)
-  decidedBy     User?       @relation("DecidedBy", fields: [decidedById], references: [id])
-  decidedById   String?
-  decidedAt     DateTime?
-  submittedAt   DateTime?
-  escalationLevel Int       @default(0) // последний сработавший уровень SLA-эскалации (§5.12)
+  contactPhone    String? // §такси: номер, который сотрудник указал при выборе PHONE_PROMO-льготы (промокод уйдёт на него)
+  decidedBy       User?            @relation("DecidedBy", fields: [decidedById], references: [id])
+  decidedById     String?
+  decidedAt       DateTime?
+  submittedAt     DateTime?
+  escalationLevel Int              @default(0) // последний сработавший уровень SLA-эскалации (§5.12)
   lastEscalatedAt DateTime?
   // Групповая льгота не набрала порог к концу периода — позиция переносится в
   // следующий период новой позицией; carriedFromId указывает на исходную.
-  carriedFrom   ApplicationItem?  @relation("ItemCarry", fields: [carriedFromId], references: [id], onDelete: SetNull)
-  carriedFromId String?           @unique
-  carriedTo     ApplicationItem?  @relation("ItemCarry")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  carriedFrom     ApplicationItem? @relation("ItemCarry", fields: [carriedFromId], references: [id], onDelete: SetNull)
+  carriedFromId   String?          @unique
+  carriedTo       ApplicationItem? @relation("ItemCarry")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   coupon Coupon?
 
@@ -459,28 +465,28 @@ model SlaEscalationRule {
 }
 
 model Coupon {
-  id              String       @id @default(cuid())
-  seq             Int          @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
-  number          String       @unique
+  id              String          @id @default(cuid())
+  seq             Int             @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
+  number          String          @unique
   item            ApplicationItem @relation(fields: [itemId], references: [id])
-  itemId          String       @unique
-  partner         Partner?     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  itemId          String          @unique
+  partner         Partner?        @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   partnerId       String?
-  employee        Employee     @relation(fields: [employeeId], references: [id])
+  employee        Employee        @relation(fields: [employeeId], references: [id])
   employeeId      String
-  period          Period       @relation(fields: [periodId], references: [id])
+  period          Period          @relation(fields: [periodId], references: [id])
   periodId        String
-  type            String       @default("PROMO") // PROMO | QR | PDF | PHYSICAL
+  type            String          @default("PROMO") // PROMO | QR | PDF | PHYSICAL
   /// Снимок правил карточки на момент выдачи: смена режима/процента карточки не действует на уже выданные купоны.
-  benefitMode     BenefitMode  @default(ONE_TIME)
+  benefitMode     BenefitMode     @default(ONE_TIME)
   cashbackPercent Int?
   nominal         String?
-  status          CouponStatus @default(CREATED)
-  deliveryChannel String       @default("PORTAL")
+  status          CouponStatus    @default(CREATED)
+  deliveryChannel String          @default("PORTAL")
   issuedAt        DateTime?
   validUntil      DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([periodId])
   @@index([status])
@@ -491,16 +497,16 @@ model Coupon {
 /// Баланс кешбека сотрудника у конкретного партнёра, в дирамах (1 сомони = 100 дирам).
 /// Начисляется только пока действует купон-кешбек, тратится в любое время.
 model CashbackAccount {
-  id         String   @id @default(cuid())
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId String
-  partner    Partner  @relation(fields: [partnerId], references: [id])
-  partnerId  String
-  balance    Int      @default(0)
+  id             String   @id @default(cuid())
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  employeeId     String
+  partner        Partner  @relation(fields: [partnerId], references: [id])
+  partnerId      String
+  balance        Int      @default(0)
   /// Окно (30 с) последнего использованного кода клиента: код одноразовый, повтор в этом окне отвергается.
   lastCodeWindow Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   entries CashbackEntry[]
 
@@ -510,24 +516,24 @@ model CashbackAccount {
 
 /// Журнал операций кешбека: баланс = сумма начислений − списаний. `opKey` защищает от двойного нажатия.
 model CashbackEntry {
-  id             String          @id @default(cuid())
-  account        CashbackAccount @relation(fields: [accountId], references: [id])
-  accountId      String
-  kind           CashbackKind
-  amount         Int             // дирамы, всегда > 0
-  purchaseAmount Int             // сумма покупки по чеку до списания
-  paidAmount     Int             // сколько сотрудник реально заплатил (чек − списанный кешбек)
-  couponId       String?
-  actorId        String?
-  opKey          String          @unique
+  id              String          @id @default(cuid())
+  account         CashbackAccount @relation(fields: [accountId], references: [id])
+  accountId       String
+  kind            CashbackKind
+  amount          Int // дирамы, всегда > 0
+  purchaseAmount  Int // сумма покупки по чеку до списания
+  paidAmount      Int // сколько сотрудник реально заплатил (чек − списанный кешбек)
+  couponId        String?
+  actorId         String?
+  opKey           String          @unique
   /// Общий ключ операции (списание и начисление одной покупки делят его).
-  operationKey   String?
+  operationKey    String?
   /// SHA-256 параметров операции (сотрудник|партнёр|сумма|списание): повтор с тем же ключом, но другими цифрами отвергается.
-  paramsHash     String?
+  paramsHash      String?
   /// Для сторно: какую запись журнала гасит эта (каждую можно погасить только один раз).
-  reversesEntryId String?        @unique
-  reason         String?
-  createdAt      DateTime        @default(now())
+  reversesEntryId String?         @unique
+  reason          String?
+  createdAt       DateTime        @default(now())
 
   @@index([accountId, createdAt])
   @@index([operationKey])
@@ -542,8 +548,8 @@ model PartnerBanner {
   subtitle   String?
   imageUrl   String?
   href       String?
-  androidUrl String?    // ссылка на приложение для Android (Google Play или прямой .apk)
-  iosUrl     String?    // ссылка на приложение в App Store
+  androidUrl String? // ссылка на приложение для Android (Google Play или прямой .apk)
+  iosUrl     String? // ссылка на приложение в App Store
   isActive   Boolean    @default(true)
   sortOrder  Int        @default(0)
   startsAt   DateTime?
@@ -553,24 +559,24 @@ model PartnerBanner {
 }
 
 model AdvertisingRequest {
-  id              String    @id @default(cuid())
-  seq             Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
+  id                 String    @id @default(cuid())
+  seq                Int       @unique @default(autoincrement()) // сквозной номер по порядку создания — для короткого отображения (RowId)
   // Заявку подаёт партнёр (учётка подрядчика, привязанная к партнёру).
-  partner         Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerId       String?
-  companyName     String
-  contactName     String
-  contactPhone    String
-  productName     String
+  partner            Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId          String?
+  companyName        String
+  contactName        String
+  contactPhone       String
+  productName        String
   productDescription String
-  androidUrl      String?   // ссылка на приложение для Android (Google Play или прямой .apk)
-  iosUrl          String?   // ссылка на приложение в App Store
-  status          String    @default("PENDING")
-  submittedAt     DateTime  @default(now())
-  reviewedAt      DateTime?
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  androidUrl         String? // ссылка на приложение для Android (Google Play или прямой .apk)
+  iosUrl             String? // ссылка на приложение в App Store
+  status             String    @default("PENDING")
+  submittedAt        DateTime  @default(now())
+  reviewedAt         DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([partnerId])
 }
@@ -581,10 +587,10 @@ model Feedback {
   id          String         @id @default(cuid())
   employee    Employee       @relation(fields: [employeeId], references: [id])
   employeeId  String
-  topic       String?        // необязательная тема
+  topic       String? // необязательная тема
   message     String
   status      FeedbackStatus @default(NEW)
-  adminNote   String?        // комментарий C&B при обработке
+  adminNote   String? // комментарий C&B при обработке
   handledBy   User?          @relation("FeedbackHandler", fields: [handledById], references: [id])
   handledById String?
   handledAt   DateTime?
@@ -619,6 +625,10 @@ model GamificationSettings {
   enabled         Boolean  @default(false)
   /// Монет за ежедневный визит (ручной сбор на /gamification, § daily bonus). 0 — бонус выключен.
   dailyBonusCoins Int      @default(5)
+  /// Колесо подарков: показывать сотрудникам (при включённой геймификации).
+  wheelEnabled    Boolean  @default(false)
+  /// Цена одной прокрутки в монетах. 0 — бесплатно. Лимит — одна прокрутка в сутки (Душанбе).
+  wheelSpinCost   Int      @default(0)
   updatedAt       DateTime @updatedAt
 }
 
@@ -648,19 +658,19 @@ model SupportThread {
   source SupportThreadSource @default(TELEGRAM)
 
   /// TELEGRAM: уникальный chat id гостя. WEB: не используется.
-  telegramId String? @unique
+  telegramId             String? @unique
   /// Номер, который человек присылал (если делился контактом) — подсказка
   /// C&B, кто это, даже если официально не опознан. TELEGRAM-происхождение.
   /// Также служит маркером «идёт авторегистрация» (см. self-registration.ts):
   /// проставляется, когда номер из контакта не нашёлся, и очищается, когда
   /// авторегистрация завершилась (успехом или тремя неверными номерами).
-  phone String?
+  phone                  String?
   /// Сотрудник, найденного по присланному ФИО, — ждём от гостя номер
   /// телефона для подтверждения (см. self-registration.ts). Не то же самое,
   /// что employeeId ниже: это ещё не подтверждённый кандидат.
   regCandidateEmployeeId String?
   /// Сколько раз подряд гость прислал неверный номер для regCandidateEmployeeId.
-  regPhoneAttempts       Int    @default(0)
+  regPhoneAttempts       Int     @default(0)
 
   /// WEB: сотрудник, открывший обращение через сайт (уже вошёл в систему —
   /// личность известна сразу, в отличие от Telegram-гостя).
@@ -668,18 +678,18 @@ model SupportThread {
   employeeId String?
   /// WEB: тема из фиксированного списка (см. FEEDBACK_TOPICS) — выбором, а не
   /// свободным текстом, чтобы обращения можно было группировать.
-  topic String?
+  topic      String?
 
-  status SupportThreadStatus @default(OPEN)
+  status        SupportThreadStatus @default(OPEN)
   /// НЕ @updatedAt — обновляем явно при каждом сообщении (в обе стороны),
   /// а не при любом изменении строки (например, при правке phone).
-  lastMessageAt DateTime @default(now())
-  createdAt     DateTime @default(now())
+  lastMessageAt DateTime            @default(now())
+  createdAt     DateTime            @default(now())
   /// Архивирован C&B — скрыт из основного списка, но история сохранена
   /// (тот же приём, что и Employee.archivedAt). Не путать со status=CLOSED:
   /// закрытый диалог может переоткрыться сам, если гость напишет снова;
   /// архив — это просто «убрать с глаз», гость может писать и дальше.
-  archivedAt DateTime?
+  archivedAt    DateTime?
 
   messages SupportMessage[]
 
@@ -742,12 +752,12 @@ model SupportFaq {
 }
 
 model TextBlock {
-  key       String   @id // GOAL | NOVELTY_NOTICE
-  title     String
-  content   String
+  key          String   @id // GOAL | NOVELTY_NOTICE
+  title        String
+  content      String
   /// Переводы { tg?: { title?, content? }, uz?: { ... } } — см. Partner.translations.
   translations Json?
-  updatedAt DateTime @updatedAt
+  updatedAt    DateTime @updatedAt
 }
 
 /// Новости: попап на витрине сотрудника + лента + рассылка в Telegram.
@@ -805,13 +815,13 @@ model ReportPreset {
 }
 
 model NotificationTemplate {
-  event       String   @id
-  label       String
-  body        String
-  translations Json?   // { tg?: string, uz?: string } — правки переводов из админки; пусто = зашитый перевод
-  updatedBy   User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
-  updatedById String?
-  updatedAt   DateTime @updatedAt
+  event        String   @id
+  label        String
+  body         String
+  translations Json? // { tg?: string, uz?: string } — правки переводов из админки; пусто = зашитый перевод
+  updatedBy    User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
+  updatedById  String?
+  updatedAt    DateTime @updatedAt
 }
 
 model Notification {
@@ -871,7 +881,7 @@ model TelegramGuest {
   firstStartAt DateTime  @default(now())
   lastStartAt  DateTime  @default(now())
   blockedAt    DateTime? // бот заблокирован (Telegram 403) — писать бессмысленно
-  locale       String?   // язык Telegram-клиента (ru/tg/uz) — на нём пишем в рассылке
+  locale       String? // язык Telegram-клиента (ru/tg/uz) — на нём пишем в рассылке
 }
 
 /// Одноразовая ссылка «привязать телефон кассы»: подрядчик открывает её один раз и входит без пароля
@@ -939,23 +949,23 @@ enum CoinRedemptionStatus {
 /// (EmployeeTask), после чего прогресс проверяется либо вручную C&B, либо
 /// автоматически cron-роутом (см. src/lib/gamification-tasks.ts).
 model GamificationTask {
-  id           String                    @id @default(cuid())
-  seq          Int                       @unique @default(autoincrement())
+  id           String                   @id @default(cuid())
+  seq          Int                      @unique @default(autoincrement())
   title        String
   description  String
   coinReward   Int
   verification GamificationVerification
   autoMetric   GamificationAutoMetric?
   targetValue  Int?
-  scope        TaskScope                 @default(ALL)
+  scope        TaskScope                @default(ALL)
   department   String?
-  employeeIds  String[]                  @default([])
-  startsAt     DateTime                  @default(now())
+  employeeIds  String[]                 @default([])
+  startsAt     DateTime                 @default(now())
   endsAt       DateTime?
-  isActive     Boolean                   @default(true)
+  isActive     Boolean                  @default(true)
   createdById  String
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
 
   employeeTasks EmployeeTask[]
 
@@ -965,19 +975,19 @@ model GamificationTask {
 /// Задача, которую сотрудник взял в работу. Уникальность по паре —
 /// нельзя взять одну и ту же задачу дважды.
 model EmployeeTask {
-  id            String             @id @default(cuid())
-  employee      Employee           @relation(fields: [employeeId], references: [id])
-  employeeId    String
-  task          GamificationTask   @relation(fields: [taskId], references: [id])
-  taskId        String
-  status        EmployeeTaskStatus @default(IN_PROGRESS)
-  progressValue Int                @default(0)
-  prizeCardId   String?
-  joinedAt      DateTime           @default(now())
-  completedAt   DateTime?
-  confirmedById String?
+  id                String             @id @default(cuid())
+  employee          Employee           @relation(fields: [employeeId], references: [id])
+  employeeId        String
+  task              GamificationTask   @relation(fields: [taskId], references: [id])
+  taskId            String
+  status            EmployeeTaskStatus @default(IN_PROGRESS)
+  progressValue     Int                @default(0)
+  prizeCardId       String?
+  joinedAt          DateTime           @default(now())
+  completedAt       DateTime?
+  confirmedById     String?
   /// Когда сотрудник отменил задачу (см. cancelTask в gamification-tasks.ts).
-  cancelledAt   DateTime?
+  cancelledAt       DateTime?
   /// Период льгот (Period.id), открытый на момент отмены — эта же задача
   /// возвращается в «Доступные» для сотрудника, только когда открыт другой
   /// период. Обычный String, без relation — как confirmedById выше.
@@ -1020,21 +1030,113 @@ model CoinEntry {
 /// Покупка карточки-льготы за монеты. INSTANT выполняется сразу (fulfillCoinRedemption
 /// вызывается синхронно), REQUEST ждёт решения C&B.
 model CoinRedemption {
-  id            String                @id @default(cuid())
-  employee      Employee              @relation(fields: [employeeId], references: [id])
+  id            String               @id @default(cuid())
+  employee      Employee             @relation(fields: [employeeId], references: [id])
   employeeId    String
-  benefitCard   BenefitCard           @relation(fields: [benefitCardId], references: [id])
+  benefitCard   BenefitCard          @relation(fields: [benefitCardId], references: [id])
   benefitCardId String
   coinCost      Int
   mode          CoinRedemptionMode
-  status        CoinRedemptionStatus  @default(PENDING)
+  status        CoinRedemptionStatus @default(PENDING)
   couponId      String?
   decidedById   String?
   decidedAt     DateTime?
-  createdAt     DateTime              @default(now())
+  createdAt     DateTime             @default(now())
 
   @@index([employeeId])
   @@index([status])
+}
+
+enum ConfirmAnswer {
+  YES
+  NO
+}
+
+/// Рассылка с кнопками подтверждения «Да / Нет» (src/lib/broadcast-confirm.ts).
+/// Сообщения уходят через обычную очередь Notification (event BROADCAST,
+/// payload.confirmId = BroadcastRecipient.id), ответы — нажатием инлайн-кнопки в боте.
+model BroadcastCampaign {
+  id           String   @id @default(cuid())
+  seq          Int      @unique @default(autoincrement())
+  title        String
+  text         String
+  cardId       String?
+  periodId     String?
+  /// SELECTED | ISSUED | BOTH — для рассылки по льготе; null — обычный сегмент.
+  cardAudience String?
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  recipients BroadcastRecipient[]
+
+  @@index([createdAt])
+}
+
+model BroadcastRecipient {
+  id         String            @id @default(cuid())
+  campaign   BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  answer     ConfirmAnswer?
+  answeredAt DateTime?
+
+  @@unique([campaignId, userId])
+}
+
+enum WheelPrizeKind {
+  COUPON
+  COINS
+  NOTHING
+}
+
+/// Листок колеса подарков. Порядок на колесе — position (по часовой от стрелки).
+/// Шанс выпадения — weight относительно суммы весов доступных сотруднику листков.
+/// COUPON: разыгрывается quantity купонов карточки cardId; wonCount растёт
+/// условным UPDATE (wonCount < quantity), поэтому одновременные прокрутки не
+/// выдадут больше quantity.
+model WheelSector {
+  id        String         @id @default(cuid())
+  position  Int
+  kind      WheelPrizeKind
+  label     String?
+  weight    Int            @default(1)
+  coins     Int?
+  card      BenefitCard?   @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  cardId    String?
+  quantity  Int?
+  wonCount  Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  spins WheelSpin[]
+
+  @@index([isActive, position])
+}
+
+/// Прокрутка колеса. @@unique([employeeId, dayKey]) — одна прокрутка в сутки
+/// (Душанбе) на уровне БД: двойной клик и параллельные запросы не пройдут.
+/// Поля приза — снимок на момент прокрутки (листок могут изменить/удалить).
+model WheelSpin {
+  id         String         @id @default(cuid())
+  employee   Employee       @relation(fields: [employeeId], references: [id])
+  employeeId String
+  dayKey     String
+  sector     WheelSector?   @relation(fields: [sectorId], references: [id], onDelete: SetNull)
+  sectorId   String?
+  kind       WheelPrizeKind
+  prizeLabel String
+  coins      Int?
+  cardId     String?
+  itemId     String?        @unique
+  periodId   String?
+  cost       Int            @default(0)
+  createdAt  DateTime       @default(now())
+
+  @@unique([employeeId, dayKey])
+  @@index([createdAt])
+  @@index([sectorId])
 }
 
 /// Активная/прошедшая сессия входа (§ "Кто онлайн"). id = sid, зашитый в JWT
@@ -1046,7 +1148,7 @@ model UserSession {
   id         String    @id
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
-  device     String    // "mobile" | "desktop" | "unknown" — грубый разбор User-Agent
+  device     String // "mobile" | "desktop" | "unknown" — грубый разбор User-Agent
   browser    String?
   ip         String?
   city       String?
