@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
-import { listCouponRegistry, countCouponRegistry, buildCouponFilters } from "@/lib/coupon-registry";
-import { taxiRegistryRows, type PromoStatus } from "@/lib/taxi";
+import { listCouponRegistry, countCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
+import type { PromoStatus } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
@@ -87,15 +87,9 @@ export default async function CouponsPage({
     },
   ];
   const cf = buildCouponFilters(sp);
-  const { periodId, status, partnerId, q } = cf;
+  const { periodId, status, partnerId } = cf;
 
   const filters = { periodId, status, partnerId, extraWhere: cf.extraWhere };
-  // Купон/QR для PHONE_PROMO (такси) принципиально не формируется — у этих
-  // позиций нет статуса/номера купона, поэтому фильтры, завязанные именно на
-  // купон (статус, номер, срок действия, льгота, партнёр по названию), для
-  // них не применимы. Показываем такси-строки только когда активны только
-  // совместимые фильтры (период/партнёр/сотрудник/быстрый поиск).
-  const taxiFiltersCompatible = !cf.hasCouponOnlyFilters;
   // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
   // работающий по номеру телефона (промокод рассылает подрядчик). Сама
   // очередь формирования купонов вынесена на отдельную страницу
@@ -110,18 +104,9 @@ export default async function CouponsPage({
     db.applicationItem.count({ where: awaitingWhere }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
-    taxiFiltersCompatible
-      ? taxiRegistryRows({ periodId, partnerId, employeeQuery: cf.employeeQuery })
-      : Promise.resolve([]),
+    listTaxiRegistryRows(cf),
   ]);
-  const qLower = q.toLowerCase();
-  const taxiRows = taxiRowsRaw
-    .filter((r) => {
-      if (!qLower) return true;
-      const hay = `${r.employee} ${r.cardTitle} ${r.partnerName ?? ""}`.toLowerCase();
-      return hay.includes(qLower);
-    })
-    .slice(0, AWAITING_CAP);
+  const taxiRows = taxiRowsRaw.slice(0, AWAITING_CAP);
   const pages = Math.max(1, Math.ceil(couponsTotal / PAGE_SIZE));
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
