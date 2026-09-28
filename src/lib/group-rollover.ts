@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { groupApprovedCount } from "@/lib/selection";
+import { groupApprovedCount, isItemWaveReady } from "@/lib/selection";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
 
 /**
@@ -26,7 +26,7 @@ export async function carryUnfilledGroupSelections(
 
   const groupCards = await db.benefitCard.findMany({
     where: { minParticipants: { gt: 1 } },
-    select: { id: true, minParticipants: true, title: true },
+    select: { id: true, minParticipants: true, title: true, groupWaves: true },
   });
 
   let cards = 0;
@@ -34,9 +34,13 @@ export async function carryUnfilledGroupSelections(
 
   for (const card of groupCards) {
     const approved = await groupApprovedCount(card.id, closedPeriodId);
-    if (approved >= card.minParticipants) continue; // группа набралась — перенос не нужен
+    // «Минимум N» (без волн): порог набран на весь период — переносить нечего.
+    // «Набор волнами» — общий счётчик тут не показатель: волны 1..K могли уже
+    // набраться и выдаться, а перенести нужно только хвост последней,
+    // незавершённой волны (см. ниже — отбор по isItemWaveReady на каждую позицию).
+    if (!card.groupWaves && approved >= card.minParticipants) continue;
 
-    const items = await db.applicationItem.findMany({
+    const candidates = await db.applicationItem.findMany({
       where: {
         cardId: card.id,
         status: { in: ["PENDING", "APPROVED", "COUPON_CREATED"] },
@@ -44,6 +48,20 @@ export async function carryUnfilledGroupSelections(
       },
       include: { application: { select: { employeeId: true } } },
     });
+    if (candidates.length === 0) continue;
+
+    // Для волн: переносим только тех, чья волна ещё не набралась (иначе тут
+    // остались бы позиции, которым просто не успели сформировать купон, хотя
+    // их волна уже полная, — их трогать не нужно, дальше их подхватит обычная
+    // выдача). Баг из-за которого этот файл когда-то не учитывал волны вообще
+    // и позволял целой недобранной волне «зависнуть» без выдачи и без переноса.
+    let items = candidates;
+    if (card.groupWaves) {
+      const readiness = await Promise.all(
+        candidates.map((it) => isItemWaveReady(card.id, closedPeriodId, it.id, card.minParticipants)),
+      );
+      items = candidates.filter((_, i) => !readiness[i]);
+    }
     if (items.length === 0) continue;
     cards++;
     const carriedSourceIds: string[] = [];
@@ -94,17 +112,19 @@ export async function carryUnfilledGroupSelections(
 
     // Исходные позиции в закрытом периоде закрываем (перенос уже создал новые),
     // а сформированные под ненабравшуюся группу купоны (CREATED) — аннулируем,
-    // иначе они «висят» в реестре как готовые к выдаче.
+    // иначе они «висят» в реестре как готовые к выдаче. Только для реально
+    // перенесённых позиций — при волнах на той же карточке могли остаться
+    // другие, уже полностью набранные волны, их купоны трогать нельзя.
     if (carriedSourceIds.length > 0) {
       await db.applicationItem.updateMany({
         where: { id: { in: carriedSourceIds } },
         data: { status: "CANCELLED" },
       });
+      await db.coupon.updateMany({
+        where: { status: "CREATED", itemId: { in: carriedSourceIds } },
+        data: { status: "CANCELLED" },
+      });
     }
-    await db.coupon.updateMany({
-      where: { status: "CREATED", periodId: closedPeriodId, item: { is: { cardId: card.id } } },
-      data: { status: "CANCELLED" },
-    });
   }
 
   if (carried > 0) flushTelegram();
