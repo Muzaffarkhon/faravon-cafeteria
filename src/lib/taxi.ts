@@ -198,10 +198,16 @@ export async function taxiRegistryRows(filters: {
           ...(filters.partnerId ? { partnerId: filters.partnerId } : {}),
         },
       },
-      ...(filters.periodId ? { application: { is: { periodId: filters.periodId } } } : {}),
-      ...(filters.employeeQuery
-        ? { application: { is: { employee: { is: { fullName: { contains: filters.employeeQuery, mode: "insensitive" } } } } } }
-        : {}),
+      // Одним объектом: два отдельных spread-а по ключу `application` затирали
+      // друг друга — при фильтре и по периоду, и по сотруднику период терялся.
+      application: {
+        is: {
+          ...(filters.periodId ? { periodId: filters.periodId } : {}),
+          ...(filters.employeeQuery
+            ? { employee: { is: { fullName: { contains: filters.employeeQuery, mode: "insensitive" } } } }
+            : {}),
+        },
+      },
     },
     include: {
       card: { select: { title: true, partner: { select: { name: true } } } },

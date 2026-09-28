@@ -4,7 +4,15 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
-import { listCouponRegistry, buildCouponFilters } from "@/lib/coupon-registry";
+import { listCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
+import type { PromoStatus } from "@/lib/taxi";
+
+const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
+  NONE: "Промокод не отправлен",
+  PENDING: "Промокод отправляется",
+  DELIVERED: "Промокод доставлен",
+  BLOCKED: "Не доставлен (бот заблокирован)",
+};
 
 const d = (v: Date | null | undefined) => (v ? v.toISOString().slice(0, 10) : "");
 
@@ -16,7 +24,11 @@ export async function GET(req: NextRequest) {
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
   const { periodId, status, partnerId, extraWhere } = buildCouponFilters(sp);
 
-  const coupons = await listCouponRegistry({ periodId, status, partnerId, extraWhere });
+  const cf = buildCouponFilters(sp);
+  const [coupons, taxiRows] = await Promise.all([
+    listCouponRegistry({ periodId, status, partnerId, extraWhere }),
+    listTaxiRegistryRows(cf),
+  ]);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Кафетерий льгот «Фаровон»";
@@ -58,6 +70,20 @@ export async function GET(req: NextRequest) {
       valid: d(c.validUntil),
     });
   }
+  // Такси (по номеру телефона): купона нет — номер = промокод, статус = доставка промокода.
+  for (const r of taxiRows) {
+    ws.addRow({
+      number: r.promo ?? "",
+      employee: r.employee,
+      card: r.cardTitle,
+      partner: r.partnerName ?? "",
+      period: r.periodName,
+      type: "По телефону",
+      status: TAXI_STATUS_LABELS[r.promoStatus],
+      issued: d(r.decidedAt),
+      valid: d(r.periodEndDate),
+    });
+  }
   ws.autoFilter = { from: "A1", to: "L1" };
 
   const buffer = await wb.xlsx.writeBuffer();
@@ -67,10 +93,10 @@ export async function GET(req: NextRequest) {
     action: "COUPON_REGISTRY_EXPORTED",
     entityType: "Coupon",
     entityId: null,
-    newValue: { count: coupons.length, period: periodId ?? "all", status: status ?? "all" },
+    newValue: { count: coupons.length + taxiRows.length, period: periodId ?? "all", status: status ?? "all" },
   });
 
-  const filename = `Реестр_купонов${periodId ? "_" + coupons[0]?.period.name.replace(/\s+/g, "_") : ""}.xlsx`;
+  const filename = `Реестр_купонов${periodId ? "_" + (coupons[0]?.period.name ?? taxiRows[0]?.periodName ?? "").replace(/\s+/g, "_") : ""}.xlsx`;
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

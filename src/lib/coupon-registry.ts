@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { CouponStatus, Prisma } from "@prisma/client";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { taxiRegistryRows } from "@/lib/taxi";
 
 export type CouponFilters = {
   periodId?: string;
@@ -63,6 +64,17 @@ const COUPON_FILTER_FIELDS: SmartFilterField[] = [
   { key: "partner", label: "", type: "select" },
   { key: "status", label: "", type: "select" },
 ];
+
+/** Строки такси (PHONE_PROMO — без Coupon), видимые в реестре /coupons при этих фильтрах.
+ *  Общее для страницы и выгрузки: иначе такси-строки были в таблице, а файл выходил пустым. */
+export async function listTaxiRegistryRows(cf: ReturnType<typeof buildCouponFilters>) {
+  // Фильтры по статусу/номеру/сроку/льготе купона к такси неприменимы — у этих позиций нет купона.
+  if (cf.hasCouponOnlyFilters) return [];
+  const rows = await taxiRegistryRows({ periodId: cf.periodId, partnerId: cf.partnerId, employeeQuery: cf.employeeQuery });
+  const q = cf.q.toLowerCase();
+  if (!q) return rows;
+  return rows.filter((r) => `${r.employee} ${r.cardTitle} ${r.partnerName ?? ""}`.toLowerCase().includes(q));
+}
 
 /** Строит CouponFilters из query-параметров страницы /coupons — общее для самой
  *  страницы и её /coupons/export, чтобы выгрузка всегда отражала то, что видно в таблице. */
