@@ -34,14 +34,27 @@ function FlagIcon({ locale, className }: { locale: Locale; className?: string })
   );
 }
 
-/** Компактный переключатель языка — кнопка с инициалами (RU/TJ/UZ), раскрывает список. */
-export function LanguageSwitcher({ locale, className }: { locale: Locale; className?: string }) {
+/**
+ * Список языков сам по себе — без своей кнопки-триггера и своего попапа.
+ * Используется и внутри попапа `LanguageSwitcher` (list), и встроенным прямо
+ * в чужое меню, напр. меню профиля в шапке (row) — там свой попап внутри
+ * чужого (да ещё под overflow-hidden) обрезался бы и путал бы два открытых
+ * слоя сразу.
+ */
+export function LanguageInlineOptions({
+  locale,
+  onChosen,
+  layout = "list",
+}: {
+  locale: Locale;
+  onChosen?: () => void;
+  layout?: "list" | "row";
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(false);
 
   function choose(l: Locale) {
-    setOpen(false);
+    onChosen?.();
     if (l === locale) return;
     start(async () => {
       await setLocale(l);
@@ -49,15 +62,65 @@ export function LanguageSwitcher({ locale, className }: { locale: Locale; classN
     });
   }
 
+  if (layout === "row") {
+    return (
+      <div role="menu" className="flex items-center gap-1.5">
+        {LOCALES.map((l) => (
+          <button
+            key={l}
+            type="button"
+            role="menuitemradio"
+            aria-checked={l === locale}
+            disabled={pending}
+            onClick={() => choose(l)}
+            title={LOCALE_SHORT[l]}
+            className={cx(
+              "flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border transition-colors disabled:opacity-60",
+              l === locale ? "border-primary ring-2 ring-primary/30" : "border-line hover:border-line-strong",
+            )}
+          >
+            <FlagIcon locale={l} className="h-full w-full" />
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div role="menu" className="w-36 overflow-hidden rounded-xl">
+      {LOCALES.map((l) => (
+        <button
+          key={l}
+          type="button"
+          role="menuitemradio"
+          aria-checked={l === locale}
+          disabled={pending}
+          onClick={() => choose(l)}
+          className={cx(
+            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold transition-colors disabled:opacity-60",
+            l === locale ? "bg-primary-soft text-primary-strong" : "text-ink hover:bg-surface-muted",
+          )}
+        >
+          <FlagIcon locale={l} className="h-4 w-[22px] shrink-0" />
+          <span className="text-xs font-bold uppercase tracking-wide">{LOCALE_SHORT[l]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Компактный переключатель языка — кнопка с инициалами (RU/TJ/UZ), раскрывает список. */
+export function LanguageSwitcher({ locale, className }: { locale: Locale; className?: string }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className={cx("relative", className)} onMouseLeave={() => setOpen(false)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        disabled={pending}
         aria-label="Язык интерфейса"
         aria-expanded={open}
-        className="flex h-9 items-center justify-center rounded-full border border-line bg-surface px-2.5 text-xs font-bold tracking-wide text-ink transition-colors hover:bg-surface-muted disabled:opacity-60"
+        className="flex h-9 items-center justify-center rounded-full border border-line bg-surface px-2.5 text-xs font-bold tracking-wide text-ink transition-colors hover:bg-surface-muted"
       >
         {LOCALE_SHORT[locale]}
       </button>
@@ -70,26 +133,8 @@ export function LanguageSwitcher({ locale, className }: { locale: Locale; classN
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div
-            role="menu"
-            className="absolute right-0 top-[calc(100%+6px)] z-50 w-36 overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
-          >
-            {LOCALES.map((l) => (
-              <button
-                key={l}
-                type="button"
-                role="menuitemradio"
-                aria-checked={l === locale}
-                onClick={() => choose(l)}
-                className={cx(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold transition-colors",
-                  l === locale ? "bg-primary-soft text-primary-strong" : "text-ink hover:bg-surface-muted",
-                )}
-              >
-                <FlagIcon locale={l} className="h-4 w-[22px] shrink-0" />
-                <span className="text-xs font-bold uppercase tracking-wide">{LOCALE_SHORT[l]}</span>
-              </button>
-            ))}
+          <div className="absolute right-0 top-[calc(100%+6px)] z-50 border border-line bg-surface shadow-lg rounded-xl">
+            <LanguageInlineOptions locale={locale} onChosen={() => setOpen(false)} />
           </div>
         </>
       )}
