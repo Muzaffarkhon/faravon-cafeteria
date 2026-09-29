@@ -34,6 +34,8 @@ export const ICONS = {
   users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z||M3 21v-1a6 6 0 0 1 12 0v1||M17 11a3 3 0 1 0 0-6||M21 21v-1a5 5 0 0 0-4-4.9",
   history: "M3 12a9 9 0 1 0 3-6.7L3 8||M3 3v5h5||M12 8v5l3 2",
   chat: "M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z||M8 9h8||M8 12h5",
+  // газета/лента — для «Новости» (колокольчик читался как «уведомления», не как новости)
+  newspaper: "M4 4h13v13a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z||M17 8h3v9a2 2 0 0 1-4 0V8||M7.5 7.5h6M7.5 11h6M7.5 14.5h4",
   // монета со знаком процента — кешбек
   cashback:
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 15l6-6||M9.2 9.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z||M14.8 15.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z",
@@ -107,13 +109,13 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       href: "/feedback",
       label: t("nav.feedback"),
       desc: "вопрос или предложение по программе льгот",
-      icon: ICONS.inbox,
+      icon: ICONS.chat,
     });
     add("cabinet", t("nav.cabinet"), {
       href: "/news",
       label: "Новости",
       desc: "объявления компании",
-      icon: ICONS.bell,
+      icon: ICONS.newspaper,
     });
     if (gamificationEnabled) {
       add("cabinet", t("nav.cabinet"), {

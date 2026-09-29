@@ -69,6 +69,8 @@ export const DICT = {
     "shell.toStorefront": "На витрину",
     "shell.selected": "Выбрано",
     "shell.drafts": "Черновики",
+    "shell.theme": "Тема",
+    "shell.language": "Язык",
     "lang.switch": "Язык",
 
     "home.greeting": "Здравствуйте",
@@ -1520,6 +1522,8 @@ export const DICT = {
     "shell.toStorefront": "Ба витрина",
     "shell.selected": "Интихобшуда",
     "shell.drafts": "Пешнависҳо",
+    "shell.theme": "Мавзӯъ",
+    "shell.language": "Забон",
     "lang.switch": "Забон",
 
     "home.greeting": "Салом",
@@ -2971,6 +2975,8 @@ export const DICT = {
     "shell.toStorefront": "Vitrinaga",
     "shell.selected": "Tanlangan",
     "shell.drafts": "Qoralamalar",
+    "shell.theme": "Mavzu",
+    "shell.language": "Til",
     "lang.switch": "Til",
 
     "home.greeting": "Assalomu alaykum",

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { LanguageInlineOptions } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Locale } from "@/lib/i18n/shared";
 import { translate } from "@/lib/i18n/dict";
@@ -56,6 +56,22 @@ const I = {
   more: "M4 6h16M4 12h16M4 18h16",
   admin: "M4 21V8l8-5 8 5v13||M9 21v-6h6v6",
 };
+
+/** Значок Farovon Coin — золотая монета с фирменным знаком вместо кубка (ICONS.gamification). */
+function CoinBadge() {
+  return (
+    <span
+      className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border"
+      style={{
+        borderColor: "#c98d1a",
+        background: "radial-gradient(circle at 32% 28%, #fff3c4 0%, #f3c94a 32%, #d89b1f 68%, #a9740f 100%)",
+        boxShadow: "inset 0 1px 1px rgba(255,255,255,.8), inset 0 -1.5px 2px rgba(120,70,0,.55)",
+      }}
+    >
+      <BrandMark size={11} className="[filter:drop-shadow(0_1px_0_rgba(255,255,255,.65))_drop-shadow(0_-0.5px_0.5px_rgba(120,60,0,.5))]" />
+    </span>
+  );
+}
 
 /** Иконка колеса подарков: обод, 8 спиц и ступица. */
 function WheelIcon({ className }: { className?: string }) {
@@ -178,6 +194,16 @@ export function AppShell({
         : "text-ink hover:bg-surface-muted",
     );
 
+  // Вкладки шапки — квадратные кнопки только с иконкой (44×44, тач-таргет по
+  // HIG), подпись — во всплывающей подсказке (title) и для скринридера
+  // (aria-label), не в самой кнопке: раньше 5 текстовых вкладок не помещались
+  // на средних экранах и обрезались молча (см. жалобу на «Ген» от «Геймификация»).
+  const iconTab = (active: boolean) =>
+    cx(
+      "relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[11px] transition-colors",
+      active ? "bg-primary text-on-brand" : "text-ink hover:bg-surface-muted",
+    );
+
   return (
     <div className="relative isolate flex min-h-dvh flex-col bg-canvas text-ink">
       {backdrop}
@@ -209,16 +235,18 @@ export function AppShell({
             {primary.map((it) => {
               const active = isActive(it.href);
               return (
-                <Link key={it.href} href={it.href} onClick={closeMenus} className={pill(active)} aria-current={active ? "page" : undefined}>
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={closeMenus}
+                  className={iconTab(active)}
+                  aria-current={active ? "page" : undefined}
+                  title={it.label}
+                  aria-label={it.label}
+                >
                   <Icon path={it.icon} />
-                  <span className="whitespace-nowrap">{it.label}</span>
                   {it.badge ? (
-                    <span
-                      className={cx(
-                        "ml-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-none tabular-nums",
-                        active ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
-                      )}
-                    >
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums ring-2 ring-surface">
                       {it.badge}
                     </span>
                   ) : null}
@@ -254,11 +282,14 @@ export function AppShell({
             </Link>
           )}
 
+          {/* Кошелёк — раньше 3 отдельные плашки подряд («выбор», монеты, кешбек),
+              каждая со своей рамкой/паддингом; собраны в одну с тонкими
+              разделителями между тем, что реально показывается. */}
           {(selectionStat || typeof coinBalance === "number" || (typeof cashbackTotal === "number" && cashbackTotal > 0)) && (
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center divide-x divide-primary-strong/15 rounded-[10px] bg-primary-soft px-1">
               {selectionStat && (
                 <span
-                  className="rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
+                  className="flex items-center px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
                   aria-label={
                     selectionStat.drafts > 0
                       ? `${t("shell.selected")}: ${selectionStat.used}/${selectionStat.max}, ${t("shell.drafts")}: ${selectionStat.drafts}`
@@ -274,17 +305,17 @@ export function AppShell({
               )}
               {typeof coinBalance === "number" && (
                 <span
-                  className="flex items-center gap-1 rounded-[10px] bg-primary-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
+                  className="flex items-center gap-1.5 px-2 py-1.5 text-[13px] font-bold tabular-nums text-primary-strong"
                   aria-label={`${t("gamification.coinUnit")}: ${coinBalance}`}
                   title={t("gamification.coinUnit")}
                 >
-                  <Icon path={ICONS.gamification} className="h-4 w-4" />
+                  <CoinBadge />
                   {coinBalance}
                 </span>
               )}
               {typeof cashbackTotal === "number" && cashbackTotal > 0 && (
                 <span
-                  className="flex items-center gap-1 rounded-[10px] bg-success-soft px-2 py-1.5 text-[13px] font-bold tabular-nums text-success-strong"
+                  className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-bold tabular-nums text-success-strong"
                   aria-label={`${t("cashback.title")}: ${formatSomoni(cashbackTotal)} ${t("cashback.currency")}`}
                   title={t("cashback.title")}
                 >
@@ -359,10 +390,9 @@ export function AppShell({
             </div>
           )}
 
-          {/* Профиль */}
+          {/* Профиль — тема и язык переехали внутрь меню профиля (ниже), в
+              самой шапке от них остались только имя и аватар. */}
           <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
-            <ThemeToggle compact className="hidden sm:flex" />
-            <LanguageSwitcher locale={locale ?? "ru"} />
             {displayName && (
               <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
                 {displayName}
@@ -396,8 +426,13 @@ export function AppShell({
                     <span className="inline-block h-2 w-2 rounded-full bg-success" aria-hidden="true" />
                     {roleLabel}
                   </div>
-                  <div className="flex items-center gap-2 border-b border-line-subtle px-3 py-2 sm:hidden">
+                  <div className="flex items-center justify-between gap-2 border-b border-line-subtle px-3 py-2.5">
+                    <span className="text-sm font-semibold text-ink">{t("shell.theme")}</span>
                     <ThemeToggle compact />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-line-subtle px-3 py-2.5">
+                    <span className="text-sm font-semibold text-ink">{t("shell.language")}</span>
+                    <LanguageInlineOptions locale={locale ?? "ru"} layout="row" />
                   </div>
                   <Link
                     href="/profile"
