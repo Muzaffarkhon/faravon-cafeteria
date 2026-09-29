@@ -7,6 +7,7 @@ import {
   resolveSelectionContext,
   getApplicationWithItems,
   groupProgress,
+  groupPendingCount,
   getPreviousPeriodPicks,
   getAutoPickedCardIds,
   ensureAutoPicks,
@@ -239,11 +240,21 @@ export default async function OverviewPage() {
   // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
   // «Минимум N»: порог набран — бар и баннер прогресса больше не нужны.
-  const groupHiddenOf = (c: { id: string; minParticipants: number; groupWaves: boolean }) =>
-    !c.groupWaves && (groupCount.get(c.id) ?? 0) >= c.minParticipants;
-  const groupCount = targetPeriod
-    ? await groupProgress(groupCards.map((c) => c.id), targetPeriod.id)
-    : new Map<string, number>();
+  // Также скрываем баннер, если исторически кому-то уже выдали купон(ы) по
+  // этой карточке (groupCount > 0), а РЕАЛЬНО ждущих решения не осталось
+  // (groupPendingCount = 0) — иначе «нужно ещё N» никого не ждёт и вводит в
+  // заблуждение (см. groupPendingCount).
+  const groupHiddenOf = (c: { id: string; minParticipants: number; groupWaves: boolean }) => {
+    const have = groupCount.get(c.id) ?? 0;
+    if (have > 0 && (groupPending.get(c.id) ?? 0) === 0) return true;
+    return !c.groupWaves && have >= c.minParticipants;
+  };
+  const [groupCount, groupPending] = targetPeriod
+    ? await Promise.all([
+        groupProgress(groupCards.map((c) => c.id), targetPeriod.id),
+        groupPendingCount(groupCards.map((c) => c.id), targetPeriod.id),
+      ])
+    : [new Map<string, number>(), new Map<string, number>()];
 
   // «Выбрать как в прошлый раз» (§4): льготы из последнего прошлого периода,
   // которые сотрудник ещё не выбрал/не пытался выбрать в текущем — с учётом
