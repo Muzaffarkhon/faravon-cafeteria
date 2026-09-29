@@ -89,6 +89,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
   }
 
+  const isStaffOrContractor =
+    can(session.roles, "applications.decide") ||
+    can(session.roles, "coupons.manage") ||
+    can(session.roles, "cards.manage") ||
+    can(session.roles, "coupons.confirm") ||
+    can(session.roles, "promo.broadcast") ||
+    can(session.roles, "sessions.view") ||
+    can(session.roles, "support.manage") ||
+    Boolean(session.user.partnerId);
+
+  if (!isStaffOrContractor) {
+    return NextResponse.json(
+      { error: "Постоянный SSE-поток доступен только персоналу C&B и подрядчикам. Для сотрудников обновление происходит при фокусе окна." },
+      { status: 403 },
+    );
+  }
+
   // Частота опроса зависит от роли (см. константы выше).
   const isStaff =
     can(session.roles, "applications.decide") ||

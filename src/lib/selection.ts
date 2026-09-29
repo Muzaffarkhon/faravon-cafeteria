@@ -3,17 +3,11 @@ import { db } from "@/lib/db";
 import type { Period } from "@prisma/client";
 import { ACTIVE_FOR_LIMIT } from "@/lib/application-workflow";
 
+import { getCachedCurrentPeriod } from "@/lib/catalog-cache";
+
 /** Текущий период с открытым окном выбора (ТЗ v2 §5.7). */
 export async function getCurrentPeriod() {
-  const now = new Date();
-  return db.period.findFirst({
-    where: { status: "OPEN" },
-    orderBy: { startDate: "desc" },
-  }).then((p) => {
-    if (!p) return null;
-    const windowOpen = p.windowStart <= now && p.windowEnd >= now;
-    return { ...p, windowOpen };
-  });
+  return getCachedCurrentPeriod();
 }
 
 // Таджикистан: UTC+5, без переходов на летнее время (как в admin/periods/actions.ts).
@@ -88,10 +82,23 @@ export async function resolveSelectionContext(now: Date = new Date()): Promise<S
   }
 
   // Период уже начался — новый выбор переносим на следующий.
-  const next = await db.period.findFirst({
+  let next = await db.period.findFirst({
     where: { startDate: { gt: windowPeriod.startDate }, status: { not: "CLOSED" } },
     orderBy: { startDate: "asc" },
   });
+
+  if (!next) {
+    try {
+      const { ensureNextPeriodDraft } = await import("@/lib/period-lifecycle");
+      const drafted = await ensureNextPeriodDraft(windowPeriod);
+      if (drafted) {
+        next = await db.period.findUnique({ where: { id: drafted.id } });
+      }
+    } catch (e) {
+      console.error("[resolveSelectionContext] ensureNextPeriodDraft error:", e);
+    }
+  }
+
   return {
     windowPeriod,
     targetPeriod: next,

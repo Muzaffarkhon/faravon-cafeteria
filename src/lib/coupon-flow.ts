@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { notifyEmployee } from "@/lib/notify";
+import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { generateCouponNumber } from "@/lib/coupon";
 import { isItemWaveReady } from "@/lib/selection";
 import { assertTransition } from "@/lib/application-workflow";
@@ -70,7 +70,11 @@ export async function formCouponForItem(itemId: string, actorId: string) {
  * Выдаёт купон (CREATED → ISSUED), если для групповой льготы набрана группа
  * либо льгота не групповая. Возвращает true, если выдан. Тихо (без ошибок).
  */
-export async function issueCouponIfReady(couponId: string, actorId: string): Promise<boolean> {
+export async function issueCouponIfReady(
+  couponId: string,
+  actorId: string,
+  deferFlush = false,
+): Promise<boolean> {
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
     include: {
@@ -121,7 +125,7 @@ export async function issueCouponIfReady(couponId: string, actorId: string): Pro
       validFrom: coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
       validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
     },
-    deferFlush: true,
+    deferFlush,
   });
   return true;
 }
@@ -136,6 +140,7 @@ export async function issueGroupBacklog(cardId: string, periodId: string, actorI
     select: { id: true },
   });
   for (const c of pending) {
-    await issueCouponIfReady(c.id, actorId);
+    await issueCouponIfReady(c.id, actorId, true);
   }
+  flushTelegram();
 }

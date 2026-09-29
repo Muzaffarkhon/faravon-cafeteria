@@ -98,6 +98,7 @@ export function AppShell({
   backdrop,
   adminHref,
   locale,
+  sseEnabled = false,
   children,
 }: {
   groups: NavGroup[];
@@ -117,6 +118,8 @@ export function AppShell({
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
   adminHref?: string;
   locale?: Locale;
+  /** Включать ли постоянный SSE-поток (/api/stream). Только для C&B и кассиров-подрядчиков. */
+  sseEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale ?? "ru", key);
@@ -207,7 +210,7 @@ export function AppShell({
   return (
     <div className="relative isolate flex min-h-dvh flex-col bg-canvas text-ink">
       {backdrop}
-      <LiveRefresh />
+      <LiveRefresh sse={sseEnabled} />
 
       {/* ── Верхняя навигация (десктоп + планшет) ── */}
       <header

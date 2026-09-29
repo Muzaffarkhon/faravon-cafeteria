@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
  */
 const FALLBACK_MS = 90_000;
 
-export function LiveRefresh() {
+export function LiveRefresh({ sse = false }: { sse?: boolean }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function LiveRefresh() {
     };
 
     const connect = () => {
-      if (stopped || es || document.visibilityState !== "visible") return;
+      if (!sse || stopped || es || document.visibilityState !== "visible") return;
       try {
         es = new EventSource("/api/stream");
         es.addEventListener("update", refresh);
@@ -49,15 +49,17 @@ export function LiveRefresh() {
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         refresh();
-        connect();
+        if (sse) connect();
       } else {
         es?.close();
         es = null;
       }
     };
 
-    connect();
-    const fallback = setInterval(refresh, FALLBACK_MS);
+    if (sse) connect();
+    // Для обычных сотрудников обновляем только при возврате на вкладку/окно (focus/visibility).
+    // Редкий таймер-подстраховка раз в 3 минуты на случай открытой неподвижной вкладки.
+    const fallback = setInterval(refresh, sse ? FALLBACK_MS : 180_000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -69,7 +71,7 @@ export function LiveRefresh() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [router]);
+  }, [router, sse]);
 
   return null;
 }
