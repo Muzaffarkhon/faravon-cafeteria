@@ -10,6 +10,7 @@ import { type SmartFilterField } from "@/lib/smart-filter";
 import { taxiRecipientsForPartner, buildTaxiSmartFilters } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
+import { SinglePromoCell } from "./_single-promo";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export default async function TaxiProviderPage({
       />
 
       <Card className="space-y-3 p-4">
-        <PromoBroadcast recipients={recipients.length} locale={locale} />
+        <PromoBroadcast recipients={recipients.length} locale={locale} exportHref={exportHref} />
         <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-subtle pt-3 text-xs text-ink-muted">
           <span>
             {t("providerTaxi.delivered")}: <b className="text-ink">{stats.delivered}</b>
@@ -134,14 +135,12 @@ export default async function TaxiProviderPage({
                       {r.approvedAt ? r.approvedAt.toLocaleDateString("ru-RU") : "—"}
                     </td>
                     <td>
-                      {r.promoStatus === "DELIVERED" && <Badge tone="success">{t("providerTaxi.delivered")}</Badge>}
-                      {r.promoStatus === "BLOCKED" && (
-                        <span title={t("providerTaxi.blockedHint")}>
-                          <Badge tone="warning">{t("providerTaxi.statusBlocked")}</Badge>
-                        </span>
-                      )}
-                      {r.promoStatus === "PENDING" && <Badge tone="neutral">{t("providerTaxi.statusPending")}</Badge>}
-                      {r.promoStatus === "NONE" && <Badge tone="neutral">{t("providerTaxi.statusNone")}</Badge>}
+                      <SinglePromoCell
+                        itemId={r.itemId}
+                        initialPromo={r.promo}
+                        status={r.promoStatus}
+                        locale={locale}
+                      />
                     </td>
                   </tr>
                 ))}

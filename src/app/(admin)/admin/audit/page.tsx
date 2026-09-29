@@ -484,7 +484,7 @@ export default async function AuditPage({
               {rows.map((r) => (
                 <tr key={r.id} className="align-top">
                   <td className="whitespace-nowrap text-ink-muted" data-numeric>
-                    {r.createdAt.toLocaleString("ru-RU")}
+                    {r.createdAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
                   </td>
                   <td className="text-ink">{r.actor?.login ?? "—"}</td>
                   <td className="text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>

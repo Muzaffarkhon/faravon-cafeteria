@@ -9,6 +9,7 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { isSandbox } from "@/lib/app-env";
+import { invalidatePeriodCache } from "@/lib/catalog-cache";
 
 export type PeriodFormState = { error?: string };
 
@@ -82,6 +83,7 @@ export async function createPeriod(
   }
   const period = await db.period.create({ data: { ...data, status: "DRAFT" } });
   await audit({ actorId: s.user.id, action: "PERIOD_CREATED", entityType: "Period", entityId: period.id, newValue: { name: period.name } });
+  invalidatePeriodCache();
   revalidatePath("/admin/periods");
   redirect("/admin/periods");
 }
@@ -101,6 +103,7 @@ export async function updatePeriod(
   }
   await db.period.update({ where: { id }, data });
   await audit({ actorId: s.user.id, action: "PERIOD_UPDATED", entityType: "Period", entityId: id, newValue: { name: data.name } });
+  invalidatePeriodCache();
   revalidatePath("/admin/periods");
   revalidatePath("/");
   redirect("/admin/periods");
@@ -167,6 +170,7 @@ export async function setPeriodStatus(
       }
     }
 
+    invalidatePeriodCache();
     revalidatePath("/admin/periods");
     revalidatePath("/");
     revalidatePath("/applications");
@@ -195,6 +199,7 @@ export async function deletePeriod(id: string): Promise<ActionResult> {
       entityId: id,
       oldValue: { name: period.name, status: period.status },
     });
+    invalidatePeriodCache();
     revalidatePath("/admin/periods");
     revalidatePath("/");
     revalidatePath("/applications");

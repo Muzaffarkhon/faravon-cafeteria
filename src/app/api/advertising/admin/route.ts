@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { apiGuard } from "@/lib/api-guard";
 import { audit } from "@/lib/audit";
+import { invalidateBannersCache } from "@/lib/catalog-cache";
 
 /** Реестр заявок на рекламу. Право: cards.manage (C&B). */
 export async function GET() {
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
       },
     });
     bannerId = banner.id;
+    invalidateBannersCache();
     await audit({
       actorId: g.session.user.id,
       action: "PARTNER_BANNER_CREATED",

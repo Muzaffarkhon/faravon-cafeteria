@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { apiGuard } from "@/lib/api-guard";
 import { isSafeLinkHref, isSafeImageSrc } from "@/lib/safe-url";
 import { cleanupBlob } from "@/lib/blob-cleanup";
+import { invalidateBannersCache } from "@/lib/catalog-cache";
 
 /** CRUD баннеров партнёров. Право: partners.manage (C&B). */
 export async function GET() {
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
   const parsed = parseBanner((await req.json().catch(() => ({}))) as Record<string, unknown>);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const item = await db.partnerBanner.create({ data: parsed });
+  invalidateBannersCache();
   return NextResponse.json(item, { status: 201 });
 }
 
@@ -98,6 +100,7 @@ export async function PUT(req: Request) {
   // Замена/удаление картинки баннера раньше не чистила старый файл в Vercel
   // Blob — он оставался там навсегда и копил объём хранилища.
   await cleanupBlob(prev?.imageUrl ?? null, parsed.imageUrl);
+  invalidateBannersCache();
   return NextResponse.json(item);
 }
 
@@ -108,5 +111,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "missing id" }, { status: 400 });
   const doomed = await db.partnerBanner.delete({ where: { id } });
   await cleanupBlob(doomed.imageUrl, null);
+  invalidateBannersCache();
   return NextResponse.json({ ok: true });
 }

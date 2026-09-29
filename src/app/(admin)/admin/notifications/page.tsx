@@ -47,7 +47,7 @@ export default async function NotificationsPage() {
           const overridden = !!row && (row.body !== def.body || row.label !== def.label || !!tr.tg || !!tr.uz);
           const editedBy = row?.updatedBy?.employee?.fullName ?? row?.updatedBy?.login ?? null;
           const editedAt =
-            overridden && row ? row.updatedAt.toLocaleString("ru-RU") : null;
+            overridden && row ? row.updatedAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null;
           return (
             <div key={event}>
               {HINTS[event] && <p className="mb-1 text-xs text-ink-subtle">{HINTS[event]}</p>}

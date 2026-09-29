@@ -40,11 +40,18 @@ export async function GET(req: NextRequest) {
     { header: "Льгота", key: "card", width: 32 },
     { header: "Период", key: "period", width: 18 },
     { header: "Одобрено", key: "approved", width: 14 },
+    { header: "Промокод", key: "promo", width: 24 },
+    { header: "ID позиции", key: "itemId", width: 28 },
   ];
   const head = ws.getRow(1);
   head.font = { bold: true };
-  head.eachCell((c) => {
-    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF2DCDB" } };
+  head.eachCell((c, colNumber) => {
+    const isPromoCol = colNumber === 7;
+    c.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: isPromoCol ? "FFE2EFDA" : "FFF2DCDB" },
+    };
     c.border = { bottom: { style: "thin", color: { argb: "FFBFBFBF" } } };
   });
 
@@ -56,9 +63,11 @@ export async function GET(req: NextRequest) {
       card: r.card,
       period: r.period,
       approved: r.approvedAt ? r.approvedAt.toISOString().slice(0, 10) : "",
+      promo: r.promo || "",
+      itemId: r.itemId,
     });
   }
-  ws.autoFilter = { from: "A1", to: "F1" };
+  ws.autoFilter = { from: "A1", to: "H1" };
 
   const buffer = await wb.xlsx.writeBuffer();
 
