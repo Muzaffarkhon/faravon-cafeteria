@@ -246,7 +246,11 @@ export function AppShell({
                 >
                   <Icon path={it.icon} />
                   {it.badge ? (
-                    <span className="absolute -right-1 -top-1 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-on-brand tabular-nums ring-2 ring-surface">
+                    // Полностью внутри кнопки (top-0.5/right-0.5, без отрицательных
+                    // отступов) — у ленты вкладок overflow-x-auto, из-за чего браузер
+                    // сам включает overflow-y:auto (см. комментарий про «Ещё» ниже),
+                    // и бейдж с отрицательным сдвигом обрезался бы этим контейнером сверху.
+                    <span className="absolute right-0.5 top-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-on-brand tabular-nums">
                       {it.badge}
                     </span>
                   ) : null}
