@@ -230,6 +230,30 @@ export async function groupProgressOne(cardId: string, periodId: string): Promis
   return (await groupProgress([cardId], periodId)).get(cardId) ?? 0;
 }
 
+/**
+ * Сколько позиций реально ЕЩЁ ЖДУТ решения (не выдан купон, не отменена) —
+ * в отличие от groupProgress, который вместе с ними считает и уже полностью
+ * обслуженных (COUPON_ISSUED). Нужен, чтобы отличить «группа правда
+ * набирается» от «купоны уже всем выданы, просто пачкой не кратной волне» —
+ * во втором случае баннер «наберите ещё N» никого на самом деле не ждёт и
+ * только вводит в заблуждение (см. хендоф про «Бассейн «Истиклолият»»/
+ * «Сугдиён»: массовое одобрение до фикса isItemWaveReady выдало купоны не
+ * дожидаясь полной волны).
+ */
+export async function groupPendingCount(cardIds: string[], periodId: string): Promise<Map<string, number>> {
+  if (cardIds.length === 0) return new Map();
+  const rows = await db.applicationItem.groupBy({
+    by: ["cardId"],
+    where: {
+      cardId: { in: cardIds },
+      status: { in: ["PENDING", "APPROVED", "COUPON_CREATED"] },
+      application: { is: { periodId } },
+    },
+    _count: { _all: true },
+  });
+  return new Map(rows.map((r) => [r.cardId, r._count._all]));
+}
+
 export type PreviousPick = { cardId: string; cardTitle: string };
 
 /**
