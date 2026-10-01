@@ -26,13 +26,13 @@ const normalizeNumber = (n: string) => n.trim().toUpperCase();
 export const isCouponExpired = (validUntil: Date | null, at: Date = new Date()) =>
   !!validUntil && validUntil.getTime() < at.getTime();
 
-/** Период купона прошёл, если статус CLOSED или дата окончания в прошлом. */
+/** Период купона прошёл, если дата окончания в прошлом. */
 export const isCouponPeriodPassed = (
-  period: { status: string; endDate: Date | string } | null | undefined,
+  period: { status?: string; endDate: Date | string } | null | undefined,
   at: Date = new Date(),
 ) => {
   if (!period) return false;
-  return period.status === "CLOSED" || new Date(period.endDate).getTime() < at.getTime();
+  return new Date(period.endDate).getTime() < at.getTime();
 };
 
 /**

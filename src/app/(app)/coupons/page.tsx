@@ -174,7 +174,7 @@ export default async function CouponsPage({
                     странице, отдельно от пагинации по реальным купонам (см. выше). */}
                 {page === 1 &&
                   taxiRows.map((r) => {
-                    const periodEnded = r.periodStatus === "CLOSED" || r.periodEndDate < now;
+                    const periodEnded = r.periodEndDate < now;
                     return (
                       <tr key={`taxi-${r.itemId}`}>
                         <td />
@@ -207,7 +207,7 @@ export default async function CouponsPage({
                 {coupons.map((c) => {
                   const overdue = isCouponOverdue(c);
                   const displayStatus = overdue ? "EXPIRED" : c.status;
-                  const periodEnded = c.period.status === "CLOSED" || c.period.endDate < now;
+                  const periodEnded = c.period.endDate < now;
                   const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
                   const bulkEligible = c.status === "CREATED" && !phonePromo && !overdue;
                   return (
