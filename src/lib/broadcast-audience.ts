@@ -1,7 +1,14 @@
 import "server-only";
 import type { ItemStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { SEGMENTS, CARD_AUDIENCES, type Segment, type CardAudience } from "./broadcast-segments";
+import {
+  SEGMENTS,
+  CARD_AUDIENCES,
+  CAMPAIGN_ANSWERS,
+  type Segment,
+  type CardAudience,
+  type CampaignAnswer,
+} from "./broadcast-segments";
 import { LOCALES, asLocale, type Locale } from "./i18n/shared";
 
 /**
@@ -18,6 +25,9 @@ export type AudienceFilters = {
   cardId: string;
   periodId: string;
   cardAudience: CardAudience;
+  /** Сегмент BY_CAMPAIGN: прошлая рассылка с подтверждением и какой ответ нужен. */
+  campaignId: string;
+  campaignAnswer: CampaignAnswer;
 };
 
 export type PreviewRow = { key: string; name: string; sub: string; telegram: boolean };
@@ -43,6 +53,7 @@ export function parseFilters(raw: Record<string, string | string[] | undefined>)
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const seg = one(raw.segment);
   const aud = one(raw.cardAudience);
+  const ans = one(raw.campaignAnswer);
   return {
     segment: (SEGMENTS as readonly string[]).includes(seg) ? (seg as Segment) : "ALL",
     department: one(raw.department).trim(),
@@ -51,6 +62,8 @@ export function parseFilters(raw: Record<string, string | string[] | undefined>)
     cardId: one(raw.cardId).trim(),
     periodId: one(raw.periodId).trim(),
     cardAudience: (CARD_AUDIENCES as readonly string[]).includes(aud) ? (aud as CardAudience) : "BOTH",
+    campaignId: one(raw.campaignId).trim(),
+    campaignAnswer: (CAMPAIGN_ANSWERS as readonly string[]).includes(ans) ? (ans as CampaignAnswer) : "YES",
   };
 }
 
@@ -149,6 +162,18 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
         },
       },
     });
+  }
+
+  if (f.segment === "BY_CAMPAIGN") {
+    if (!f.campaignId) return empty("Выберите рассылку.");
+    const answer: Record<CampaignAnswer, Prisma.BroadcastRecipientWhereInput> = {
+      YES: { answer: "YES" },
+      NO: { answer: "NO" },
+      NONE: { answer: null },
+      ANSWERED: { answer: { not: null } },
+      ALL: {},
+    };
+    userWhere.broadcastRecipients = { some: { campaignId: f.campaignId, ...answer[f.campaignAnswer] } };
   }
 
   const base: Prisma.EmployeeWhereInput = {

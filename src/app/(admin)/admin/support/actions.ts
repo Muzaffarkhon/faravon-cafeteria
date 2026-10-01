@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
@@ -345,4 +346,28 @@ export async function linkEmployeeToThread(
   });
 
   return { ok: true, login: user.login, otp };
+}
+
+/**
+ * «Открыть чат» с сотрудником со страниц рассылок: тред поддержки по его Telegram —
+ * существующий или новый (пустой, открытый), — и переход в него. Первое сообщение пишет C&B.
+ */
+export async function openChatWithUser(userId: string): Promise<void> {
+  const s = await requireSession();
+  assertCan(s.roles, "support.manage");
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { telegramId: true, employee: { select: { telegramId: true } } },
+  });
+  const telegramId = user?.telegramId ?? user?.employee?.telegramId;
+  if (!telegramId) throw new Error("У сотрудника не привязан Telegram — написать ему в чат нельзя.");
+
+  const thread = await db.supportThread.upsert({
+    where: { telegramId },
+    create: { telegramId, status: "OPEN" },
+    update: { archivedAt: null },
+    select: { id: true },
+  });
+  redirect(`/admin/support/${thread.id}`);
 }

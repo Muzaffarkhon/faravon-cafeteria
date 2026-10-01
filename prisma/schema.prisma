@@ -844,6 +844,8 @@ model Notification {
   /// событий без дедупликации.
   dedupeKey   String?   @unique
 
+  broadcastRecipient BroadcastRecipient?
+
   @@index([userId])
   @@index([deliveredAt])
 }
@@ -1054,34 +1056,61 @@ enum ConfirmAnswer {
   NO
 }
 
-/// Рассылка с кнопками подтверждения «Да / Нет» (src/lib/broadcast-confirm.ts).
-/// Сообщения уходят через обычную очередь Notification (event BROADCAST,
-/// payload.confirmId = BroadcastRecipient.id), ответы — нажатием инлайн-кнопки в боте.
+enum BroadcastStatus {
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+/// Любая рассылка из админки (src/lib/broadcast-send.ts) — история, отложенная отправка,
+/// статус доставки. С кнопками «Да / Нет» (askConfirm) — ещё и ответы (src/lib/broadcast-confirm.ts).
+/// Сотрудникам сообщения уходят через обычную очередь Notification (event BROADCAST,
+/// payload.confirmId = BroadcastRecipient.id), «гостям» бота — напрямую (только счётчики).
 model BroadcastCampaign {
-  id           String   @id @default(cuid())
-  seq          Int      @unique @default(autoincrement())
+  id           String          @id @default(cuid())
+  seq          Int             @unique @default(autoincrement())
   title        String
+  /// Русский текст — для отчёта; все языки — в texts.
   text         String
   cardId       String?
   periodId     String?
   /// SELECTED | ISSUED | BOTH — для рассылки по льготе; null — обычный сегмент.
   cardAudience String?
   createdById  String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
+  /// До этой миграции сохранялись только рассылки с подтверждением — отсюда default true.
+  askConfirm   Boolean         @default(true)
+  couponHint   Boolean         @default(false)
+  /// Сегмент и фильтры (AudienceFilters): по ним отложенная рассылка соберёт аудиторию в момент отправки.
+  segment      String?
+  filters      Json?
+  /// { ru, tg, uz } — готовые тексты (плейсхолдеры уже подставлены, напоминание о купоне — нет).
+  texts        Json?
+  status       BroadcastStatus @default(SENT)
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  /// «Гостям» бота пишем напрямую, без строк получателей — только итог.
+  guestSent    Int             @default(0)
+  guestFailed  Int             @default(0)
 
   recipients BroadcastRecipient[]
 
   @@index([createdAt])
+  @@index([status, scheduledAt])
 }
 
 model BroadcastRecipient {
-  id         String            @id @default(cuid())
-  campaign   BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  campaignId String
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
-  answer     ConfirmAnswer?
-  answeredAt DateTime?
+  id             String            @id @default(cuid())
+  campaign       BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId     String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  answer         ConfirmAnswer?
+  answeredAt     DateTime?
+  /// Уведомление, которым ушло сообщение: deliveredAt / blockedAt — статус доставки.
+  notification   Notification?     @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  notificationId String?           @unique
 
   @@unique([campaignId, userId])
 }
