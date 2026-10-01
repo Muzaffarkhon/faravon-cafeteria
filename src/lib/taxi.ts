@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { flushTelegram } from "@/lib/notify";
+import { normalizePhone } from "@/lib/phone";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 
 /**
@@ -25,6 +26,7 @@ function promoStatusOf(n?: { deliveredAt: Date | null; blockedAt: Date | null })
 
 export type TaxiRecipient = {
   itemId: string;
+  seq: number;
   employeeId: string;
   employee: string;
   department: string;
@@ -34,6 +36,8 @@ export type TaxiRecipient = {
   card: string;
   period: string;
   approvedAt: Date | null;
+  /** Промокод, отправленный сотруднику (если был). */
+  promo: string | null;
   /** Статус последней рассылки промокода по этой позиции (если была). */
   promoStatus: PromoStatus;
 };
@@ -147,9 +151,12 @@ export async function taxiRecipientsForPartner(
   return items.map((i) => {
     const custom = (i.contactPhone ?? "").trim();
     const profile = (i.application.employee.phone ?? "").trim();
-    const promoStatus = promoStatusOf(latestByItem.get(i.id));
+    const n = latestByItem.get(i.id);
+    const promo = (n?.payload as { promo?: string } | null)?.promo ?? null;
+    const promoStatus = promoStatusOf(n);
     return {
       itemId: i.id,
+      seq: i.seq,
       employeeId: i.application.employee.id,
       employee: i.application.employee.fullName,
       department: i.application.employee.department,
@@ -158,6 +165,7 @@ export async function taxiRecipientsForPartner(
       card: i.card.title,
       period: i.application.period.name,
       approvedAt: i.decidedAt,
+      promo,
       promoStatus,
     };
   });
@@ -368,3 +376,166 @@ export async function broadcastTaxiPromo(
   flushTelegram();
   return data.length;
 }
+
+export type IndividualPromoEntry = {
+  phone?: string;
+  itemId?: string;
+  promo: string;
+};
+
+/**
+ * Рассылка индивидуальных промокодов из загруженного файла.
+ * Сопоставляет записи по itemId или по нормализованному номеру телефона.
+ */
+export async function distributeIndividualTaxiPromos(
+  partnerId: string,
+  actorUserId: string,
+  entries: IndividualPromoEntry[],
+): Promise<{
+  sent: number;
+  matched: number;
+  notFound: number;
+  emptyCode: number;
+}> {
+  const recipients = await taxiRecipientsForPartner(partnerId);
+  const byItemId = new Map<string, TaxiRecipient>();
+  const byPhone = new Map<string, TaxiRecipient>();
+
+  for (const r of recipients) {
+    byItemId.set(r.itemId, r);
+    const norm = normalizePhone(r.phone);
+    if (norm) byPhone.set(norm, r);
+  }
+
+  const assigned = new Map<string, { recipient: TaxiRecipient; promo: string }>();
+  let emptyCode = 0;
+  let notFound = 0;
+
+  for (const entry of entries) {
+    const code = (entry.promo ?? "").trim();
+    if (!code) {
+      emptyCode++;
+      continue;
+    }
+
+    let target: TaxiRecipient | undefined;
+    if (entry.itemId && byItemId.has(entry.itemId)) {
+      target = byItemId.get(entry.itemId);
+    } else if (entry.phone) {
+      const norm = normalizePhone(entry.phone);
+      if (norm && byPhone.has(norm)) {
+        target = byPhone.get(norm);
+      }
+    }
+
+    if (!target) {
+      notFound++;
+      continue;
+    }
+
+    assigned.set(target.itemId, { recipient: target, promo: code });
+  }
+
+  if (assigned.size === 0) {
+    return { sent: 0, matched: 0, notFound, emptyCode };
+  }
+
+  const employeeIds = [...new Set(Array.from(assigned.values()).map((a) => a.recipient.employeeId))];
+  const users = await db.user.findMany({
+    where: { isActive: true, employeeId: { in: employeeIds } },
+    select: { id: true, employeeId: true },
+  });
+  const userIdByEmployee = new Map(users.map((u) => [u.employeeId, u.id]));
+
+  const notificationsData = Array.from(assigned.values()).flatMap(({ recipient: r, promo }) => {
+    const userId = userIdByEmployee.get(r.employeeId);
+    if (!userId) return [];
+    return [
+      {
+        userId,
+        event: "TAXI_PROMO_CODE",
+        channel: "TELEGRAM",
+        payload: { itemId: r.itemId, promo, card: r.card, period: r.period },
+      },
+    ];
+  });
+
+  if (notificationsData.length > 0) {
+    await db.notification.createMany({ data: notificationsData });
+    await audit({
+      actorId: actorUserId,
+      action: "TAXI_INDIVIDUAL_PROMOS_SENT",
+      entityType: "Partner",
+      entityId: partnerId,
+      newValue: {
+        sent: notificationsData.length,
+        matched: assigned.size,
+        notFound,
+        emptyCode,
+      },
+    });
+    flushTelegram();
+  }
+
+  return {
+    sent: notificationsData.length,
+    matched: assigned.size,
+    notFound,
+    emptyCode,
+  };
+}
+
+/**
+ * Точечная отправка промокода конкретному сотруднику по itemId.
+ */
+export async function sendSingleTaxiPromo(
+  partnerId: string,
+  actorUserId: string,
+  itemId: string,
+  promo: string,
+): Promise<void> {
+  const code = promo.trim();
+  if (code.length < 2) throw new Error("Введите промокод.");
+  if (code.length > 200) throw new Error("Промокод слишком длинный.");
+
+  const item = await db.applicationItem.findFirst({
+    where: {
+      id: itemId,
+      status: { in: [...ACTIVE_TAXI_STATUSES] },
+      card: { is: { partnerId, partner: { is: { deliveryMode: "PHONE_PROMO" } } } },
+    },
+    include: {
+      card: { select: { title: true } },
+      application: {
+        include: {
+          employee: { include: { user: true } },
+          period: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  if (!item) throw new Error("Заявка не найдена или недоступна.");
+  const userId = item.application.employee.user?.id;
+  if (!userId) throw new Error("У сотрудника нет активного аккаунта.");
+
+  await db.notification.create({
+    data: {
+      userId,
+      event: "TAXI_PROMO_CODE",
+      channel: "TELEGRAM",
+      payload: { itemId: item.id, promo: code, card: item.card.title, period: item.application.period.name },
+    },
+  });
+
+  await audit({
+    actorId: actorUserId,
+    action: "TAXI_PROMO_SENT_SINGLE",
+    entityType: "ApplicationItem",
+    entityId: item.id,
+    newValue: { promo: code },
+  });
+
+  flushTelegram();
+}
+

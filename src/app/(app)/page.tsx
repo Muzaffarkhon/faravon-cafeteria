@@ -23,15 +23,17 @@ import { getLocale, getTranslator } from "@/lib/i18n";
 import { localize } from "@/lib/localize";
 import { isEligibleForSatisfactionSurvey } from "@/lib/satisfaction";
 import { SatisfactionPrompt } from "./_satisfaction-prompt";
+import {
+  getCachedTextBlocks,
+  getCachedBenefitCards,
+  getCachedActiveBanners,
+} from "@/lib/catalog-cache";
 
 export default async function OverviewPage() {
   const session = await getSession();
   const t = await getTranslator();
   const locale = await getLocale();
-  const [goal, notice] = await Promise.all([
-    db.textBlock.findUnique({ where: { key: "GOAL" } }),
-    db.textBlock.findUnique({ where: { key: "NOVELTY_NOTICE" } }),
-  ]);
+  const { goal, notice } = await getCachedTextBlocks();
 
   if (!session?.employee) {
     const roles = session?.roles ?? [];
@@ -154,19 +156,8 @@ export default async function OverviewPage() {
   const period = ctx.windowPeriod;
   const targetPeriod = ctx.targetPeriod;
 
-  const [recognitionRaw, careRaw, flexRaw] = await Promise.all([
-    db.benefitCard.findMany({ where: { block: "RECOGNITION", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
-    db.benefitCard.findMany({ where: { block: "CARE", status: "PUBLISHED", archivedAt: null }, orderBy: { sortOrder: "asc" } }),
-    db.benefitCard.findMany({
-      // coinPrice: null — карточка с назначенной ценой в монетах доступна
-      // ТОЛЬКО через покупку за монеты (/gamification), не через обычный
-      // бесплатный выбор льгот (иначе смысл покупки за монеты пропадает —
-      // сотрудник просто выбрал бы её бесплатно тем же способом).
-      where: { block: "FLEX", status: "PUBLISHED", archivedAt: null, coinPrice: null },
-      orderBy: { sortOrder: "asc" },
-      include: { partner: true },
-    }),
-  ]);
+  const { recognition: recognitionRaw, care: careRaw, flex: flexRaw } =
+    await getCachedBenefitCards();
 
   // Переводы (§i18n) — карточка и её партнёр локализуются один раз здесь, весь
   // остальной код страницы (баннеры, группы, вывод) дальше работает как обычно.
@@ -193,7 +184,7 @@ export default async function OverviewPage() {
       : c.partner,
   }));
 
-  const banners = await db.partnerBanner.findMany({ where: { isActive: true, AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: new Date() } }] }, { OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }] }] }, orderBy: { sortOrder: "asc" } });
+  const banners = await getCachedActiveBanners();
 
   // Баннер партнёра → якорь на его гибкую льготу в списке ниже (активная в приоритете).
   const flexCardByPartner = new Map<string, string>();

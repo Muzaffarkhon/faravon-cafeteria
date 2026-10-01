@@ -63,7 +63,7 @@ export function NewsPublishActions({
         )}
         {telegramSentAt && (
           <span className="text-xs text-ink-muted">
-            В боте с {new Date(telegramSentAt).toLocaleString("ru-RU")}
+            В боте с {new Date(telegramSentAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
           </span>
         )}
       </div>

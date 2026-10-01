@@ -127,7 +127,7 @@ export function AccountPanel({
         </dd>
         <dt className="text-ink-muted">{t("users.acc.lastLogin")}</dt>
         <dd className="text-ink-muted">
-          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU") : t("users.acc.neverLoggedIn")}
+          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }) : t("users.acc.neverLoggedIn")}
         </dd>
       </dl>
 

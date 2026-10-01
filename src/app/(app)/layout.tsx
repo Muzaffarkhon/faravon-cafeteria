@@ -144,6 +144,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,
   );
 
+  const isStaffOrContractor =
+    can(roles, "applications.decide") ||
+    can(roles, "coupons.manage") ||
+    can(roles, "cards.manage") ||
+    can(roles, "coupons.confirm") ||
+    can(roles, "promo.broadcast") ||
+    can(roles, "sessions.view") ||
+    canManageSupport ||
+    Boolean(partnerId);
+
   return (
     <>
       {canManageSupport && <SupportAlert />}
@@ -158,6 +168,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         wheel={wheel}
         adminHref={hasAdminAccess ? "/admin" : undefined}
         locale={locale}
+        sseEnabled={isStaffOrContractor}
         backdrop={
           <>
             <PetalDrift fixed />

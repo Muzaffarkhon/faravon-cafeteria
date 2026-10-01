@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { invalidateTextBlocksCache } from "@/lib/catalog-cache";
 
 export type TextFormState = { ok?: boolean; error?: string };
 
@@ -45,6 +46,7 @@ export async function updateTextBlock(
     oldValue: { title: existing.title },
     newValue: { title },
   });
+  invalidateTextBlocksCache();
   revalidatePath("/");
   revalidatePath("/admin/texts");
   return { ok: true };

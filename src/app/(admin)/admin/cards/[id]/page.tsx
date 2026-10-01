@@ -50,7 +50,7 @@ export default async function EditCardPage({
     id: v.id,
     version: v.version,
     reason: v.reason,
-    createdAt: v.createdAt.toLocaleString("ru-RU"),
+    createdAt: v.createdAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }),
     editor: v.editedBy?.employee?.fullName ?? v.editedBy?.login ?? null,
     block: v.block,
     title: v.title,

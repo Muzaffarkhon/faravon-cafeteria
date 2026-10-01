@@ -10,6 +10,7 @@ import { audit } from "@/lib/audit";
 import { recordCardVersion, restoreCardVersion } from "@/lib/card-version";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { cleanupBlob } from "@/lib/blob-cleanup";
+import { invalidateCardsCache } from "@/lib/catalog-cache";
 
 export type CardFormState = { error?: string };
 
@@ -101,6 +102,7 @@ export async function createCard(
   const card = await db.benefitCard.create({ data });
   await recordCardVersion({ card, editedById: s.user.id, reason: "created" });
   await audit({ actorId: s.user.id, action: "CARD_CREATED", entityType: "BenefitCard", entityId: card.id, newValue: { title: card.title, block: card.block } });
+  invalidateCardsCache();
   revalidatePath("/admin/cards");
   revalidatePath("/");
   redirect("/admin/cards");
@@ -124,6 +126,7 @@ export async function updateCard(
   await recordCardVersion({ card, editedById: s.user.id, reason: "updated" });
   await cleanupBlob(prev?.imageUrl ?? null, data.imageUrl);
   await audit({ actorId: s.user.id, action: "CARD_UPDATED", entityType: "BenefitCard", entityId: id, newValue: { title: data.title, status: data.status, isActive: data.isActive } });
+  invalidateCardsCache();
   revalidatePath("/admin/cards");
   revalidatePath("/");
   redirect("/admin/cards");
@@ -140,6 +143,7 @@ export async function restoreCardVersionAction(versionId: string): Promise<void>
     entityId: cardId,
     newValue: { restoredFrom },
   });
+  invalidateCardsCache();
   revalidatePath(`/admin/cards/${cardId}`);
   revalidatePath("/admin/cards");
   revalidatePath("/");
@@ -160,6 +164,7 @@ export async function setCardArchived(id: string, archived: boolean): Promise<Ac
       entityType: "BenefitCard",
       entityId: id,
     });
+    invalidateCardsCache();
     revalidatePath("/admin/cards");
     revalidatePath("/");
   });
@@ -179,6 +184,7 @@ export async function deleteCard(id: string): Promise<ActionResult> {
     await db.benefitCard.delete({ where: { id } });
     await cleanupBlob(doomed?.imageUrl ?? null, null);
     await audit({ actorId: s.user.id, action: "CARD_DELETED", entityType: "BenefitCard", entityId: id });
+    invalidateCardsCache();
     revalidatePath("/admin/cards");
     revalidatePath("/");
   });
