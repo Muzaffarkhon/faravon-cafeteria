@@ -77,9 +77,8 @@ export async function uploadTaxiPromosExcel(
   }
 
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buffer as any);
+    await wb.xlsx.load(await file.arrayBuffer());
     const ws = wb.worksheets[0];
     if (!ws) return { error: "В файле нет листов." };
 
