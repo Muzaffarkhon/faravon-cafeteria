@@ -47,6 +47,10 @@ function detectGuestName(messages: { direction: "IN" | "OUT"; body: string }[]):
   return null;
 }
 
+/** Отпечаток диалога: меняется при новом сообщении, закрытии/открытии и архивации. */
+const versionOf = (status: string, archived: boolean, count: number, lastId: string | undefined) =>
+  `${status}:${archived ? 1 : 0}:${count}:${lastId ?? ""}`;
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session || (!can(session.roles, "support.manage") && !can(session.roles, "feedback.manage"))) {
@@ -54,6 +58,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { id } = await params;
+
+  // ?light=1 — открытый диалог опрашивает раз в несколько секунд, «изменилось ли что-то»:
+  // один короткий запрос вместо полной выборки (с поиском сотрудника для привязки).
+  if (req.nextUrl.searchParams.get("light") === "1") {
+    const light = await db.supportThread.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        archivedAt: true,
+        _count: { select: { messages: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true } },
+      },
+    });
+    if (!light) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json({ version: versionOf(light.status, !!light.archivedAt, light._count.messages, light.messages[0]?.id) });
+  }
+
   const t = await getTranslator();
 
   const thread = await db.supportThread.findUnique({
@@ -77,6 +98,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status: thread.status,
     source: thread.source,
     archived: !!thread.archivedAt,
+    version: versionOf(thread.status, !!thread.archivedAt, thread.messages.length, thread.messages.at(-1)?.id),
+    // Есть непрочитанные входящие — панель отметит их прочитанными и обновит счётчики.
+    unread: thread.messages.some((m) => m.direction === "IN" && !m.readAt),
     messages: thread.messages.map((m) => ({
       id: m.id,
       direction: m.direction,

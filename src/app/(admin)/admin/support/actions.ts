@@ -369,5 +369,6 @@ export async function openChatWithUser(userId: string): Promise<void> {
     update: { archivedAt: null },
     select: { id: true },
   });
-  redirect(`/admin/support/${thread.id}`);
+  // Открытый диалог живёт в хэше адреса (см. _support-inbox-client.tsx), не в пути.
+  redirect(`/admin/support#${thread.id}`);
 }

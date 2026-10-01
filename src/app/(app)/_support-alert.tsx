@@ -10,6 +10,9 @@ const POLL_MS = 8_000;
 const BLINK_MS = 1200;
 const BLINK_TITLE = "🔴 Новое сообщение — Farovon";
 
+/** Диалог открыт и прочитан — пересчитать непрочитанные сразу, не ждать опроса (см. _thread-view-live.tsx). */
+export const SUPPORT_READ_EVENT = "support:read";
+
 /** Рисует поверх обычной иконки красный кружок с белой обводкой — версия
  * favicon для мигания, тем же приёмом, что и бейдж-счётчик в интерфейсе. */
 function buildAlertFavicon(baseHref: string): Promise<string | null> {
@@ -149,11 +152,11 @@ export function SupportAlert() {
         if (lastCount.current !== null && count > lastCount.current) {
           beep();
           if (!document.hasFocus() || document.visibilityState === "hidden") startBlink();
-          // Счётчики и списки (таблица «Поддержка», бейджи в меню) рендерятся
-          // на сервере — без этого админ слышит сигнал, но видит старые цифры,
-          // пока сам не обновит страницу.
-          router.refresh();
         }
+        // Счётчики (бейджи в меню) рендерятся на сервере — перерисовываем при ЛЮБОМ
+        // изменении: раньше только при росте, и прочитанный чат висел в бейдже,
+        // пока админ сам не обновит страницу.
+        if (lastCount.current !== null && count !== lastCount.current) router.refresh();
         lastCount.current = count;
       } catch {
         /* сеть подвела — подхватим на следующем опросе */
@@ -166,11 +169,14 @@ export function SupportAlert() {
 
     void poll();
     const interval = setInterval(poll, POLL_MS);
+    const onRead = () => void poll();
+    window.addEventListener(SUPPORT_READ_EVENT, onRead);
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("focus", onFocus);
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener(SUPPORT_READ_EVENT, onRead);
       stopBlink();
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);

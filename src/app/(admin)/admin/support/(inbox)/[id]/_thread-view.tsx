@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Badge, Button, Input, Textarea, cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import {
   closeThread,
-  markThreadRead,
   replyToThread,
   findEmployeeForLink,
   linkEmployeeToThread,
@@ -238,17 +237,25 @@ export function ThreadView({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [quickOpen]);
 
-  // Открыли диалог (или подгрузили новые сообщения) — отмечаем входящие
-  // прочитанными. Раньше это срабатывало только один раз за монтирование
-  // (через ref-флаг) — если гость писал ещё, пока диалог уже открыт, новые
-  // сообщения так и оставались непрочитанными, счётчик в списке не исчезал.
-  // Сам вызов идемпотентен (обновляет только readAt: null), поэтому его можно
-  // смело повторять при каждой перезагрузке сообщений.
-  useEffect(() => {
-    if (messages.some((m) => m.direction === "IN")) {
-      void markThreadRead(threadId);
+  // Прочитанными входящие отмечает ThreadViewLive — сразу при загрузке, вместе с
+  // обновлением счётчиков (список и бейдж в меню).
+
+  // Прокрутка к последнему сообщению: при открытии диалога — всегда, при новых
+  // сообщениях — если админ и так был внизу (не дёргаем, когда он читает историю выше)
+  // или это его собственный ответ.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const atBottomRef = useRef(true);
+  const lastIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const last = messages.at(-1);
+    if (!el || !last || last.id === lastIdRef.current) return;
+    const first = lastIdRef.current === null;
+    lastIdRef.current = last.id;
+    if (first || atBottomRef.current || last.direction === "OUT") {
+      el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" });
     }
-  }, [threadId, messages]);
+  }, [messages]);
 
   function send() {
     setErr(null);
@@ -362,7 +369,14 @@ export function ThreadView({
         onClose={() => !deletePending && setDeleteOpen(false)}
       />
 
-      <div className="flex-1 space-y-2 overflow-y-auto bg-canvas p-4">
+      <div
+        ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        }}
+        className="flex-1 space-y-2 overflow-y-auto bg-canvas p-4"
+      >
         {messages.length === 0 ? (
           <p className="text-sm text-ink-muted">{t("support.noMessages")}</p>
         ) : (
