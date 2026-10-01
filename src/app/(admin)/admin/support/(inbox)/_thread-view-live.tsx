@@ -61,7 +61,6 @@ export function ThreadViewLive({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
   const cacheRef = useRef<Map<string, ThreadData>>(new Map());
-  const fetchSeqRef = useRef(0);
   const [data, setData] = useState<ThreadData | null>(null);
 
   // Принять свежие данные диалога: показать и, если есть непрочитанные, сразу отметить их
@@ -80,21 +79,28 @@ export function ThreadViewLive({
     [onListChanged],
   );
 
+  // По одной загрузке на диалог: на медленной сети опрос не плодит параллельные
+  // запросы, и новый не отменяет ещё не пришедший ответ (иначе диалог не открывался вовсе).
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
   const reload = useCallback(() => {
-    if (!activeId) return;
-    const seq = ++fetchSeqRef.current;
-    fetch(`/api/support/thread/${activeId}`, { cache: "no-store" })
+    if (!activeId || inFlightRef.current.has(activeId)) return;
+    const id = activeId;
+    inFlightRef.current.add(id);
+    fetch(`/api/support/thread/${id}`, { cache: "no-store" })
       .then((r) => (r.ok ? (r.json() as Promise<ThreadData>) : Promise.reject(r.status)))
       .then((json) => {
-        if (fetchSeqRef.current !== seq) {
-          cacheRef.current.set(activeId, json); // успел переключиться на другой чат — только в кэш
-          return;
-        }
-        apply(activeId, json);
+        if (activeIdRef.current === id) apply(id, json);
+        else cacheRef.current.set(id, json); // успел переключиться на другой чат — только в кэш
       })
       .catch(() => {
         // сеть подвела — оставляем то, что уже было показано
-      });
+      })
+      .finally(() => inFlightRef.current.delete(id));
   }, [activeId, apply]);
 
   useEffect(() => {
@@ -115,8 +121,11 @@ export function ThreadViewLive({
   }, [data, activeId]);
   useEffect(() => {
     if (!activeId) return;
+    let checking = false;
     const tick = async () => {
-      if (document.visibilityState === "hidden") return;
+      // Вкладка скрыта, диалог ещё грузится или прошлая проверка не вернулась — пропускаем тик.
+      if (document.visibilityState === "hidden" || checking || inFlightRef.current.has(activeId)) return;
+      checking = true;
       try {
         const r = await fetch(`/api/support/thread/${activeId}?light=1`, { cache: "no-store" });
         if (!r.ok) return;
@@ -124,6 +133,8 @@ export function ThreadViewLive({
         if (version !== versionRef.current) reload();
       } catch {
         // сеть подвела — повторим на следующем тике
+      } finally {
+        checking = false;
       }
     };
     const id = setInterval(tick, POLL_MS);
