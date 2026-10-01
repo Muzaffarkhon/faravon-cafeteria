@@ -106,7 +106,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const locale = await getLocale();
-  const [gamificationEnabled, { wheelEnabled }] = await Promise.all([getGamificationEnabled(), getWheelSettings()]);
+  const [gamificationEnabled, { wheelEnabled, wheelDailyLimit }] = await Promise.all([getGamificationEnabled(), getWheelSettings()]);
   // Баланс монет и совокупный кешбек — в закреплённой шапке, снаружи их
   // собственных страниц (/gamification, /applications), чтобы были видны
   // сразу, без перехода.
@@ -126,15 +126,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     gamificationEnabled,
   });
   // Кнопка колеса в шапке — на любой странице, независимо от геймификации.
-  // Точка-подсказка горит, пока сегодняшняя прокрутка не использована.
+  // Точка-подсказка горит, пока лимит прокруток на сегодня не исчерпан.
   const wheel =
     wheelEnabled && session.employee
       ? {
           href: "/gamification/wheel",
-          available: !(await db.wheelSpin.findUnique({
-            where: { employeeId_dayKey: { employeeId: session.employee.id, dayKey: dushanbeDateKey() } },
-            select: { id: true },
-          })),
+          available:
+            (await db.wheelSpin.count({
+              where: { employeeId: session.employee.id, dayKey: dushanbeDateKey() },
+            })) < wheelDailyLimit,
         }
       : null;
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель

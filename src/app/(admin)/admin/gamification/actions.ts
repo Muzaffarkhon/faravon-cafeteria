@@ -39,7 +39,15 @@ export async function saveWheelSettings(_prev: ToggleFormState, formData: FormDa
   if (!Number.isSafeInteger(wheelSpinCost) || wheelSpinCost < 0 || wheelSpinCost > 100_000) {
     return { error: "Цена прокрутки — целое число от 0 до 100 000 (0 — бесплатно)." };
   }
-  await setWheelSettings(s.user.id, { wheelEnabled: formData.get("wheelEnabled") === "on", wheelSpinCost });
+  const wheelDailyLimit = Number.parseInt(String(formData.get("wheelDailyLimit") ?? "1"), 10);
+  if (!Number.isSafeInteger(wheelDailyLimit) || wheelDailyLimit < 1 || wheelDailyLimit > 100) {
+    return { error: "Лимит прокруток в день — целое число от 1 до 100." };
+  }
+  await setWheelSettings(s.user.id, {
+    wheelEnabled: formData.get("wheelEnabled") === "on",
+    wheelSpinCost,
+    wheelDailyLimit,
+  });
   revalidatePath("/admin/gamification");
   revalidatePath("/gamification");
   return { ok: true };

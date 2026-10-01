@@ -627,8 +627,10 @@ model GamificationSettings {
   dailyBonusCoins Int      @default(5)
   /// Колесо подарков: показывать сотрудникам (при включённой геймификации).
   wheelEnabled    Boolean  @default(false)
-  /// Цена одной прокрутки в монетах. 0 — бесплатно. Лимит — одна прокрутка в сутки (Душанбе).
+  /// Цена одной прокрутки в монетах. 0 — бесплатно.
   wheelSpinCost   Int      @default(0)
+  /// Лимит прокруток колеса в день на сотрудника.
+  wheelDailyLimit Int      @default(1)
   updatedAt       DateTime @updatedAt
 }
 
@@ -1134,7 +1136,7 @@ model WheelSpin {
   cost       Int            @default(0)
   createdAt  DateTime       @default(now())
 
-  @@unique([employeeId, dayKey])
+  @@index([employeeId, dayKey])
   @@index([createdAt])
   @@index([sectorId])
 }

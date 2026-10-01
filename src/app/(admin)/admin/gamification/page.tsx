@@ -115,7 +115,11 @@ export default async function GamificationAdminPage() {
           Прокруток сегодня: {spinsToday}
         </span>
       </div>
-      <WheelSettingsForm enabled={wheelSettings.wheelEnabled} spinCost={wheelSettings.wheelSpinCost} />
+      <WheelSettingsForm
+        enabled={wheelSettings.wheelEnabled}
+        spinCost={wheelSettings.wheelSpinCost}
+        dailyLimit={wheelSettings.wheelDailyLimit}
+      />
       {wheelSectors.length === 0 ? (
           <EmptyState>Листков пока нет — добавьте первый ниже.</EmptyState>
         ) : (

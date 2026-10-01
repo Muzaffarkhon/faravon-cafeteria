@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { periodStatusLabel } from "@/lib/labels";
-import { Badge, buttonClass, type BadgeTone } from "@/components/ui";
+import { Badge, Card, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PeriodActions, ResetFlowButton } from "./_status-buttons";
@@ -38,7 +38,7 @@ export default async function PeriodsPage() {
   const lastEdits = await lastEditsFor("Period", periods.map((p) => p.id));
 
   return (
-    <div className="space-y-5">
+    <div data-wide className="space-y-5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-ink-muted">{t("periods.total")}: {periods.length}</span>
         <Link href="/admin/periods/new" className={buttonClass({ size: "sm" })}>
@@ -46,44 +46,77 @@ export default async function PeriodsPage() {
         </Link>
       </div>
 
-      <ul className="space-y-3">
-        {periods.map((p) => (
-          <li
-            key={p.id}
-            className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-5 shadow-sm"
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-semibold text-ink">{p.name}</span>
-                <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
-                  {periodStatusLabel(locale, p.status)}
-                </Badge>
-              </div>
-              <div className="mt-1.5 text-sm leading-6 text-ink-muted" data-numeric>
-                {t("periods.periodLabel")}: {fmt(p.startDate)} — {fmt(p.endDate)} · {t("periods.windowLabel")}: {fmt(p.windowStart)} —{" "}
-                {fmt(p.windowEnd)} · {t("periods.limitLabel")}: {p.maxSelections} · {t("periods.form.maxCoinRedemptions")}: {p.maxCoinRedemptions} · {t("periods.applicationsLabel")}: {p._count.applications}
-              </div>
-              <div className="mt-1 text-xs text-ink-subtle" data-numeric>
-                {t("periods.editedLabel")}: {formatLastEdit(lastEdits.get(p.id), p.updatedAt)}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {p.status !== "CLOSED" && (
-                <Link
-                  href={`/admin/periods/${p.id}`}
-                  className={buttonClass({ variant: "secondary", size: "sm" })}
-                >
-                  {t("periods.edit")}
-                </Link>
-              )}
-              {sandbox && (
-                <ResetFlowButton periodId={p.id} name={p.name} locale={locale} />
-              )}
-              <PeriodActions id={p.id} status={p.status} name={p.name} locale={locale} />
-            </div>
-          </li>
-        ))}
-      </ul>
+      <Card className="overflow-hidden">
+        <Table stickyHeader>
+          <thead>
+            <tr>
+              <th>{t("periods.form.name")}</th>
+              <th>{t("users.colStatus")}</th>
+              <th>{t("periods.periodLabel")}</th>
+              <th>{t("periods.windowLabel")}</th>
+              <th className="text-center">{t("periods.limitLabel")}</th>
+              <th className="text-center">{t("periods.form.maxCoinRedemptions")}</th>
+              <th className="text-center">{t("periods.applicationsLabel")}</th>
+              <th>{t("periods.editedLabel")}</th>
+              <th className="text-right">{t("users.colActions")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {periods.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-8 text-center text-sm text-ink-muted">
+                  {t("reports.noData")}
+                </td>
+              </tr>
+            ) : (
+              periods.map((p) => (
+                <tr key={p.id}>
+                  <td className="whitespace-nowrap font-semibold text-ink">{p.name}</td>
+                  <td>
+                    <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
+                      {periodStatusLabel(locale, p.status)}
+                    </Badge>
+                  </td>
+                  <td className="whitespace-nowrap text-ink-muted" data-numeric>
+                    {fmt(p.startDate)} — {fmt(p.endDate)}
+                  </td>
+                  <td className="whitespace-nowrap text-ink-muted" data-numeric>
+                    {fmt(p.windowStart)} — {fmt(p.windowEnd)}
+                  </td>
+                  <td className="text-center font-medium text-ink" data-numeric>
+                    {p.maxSelections}
+                  </td>
+                  <td className="text-center font-medium text-ink" data-numeric>
+                    {p.maxCoinRedemptions}
+                  </td>
+                  <td className="text-center font-medium text-ink" data-numeric>
+                    {p._count.applications}
+                  </td>
+                  <td className="whitespace-nowrap text-xs text-ink-subtle" data-numeric>
+                    {formatLastEdit(lastEdits.get(p.id), p.updatedAt)}
+                  </td>
+                  <td>
+                    <div className="flex items-center justify-end gap-2">
+                      {p.status !== "CLOSED" && (
+                        <Link
+                          href={`/admin/periods/${p.id}`}
+                          className={buttonClass({ variant: "secondary", size: "sm" })}
+                        >
+                          {t("periods.edit")}
+                        </Link>
+                      )}
+                      {sandbox && (
+                        <ResetFlowButton periodId={p.id} name={p.name} locale={locale} />
+                      )}
+                      <PeriodActions id={p.id} status={p.status} name={p.name} locale={locale} />
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </Card>
     </div>
   );
 }

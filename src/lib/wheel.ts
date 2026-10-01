@@ -76,17 +76,23 @@ async function sectorBlocks(employeeId: string, sectors: WheelSectorRow[], perio
 }
 
 export async function getWheelState(employeeId: string) {
-  const [settings, sectors, ctx, todaySpin] = await Promise.all([
+  const dayKey = dushanbeDateKey();
+  const [settings, sectors, ctx, spinsTodayCount] = await Promise.all([
     getWheelSettings(),
     listWheelSectors(),
     resolveSelectionContext(),
-    db.wheelSpin.findUnique({ where: { employeeId_dayKey: { employeeId, dayKey: dushanbeDateKey() } } }),
+    db.wheelSpin.count({ where: { employeeId, dayKey } }),
   ]);
   const blocks = await sectorBlocks(employeeId, sectors, ctx.targetPeriod?.id ?? null);
+  const dailyLimit = settings.wheelDailyLimit;
+  const spinsRemaining = Math.max(0, dailyLimit - spinsTodayCount);
   return {
     enabled: settings.wheelEnabled,
     cost: settings.wheelSpinCost,
-    spunToday: !!todaySpin,
+    dailyLimit,
+    spinsTodayCount,
+    spinsRemaining,
+    spunToday: spinsRemaining <= 0,
     sectors: sectors.map((s) => ({ ...s, block: blocks.get(s.id) ?? null })),
   };
 }
@@ -135,8 +141,10 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
   }
 
   const dayKey = dushanbeDateKey();
-  const already = await db.wheelSpin.findUnique({ where: { employeeId_dayKey: { employeeId, dayKey } } });
-  if (already) throw new WheelError("Сегодня вы уже крутили колесо — приходите завтра.");
+  const spinsCount = await db.wheelSpin.count({ where: { employeeId, dayKey } });
+  if (spinsCount >= settings.wheelDailyLimit) {
+    throw new WheelError(`Лимит прокруток на сегодня исчерпан (${settings.wheelDailyLimit} из ${settings.wheelDailyLimit}) — приходите завтра.`);
+  }
 
   const ctx = await resolveSelectionContext();
   const period = ctx.targetPeriod;
@@ -154,6 +162,10 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
     let spin;
     try {
       spin = await db.$transaction(async (tx) => {
+        const countInsideTx = await tx.wheelSpin.count({ where: { employeeId, dayKey } });
+        if (countInsideTx >= settings.wheelDailyLimit) {
+          throw new WheelError("Лимит прокруток на сегодня исчерпан.");
+        }
         const created = await tx.wheelSpin.create({
           data: {
             employeeId,
@@ -197,10 +209,11 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
       // одновременно) две трети падали по таймауту, хотя ничего не нарушали.
       { maxWait: 15_000, timeout: 20_000 });
     } catch (e) {
+      if (e instanceof WheelError) throw e;
       if (e instanceof PrizeTaken) continue;
       if (e instanceof CoinWalletError) throw new WheelError(`Не хватает монет: прокрутка стоит ${cost}.`);
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        throw new WheelError("Сегодня вы уже крутили колесо — приходите завтра.");
+        throw new WheelError("Лимит прокруток на сегодня исчерпан.");
       }
       throw e;
     }

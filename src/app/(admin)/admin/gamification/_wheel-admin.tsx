@@ -23,7 +23,15 @@ function FormStatus({ state }: { state: { ok?: boolean; error?: string } }) {
   return null;
 }
 
-export function WheelSettingsForm({ enabled, spinCost }: { enabled: boolean; spinCost: number }) {
+export function WheelSettingsForm({
+  enabled,
+  spinCost,
+  dailyLimit = 1,
+}: {
+  enabled: boolean;
+  spinCost: number;
+  dailyLimit?: number;
+}) {
   const [state, formAction, pending] = useActionState(saveWheelSettings, {});
   return (
     <form action={formAction} className="space-y-4 rounded-xl border border-line bg-surface p-4 shadow-sm">
@@ -37,8 +45,7 @@ export function WheelSettingsForm({ enabled, spinCost }: { enabled: boolean; spi
         <span>
           Показывать колесо сотрудникам
           <span className="mt-1 block max-w-sm text-xs font-normal text-ink-muted">
-            Работает независимо от геймификации — пункт «Колесо подарков» появится в меню сотрудника. Каждый крутит один
-            раз в сутки (по Душанбе).
+            Работает независимо от геймификации — пункт «Колесо подарков» появится в меню сотрудника.
           </span>
         </span>
       </label>
@@ -46,10 +53,18 @@ export function WheelSettingsForm({ enabled, spinCost }: { enabled: boolean; spi
         <Field
           label="Цена прокрутки, монет"
           htmlFor="wheelSpinCost"
-          hint="0 — бесплатно. Платная прокрутка и листки с монетами имеют смысл при включённой геймификации: без неё монеты негде копить и не видно."
-          className="w-72"
+          hint="0 — бесплатно."
+          className="w-56"
         >
           <Input id="wheelSpinCost" name="wheelSpinCost" type="number" min={0} step={1} defaultValue={spinCost} />
+        </Field>
+        <Field
+          label="Лимит прокруток в день"
+          htmlFor="wheelDailyLimit"
+          hint="Количество прокруток на одного сотрудника за сутки."
+          className="w-56"
+        >
+          <Input id="wheelDailyLimit" name="wheelDailyLimit" type="number" min={1} max={100} step={1} defaultValue={dailyLimit} />
         </Field>
         <Button type="submit" size="sm" variant="secondary" loading={pending}>
           Сохранить

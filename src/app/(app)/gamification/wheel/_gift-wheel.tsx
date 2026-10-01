@@ -90,6 +90,9 @@ export function GiftWheel({
   cost,
   balance,
   spunToday,
+  spinsTodayCount = 0,
+  dailyLimit = 1,
+  spinsRemaining = 1,
   locale,
   coinUnit,
 }: {
@@ -97,6 +100,9 @@ export function GiftWheel({
   cost: number;
   balance: number;
   spunToday: boolean;
+  spinsTodayCount?: number;
+  dailyLimit?: number;
+  spinsRemaining?: number;
   locale: Locale;
   coinUnit: string;
 }) {
@@ -111,13 +117,25 @@ export function GiftWheel({
   const [showWin, setShowWin] = useState(false);
   const pendingWin = useRef<typeof win>(null);
 
+  const [prevSpinsCount, setPrevSpinsCount] = useState(spinsTodayCount);
+  const [sessionSpins, setSessionSpins] = useState(0);
+
+  if (spinsTodayCount !== prevSpinsCount) {
+    setPrevSpinsCount(spinsTodayCount);
+    setSessionSpins(0);
+  }
+
+  const displayedSpinsToday = spinsTodayCount + sessionSpins;
+  const displayedRemaining = Math.max(0, spinsRemaining - sessionSpins);
+
   const n = sectors.length;
   const step = n ? 360 / n : 360;
   const leaf = leafLayout(Math.max(n, 2));
   const { badgeR, badgeY } = leaf;
 
   const missing = cost - balance;
-  const disabled = spinning || spunToday || n === 0 || missing > 0;
+  const isSpunOut = displayedRemaining <= 0 || spunToday;
+  const disabled = spinning || isSpunOut || n === 0 || missing > 0;
 
   const finish = () => {
     if (!pendingWin.current) return;
@@ -141,6 +159,7 @@ export function GiftWheel({
     }
     const index = sectors.findIndex((s) => s.id === r.result!.sectorId);
     pendingWin.current = { result: r.result, sector: index >= 0 ? sectors[index] : null };
+    setSessionSpins((prev) => prev + 1);
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const ms = reduced ? 700 : SPIN_MS;
     setDuration(ms);
@@ -263,6 +282,24 @@ export function GiftWheel({
         </svg>
       </div>
 
+      <div className="flex items-center justify-between rounded-[14px] bg-surface-muted/60 px-4 py-2.5 text-sm font-semibold">
+        <span className="text-ink-muted">
+          {t("wheel.spinsCount")}{" "}
+          <span className="font-bold text-ink" data-numeric>
+            {displayedSpinsToday} / {dailyLimit}
+          </span>
+        </span>
+        {displayedRemaining > 0 ? (
+          <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-strong">
+            {t("wheel.spinsRemaining")} {displayedRemaining}
+          </span>
+        ) : (
+          <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-subtle">
+            {t("wheel.limitReached")}
+          </span>
+        )}
+      </div>
+
       {error && (
         <p className="rounded-[12px] bg-danger-soft px-3 py-2 text-center text-sm font-semibold text-danger" role="alert">
           {error}
@@ -277,7 +314,7 @@ export function GiftWheel({
       >
         {spinning
           ? t("wheel.spinning")
-          : spunToday
+          : isSpunOut
             ? t("wheel.spunToday")
             : missing > 0
               ? `${t("wheel.notEnough")} ${missing} ${coinUnit}`

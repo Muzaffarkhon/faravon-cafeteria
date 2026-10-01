@@ -79,7 +79,17 @@ export default async function GiftWheelPage() {
         <h1 className="font-display text-lg font-bold text-ink sm:text-xl">{t("wheel.title")}</h1>
       </header>
 
-      <GiftWheel sectors={sectors} cost={state.cost} balance={balance} spunToday={state.spunToday} locale={locale} coinUnit={coinUnit} />
+      <GiftWheel
+        sectors={sectors}
+        cost={state.cost}
+        balance={balance}
+        spunToday={state.spunToday}
+        spinsTodayCount={state.spinsTodayCount}
+        dailyLimit={state.dailyLimit}
+        spinsRemaining={state.spinsRemaining}
+        locale={locale}
+        coinUnit={coinUnit}
+      />
 
       <Card className="divide-y divide-line-subtle overflow-hidden">
         {gamificationOn && (

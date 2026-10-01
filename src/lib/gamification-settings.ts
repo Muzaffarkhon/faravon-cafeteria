@@ -17,11 +17,15 @@ export async function getDailyBonusCoins(): Promise<number> {
   return row?.dailyBonusCoins ?? DEFAULTS.dailyBonusCoins;
 }
 
-export type WheelSettings = { wheelEnabled: boolean; wheelSpinCost: number };
+export type WheelSettings = { wheelEnabled: boolean; wheelSpinCost: number; wheelDailyLimit: number };
 
 export async function getWheelSettings(): Promise<WheelSettings> {
   const row = await db.gamificationSettings.findUnique({ where: { id: SETTINGS_ID } });
-  return { wheelEnabled: row?.wheelEnabled ?? false, wheelSpinCost: row?.wheelSpinCost ?? 0 };
+  return {
+    wheelEnabled: row?.wheelEnabled ?? false,
+    wheelSpinCost: row?.wheelSpinCost ?? 0,
+    wheelDailyLimit: row?.wheelDailyLimit ?? 1,
+  };
 }
 
 export async function setWheelSettings(actorId: string, next: WheelSettings): Promise<void> {
