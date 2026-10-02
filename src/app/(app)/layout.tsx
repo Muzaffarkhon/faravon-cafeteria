@@ -7,6 +7,7 @@ import { PetalDrift } from "@/components/petals";
 import { PetalDrag } from "@/components/petal-drag";
 import { resolveSelectionContext, getApplicationWithItems, countAgainstLimit } from "@/lib/selection";
 import { getGamificationEnabled, getWheelSettings } from "@/lib/gamification-settings";
+import { countBonusSpins } from "@/lib/wheel";
 import { getCoinBalance } from "@/lib/coin-wallet";
 import { getTotalCashbackBalance } from "@/lib/cashback";
 import { dushanbeDateKey } from "@/lib/dushanbe-date";
@@ -14,6 +15,11 @@ import { AppShell } from "./_shell";
 import { AdminShell } from "@/app/(admin)/_shell";
 import { SupportAlert } from "./_support-alert";
 import { NewsPopup } from "./_news-popup";
+import { SatisfactionPrompt } from "./_satisfaction-prompt";
+import { SurveyPrompt } from "./_survey-prompt";
+import { isEligibleForSatisfactionSurvey } from "@/lib/satisfaction";
+import { getPendingSurvey } from "@/lib/surveys";
+import { translate } from "@/lib/i18n/dict";
 import { getPendingNewsFor } from "./_news-query";
 import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
@@ -106,7 +112,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const locale = await getLocale();
-  const [gamificationEnabled, { wheelEnabled, wheelDailyLimit }] = await Promise.all([getGamificationEnabled(), getWheelSettings()]);
+  const [gamificationEnabled, { wheelEnabled, wheelDailyLimit, wheelSpinsForRating }] = await Promise.all([
+    getGamificationEnabled(),
+    getWheelSettings(),
+  ]);
+  // Окна при заходе — на любой странице (раньше оценка была только на главной, и кто
+  // открывал сайт по ссылке из бота на другую страницу, её не видел). Одно окно за раз:
+  // новость → оценка сервиса → опрос за монеты.
+  const satisfactionEligible =
+    !!session.employee && !pendingNews && (await isEligibleForSatisfactionSurvey(session.employee.id));
+  const pendingSurvey =
+    session.employee && !pendingNews && !satisfactionEligible ? await getPendingSurvey(session.employee.id) : null;
   // Баланс монет и совокупный кешбек — в закреплённой шапке, снаружи их
   // собственных страниц (/gamification, /applications), чтобы были видны
   // сразу, без перехода.
@@ -131,10 +147,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     wheelEnabled && session.employee
       ? {
           href: "/gamification/wheel",
+          // Подаренные прокрутки (за оценку) — сверх дневного лимита.
           available:
             (await db.wheelSpin.count({
-              where: { employeeId: session.employee.id, dayKey: dushanbeDateKey() },
-            })) < wheelDailyLimit,
+              where: { employeeId: session.employee.id, dayKey: dushanbeDateKey(), bonus: false },
+            })) < wheelDailyLimit || (await countBonusSpins(session.employee.id)) > 0,
         }
       : null;
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
@@ -158,6 +175,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       {canManageSupport && <SupportAlert />}
       {pendingNews && <NewsPopup news={pendingNews} />}
+      {satisfactionEligible && (
+        <SatisfactionPrompt eligible locale={locale} giftSpins={wheelEnabled ? wheelSpinsForRating : 0} />
+      )}
+      {pendingSurvey && (
+        <SurveyPrompt survey={pendingSurvey} locale={locale} coinUnit={translate(locale, "gamification.coinUnit")} />
+      )}
       <AppShell
         groups={groups}
         roleLabel={roleLabel}

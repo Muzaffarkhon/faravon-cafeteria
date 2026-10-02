@@ -21,8 +21,6 @@ import { buildNavGroups } from "./_nav";
 import { computeNavBadges } from "./_badges";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { localize } from "@/lib/localize";
-import { isEligibleForSatisfactionSurvey } from "@/lib/satisfaction";
-import { SatisfactionPrompt } from "./_satisfaction-prompt";
 import {
   getCachedTextBlocks,
   getCachedBenefitCards,
@@ -141,7 +139,6 @@ export default async function OverviewPage() {
   }
 
   const emp = session.employee;
-  const satisfactionEligible = await isEligibleForSatisfactionSurvey(emp.id);
   // Сотрудник ни разу не подавал заявку — значит, ему ещё не встречались ни
   // статусы, ни купон/промокод. Показываем короткое объяснение механики один
   // раз: как только появится первая позиция (любого статуса), блок исчезает
@@ -332,7 +329,6 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-8">
-      <SatisfactionPrompt eligible={satisfactionEligible} locale={locale} />
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
         <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">

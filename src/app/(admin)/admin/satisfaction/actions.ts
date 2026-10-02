@@ -16,9 +16,10 @@ export async function saveSatisfactionSettings(
 
   const enabled = formData.get("enabled") === "on";
   const repeatDays = Number.parseInt(String(formData.get("repeatDays") ?? ""), 10);
+  const afterIssueDays = Number.parseInt(String(formData.get("afterIssueDays") ?? ""), 10);
 
   try {
-    await updateSatisfactionSettings(s.user.id, enabled, repeatDays);
+    await updateSatisfactionSettings(s.user.id, enabled, repeatDays, afterIssueDays);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Ошибка сохранения." };
   }

@@ -77,24 +77,49 @@ async function sectorBlocks(employeeId: string, sectors: WheelSectorRow[], perio
 
 export async function getWheelState(employeeId: string) {
   const dayKey = dushanbeDateKey();
-  const [settings, sectors, ctx, spinsTodayCount] = await Promise.all([
+  const [settings, sectors, ctx, spinsTodayCount, bonusSpins] = await Promise.all([
     getWheelSettings(),
     listWheelSectors(),
     resolveSelectionContext(),
-    db.wheelSpin.count({ where: { employeeId, dayKey } }),
+    db.wheelSpin.count({ where: { employeeId, dayKey, bonus: false } }),
+    countBonusSpins(employeeId),
   ]);
   const blocks = await sectorBlocks(employeeId, sectors, ctx.targetPeriod?.id ?? null);
   const dailyLimit = settings.wheelDailyLimit;
-  const spinsRemaining = Math.max(0, dailyLimit - spinsTodayCount);
+  // Подаренные прокрутки — сверх дневного лимита; тратятся, когда дневные кончились.
+  const spinsRemaining = Math.max(0, dailyLimit - spinsTodayCount) + bonusSpins;
   return {
     enabled: settings.wheelEnabled,
     cost: settings.wheelSpinCost,
     dailyLimit,
     spinsTodayCount,
+    bonusSpins,
     spinsRemaining,
     spunToday: spinsRemaining <= 0,
     sectors: sectors.map((s) => ({ ...s, block: blocks.get(s.id) ?? null })),
   };
+}
+
+/** Неистраченные подаренные прокрутки. */
+export function countBonusSpins(employeeId: string) {
+  return db.wheelBonusSpin.count({ where: { employeeId, usedAt: null } });
+}
+
+/**
+ * Подарить прокрутки (за оценку и т. п.). opKey — ключ события: повторный вызов
+ * с тем же ключом ничего не выдаёт (createMany + skipDuplicates по уникальному opKey).
+ */
+export async function grantBonusSpins(params: { employeeId: string; count: number; reason: string; opKey: string }) {
+  if (params.count <= 0) return 0;
+  const r = await db.wheelBonusSpin.createMany({
+    data: Array.from({ length: params.count }, (_, i) => ({
+      employeeId: params.employeeId,
+      reason: params.reason,
+      opKey: `${params.opKey}:${i}`,
+    })),
+    skipDuplicates: true,
+  });
+  return r.count;
 }
 
 export function listWheelSpins(employeeId: string, take = 20) {
@@ -141,14 +166,19 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
   }
 
   const dayKey = dushanbeDateKey();
-  const spinsCount = await db.wheelSpin.count({ where: { employeeId, dayKey } });
-  if (spinsCount >= settings.wheelDailyLimit) {
+  const [spinsCount, bonusLeft] = await Promise.all([
+    db.wheelSpin.count({ where: { employeeId, dayKey, bonus: false } }),
+    countBonusSpins(employeeId),
+  ]);
+  // Дневные кончились — крутим за счёт подаренной прокрутки (бесплатно).
+  const useBonus = spinsCount >= settings.wheelDailyLimit;
+  if (useBonus && bonusLeft === 0) {
     throw new WheelError(`Лимит прокруток на сегодня исчерпан (${settings.wheelDailyLimit} из ${settings.wheelDailyLimit}) — приходите завтра.`);
   }
 
   const ctx = await resolveSelectionContext();
   const period = ctx.targetPeriod;
-  const cost = settings.wheelSpinCost;
+  const cost = useBonus ? 0 : settings.wheelSpinCost;
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const sectors = await listWheelSectors();
@@ -162,14 +192,17 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
     let spin;
     try {
       spin = await db.$transaction(async (tx) => {
-        const countInsideTx = await tx.wheelSpin.count({ where: { employeeId, dayKey } });
-        if (countInsideTx >= settings.wheelDailyLimit) {
-          throw new WheelError("Лимит прокруток на сегодня исчерпан.");
+        if (!useBonus) {
+          const countInsideTx = await tx.wheelSpin.count({ where: { employeeId, dayKey, bonus: false } });
+          if (countInsideTx >= settings.wheelDailyLimit) {
+            throw new WheelError("Лимит прокруток на сегодня исчерпан.");
+          }
         }
         const created = await tx.wheelSpin.create({
           data: {
             employeeId,
             dayKey,
+            bonus: useBonus,
             sectorId: chosen.id,
             kind: chosen.kind,
             prizeLabel,
@@ -179,6 +212,21 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
             cost,
           },
         });
+        if (useBonus) {
+          // Условный UPDATE: две одновременные прокрутки не потратят одну подаренную дважды.
+          const grant = await tx.wheelBonusSpin.findFirst({
+            where: { employeeId, usedAt: null },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          });
+          const claimed = grant
+            ? await tx.wheelBonusSpin.updateMany({
+                where: { id: grant.id, usedAt: null },
+                data: { usedAt: new Date(), spinId: created.id },
+              })
+            : { count: 0 };
+          if (claimed.count === 0) throw new WheelError("Подаренные прокрутки закончились.");
+        }
         if (cost > 0) {
           await spendCoinsTx(tx, { employeeId, amount: cost, reason: "Прокрутка колеса подарков", opKey: `wheel:${created.id}` });
         }
@@ -224,7 +272,7 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
       action: "WHEEL_SPIN",
       entityType: "WheelSpin",
       entityId: spin.id,
-      newValue: { kind: spin.kind, prize: prizeLabel, cost },
+      newValue: { kind: spin.kind, prize: prizeLabel, cost, bonus: useBonus },
     });
     return { spinId: spin.id, sectorId: chosen.id, kind: spin.kind, prizeLabel, coins: spin.coins, cardId: spin.cardId };
   }

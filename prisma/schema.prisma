@@ -153,6 +153,8 @@ model Employee {
   employeeTasks         EmployeeTask[]
   coinRedemptions       CoinRedemption[]
   wheelSpins            WheelSpin[]
+  wheelBonusSpins       WheelBonusSpin[]
+  surveyResponses       SurveyResponse[]
 
   @@index([archivedAt])
   @@index([fullName])
@@ -606,12 +608,15 @@ model Feedback {
 /// (id всегда "default"). Выключатель и периодичность правит C&B на
 /// /admin/satisfaction, без релиза кода.
 model SatisfactionSettings {
-  id         String   @id @default("default")
-  enabled    Boolean  @default(false)
+  id             String   @id @default("default")
+  enabled        Boolean  @default(false)
   /// Не переспрашивать того же сотрудника чаще, чем раз в столько дней
   /// после его последнего ответа.
-  repeatDays Int      @default(90)
-  updatedAt  DateTime @updatedAt
+  repeatDays     Int      @default(90)
+  /// Через сколько дней после выдачи купона или промокода такси спрашивать.
+  /// Отметка «погашен» почти не ставится партнёрами — ждать её значит не спрашивать никого.
+  afterIssueDays Int      @default(2)
+  updatedAt      DateTime @updatedAt
 }
 
 /// Рубильник геймификации (§ Farovon Coins) — одна строка-синглтон (id
@@ -621,17 +626,19 @@ model SatisfactionSettings {
 /// пункт меню скрыт, cron-пересчёт задач и все действия (join/buy/complete/
 /// approve) отклоняются на уровне библиотеки — не только UI.
 model GamificationSettings {
-  id              String   @id @default("default")
-  enabled         Boolean  @default(false)
+  id                  String   @id @default("default")
+  enabled             Boolean  @default(false)
   /// Монет за ежедневный визит (ручной сбор на /gamification, § daily bonus). 0 — бонус выключен.
-  dailyBonusCoins Int      @default(5)
+  dailyBonusCoins     Int      @default(5)
   /// Колесо подарков: показывать сотрудникам (при включённой геймификации).
-  wheelEnabled    Boolean  @default(false)
+  wheelEnabled        Boolean  @default(false)
   /// Цена одной прокрутки в монетах. 0 — бесплатно.
-  wheelSpinCost   Int      @default(0)
+  wheelSpinCost       Int      @default(0)
   /// Лимит прокруток колеса в день на сотрудника.
-  wheelDailyLimit Int      @default(1)
-  updatedAt       DateTime @updatedAt
+  wheelDailyLimit     Int      @default(1)
+  /// Бонусных прокруток за оценку в опросе удовлетворённости. 0 — не дарить.
+  wheelSpinsForRating Int      @default(1)
+  updatedAt           DateTime @updatedAt
 }
 
 /// Ответ на опрос удовлетворённости: звёзды 1–5, при низкой оценке —
@@ -1163,7 +1170,11 @@ model WheelSpin {
   itemId     String?        @unique
   periodId   String?
   cost       Int            @default(0)
+  /// Прокрутка за счёт подаренной (WheelBonusSpin) — не входит в дневной лимит и бесплатна.
+  bonus      Boolean        @default(false)
   createdAt  DateTime       @default(now())
+
+  bonusGrant WheelBonusSpin?
 
   @@index([employeeId, dayKey])
   @@index([createdAt])
@@ -1190,4 +1201,78 @@ model UserSession {
 
   @@index([userId])
   @@index([lastSeenAt])
+}
+
+/// Подаренная прокрутка колеса (за оценку и т. п.): тратится, когда дневной лимит исчерпан,
+/// не сгорает. opKey — защита от повторной выдачи за одно и то же событие.
+model WheelBonusSpin {
+  id         String     @id @default(cuid())
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+  employeeId String
+  reason     String
+  opKey      String     @unique
+  spin       WheelSpin? @relation(fields: [spinId], references: [id], onDelete: SetNull)
+  spinId     String?    @unique
+  usedAt     DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([employeeId, usedAt])
+}
+
+enum SurveyQuestionKind {
+  SINGLE
+  MULTI
+  TEXT
+}
+
+/// Опрос с вопросами и вариантами ответов (src/lib/surveys.ts). Активный опрос показывается
+/// сотруднику окном при заходе на сайт, за прохождение начисляются Farovon Coins.
+model Survey {
+  id          String    @id @default(cuid())
+  seq         Int       @unique @default(autoincrement())
+  title       String
+  description String?
+  /// Монет за прохождение. 0 — без награды.
+  coins       Int       @default(0)
+  isActive    Boolean   @default(false)
+  /// Окно показа; null — без ограничения.
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  questions SurveyQuestion[]
+  responses SurveyResponse[]
+
+  @@index([isActive])
+}
+
+model SurveyQuestion {
+  id       String             @id @default(cuid())
+  survey   Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  surveyId String
+  position Int
+  text     String
+  kind     SurveyQuestionKind @default(SINGLE)
+  required Boolean            @default(true)
+  /// Варианты ответа (для SINGLE/MULTI) — массив строк.
+  options  Json               @default("[]")
+
+  @@index([surveyId, position])
+}
+
+/// Прохождение опроса: один раз на сотрудника. answers — { [questionId]: string | string[] }.
+model SurveyResponse {
+  id         String   @id @default(cuid())
+  survey     Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  surveyId   String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  answers    Json
+  coins      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([surveyId, employeeId])
+  @@index([surveyId, createdAt])
 }

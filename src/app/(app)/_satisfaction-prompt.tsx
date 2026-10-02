@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Button, Textarea, cx } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
@@ -20,11 +21,14 @@ const LOW_RATING_MAX = 3;
 export function SatisfactionPrompt({
   eligible,
   locale,
+  giftSpins = 0,
   preview = false,
   onClosePreview,
 }: {
   eligible: boolean;
   locale: Locale;
+  /** Сколько бесплатных прокруток колеса подарят за оценку (0 — колесо выключено / без подарка). */
+  giftSpins?: number;
   /** true — показать сразу, минуя право/localStorage, и не писать ответ в базу
    *  (кнопка «Предпросмотр» в /admin/satisfaction — увидеть текст без реальной
    *  выдачи купона и включённой настройки). */
@@ -84,7 +88,8 @@ export function SatisfactionPrompt({
         return;
       }
       setDone(true);
-      setTimeout(() => setOpen(false), 1600);
+      // С подарком окно не закрываем само — в нём ссылка на колесо.
+      if (!giftSpins) setTimeout(() => setOpen(false), 1600);
     });
   }
 
@@ -96,7 +101,7 @@ export function SatisfactionPrompt({
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/40 p-5"
       role="presentation"
-      onClick={() => !pending && !done && dismiss()}
+      onClick={() => !pending && (done ? setOpen(false) : dismiss())}
     >
       <div
         role="dialog"
@@ -111,11 +116,28 @@ export function SatisfactionPrompt({
               ★
             </div>
             <p className="font-display text-[17px] font-bold text-ink">{t("satisfaction.thanks")}</p>
+            {giftSpins > 0 && !preview && (
+              <>
+                <p className="mt-2 text-sm text-ink-muted">{t("satisfaction.giftDone")}</p>
+                <Link
+                  href="/gamification/wheel"
+                  onClick={() => setOpen(false)}
+                  className="mt-4 inline-flex rounded-[10px] bg-primary px-4 py-2.5 text-sm font-bold text-on-brand"
+                >
+                  🎁 +{giftSpins}
+                </Link>
+              </>
+            )}
           </>
         ) : (
           <>
             <p className="font-display text-[17px] font-bold text-ink">{t("satisfaction.title")}</p>
             <p className="mt-1.5 text-sm text-ink-muted">{t("satisfaction.subtitle")}</p>
+            {giftSpins > 0 && (
+              <p className="mt-3 rounded-[10px] bg-success-soft px-3 py-2 text-xs font-semibold text-success-strong">
+                {t("satisfaction.giftHint")} {giftSpins}
+              </p>
+            )}
 
             <div className="mt-5 flex justify-center gap-1.5" role="radiogroup" aria-label={t("satisfaction.title")}>
               {[1, 2, 3, 4, 5].map((n) => (
