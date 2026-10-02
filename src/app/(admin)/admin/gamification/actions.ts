@@ -43,10 +43,15 @@ export async function saveWheelSettings(_prev: ToggleFormState, formData: FormDa
   if (!Number.isSafeInteger(wheelDailyLimit) || wheelDailyLimit < 1 || wheelDailyLimit > 100) {
     return { error: "Лимит прокруток в день — целое число от 1 до 100." };
   }
+  const wheelSpinsForRating = Number.parseInt(String(formData.get("wheelSpinsForRating") ?? "0"), 10);
+  if (!Number.isSafeInteger(wheelSpinsForRating) || wheelSpinsForRating < 0 || wheelSpinsForRating > 10) {
+    return { error: "Прокруток за оценку — целое число от 0 до 10." };
+  }
   await setWheelSettings(s.user.id, {
     wheelEnabled: formData.get("wheelEnabled") === "on",
     wheelSpinCost,
     wheelDailyLimit,
+    wheelSpinsForRating,
   });
   revalidatePath("/admin/gamification");
   revalidatePath("/gamification");

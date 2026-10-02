@@ -91,7 +91,12 @@ export default async function SatisfactionPage({
         <SatisfactionPreviewButton locale={locale} />
       </header>
 
-      <SatisfactionSettingsForm enabled={settings.enabled} repeatDays={settings.repeatDays} locale={locale} />
+      <SatisfactionSettingsForm
+        enabled={settings.enabled}
+        repeatDays={settings.repeatDays}
+        afterIssueDays={settings.afterIssueDays}
+        locale={locale}
+      />
 
       <section className="grid gap-3 sm:grid-cols-[auto_1fr]">
         <div className="flex flex-col items-center justify-center rounded-xl border border-line bg-surface p-5 shadow-sm sm:min-w-[160px]">

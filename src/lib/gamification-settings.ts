@@ -35,7 +35,13 @@ export async function getDailyBonusCoins(): Promise<number> {
   return row?.dailyBonusCoins ?? DEFAULTS.dailyBonusCoins;
 }
 
-export type WheelSettings = { wheelEnabled: boolean; wheelSpinCost: number; wheelDailyLimit: number };
+export type WheelSettings = {
+  wheelEnabled: boolean;
+  wheelSpinCost: number;
+  wheelDailyLimit: number;
+  /** Подаренных прокруток за оценку в опросе удовлетворённости. */
+  wheelSpinsForRating: number;
+};
 
 export async function getWheelSettings(): Promise<WheelSettings> {
   const row = await getRawSettings();
@@ -43,6 +49,7 @@ export async function getWheelSettings(): Promise<WheelSettings> {
     wheelEnabled: row?.wheelEnabled ?? false,
     wheelSpinCost: row?.wheelSpinCost ?? 0,
     wheelDailyLimit: row?.wheelDailyLimit ?? 1,
+    wheelSpinsForRating: row?.wheelSpinsForRating ?? 1,
   };
 }
 

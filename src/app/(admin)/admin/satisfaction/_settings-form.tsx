@@ -9,10 +9,12 @@ import { saveSatisfactionSettings } from "./actions";
 export function SatisfactionSettingsForm({
   enabled,
   repeatDays,
+  afterIssueDays,
   locale,
 }: {
   enabled: boolean;
   repeatDays: number;
+  afterIssueDays: number;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -31,9 +33,16 @@ export function SatisfactionSettingsForm({
       </label>
       <p className="mt-1 text-xs text-ink-muted">{t("satisfactionAdmin.enabledHint")}</p>
 
-      <div className="mt-4 max-w-[220px]">
+      <div className="mt-4 grid max-w-[480px] gap-4 sm:grid-cols-2">
         <Field label={t("satisfactionAdmin.repeatDaysLabel")} htmlFor="repeatDays" hint={t("satisfactionAdmin.repeatDaysHint")}>
           <Input id="repeatDays" name="repeatDays" type="number" min={1} max={365} defaultValue={repeatDays} required />
+        </Field>
+        <Field
+          label={t("satisfactionAdmin.afterIssueDaysLabel")}
+          htmlFor="afterIssueDays"
+          hint={t("satisfactionAdmin.afterIssueDaysHint")}
+        >
+          <Input id="afterIssueDays" name="afterIssueDays" type="number" min={0} max={60} defaultValue={afterIssueDays} required />
         </Field>
       </div>
 

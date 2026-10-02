@@ -5,6 +5,7 @@ import { runNewCardAnnouncements } from "@/lib/card-announcements";
 import { runPeriodWindowNotifications } from "@/lib/period-notifications";
 import { runPeriodLifecycle, type PeriodLifecycleResult } from "@/lib/period-lifecycle";
 import { safeEqual } from "@/lib/timing-safe";
+import { dispatchDueBroadcasts } from "@/lib/broadcast-send";
 
 export const runtime = "nodejs";
 // Рассылка идёт пачками с паузой (см. notification-delivery): ~25 сообщений в секунду,
@@ -56,6 +57,13 @@ export async function GET(req: NextRequest) {
     cards = await runNewCardAnnouncements();
   } catch (e) {
     console.error("[cron/deliver] оповещение о новых карточках:", e);
+  }
+
+  // Отложенные рассылки — основной запуск каждые 5 минут (cron/broadcasts), здесь подстраховка.
+  try {
+    await dispatchDueBroadcasts((m) => console.log(`[cron/deliver:broadcast] ${m}`));
+  } catch (e) {
+    console.error("[cron/deliver] отложенные рассылки:", e);
   }
 
   // Несколько проходов подряд, пока очередь не опустеет или не выйдет время:

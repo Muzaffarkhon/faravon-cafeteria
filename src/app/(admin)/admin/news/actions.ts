@@ -93,6 +93,8 @@ export async function sendNewsToBot(id: string): Promise<{ error?: string; sent?
     cardId: "",
     periodId: "",
     cardAudience: "BOTH" as const,
+    campaignId: "",
+    campaignAnswer: "YES" as const,
   };
   const audience = await resolveAudience(filters);
   if (audience.error) return { error: audience.error };

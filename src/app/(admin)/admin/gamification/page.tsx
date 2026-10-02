@@ -119,6 +119,7 @@ export default async function GamificationAdminPage() {
         enabled={wheelSettings.wheelEnabled}
         spinCost={wheelSettings.wheelSpinCost}
         dailyLimit={wheelSettings.wheelDailyLimit}
+        spinsForRating={wheelSettings.wheelSpinsForRating}
       />
       {wheelSectors.length === 0 ? (
           <EmptyState>Листков пока нет — добавьте первый ниже.</EmptyState>

@@ -129,9 +129,17 @@ const ACTION_LABELS: Record<string, string> = {
   NEWS_PUBLISHED: "Новость опубликована",
   NEWS_SENT_TO_BOT: "Новость разослана в бот",
   BROADCAST_SENT: "Рассылка отправлена",
+  BROADCAST_SCHEDULED: "Рассылка запланирована",
+  BROADCAST_CANCELLED: "Отложенная рассылка отменена",
+  BROADCAST_FAILED: "Рассылка не отправлена",
+  SURVEY_CREATED: "Опрос создан",
+  SURVEY_UPDATED: "Опрос изменён",
+  SURVEY_DELETED: "Опрос удалён",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
+  BroadcastCampaign: "Рассылка",
+  Survey: "Опрос",
   User: "Учётная запись",
   Employee: "Сотрудник",
   Application: "Заявка",

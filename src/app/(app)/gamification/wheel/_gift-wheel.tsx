@@ -93,6 +93,7 @@ export function GiftWheel({
   spinsTodayCount = 0,
   dailyLimit = 1,
   spinsRemaining = 1,
+  bonusSpins = 0,
   locale,
   coinUnit,
 }: {
@@ -103,6 +104,8 @@ export function GiftWheel({
   spinsTodayCount?: number;
   dailyLimit?: number;
   spinsRemaining?: number;
+  /** Подаренные прокрутки (за оценку) — сверх дневного лимита, бесплатные. */
+  bonusSpins?: number;
   locale: Locale;
   coinUnit: string;
 }) {
@@ -125,15 +128,20 @@ export function GiftWheel({
     setSessionSpins(0);
   }
 
-  const displayedSpinsToday = spinsTodayCount + sessionSpins;
+  // Сначала тратятся дневные прокрутки, потом подаренные (так же решает сервер).
+  const dailyLeft = Math.max(0, dailyLimit - spinsTodayCount - sessionSpins);
+  const displayedSpinsToday = Math.min(dailyLimit, spinsTodayCount + sessionSpins);
   const displayedRemaining = Math.max(0, spinsRemaining - sessionSpins);
+  const bonusLeft = Math.min(bonusSpins, displayedRemaining - dailyLeft);
+  // Прокрутка за счёт подаренной — бесплатна.
+  const effectiveCost = dailyLeft > 0 ? cost : 0;
 
   const n = sectors.length;
   const step = n ? 360 / n : 360;
   const leaf = leafLayout(Math.max(n, 2));
   const { badgeR, badgeY } = leaf;
 
-  const missing = cost - balance;
+  const missing = effectiveCost - balance;
   const isSpunOut = displayedRemaining <= 0 || spunToday;
   const disabled = spinning || isSpunOut || n === 0 || missing > 0;
 
@@ -282,13 +290,18 @@ export function GiftWheel({
         </svg>
       </div>
 
-      <div className="flex items-center justify-between rounded-[14px] bg-surface-muted/60 px-4 py-2.5 text-sm font-semibold">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-surface-muted/60 px-4 py-2.5 text-sm font-semibold">
         <span className="text-ink-muted">
           {t("wheel.spinsCount")}{" "}
           <span className="font-bold text-ink" data-numeric>
             {displayedSpinsToday} / {dailyLimit}
           </span>
         </span>
+        {bonusLeft > 0 && (
+          <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-bold text-success-strong">
+            🎁 {t("wheel.bonusSpins")} {bonusLeft}
+          </span>
+        )}
         {displayedRemaining > 0 ? (
           <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-strong">
             {t("wheel.spinsRemaining")} {displayedRemaining}
@@ -318,9 +331,11 @@ export function GiftWheel({
             ? t("wheel.spunToday")
             : missing > 0
               ? `${t("wheel.notEnough")} ${missing} ${coinUnit}`
-              : cost > 0
-                ? `${t("wheel.spin")} · ${cost} ${coinUnit}`
-                : t("wheel.spin")}
+              : effectiveCost > 0
+                ? `${t("wheel.spin")} · ${effectiveCost} ${coinUnit}`
+                : cost > 0
+                  ? `${t("wheel.spin")} · ${t("wheel.bonusFree")}`
+                  : t("wheel.spin")}
       </button>
 
       {showWin && win && <WinDialog win={win} locale={locale} coinUnit={coinUnit} onClose={() => setShowWin(false)} />}

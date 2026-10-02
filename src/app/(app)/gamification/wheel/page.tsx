@@ -87,6 +87,7 @@ export default async function GiftWheelPage() {
         spinsTodayCount={state.spinsTodayCount}
         dailyLimit={state.dailyLimit}
         spinsRemaining={state.spinsRemaining}
+        bonusSpins={state.bonusSpins}
         locale={locale}
         coinUnit={coinUnit}
       />

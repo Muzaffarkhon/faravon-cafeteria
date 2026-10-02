@@ -17,6 +17,7 @@ import {
   isWithinCancelWindow,
 } from "@/lib/selection";
 import { submitSatisfactionResponse } from "@/lib/satisfaction";
+import { submitSurvey, type SurveyAnswers } from "@/lib/surveys";
 import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 async function employeeContext() {
@@ -255,6 +256,16 @@ export async function submitSatisfaction(rating: number, comment: string): Promi
     if (!s.employee) throw new Error("Доступно только сотрудникам.");
     await submitSatisfactionResponse(s.employee.id, rating, comment);
     revalidatePath("/", "layout");
+  });
+}
+
+/** Прохождение опроса за монеты (окно _survey-prompt.tsx). */
+export async function submitSurveyAnswers(surveyId: string, answers: SurveyAnswers): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    if (!s.employee) throw new Error("Доступно только сотрудникам.");
+    await submitSurvey(s.employee.id, surveyId, answers);
+    revalidatePath("/", "layout"); // баланс монет в шапке
   });
 }
 

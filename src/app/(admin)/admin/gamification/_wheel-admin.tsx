@@ -27,10 +27,12 @@ export function WheelSettingsForm({
   enabled,
   spinCost,
   dailyLimit = 1,
+  spinsForRating = 1,
 }: {
   enabled: boolean;
   spinCost: number;
   dailyLimit?: number;
+  spinsForRating?: number;
 }) {
   const [state, formAction, pending] = useActionState(saveWheelSettings, {});
   return (
@@ -65,6 +67,14 @@ export function WheelSettingsForm({
           className="w-56"
         >
           <Input id="wheelDailyLimit" name="wheelDailyLimit" type="number" min={1} max={100} step={1} defaultValue={dailyLimit} />
+        </Field>
+        <Field
+          label="Подарок за оценку, прокруток"
+          htmlFor="wheelSpinsForRating"
+          hint="Сотрудник оценил сервис в опросе — получает столько бесплатных прокруток сверх дневного лимита. 0 — не дарить."
+          className="w-56"
+        >
+          <Input id="wheelSpinsForRating" name="wheelSpinsForRating" type="number" min={0} max={10} step={1} defaultValue={spinsForRating} />
         </Field>
         <Button type="submit" size="sm" variant="secondary" loading={pending}>
           Сохранить
