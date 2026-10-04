@@ -560,6 +560,21 @@ const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
 
 
 /**
+ * Сообщение — ответ в диалоге авторегистрации, если это «представление»: в нём есть имя
+ * и должность/подразделение, либо оно целиком состоит из слов профиля (имя, должность, отдел)
+ * и номера телефона, либо это просто номер телефона.
+ */
+function isRegistrationReply(ws: string[], names: Set<string>, jobWords: Set<string>): boolean {
+  const meaningful = ws.filter((w) => w.length >= 2 && !GREETING_WORDS.includes(w) && !STOPWORDS.has(w));
+  if (meaningful.length === 0) return true;
+  if (meaningful.every((w) => /^\d+$/.test(w))) return true; // только телефон/цифры
+  const hasName = meaningful.some((w) => names.has(w) || PATRONYMIC_RE.test(w));
+  const hasJob = meaningful.some((w) => jobWords.has(w));
+  if (hasName && hasJob) return true;
+  return meaningful.every((w) => /^\d+$/.test(w) || names.has(w) || jobWords.has(w) || PATRONYMIC_RE.test(w));
+}
+
+/**
  * Топ слов из текстов входящих сообщений обращений («какие слова чаще всего
  * пишут») — те же условия, что и у датасета «Обращения».
  */
@@ -573,10 +588,14 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     select: { body: true },
   });
 
-  // Слова из ФИО сотрудников (фамилия, имя, отчество) — люди представляются в чате, это не темы.
+  // Словарь профиля сотрудников: ФИО отдельно, должности/подразделения отдельно. Гость при авторегистрации
+  // в боте пишет «ФИО, должность, отдел» (см. self-registration.ts) — это ответы на вопросы бота, а не обращение.
+  const words = (text: string) => text.toLowerCase().match(WORD_RE) ?? [];
   const names = new Set<string>();
-  for (const e of await db.employee.findMany({ select: { fullName: true } })) {
-    for (const w of e.fullName.toLowerCase().match(WORD_RE) ?? []) if (w.length >= 3) names.add(w);
+  const jobWords = new Set<string>();
+  for (const e of await db.employee.findMany({ select: { fullName: true, position: true, department: true } })) {
+    for (const w of words(e.fullName)) if (w.length >= 3) names.add(w);
+    for (const w of words(`${e.position} ${e.department}`)) if (w.length >= 3) jobWords.add(w);
   }
 
   const counts = new Map<string, number>();
@@ -584,9 +603,10 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     // Системные служебные сообщения бота помечены тегом `[...]` в начале тела
     // (см. appendGuestMessage в api/telegram/route.ts) — это не текст человека.
     if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
-    const words = m.body.toLowerCase().match(WORD_RE) ?? [];
-    for (const w of words) {
-      if (w.length < 3 || STOPWORDS.has(w) || names.has(w) || PATRONYMIC_RE.test(w) || GREETING_WORDS.includes(w) ||/^\d+$/.test(w)) continue;
+    const ws = words(m.body);
+    if (isRegistrationReply(ws, names, jobWords)) continue;
+    for (const w of ws) {
+      if (w.length < 3 || STOPWORDS.has(w) || names.has(w) || PATRONYMIC_RE.test(w) || GREETING_WORDS.includes(w) || /^\d+$/.test(w)) continue;
       counts.set(w, (counts.get(w) ?? 0) + 1);
     }
   }

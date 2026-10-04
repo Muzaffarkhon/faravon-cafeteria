@@ -26,9 +26,9 @@ const VIEW_LABELS: Record<ReportView, string> = { table: "Таблица", chart
 
 const query = (params: Record<string, string>, omit: string[] = [], set: Record<string, string | null> = {}) => {
   const p = new URLSearchParams();
-  for (const [k, v] of Object.entries({ ...params, ...set })) {
-    if (v != null && !omit.includes(k)) p.set(k, v);
-  }
+  // omit убирает ключи только из исходных параметров — значения из set (новый режим) сохраняются.
+  for (const [k, v] of Object.entries(params)) if (!omit.includes(k) && !(k in set)) p.set(k, v);
+  for (const [k, v] of Object.entries(set)) if (v != null) p.set(k, v);
   return p.toString();
 };
 
