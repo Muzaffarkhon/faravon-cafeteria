@@ -549,6 +549,12 @@ const WORD_RE = /[a-zа-яё0-9]+/gi;
 // Тело автослужебных сообщений бота начинается с тега в квадратных скобках
 // (`[Поделился контактом] ...`, `[Вопрос] ...`) — живой текст от человека так
 // никогда не начинается.
+// Отчества и тюркские/таджикские «сын/дочь» — это всегда часть ФИО, а не тема обращения.
+const PATRONYMIC_RE = /(ович|евич|ьич|овна|евна|ична|угли|кизи|кызы|заде)$/;
+
+// Приветствия на таджикском/узбекском — такой же шум, как «здравствуйте».
+const GREETING_WORDS = ["ассалому", "алейкум", "салом", "рахмат", "барои", "мешавад", "хуб", "ассалом", "алайкум", "рахмат"];
+
 const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
 
 
@@ -567,6 +573,12 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     select: { body: true },
   });
 
+  // Слова из ФИО сотрудников (фамилия, имя, отчество) — люди представляются в чате, это не темы.
+  const names = new Set<string>();
+  for (const e of await db.employee.findMany({ select: { fullName: true } })) {
+    for (const w of e.fullName.toLowerCase().match(WORD_RE) ?? []) if (w.length >= 3) names.add(w);
+  }
+
   const counts = new Map<string, number>();
   for (const m of messages) {
     // Системные служебные сообщения бота помечены тегом `[...]` в начале тела
@@ -574,7 +586,7 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
     const words = m.body.toLowerCase().match(WORD_RE) ?? [];
     for (const w of words) {
-      if (w.length < 3 || STOPWORDS.has(w) || /^\d+$/.test(w)) continue;
+      if (w.length < 3 || STOPWORDS.has(w) || names.has(w) || PATRONYMIC_RE.test(w) || GREETING_WORDS.includes(w) ||/^\d+$/.test(w)) continue;
       counts.set(w, (counts.get(w) ?? 0) + 1);
     }
   }
