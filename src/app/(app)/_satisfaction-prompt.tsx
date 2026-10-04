@@ -7,6 +7,7 @@ import { Button, Textarea, cx } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { submitSatisfaction } from "./actions";
+import { dushanbeDateKey } from "@/lib/dushanbe-date";
 
 const DISMISS_KEY = "faravon.satisfaction.dismissedOn";
 const LOW_RATING_MAX = 3;
@@ -47,7 +48,7 @@ export function SatisfactionPrompt({
   useEffect(() => {
     if (preview || !eligible) return;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = dushanbeDateKey();
       if (localStorage.getItem(DISMISS_KEY) === today) return;
     } catch {
       /* приватный режим — просто показываем */
@@ -59,7 +60,7 @@ export function SatisfactionPrompt({
   function dismiss() {
     if (!preview) {
       try {
-        localStorage.setItem(DISMISS_KEY, new Date().toISOString().slice(0, 10));
+        localStorage.setItem(DISMISS_KEY, dushanbeDateKey());
       } catch {
         /* не критично */
       }

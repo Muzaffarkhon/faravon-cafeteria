@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 export type LastEdit = { at: Date; by: string };
 
@@ -40,6 +41,6 @@ export async function lastEditsFor(
 /** Форматирует «Последнее изменение» одной строкой для ячейки таблицы. */
 export function formatLastEdit(e: LastEdit | undefined, fallbackAt: Date): string {
   const at = e?.at ?? fallbackAt;
-  const when = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(at);
+  const when = fmtDateTimeShort(at);
   return e ? `${when} · ${e.by}` : when;
 }

@@ -7,6 +7,7 @@ import { DEFAULT_TEMPLATES, NOTIFICATION_EVENTS } from "@/lib/notification-forma
 import { DEFAULT_TEMPLATES_I18N } from "@/lib/notification-i18n";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { TemplateForm } from "./_form";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export default async function NotificationsPage() {
   const session = await getSession();
@@ -47,7 +48,7 @@ export default async function NotificationsPage() {
           const overridden = !!row && (row.body !== def.body || row.label !== def.label || !!tr.tg || !!tr.uz);
           const editedBy = row?.updatedBy?.employee?.fullName ?? row?.updatedBy?.login ?? null;
           const editedAt =
-            overridden && row ? row.updatedAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null;
+            overridden && row ? fmtDateTime(row.updatedAt) : null;
           return (
             <div key={event}>
               {HINTS[event] && <p className="mb-1 text-xs text-ink-subtle">{HINTS[event]}</p>}

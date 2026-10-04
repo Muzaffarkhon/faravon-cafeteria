@@ -19,7 +19,7 @@ import {
  * светлого/тёмного режима без отдельной настройки.
  */
 
-const AXIS_STYLE = { fontSize: 11, fill: "var(--ink-subtle)" };
+const AXIS_STYLE = { fontSize: 10, fill: "var(--ink-subtle)" };
 
 function ChartFrame({
   title,
@@ -36,15 +36,15 @@ function ChartFrame({
   tall?: boolean;
 }) {
   return (
-    <div className="rounded-[20px] bg-surface p-6 shadow-sm sm:p-7">
+    <div className="rounded-xl bg-surface p-4 shadow-sm">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-sm font-bold text-ink">{title}</h3>
-        {unit && <span className="text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>}
+        <h3 className="text-xs font-bold text-ink">{title}</h3>
+        {unit && <span className="text-[10px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>}
       </div>
       {noData ? (
         <p className="mt-3 text-sm text-ink-subtle">Нет данных.</p>
       ) : (
-        <div className={`mt-4 w-full ${tall ? "h-80" : "h-64"}`}>{children}</div>
+        <div className={`mt-3 w-full ${tall ? "h-64" : "h-52"}`}>{children}</div>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/i18n/shared";
 import type { AudienceFilters } from "@/lib/broadcast-audience";
 import { BROADCAST_TEMPLATES } from "@/lib/broadcast-templates";
 import { sendBroadcast, type BroadcastState } from "./actions";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 const FIELD: Record<Locale, string> = { ru: "text", tg: "text_tg", uz: "text_uz" };
 const EMPTY: Record<Locale, string> = { ru: "", tg: "", uz: "" };
@@ -199,7 +200,7 @@ export function BroadcastForm({
       )}
       {state.scheduledAt && (
         <p className="rounded-md bg-success-soft px-3 py-2 text-sm font-medium text-success-strong" role="status">
-          Рассылка запланирована на {new Date(state.scheduledAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" })}.
+          Рассылка запланирована на {fmtDateTimeShort(new Date(state.scheduledAt))}.
           Отменить её можно во вкладке «История и ответы».
         </p>
       )}

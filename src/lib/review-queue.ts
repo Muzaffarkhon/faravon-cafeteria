@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export type ReviewItemRow = {
   itemId: string;
@@ -29,7 +30,6 @@ export type ReviewQueue = {
 
 export type ReviewQuery = { q: string; periodId: string; sort: "old" | "new" };
 
-const fmtDate = (d: Date) => d.toLocaleDateString("ru-RU");
 
 /** «ждёт 5 ч» / «ждёт 3 дн.» — длительность ожидания решения. */
 function waitingLabel(submittedAt: Date | null, now: number): string | null {

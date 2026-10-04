@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export default async function NewsFeedPage() {
   const session = await getSession();
@@ -32,7 +33,7 @@ export default async function NewsFeedPage() {
             <h2 className="text-base font-bold text-ink">{n.title}</h2>
             <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-muted">{n.body.replace(/[*_~#]/g, "")}</p>
             {n.publishedAt && (
-              <p className="mt-2 text-xs text-ink-subtle">{n.publishedAt.toLocaleDateString("ru-RU")}</p>
+              <p className="mt-2 text-xs text-ink-subtle">{fmtDate(n.publishedAt)}</p>
             )}
           </Link>
         ))}

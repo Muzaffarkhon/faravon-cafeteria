@@ -1,68 +1,71 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { ItemStatus, SupportThreadSource, SupportThreadStatus } from "@prisma/client";
 import {
+  CURRENT_PERIOD,
   DATE_BUCKET_LABELS,
-  GROUP_CATALOG,
-  CALC_CATALOG,
-  type BuilderConfig,
+  PRIMARY_DATE,
+  fieldMeta,
+  type AggFn,
   type BuilderColumn,
+  type BuilderConfig,
   type BuilderResult,
   type CalcField,
+  type Condition,
   type DateBucket,
+  type Dataset,
   type GroupField,
-  type GroupFieldId,
-  type AggFn,
+  type Option,
   type WordFreq,
 } from "@/lib/report-builder-shared";
+import { dushanbeDayRange, dushanbeIsoDate, fmtDate } from "@/lib/dushanbe-date";
 
 /**
- * Конструктор сводных отчётов (§ «Отчёты»): произвольный набор полей
- * группировки (каждое — своя колонка результата, дата — с выбором
- * периодичности разбивки) + произвольный набор вычисляемых полей
- * (агрегатная функция на каждое) поверх одного из двух источников данных
- * (`Dataset`): «Льготы» (ApplicationItem — заявка → позиция → льгота) или
- * «Обращения» (SupportThread — чат поддержки: тема/источник/статус) —
- * плюс отдельно «Топ слов» по текстам входящих сообщений обращений
- * (`topSupportWords`). Данные считаются в памяти (тот же приём, что и
- * `computeReport` в `reports.ts`) — датасет одного среза умещается без
- * проблем.
+ * Конструктор сводных отчётов: произвольные поля группировки (дата — с
+ * разбивкой день/неделя/месяц/квартал/год), произвольные вычисляемые поля и
+ * произвольные УСЛОВИЯ (`Condition`: поле + оператор + значение) поверх одного
+ * из датасетов — «Льготы», «Купоны», «Обращения».
  *
- * Типы и справочники (без обращения к БД) вынесены в
- * `report-builder-shared.ts` — этот файл использует `server-only`, поэтому
- * ничего из него нельзя импортировать в клиентские компоненты (сборка
- * рушится: «'server-only' cannot be imported from a Client Component
- * module»), а `_fields-editor.tsx`/`_filter-modal.tsx` нужны как раз только
- * типы и справочники.
+ * Каждый датасет описан набором accessor'ов по полям каталога
+ * (`FIELD_CATALOG`): одни и те же accessor'ы работают для группировки и для
+ * условий. Строки грузятся из БД с предфильтром по периоду и главной дате
+ * (чтобы не тянуть всё), остальные условия применяются в памяти.
+ *
+ * Типы и справочники без БД — в `report-builder-shared.ts` (этот файл
+ * `server-only`, в клиентские компоненты его импортировать нельзя).
  */
 export * from "@/lib/report-builder-shared";
 
 export async function listPeriodsForBuilder() {
-  return db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true } });
+  return db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true } });
 }
 
-const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
-  DRAFT: "Черновик",
-  PENDING: "На согласовании",
-  APPROVED: "Одобрено",
-  REJECTED: "Отклонено",
-  COUPON_CREATED: "Купон сформирован",
-  COUPON_ISSUED: "Купон выдан",
-  CANCELLED: "Отменено",
-};
+/** Динамические варианты для enum/text-полей (период, льгота, партнёр, подразделение, тема) — для редактора условий. */
+export async function listReportOptions(dataset: Dataset): Promise<Record<string, Option[]>> {
+  if (dataset === "support") {
+    const topics = await db.supportThread.findMany({ where: { topic: { not: null } }, distinct: ["topic"], select: { topic: true } });
+    return { topic: topics.map((t) => ({ value: t.topic!, label: t.topic! })) };
+  }
+  const [periods, cards, partners, depts] = await Promise.all([
+    listPeriodsForBuilder(),
+    db.benefitCard.findMany({ orderBy: { title: "asc" }, select: { title: true } }),
+    db.partner.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
+    db.employee.findMany({ distinct: ["department"], orderBy: { department: "asc" }, select: { department: true } }),
+  ]);
+  return {
+    period: [{ value: CURRENT_PERIOD, label: "Текущий (открытый) период" }, ...periods.map((p) => ({ value: p.id, label: p.name }))],
+    card: cards.map((c) => ({ value: c.title, label: c.title })),
+    partner: partners.map((p) => ({ value: p.name, label: p.name })),
+    department: depts.filter((d) => d.department).map((d) => ({ value: d.department, label: d.department })),
+  };
+}
 
-const THREAD_STATUS_LABELS: Record<SupportThreadStatus, string> = {
-  OPEN: "Открыто",
-  CLOSED: "Закрыто",
-};
+// ---------- Даты и бакеты ----------
 
-const SOURCE_LABELS: Record<SupportThreadSource, string> = {
-  TELEGRAM: "Telegram",
-  WEB: "Сайт",
-};
+/** Сдвиг на UTC+5: UTC-геттеры результата дают календарные поля по Душанбе. */
+const toDushanbe = (d: Date) => new Date(d.getTime() + 5 * 3_600_000);
 
-function isoWeekKey(d: Date): string {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+function isoWeekKey(local: Date): string {
+  const date = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()));
   const dayNum = (date.getUTCDay() + 6) % 7; // понедельник = 0
   date.setUTCDate(date.getUTCDate() - dayNum + 3);
   const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
@@ -74,8 +77,9 @@ function isoWeekKey(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
-/** Ключ бакета даты — специально в ISO-подобном формате: сортируется как строка в хронологическом порядке. */
-function dateBucketKey(d: Date, bucket: DateBucket): string {
+/** Ключ бакета даты — ISO-подобный: сортируется как строка в хронологическом порядке. */
+function dateBucketKey(utc: Date, bucket: DateBucket): string {
+  const d = toDushanbe(utc);
   switch (bucket) {
     case "day":
       return d.toISOString().slice(0, 10);
@@ -90,77 +94,346 @@ function dateBucketKey(d: Date, bucket: DateBucket): string {
   }
 }
 
-const dateFormatter = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short" });
+// ---------- Датасеты ----------
 
-type Agg = { count: number; identities: Set<string>; minDate: Date | null; maxDate: Date | null };
+const ITEM_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Черновик",
+  PENDING: "На согласовании",
+  APPROVED: "Одобрено",
+  REJECTED: "Отклонено",
+  COUPON_CREATED: "Купон сформирован",
+  COUPON_ISSUED: "Купон выдан",
+  CANCELLED: "Отменено",
+};
 
-function newAgg(): Agg {
-  return { count: 0, identities: new Set(), minDate: null, maxDate: null };
+type Accessor<R> = {
+  /** Сырое значение для условий: enum — код, text — строка, date — yyyy-mm-dd по Душанбе. */
+  raw: (r: R) => string | null;
+  /** Подпись для группировки (по умолчанию — подпись из каталога или сырое значение). */
+  display?: (r: R) => string;
+  date?: (r: R) => Date | null;
+};
+
+type DatasetDef<R> = {
+  accessors: Record<string, Accessor<R>>;
+  identity: (r: R) => string;
+  load: (conds: Condition[]) => Promise<R[]>;
+};
+
+const dateAcc = <R,>(get: (r: R) => Date | null): Accessor<R> => ({
+  raw: (r) => {
+    const d = get(r);
+    return d ? dushanbeIsoDate(d) : null;
+  },
+  date: get,
+});
+
+const firstCond = (conds: Condition[], field: string, ops: Condition["op"][]) =>
+  conds.find((c) => c.field === field && ops.includes(c.op));
+
+/** Предфильтр по главной дате: между/не раньше/не позже → диапазон в SQL (условие всё равно перепроверяется в памяти). */
+function primaryDateRange(dataset: Dataset, conds: Condition[]) {
+  const c = firstCond(conds, PRIMARY_DATE[dataset], ["between", "gte", "lte"]);
+  if (!c) return undefined;
+  if (c.op === "between") return dushanbeDayRange(c.value, c.value2);
+  if (c.op === "gte") return dushanbeDayRange(c.value, undefined);
+  return dushanbeDayRange(undefined, c.value);
 }
 
-function feedAgg(a: Agg, identity: string, date: Date | null) {
-  a.count += 1;
-  a.identities.add(identity);
-  if (date) {
-    if (!a.minDate || date < a.minDate) a.minDate = date;
-    if (!a.maxDate || date > a.maxDate) a.maxDate = date;
+const periodEq = (conds: Condition[]) => firstCond(conds, "period", ["eq"])?.value;
+
+type BenefitRow = {
+  status: string;
+  submittedAt: Date | null;
+  decidedAt: Date | null;
+  application: {
+    employeeId: string;
+    period: { id: string; name: string };
+    employee: { department: string | null; fullName: string };
+  };
+  card: { title: string; partner: { name: string } | null };
+  coupon: { status: string; issuedAt: Date | null; activatedAt: Date | null } | null;
+};
+
+const benefits: DatasetDef<BenefitRow> = {
+  accessors: {
+    department: { raw: (r) => r.application.employee.department || null, display: (r) => r.application.employee.department || "(без подразделения)" },
+    employee: { raw: (r) => r.application.employee.fullName },
+    card: { raw: (r) => r.card.title },
+    partner: { raw: (r) => r.card.partner?.name ?? null, display: (r) => r.card.partner?.name ?? "(без партнёра)" },
+    status: { raw: (r) => r.status, display: (r) => ITEM_STATUS_LABELS[r.status] ?? r.status },
+    period: { raw: (r) => r.application.period.id, display: (r) => r.application.period.name },
+    submittedAt: dateAcc((r) => r.submittedAt),
+    decidedAt: dateAcc((r) => r.decidedAt),
+    couponStatus: { raw: (r) => r.coupon?.status ?? null, display: (r) => (r.coupon ? couponStatusLabel(r.coupon.status) : "(нет купона)") },
+    issuedAt: dateAcc((r) => r.coupon?.issuedAt ?? null),
+    activatedAt: dateAcc((r) => r.coupon?.activatedAt ?? null),
+  },
+  identity: (r) => r.application.employeeId,
+  load: (conds) =>
+    db.applicationItem.findMany({
+      where: {
+        // Отменённые скрыты, пока явно не задано условие по статусу.
+        status: conds.some((c) => c.field === "status") ? undefined : { not: "CANCELLED" },
+        application: { periodId: periodEq(conds) && periodEq(conds) !== CURRENT_PERIOD ? periodEq(conds) : undefined },
+        submittedAt: primaryDateRange("benefits", conds),
+      },
+      select: {
+        status: true,
+        submittedAt: true,
+        decidedAt: true,
+        application: {
+          select: {
+            employeeId: true,
+            period: { select: { id: true, name: true } },
+            employee: { select: { department: true, fullName: true } },
+          },
+        },
+        card: { select: { title: true, partner: { select: { name: true } } } },
+        coupon: { select: { status: true, issuedAt: true, activatedAt: true } },
+      },
+    }) as unknown as Promise<BenefitRow[]>,
+};
+
+const COUPON_STATUS_LABELS: Record<string, string> = {
+  CREATED: "Сформирован",
+  ISSUED: "Выдан",
+  USED: "Активирован",
+  EXPIRED: "Истёк",
+  CANCELLED: "Отменён",
+};
+const couponStatusLabel = (s: string) => COUPON_STATUS_LABELS[s] ?? s;
+
+type CouponRow = {
+  status: string;
+  createdAt: Date;
+  issuedAt: Date | null;
+  activatedAt: Date | null;
+  validUntil: Date | null;
+  employeeId: string;
+  employee: { department: string | null; fullName: string };
+  period: { id: string; name: string };
+  item: { card: { title: string } };
+  partner: { name: string } | null;
+};
+
+const coupons: DatasetDef<CouponRow> = {
+  accessors: {
+    department: { raw: (r) => r.employee.department || null, display: (r) => r.employee.department || "(без подразделения)" },
+    employee: { raw: (r) => r.employee.fullName },
+    card: { raw: (r) => r.item.card.title },
+    partner: { raw: (r) => r.partner?.name ?? null, display: (r) => r.partner?.name ?? "(без партнёра)" },
+    couponStatus: { raw: (r) => r.status, display: (r) => couponStatusLabel(r.status) },
+    period: { raw: (r) => r.period.id, display: (r) => r.period.name },
+    createdAt: dateAcc((r) => r.createdAt),
+    issuedAt: dateAcc((r) => r.issuedAt),
+    activatedAt: dateAcc((r) => r.activatedAt),
+    validUntil: dateAcc((r) => r.validUntil),
+  },
+  identity: (r) => r.employeeId,
+  load: (conds) =>
+    db.coupon.findMany({
+      where: {
+        periodId: periodEq(conds) && periodEq(conds) !== CURRENT_PERIOD ? periodEq(conds) : undefined,
+        issuedAt: primaryDateRange("coupons", conds),
+      },
+      select: {
+        status: true,
+        createdAt: true,
+        issuedAt: true,
+        activatedAt: true,
+        validUntil: true,
+        employeeId: true,
+        employee: { select: { department: true, fullName: true } },
+        period: { select: { id: true, name: true } },
+        item: { select: { card: { select: { title: true } } } },
+        partner: { select: { name: true } },
+      },
+    }) as unknown as Promise<CouponRow[]>,
+};
+
+type SupportRow = {
+  id: string;
+  topic: string | null;
+  source: string;
+  status: string;
+  createdAt: Date;
+  employeeId: string | null;
+  telegramId: string | null;
+  phone: string | null;
+};
+
+const SOURCE_LABELS: Record<string, string> = { TELEGRAM: "Telegram", WEB: "Сайт" };
+const THREAD_STATUS_LABELS: Record<string, string> = { OPEN: "Открыто", CLOSED: "Закрыто" };
+
+/** Идентификатор «кто обратился»: сотрудник, иначе гость по chat id/телефону, иначе сама заявка. */
+const supportIdentity = (t: SupportRow) =>
+  t.employeeId ?? (t.telegramId ? `tg:${t.telegramId}` : null) ?? (t.phone ? `phone:${t.phone}` : null) ?? `thread:${t.id}`;
+
+const support: DatasetDef<SupportRow> = {
+  accessors: {
+    topic: { raw: (r) => r.topic || null, display: (r) => r.topic || "(без темы)" },
+    source: { raw: (r) => r.source, display: (r) => SOURCE_LABELS[r.source] ?? r.source },
+    threadStatus: { raw: (r) => r.status, display: (r) => THREAD_STATUS_LABELS[r.status] ?? r.status },
+    createdAt: dateAcc((r) => r.createdAt),
+  },
+  identity: supportIdentity,
+  load: (conds) =>
+    db.supportThread.findMany({
+      where: { archivedAt: null, createdAt: primaryDateRange("support", conds) },
+      select: { id: true, topic: true, source: true, status: true, createdAt: true, employeeId: true, telegramId: true, phone: true },
+    }) as unknown as Promise<SupportRow[]>,
+};
+
+const DATASETS = { benefits, coupons, support } as unknown as Record<Dataset, DatasetDef<unknown>>;
+
+// ---------- Условия ----------
+
+function matchesCondition(raw: string | null, kind: "enum" | "text" | "date", c: Condition): boolean {
+  const v = c.value ?? "";
+  const lc = (s: string) => s.toLowerCase();
+  switch (c.op) {
+    case "empty":
+      return raw == null || raw === "";
+    case "notEmpty":
+      return raw != null && raw !== "";
+    case "eq":
+      return raw != null && (kind === "text" ? lc(raw) === lc(v) : raw === v);
+    case "ne":
+      return !(raw != null && (kind === "text" ? lc(raw) === lc(v) : raw === v));
+    case "in":
+      return raw != null && v.split("|").includes(raw);
+    case "contains":
+      return raw != null && lc(raw).includes(lc(v));
+    case "notContains":
+      return raw == null || !lc(raw).includes(lc(v));
+    case "between":
+      return raw != null && (!c.value || raw >= c.value) && (!c.value2 || raw <= c.value2);
+    case "gte":
+      return raw != null && raw >= v;
+    case "lte":
+      return raw != null && raw <= v;
   }
 }
 
-function aggValue(a: Agg, fn: AggFn): string | number {
-  switch (fn) {
+/** «Текущий период» → id открытого (или самого свежего) периода. */
+async function resolveConditions(conds: Condition[]): Promise<Condition[]> {
+  if (!conds.some((c) => c.field === "period" && c.value?.includes(CURRENT_PERIOD))) return conds;
+  const p =
+    (await db.period.findFirst({ where: { status: "OPEN" }, orderBy: { startDate: "desc" }, select: { id: true } })) ??
+    (await db.period.findFirst({ orderBy: { startDate: "desc" }, select: { id: true } }));
+  const id = p?.id ?? "";
+  return conds.map((c) =>
+    c.field === "period" && c.value ? { ...c, value: c.value.split("|").map((x) => (x === CURRENT_PERIOD ? id : x)).join("|") } : c,
+  );
+}
+
+function applyConditions<R>(def: DatasetDef<R>, dataset: Dataset, rows: R[], conds: Condition[]): R[] {
+  if (conds.length === 0) return rows;
+  const checks = conds.flatMap((c) => {
+    const acc = def.accessors[c.field];
+    const meta = fieldMeta(dataset, c.field);
+    return acc && meta ? [{ acc, kind: meta.kind, c }] : [];
+  });
+  return rows.filter((r) => checks.every(({ acc, kind, c }) => matchesCondition(acc.raw(r), kind, c)));
+}
+
+// ---------- Агрегаты ----------
+
+type Agg = { count: number; identities: Set<string>; mins: Map<string, Date>; maxs: Map<string, Date> };
+
+const newAgg = (): Agg => ({ count: 0, identities: new Set(), mins: new Map(), maxs: new Map() });
+
+function feedAgg<R>(a: Agg, row: R, def: DatasetDef<R>, dateFields: string[]) {
+  a.count += 1;
+  a.identities.add(def.identity(row));
+  for (const f of dateFields) {
+    const d = def.accessors[f]?.date?.(row);
+    if (!d) continue;
+    const mn = a.mins.get(f);
+    const mx = a.maxs.get(f);
+    if (!mn || d < mn) a.mins.set(f, d);
+    if (!mx || d > mx) a.maxs.set(f, d);
+  }
+}
+
+const isSummable = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees";
+const isNumericAgg = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees" || fn === "share";
+
+function aggNumber(a: Agg, cf: CalcField, total: number): number | null {
+  switch (cf.agg) {
     case "count":
       return a.count;
     case "uniqueEmployees":
       return a.identities.size;
-    case "firstDate":
-      return a.minDate ? dateFormatter.format(a.minDate) : "—";
-    case "lastDate":
-      return a.maxDate ? dateFormatter.format(a.maxDate) : "—";
+    case "share":
+      return total > 0 ? (a.count / total) * 100 : 0;
+    default:
+      return null;
   }
 }
 
-const isNumericAgg = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees";
+function aggValue(a: Agg, cf: CalcField, dataset: Dataset, total: number): string | number {
+  const n = aggNumber(a, cf, total);
+  if (cf.agg === "share") return `${(n ?? 0).toFixed(1)}%`;
+  if (n != null) return n;
+  const f = cf.field ?? PRIMARY_DATE[dataset];
+  const d = (cf.agg === "firstDate" ? a.mins : a.maxs).get(f);
+  return d ? fmtDate(d) : "—";
+}
 
-/** Общая сборка результата (группировка + сортировка + колонки) — дата-специфичные части (значение поля, дата, идентичность строки) приходят через параметры-функции. */
-function computeGrouped<T>(
-  rows: T[],
-  groupFields: GroupField[],
-  calcFields: CalcField[],
-  labelFor: (id: GroupFieldId) => string,
-  valueOf: (row: T, gf: GroupField) => string,
-  identityOf: (row: T) => string,
-  dateOf: (row: T) => Date | null,
-  limit: number | undefined,
+function groupValue<R>(def: DatasetDef<R>, dataset: Dataset, row: R, gf: GroupField): string {
+  const acc = def.accessors[gf.field];
+  if (!acc) return "—";
+  if (acc.date) {
+    const d = acc.date(row);
+    return d ? dateBucketKey(d, gf.bucket ?? "day") : "(нет даты)";
+  }
+  if (acc.display) return acc.display(row);
+  const raw = acc.raw(row);
+  if (raw == null || raw === "") return "(не указано)";
+  const meta = fieldMeta(dataset, gf.field);
+  return meta?.options?.find((o) => o.value === raw)?.label ?? raw;
+}
+
+function computeGrouped<R>(
+  def: DatasetDef<R>,
+  cfg: BuilderConfig,
+  rows: R[],
 ): BuilderResult {
+  const { dataset, groupFields, calcFields } = cfg;
+  const dateFields = [...new Set(calcFields.filter((c) => c.agg === "firstDate" || c.agg === "lastDate").map((c) => c.field ?? PRIMARY_DATE[dataset]))];
   const groups = new Map<string, { values: string[]; agg: Agg }>();
   for (const row of rows) {
-    const values = groupFields.map((gf) => valueOf(row, gf));
-    const key = values.join("");
-    const g = groups.get(key) ?? { values, agg: newAgg() };
-    feedAgg(g.agg, identityOf(row), dateOf(row));
-    groups.set(key, g);
+    const values = groupFields.map((gf) => groupValue(def, dataset, row, gf));
+    const key = values.join("\u0001");
+    let g = groups.get(key);
+    if (!g) groups.set(key, (g = { values, agg: newAgg() }));
+    feedAgg(g.agg, row, def, dateFields);
   }
 
-  const dateFirst = groupFields[0]?.field === "date";
+  const total = rows.length;
+  const dateFirst = !!def.accessors[groupFields[0]?.field]?.date;
   let entries = [...groups.values()];
+  const first = calcFields[0];
   if (dateFirst) {
-    entries.sort((a, b) => a.values.join("").localeCompare(b.values.join("")));
+    entries.sort((a, b) => a.values.join("").localeCompare(b.values.join("")));
   } else {
-    const firstFn = calcFields[0].agg;
     entries.sort((a, b) => {
-      const av = aggValue(a.agg, firstFn);
-      const bv = aggValue(b.agg, firstFn);
-      if (typeof av === "number" && typeof bv === "number") return bv - av;
-      return a.values.join("").localeCompare(b.values.join(""));
+      const av = aggNumber(a.agg, first, total);
+      const bv = aggNumber(b.agg, first, total);
+      if (av != null && bv != null && av !== bv) return bv - av;
+      return a.values.join("").localeCompare(b.values.join(""), "ru");
     });
   }
-  if (limit && limit > 0) entries = entries.slice(0, limit);
+  if (cfg.limit) entries = entries.slice(0, cfg.limit);
 
   const columns: BuilderColumn[] = [
     ...groupFields.map((gf, i) => ({
       key: `g${i}`,
-      label: labelFor(gf.field) + (gf.field === "date" && gf.bucket ? ` (${DATE_BUCKET_LABELS[gf.bucket]})` : ""),
+      label:
+        (fieldMeta(dataset, gf.field)?.label ?? gf.field) +
+        (def.accessors[gf.field]?.date && gf.bucket ? ` (${DATE_BUCKET_LABELS[gf.bucket].toLowerCase()})` : ""),
       numeric: false,
     })),
     ...calcFields.map((cf, i) => ({ key: `c${i}`, label: cf.label, numeric: isNumericAgg(cf.agg) })),
@@ -169,170 +442,77 @@ function computeGrouped<T>(
   const outRows = entries.map((e) => {
     const row: Record<string, string | number> = {};
     e.values.forEach((v, i) => (row[`g${i}`] = v));
-    calcFields.forEach((cf, i) => (row[`c${i}`] = aggValue(e.agg, cf.agg)));
+    calcFields.forEach((cf, i) => (row[`c${i}`] = aggValue(e.agg, cf, dataset, total)));
     return row;
   });
 
   const totals: Record<string, number> = {};
   calcFields.forEach((cf, i) => {
-    if (!isNumericAgg(cf.agg)) return;
+    if (!isSummable(cf.agg)) return;
     totals[`c${i}`] = outRows.reduce((s, r) => s + (r[`c${i}`] as number), 0);
   });
 
   return { columns, rows: outRows, totals: Object.keys(totals).length ? totals : null, matchedCount: rows.length };
 }
 
-type BenefitItem = {
-  status: ItemStatus;
-  submittedAt: Date | null;
-  application: {
-    employeeId: string;
-    period: { name: string };
-    employee: { department: string | null };
-  };
-  card: { title: string; partner: { name: string } | null };
-};
-
-function benefitsValue(i: BenefitItem, gf: GroupField): string {
-  switch (gf.field) {
-    case "department":
-      return i.application.employee.department || "(без подразделения)";
-    case "card":
-      return i.card.title;
-    case "partner":
-      return i.card.partner?.name ?? "(без партнёра)";
-    case "status":
-      return ITEM_STATUS_LABELS[i.status];
-    case "period":
-      return i.application.period.name;
-    case "date":
-      return i.submittedAt ? dateBucketKey(i.submittedAt, gf.bucket ?? "day") : "(не подано)";
-    default:
-      return "—";
-  }
-}
-
-async function runBenefitsReport(cfg: BuilderConfig): Promise<BuilderResult> {
-  const groupFields = cfg.groupFields.filter((f) => GROUP_CATALOG.benefits.some((c) => c.id === f.field));
-  const resolvedGroupFields = groupFields.length ? groupFields : [{ field: "department" as const }];
-  const calcFields = cfg.calcFields.length ? cfg.calcFields : [{ agg: "count" as const, label: CALC_CATALOG.benefits[0].label }];
-  const status = (Object.keys(ITEM_STATUS_LABELS) as ItemStatus[]).find((s) => s === cfg.status);
-
-  const items = await db.applicationItem.findMany({
-    where: {
-      status: status ? status : { not: "CANCELLED" },
-      application: {
-        periodId: cfg.periodId || undefined,
-        employee: cfg.departmentQuery
-          ? { department: { contains: cfg.departmentQuery, mode: "insensitive" } }
-          : undefined,
-      },
-      submittedAt:
-        cfg.dateFrom || cfg.dateTo
-          ? {
-              gte: cfg.dateFrom ? new Date(cfg.dateFrom) : undefined,
-              lte: cfg.dateTo ? new Date(new Date(cfg.dateTo).getTime() + 24 * 60 * 60 * 1000 - 1) : undefined,
-            }
-          : undefined,
-      card: cfg.cardQuery ? { title: { contains: cfg.cardQuery, mode: "insensitive" } } : undefined,
-    },
-    select: {
-      status: true,
-      submittedAt: true,
-      application: {
-        select: {
-          employeeId: true,
-          period: { select: { name: true } },
-          employee: { select: { department: true } },
-        },
-      },
-      card: { select: { title: true, partner: { select: { name: true } } } },
-    },
-  });
-
-  const labelFor = (id: GroupFieldId) => GROUP_CATALOG.benefits.find((f) => f.id === id)?.label ?? id;
-  return computeGrouped(
-    items,
-    resolvedGroupFields,
-    calcFields,
-    labelFor,
-    benefitsValue,
-    (i) => i.application.employeeId,
-    (i) => i.submittedAt,
-    cfg.limit,
-  );
-}
-
-type SupportRow = {
-  id: string;
-  topic: string | null;
-  source: SupportThreadSource;
-  status: SupportThreadStatus;
-  createdAt: Date;
-  employeeId: string | null;
-  telegramId: string | null;
-  phone: string | null;
-};
-
-function supportValue(t: SupportRow, gf: GroupField): string {
-  switch (gf.field) {
-    case "topic":
-      return t.topic || "(без темы)";
-    case "source":
-      return SOURCE_LABELS[t.source];
-    case "threadStatus":
-      return THREAD_STATUS_LABELS[t.status];
-    case "date":
-      return dateBucketKey(t.createdAt, gf.bucket ?? "day");
-    default:
-      return "—";
-  }
-}
-
-/** Идентификатор «кто обратился» — для «Уникальных обратившихся»: сотрудник, иначе гость по chat id/телефону, иначе просто эта заявка (не с кем сгруппировать дальше). */
-function supportIdentity(t: SupportRow): string {
-  return t.employeeId ?? (t.telegramId ? `tg:${t.telegramId}` : null) ?? (t.phone ? `phone:${t.phone}` : null) ?? `thread:${t.id}`;
-}
-
-async function runSupportReport(cfg: BuilderConfig): Promise<BuilderResult> {
-  const groupFields = cfg.groupFields.filter((f) => GROUP_CATALOG.support.some((c) => c.id === f.field));
-  const resolvedGroupFields = groupFields.length ? groupFields : [{ field: "topic" as const }];
-  const calcFields = cfg.calcFields.length ? cfg.calcFields : [{ agg: "count" as const, label: CALC_CATALOG.support[0].label }];
-  const source = (["TELEGRAM", "WEB"] as SupportThreadSource[]).find((s) => s === cfg.source);
-  const status = (["OPEN", "CLOSED"] as SupportThreadStatus[]).find((s) => s === cfg.status);
-
-  const threads = await db.supportThread.findMany({
-    where: {
-      archivedAt: null,
-      topic: cfg.topic || undefined,
-      source: source || undefined,
-      status: status || undefined,
-      createdAt:
-        cfg.dateFrom || cfg.dateTo
-          ? {
-              gte: cfg.dateFrom ? new Date(cfg.dateFrom) : undefined,
-              lte: cfg.dateTo ? new Date(new Date(cfg.dateTo).getTime() + 24 * 60 * 60 * 1000 - 1) : undefined,
-            }
-          : undefined,
-    },
-    select: { id: true, topic: true, source: true, status: true, createdAt: true, employeeId: true, telegramId: true, phone: true },
-  });
-
-  const labelFor = (id: GroupFieldId) => GROUP_CATALOG.support.find((f) => f.id === id)?.label ?? id;
-  return computeGrouped(
-    threads,
-    resolvedGroupFields,
-    calcFields,
-    labelFor,
-    supportValue,
-    supportIdentity,
-    (t) => t.createdAt,
-    cfg.limit,
-  );
+async function runWithRows<R>(def: DatasetDef<R>, cfg: BuilderConfig): Promise<{ result: BuilderResult; conds: Condition[] }> {
+  const conds = await resolveConditions(cfg.conditions);
+  const loaded = await def.load(conds);
+  const rows = applyConditions(def, cfg.dataset, loaded, conds);
+  return { result: computeGrouped(def, cfg, rows), conds };
 }
 
 export async function runBuilderReport(cfg: BuilderConfig): Promise<BuilderResult> {
-  return cfg.dataset === "support" ? runSupportReport(cfg) : runBenefitsReport(cfg);
+  return (await runWithRows(DATASETS[cfg.dataset], cfg)).result;
+}
+
+// ---------- Сравнение с предыдущим периодом ----------
+
+const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+
+/**
+ * Результат + колонки «Δ к прошлому периоду» для счётных вычисляемых полей.
+ * Работает при условии «Период равно …» (или «Текущий период») в датасетах с периодом.
+ */
+export async function runBuilderReportCompared(
+  cfg: BuilderConfig,
+): Promise<{ result: BuilderResult; compareNote: string | null }> {
+  const result = await runBuilderReport(cfg);
+  if (!cfg.compare) return { result, compareNote: null };
+  if (cfg.dataset === "support") return { result, compareNote: "Сравнение доступно только для льгот и купонов." };
+  const cond = cfg.conditions.find((c) => c.field === "period" && c.op === "eq" && c.value);
+  if (!cond) return { result, compareNote: "Для сравнения добавьте условие «Период равно …»." };
+
+  const resolved = (await resolveConditions([cond]))[0];
+  const cur = await db.period.findUnique({ where: { id: resolved.value }, select: { startDate: true } });
+  const prev = cur
+    ? await db.period.findFirst({ where: { startDate: { lt: cur.startDate } }, orderBy: { startDate: "desc" }, select: { id: true, name: true } })
+    : null;
+  if (!prev) return { result, compareNote: "Предыдущего периода нет — сравнивать не с чем." };
+
+  const prevResult = await runBuilderReport({
+    ...cfg,
+    limit: undefined,
+    conditions: cfg.conditions.map((c) => (c === cond ? { ...c, value: prev.id } : c)),
+  });
+
+  const nGroups = cfg.groupFields.length;
+  const keyOf = (r: Record<string, string | number>) => Array.from({ length: nGroups }, (_, i) => r[`g${i}`]).join("\u0001");
+  const prevRows = new Map(prevResult.rows.map((r) => [keyOf(r), r]));
+  const countIdx = cfg.calcFields.flatMap((c, i) => (isSummable(c.agg) ? [i] : []));
+
+  const columns = [...result.columns];
+  for (const i of countIdx) columns.push({ key: `d${i}`, label: `Δ ${cfg.calcFields[i].label} к «${prev.name}»`, numeric: true });
+  const delta = (cur: number, before: number) =>
+    before === 0 ? (cur === 0 ? "0" : `${signed(cur)} (новое)`) : `${signed(cur - before)} (${signed(Math.round(((cur - before) / before) * 100))}%)`;
+
+  const rows = result.rows.map((r) => {
+    const p = prevRows.get(keyOf(r));
+    const out = { ...r };
+    for (const i of countIdx) out[`d${i}`] = delta(r[`c${i}`] as number, (p?.[`c${i}`] as number) ?? 0);
+    return out;
+  });
+  return { result: { ...result, columns, rows }, compareNote: `Сравнение с периодом «${prev.name}».` };
 }
 
 // Частые русские служебные слова + типичные приветственные обороты — не несут
@@ -362,44 +542,26 @@ const WORD_RE = /[a-zа-яё0-9]+/gi;
 // никогда не начинается.
 const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
 
+
+
 /**
- * Топ слов из текстов входящих сообщений обращений (§ «Обращения»: «какие
- * слова чаще всего пишут») — те же фильтры, что и у группировки по датасету
- * support (тема/источник/статус/период), только на уровне SupportMessage.
+ * Топ слов из текстов входящих сообщений обращений («какие слова чаще всего
+ * пишут») — те же условия, что и у датасета «Обращения».
  */
-export async function topSupportWords(
-  cfg: Pick<BuilderConfig, "dateFrom" | "dateTo" | "topic" | "source" | "status">,
-  limit = 30,
-): Promise<WordFreq[]> {
-  const source = (["TELEGRAM", "WEB"] as SupportThreadSource[]).find((s) => s === cfg.source);
-  const status = (["OPEN", "CLOSED"] as SupportThreadStatus[]).find((s) => s === cfg.status);
+export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<WordFreq[]> {
+  const conds = await resolveConditions(cfg.conditions);
+  const threads = applyConditions(support, "support", await support.load(conds), conds);
+  if (threads.length === 0) return [];
 
   const messages = await db.supportMessage.findMany({
-    where: {
-      direction: "IN",
-      thread: {
-        archivedAt: null,
-        topic: cfg.topic || undefined,
-        source: source || undefined,
-        status: status || undefined,
-      },
-      createdAt:
-        cfg.dateFrom || cfg.dateTo
-          ? {
-              gte: cfg.dateFrom ? new Date(cfg.dateFrom) : undefined,
-              lte: cfg.dateTo ? new Date(new Date(cfg.dateTo).getTime() + 24 * 60 * 60 * 1000 - 1) : undefined,
-            }
-          : undefined,
-    },
+    where: { direction: "IN", threadId: { in: threads.map((t) => t.id) } },
     select: { body: true },
   });
 
   const counts = new Map<string, number>();
   for (const m of messages) {
-    // Системные служебные сообщения бота (нажатие «Поделиться контактом»,
-    // клик по готовому вопросу из FAQ) помечены тегом `[...]` в начале тела
-    // (см. appendGuestMessage в api/telegram/route.ts) — это не то, что
-    // человек сам написал, поэтому в «Топ слов» их не считаем.
+    // Системные служебные сообщения бота помечены тегом `[...]` в начале тела
+    // (см. appendGuestMessage в api/telegram/route.ts) — это не текст человека.
     if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
     const words = m.body.toLowerCase().match(WORD_RE) ?? [];
     for (const w of words) {
@@ -412,3 +574,4 @@ export async function topSupportWords(
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
 }
+

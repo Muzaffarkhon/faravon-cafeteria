@@ -36,7 +36,7 @@ function parse(formData: FormData) {
     String(formData.get("deliveryMode") ?? "QR") === "PHONE_PROMO" ? "PHONE_PROMO" : "QR";
   const date = (k: string) => {
     const v = String(formData.get(k) ?? "").trim();
-    return v ? new Date(v) : null;
+    return v ? new Date(`${v}T00:00:00+05:00`) : null;
   };
   const str = (k: string) => {
     const v = String(formData.get(k) ?? "").trim();

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Badge, Button, Card, EmptyState, Table, type BadgeTone } from "@/components/ui";
 import { useClientLocale } from "@/lib/i18n/use-client-locale";
 import { translate } from "@/lib/i18n/dict";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 type Req = {
   id: string;
@@ -121,7 +122,7 @@ export default function Page() {
                       {STATUS_LABEL[r.status] ?? r.status}
                     </Badge>
                   </td>
-                  <td data-numeric>{new Date(r.submittedAt).toLocaleDateString("ru-RU")}</td>
+                  <td data-numeric>{fmtDate(new Date(r.submittedAt))}</td>
                   <td>
                     <div className="flex justify-end gap-2">
                       <Button

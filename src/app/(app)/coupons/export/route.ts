@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
 import { listCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
 import type { PromoStatus } from "@/lib/taxi";
+import { TIMEZONE, dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
   NONE: "Промокод не отправлен",
@@ -14,10 +15,10 @@ const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
   BLOCKED: "Не доставлен (бот заблокирован)",
 };
 
-const d = (v: Date | null | undefined) => (v ? v.toISOString().slice(0, 10) : "");
+const d = (v: Date | null | undefined) => (v ? dushanbeIsoDate(v) : "");
 // Дата и время по Душанбе — для момента выдачи.
 const dt = (v: Date | null | undefined) =>
-  v ? v.toLocaleString("sv-SE", { timeZone: "Asia/Dushanbe" }).slice(0, 16) : "";
+  v ? v.toLocaleString("sv-SE", { timeZone: TIMEZONE }).slice(0, 16) : "";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
     { header: "Статус", key: "status", width: 16 },
     { header: "Сформирован", key: "created", width: 14 },
     { header: "Выдан", key: "issued", width: 18 },
+    { header: "Активирован", key: "activated", width: 18 },
     { header: "Действует до", key: "valid", width: 14 },
   ];
   const head = ws.getRow(1);
@@ -70,6 +72,7 @@ export async function GET(req: NextRequest) {
       status: COUPON_STATUS_LABELS[c.status],
       created: d(c.createdAt),
       issued: dt(c.issuedAt),
+      activated: dt(c.activatedAt),
       valid: d(c.validUntil),
     });
   }
@@ -87,7 +90,7 @@ export async function GET(req: NextRequest) {
       valid: d(r.periodEndDate),
     });
   }
-  ws.autoFilter = { from: "A1", to: "L1" };
+  ws.autoFilter = { from: "A1", to: "M1" };
 
   const buffer = await wb.xlsx.writeBuffer();
 

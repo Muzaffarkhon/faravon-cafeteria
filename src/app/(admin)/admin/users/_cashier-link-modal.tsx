@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 /** Ссылка привязки телефона кассы: QR (навести камеру телефона подрядчика) + ссылка для отправки. Показывается один раз. */
 export function CashierLinkModal({
@@ -51,7 +52,7 @@ export function CashierLinkModal({
         <p className="mt-3 text-xs text-ink-muted">
           {t("users.acc.cashierPhoneExpires")}{" "}
           <b className="text-ink" data-numeric>
-            {new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date(expiresAt))}
+            {fmtDateTimeShort(expiresAt)}
           </b>
         </p>
         <p className="mt-2 text-xs leading-5 text-ink-muted">{t("users.acc.cashierPhoneHint")}</p>

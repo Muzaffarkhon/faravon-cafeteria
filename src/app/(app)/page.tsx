@@ -26,6 +26,7 @@ import {
   getCachedBenefitCards,
   getCachedActiveBanners,
 } from "@/lib/catalog-cache";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -323,7 +324,7 @@ export default async function OverviewPage() {
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period
     ? period.windowOpen
-      ? `${t("home.windowOpenUntil")} ${period.windowEnd.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}`
+      ? `${t("home.windowOpenUntil")} ${fmtDate(period.windowEnd)}`
       : t("home.windowClosed")
     : t("home.periodNotOpen");
 

@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export type ReviewRow = {
   id: string;
@@ -21,7 +22,7 @@ export type ReviewRow = {
   overdue: boolean;
 };
 
-const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("ru-RU") : "—");
+const fmtDateOrDash = (s: string | null) => (s ? fmtDate(s) : "—");
 
 export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -220,7 +221,7 @@ export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Local
                 </td>
                 <td className="text-ink-muted">{r.period}</td>
                 <td className="text-ink-muted">
-                  {fmtDate(r.submittedAt)}
+                  {fmtDateOrDash(r.submittedAt)}
                   {r.overdue && (
                     <Badge tone="warning" className="ml-2">
                       {t("review.overdueBadge")}

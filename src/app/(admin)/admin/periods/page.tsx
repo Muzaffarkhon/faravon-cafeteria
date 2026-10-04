@@ -9,6 +9,7 @@ import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PeriodActions, ResetFlowButton } from "./_status-buttons";
 import { isSandbox } from "@/lib/app-env";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   DRAFT: "neutral",
@@ -20,7 +21,7 @@ const STATUS_TONE: Record<string, BadgeTone> = {
 // Душанбе (+05:00, см. TZ в actions.ts). toLocaleDateString() без timeZone
 // берёт часовой пояс сервера (на Vercel — UTC), из-за чего список показывал
 // дату на день раньше сохранённой.
-const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" });
+const fmt = (d: Date) => fmtDate(d);
 
 export default async function PeriodsPage() {
   const session = await getSession();

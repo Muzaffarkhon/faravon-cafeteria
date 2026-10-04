@@ -11,6 +11,7 @@ import { groupApprovedCount, isItemWaveReady, currentWaveProgress } from "@/lib/
 import { formCouponForItem, issueCouponIfReady } from "@/lib/coupon-flow";
 import { redeemCouponByNumber } from "@/lib/coupon";
 import { runAction, type ActionResult } from "@/lib/action-result";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 function revalidateAll() {
   revalidatePath("/coupons");
@@ -128,7 +129,7 @@ async function issueCouponImpl(couponId: string) {
       card: coupon.item.card.title,
       number: coupon.number,
       period: coupon.period.name,
-      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
+      validUntil: coupon.validUntil ? fmtDate(coupon.validUntil) : null,
     },
   });
 

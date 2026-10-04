@@ -15,6 +15,7 @@ import {
   deleteThread,
 } from "../../actions";
 import type { EmployeeMatch } from "../../actions";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export type Msg = {
   id: string;
@@ -429,7 +430,7 @@ export function ThreadView({
                     }
                   >
                     {m.direction === "OUT" ? (m.author ?? "C&B") : source === "WEB" ? t("support.employee") : t("support.guest")} ·{" "}
-                    {new Date(m.createdAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
+                    {fmtDateTime(new Date(m.createdAt))}
                   </p>
                 </div>
               </div>

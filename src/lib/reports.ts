@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { businessDaysBetween } from "@/lib/business-days";
+import { dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 const DAY = 24 * 60 * 60 * 1000;
 const SLA_DAYS = 5; // §5.12: SLA согласования по умолчанию — 5 рабочих дней
@@ -122,7 +123,7 @@ export async function computeReport(periodId: string) {
   // Динамика подачи заявок по дням периода — для линейного графика.
   const byDay = new Map<string, number>();
   for (const i of submitted) {
-    const day = i.submittedAt!.toISOString().slice(0, 10);
+    const day = dushanbeIsoDate(i.submittedAt!);
     byDay.set(day, (byDay.get(day) ?? 0) + 1);
   }
   const dailySubmissions = [...byDay.entries()]

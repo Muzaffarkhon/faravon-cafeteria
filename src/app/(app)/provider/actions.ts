@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import { applyCashback, CashbackError, getCashbackState } from "@/lib/cashback";
 import { signOpToken, verifyOpToken } from "@/lib/op-token";
 import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 /** Данные кассы для льготы-кешбека: баланс сотрудника у партнёра и правила начисления. */
 export type CashbackView = {
@@ -90,8 +91,8 @@ function toCouponView(
     condition: c.item.card.condition,
     partner: c.partner?.name ?? c.item.card.partner?.name ?? null,
     period: c.period.name,
-    validFrom: c.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
-    validUntil: c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
+    validFrom: fmtDate(c.period.startDate),
+    validUntil: c.validUntil ? fmtDate(c.validUntil) : null,
     expired,
     notYetValid,
     redeemable: c.status === "ISSUED" && !expired && !notYetValid && !wrongPartner,

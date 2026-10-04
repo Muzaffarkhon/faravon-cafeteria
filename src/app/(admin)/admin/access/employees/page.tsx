@@ -10,11 +10,12 @@ import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { AccessRowActions } from "../_row-actions";
 import { getLocale, getTranslator } from "@/lib/i18n";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-const fmt = (d: Date) => d.toLocaleDateString("ru-RU");
+const fmt = (d: Date) => fmtDate(d);
 
 export default async function AccessEmployeesPage({
   searchParams,

@@ -7,6 +7,7 @@ import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import type { PendingSurvey, SurveyAnswers } from "@/lib/surveys";
 import { submitSurveyAnswers } from "./actions";
+import { dushanbeDateKey } from "@/lib/dushanbe-date";
 
 const DISMISS_KEY = "faravon.survey.dismissed";
 
@@ -25,7 +26,7 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const total = survey.questions.length;
-  const dismissValue = `${survey.id}:${new Date().toISOString().slice(0, 10)}`;
+  const dismissValue = `${survey.id}:${dushanbeDateKey()}`;
 
   useEffect(() => {
     try {

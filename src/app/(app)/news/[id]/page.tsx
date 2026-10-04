@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { FormattedText } from "@/components/formatted-text";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export default async function NewsDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -16,7 +17,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
     <div className="max-w-xl space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{news.title}</h1>
       {news.publishedAt && (
-        <p className="text-xs text-ink-subtle">{news.publishedAt.toLocaleDateString("ru-RU")}</p>
+        <p className="text-xs text-ink-subtle">{fmtDate(news.publishedAt)}</p>
       )}
       {news.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element

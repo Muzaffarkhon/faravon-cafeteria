@@ -10,6 +10,7 @@ import {
   type CampaignAnswer,
 } from "./broadcast-segments";
 import { LOCALES, asLocale, type Locale } from "./i18n/shared";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 /**
  * Аудитория рассылки. Одна функция на предпросмотр и на отправку — чтобы то, что
@@ -114,7 +115,7 @@ async function resolveGuests(): Promise<Audience> {
     rows: fresh.slice(0, PREVIEW_LIMIT).map((g) => ({
       key: g.telegramId,
       name: `Telegram ${g.telegramId}`,
-      sub: `Последняя активность в боте: ${g.lastStartAt.toLocaleDateString("ru-RU")}`,
+      sub: `Последняя активность в боте: ${fmtDate(g.lastStartAt)}`,
       telegram: true,
     })),
   };

@@ -9,6 +9,7 @@ import { ContactEditor, TelegramLink, ServiceTelegramLink } from "./_contacts";
 import { RevokeSessionsButton } from "./_sessions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getLocale, getTranslator } from "@/lib/i18n";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 const shortUa = (ua: string | null) => {
   if (!ua) return "—";
@@ -44,7 +45,7 @@ export default async function ProfilePage() {
     { k: t("profile.roles"), v: session.roles.map((r) => ROLE_LABELS[r]).join(", ") },
   );
   if (user.lastLoginAt) {
-    rows.push({ k: t("profile.lastLogin"), v: <span data-numeric>{user.lastLoginAt.toLocaleString("ru-RU")}</span> });
+    rows.push({ k: t("profile.lastLogin"), v: <span data-numeric>{fmtDateTime(user.lastLoginAt)}</span> });
   }
 
   return (
@@ -103,7 +104,7 @@ export default async function ProfilePage() {
           <ul className="divide-y divide-line-subtle text-sm">
             {recentLogins.map((a) => (
               <li key={a.id} className="flex flex-wrap justify-between gap-x-4 py-1.5">
-                <span className="text-ink">{a.createdAt.toLocaleString("ru-RU")}</span>
+                <span className="text-ink">{fmtDateTime(a.createdAt)}</span>
                 <span className="text-ink-muted">
                   {a.ip} · {shortUa(a.userAgent)}
                 </span>

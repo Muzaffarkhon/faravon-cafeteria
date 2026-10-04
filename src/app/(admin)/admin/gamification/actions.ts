@@ -185,7 +185,7 @@ export async function createGamificationTask(_prev: TaskFormState, formData: For
   if (scope === "DEPARTMENT" && !department) return { error: "Укажите подразделение." };
 
   const endsAtRaw = String(formData.get("endsAt") ?? "").trim();
-  const endsAt = endsAtRaw ? new Date(endsAtRaw) : null;
+  const endsAt = endsAtRaw ? new Date(`${endsAtRaw}T23:59:59.999+05:00`) : null;
 
   const task = await db.gamificationTask.create({
     data: {

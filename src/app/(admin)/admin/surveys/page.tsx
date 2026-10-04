@@ -4,8 +4,9 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { Badge, Card, EmptyState, PageHeader, RowId, Table, buttonClass } from "@/components/ui";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
-const fmt = (d: Date) => d.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" });
+const fmt = (d: Date) => fmtDateTimeShort(d);
 
 export default async function SurveysPage() {
   const session = await getSession();
