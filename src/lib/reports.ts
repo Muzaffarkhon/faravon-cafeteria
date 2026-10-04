@@ -44,7 +44,7 @@ export async function computeReport(periodId: string) {
           decidedAt: true,
           decisionComment: true,
           card: { select: { title: true } },
-          coupon: { select: { issuedAt: true } },
+          coupon: { select: { issuedAt: true, activatedAt: true, status: true } },
         },
       },
     },
@@ -66,6 +66,10 @@ export async function computeReport(periodId: string) {
   const decided = items.filter((i) => i.decidedAt && ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED", "REJECTED"].includes(i.status));
   const rejected = items.filter((i) => i.status === "REJECTED");
   const issued = items.filter((i) => i.status === "COUPON_ISSUED");
+  // Реальный результат выбора: купон выдан → активирован на кассе (дата активации или статус «Активирован»).
+  const isActivated = (i: (typeof items)[number]) => !!i.coupon && (!!i.coupon.activatedAt || i.coupon.status === "USED");
+  const couponsIssued = items.filter((i) => i.coupon?.issuedAt);
+  const activated = items.filter(isActivated);
 
   const nowDate = new Date();
   const decisionTimes = decided
@@ -97,6 +101,9 @@ export async function computeReport(periodId: string) {
       byApprovals.set(i.card.title, (byApprovals.get(i.card.title) ?? 0) + 1);
     }
   }
+  const byActivations = new Map<string, number>();
+  for (const i of activated) byActivations.set(i.card.title, (byActivations.get(i.card.title) ?? 0) + 1);
+  const topActivations = [...byActivations.entries()].map(([title, n]) => ({ title, n })).sort((a, b) => b.n - a.n);
   const topSelections = [...bySelections.entries()].map(([title, n]) => ({ title, n })).sort((a, b) => b.n - a.n);
   const topApprovals = [...byApprovals.entries()].map(([title, n]) => ({ title, n })).sort((a, b) => b.n - a.n);
 
@@ -143,6 +150,10 @@ export async function computeReport(periodId: string) {
       avgSelectionsPerActive: activeEmployees ? live.length / activeEmployees : null,
       submitted: submitted.length,
       issued: issued.length,
+      couponsIssued: couponsIssued.length,
+      activated: activated.length,
+      activatedPct: pct(activated.length, couponsIssued.length),
+      activatedOfSelectedPct: pct(activated.length, live.length),
       conversionPct: pct(issued.length, submitted.length),
       decided: decided.length,
       rejected: rejected.length,
@@ -156,6 +167,7 @@ export async function computeReport(periodId: string) {
     },
     topSelections,
     topApprovals,
+    topActivations,
     rejectionsByReason,
     byDepartment,
     dailySubmissions,

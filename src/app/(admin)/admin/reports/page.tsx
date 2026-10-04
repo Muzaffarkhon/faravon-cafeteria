@@ -88,15 +88,16 @@ function BarList({
 }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
-    <div className="rounded-xl bg-surface p-4 shadow-sm">
-      <div className="flex items-baseline justify-between">
+    // Список прокручивается внутри карточки, шапка закреплена — не нужно листать всю страницу.
+    <div className="max-h-[26rem] overflow-y-auto rounded-xl bg-surface px-4 pb-4 shadow-sm">
+      <div className="sticky top-0 z-10 flex items-baseline justify-between bg-surface pb-2 pt-4">
         <h3 className="text-xs font-bold text-ink">{title}</h3>
         <span className="text-[10px] uppercase tracking-[0.1em] text-ink-subtle">{unit}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-subtle">{noDataLabel}</p>
+        <p className="mt-1 text-sm text-ink-subtle">{noDataLabel}</p>
       ) : (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="space-y-2.5">
           {rows.map((r) => (
             <li key={r.label}>
               <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
@@ -176,7 +177,7 @@ export default async function ReportsPage({
           Изменения показателей — к периоду «{prevName}». ▲ зелёный — улучшение, оранжевый — ухудшение.
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-9">
         <Metric
           label={t("reports.activation")}
           value={fmtPct(k.activationPct)}
@@ -208,6 +209,15 @@ export default async function ReportsPage({
           pct={k.conversionPct}
           tone="good"
           hint={`${k.issued} ${t("reports.of")} ${k.submitted} ${t("reports.conversionHintSuffix")}`}
+        />
+        <Metric
+          label="Активировано купонов"
+          value={String(k.activated)}
+          cmp={cmp("activated", "num", "up")}
+          prevName={prevName}
+          pct={k.activatedPct}
+          tone="good"
+          hint={`${fmtPct(k.activatedPct)} от выданных (${k.couponsIssued}) · ${fmtPct(k.activatedOfSelectedPct)} от выбранных льгот`}
         />
         <Metric
           label={t("reports.rejectionShare")}
@@ -249,7 +259,7 @@ export default async function ReportsPage({
         rows={report.dailySubmissions.map((r) => ({ label: r.day.slice(5), n: r.n }))}
       />
 
-      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-2">
         <BarChartCard
           title={t("reports.topSelections")}
           unit={t("reports.selectionsUnit")}
@@ -259,6 +269,12 @@ export default async function ReportsPage({
           title={t("reports.topApprovals")}
           unit={t("reports.approvedUnit")}
           rows={report.topApprovals.slice(0, 8).map((r) => ({ label: r.title, n: r.n }))}
+          color="var(--success)"
+        />
+        <BarChartCard
+          title="Активировано купонов по льготам"
+          unit="активаций"
+          rows={report.topActivations.slice(0, 8).map((r) => ({ label: r.title, n: r.n }))}
           color="var(--success)"
         />
         <BarChartCard
@@ -274,7 +290,7 @@ export default async function ReportsPage({
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-2">
         <BarList
           title={t("reports.byDepartment")}
           unit={t("reports.itemsUnit")}

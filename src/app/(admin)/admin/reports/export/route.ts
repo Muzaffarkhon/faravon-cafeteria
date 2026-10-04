@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     ["Доля отклонений", pct1(k.rejectionPct), `${k.rejected} из ${k.decided} решений`],
     ["Среднее время до решения, дн.", num1(k.avgDecisionDays), `p90: ${num1(k.p90DecisionDays)}`],
     ["Среднее время до выдачи купона, дн.", num1(k.avgIssueDays), `p90: ${num1(k.p90IssueDays)}`],
+    ["Активировано купонов", k.activated, `${pct1(k.activatedPct)} от выданных (${k.couponsIssued}); ${pct1(k.activatedOfSelectedPct)} от выбранных льгот`],
     ["Нарушения SLA согласования", pct1(k.slaBreachPct), `${k.slaBreached} позиций (порог 5 раб. дн.)`],
   ];
   metricRows.forEach((r) => s1.addRow({ m: r[0], v: r[1], h: r[2] }));
@@ -57,10 +58,12 @@ export async function GET(req: NextRequest) {
     { header: "Льгота", key: "t", width: 44 },
     { header: "Выборов", key: "s", width: 12 },
     { header: "Одобрено", key: "a", width: 12 },
+    { header: "Активировано", key: "u", width: 14 },
   ];
   styleHeader(s2.getRow(1));
   const approvals = new Map(report.topApprovals.map((r) => [r.title, r.n]));
-  report.topSelections.forEach((r) => s2.addRow({ t: r.title, s: r.n, a: approvals.get(r.title) ?? 0 }));
+  const activations = new Map(report.topActivations.map((r) => [r.title, r.n]));
+  report.topSelections.forEach((r) => s2.addRow({ t: r.title, s: r.n, a: approvals.get(r.title) ?? 0, u: activations.get(r.title) ?? 0 }));
 
   // --- Отклонения ---
   const s3 = wb.addWorksheet("Отклонения");
