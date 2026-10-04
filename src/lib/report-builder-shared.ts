@@ -109,7 +109,7 @@ export function canonicalFieldId(dataset: Dataset, id: string): string {
 export const fieldMeta = (dataset: Dataset, id: string) => FIELD_CATALOG[dataset].find((f) => f.id === id);
 
 export type DateBucket = "day" | "week" | "month" | "quarter" | "year";
-export type AggFn = "count" | "uniqueEmployees" | "share" | "firstDate" | "lastDate";
+export type AggFn = "count" | "uniqueEmployees" | "share" | "activated" | "activatedShare" | "firstDate" | "lastDate";
 
 export const DATE_BUCKET_LABELS: Record<DateBucket, string> = {
   day: "По дням",
@@ -128,16 +128,22 @@ const COUNT_LABEL: Record<Dataset, string> = {
 };
 
 export const CALC_CATALOG: Record<Dataset, AggCatalogEntry[]> = {
-  benefits: aggs("Уникальных сотрудников"),
-  coupons: aggs("Уникальных сотрудников"),
-  support: aggs("Уникальных обратившихся"),
+  benefits: aggs("Уникальных сотрудников", true),
+  coupons: aggs("Уникальных сотрудников", true),
+  support: aggs("Уникальных обратившихся", false),
 };
 
-function aggs(uniqueLabel: string): AggCatalogEntry[] {
+function aggs(uniqueLabel: string, withActivation: boolean): AggCatalogEntry[] {
   return [
     { agg: "count", label: "Количество" },
     { agg: "uniqueEmployees", label: uniqueLabel },
     { agg: "share", label: "Доля от общего, %" },
+    ...(withActivation
+      ? [
+          { agg: "activated" as const, label: "Активировано купонов" },
+          { agg: "activatedShare" as const, label: "Доля активированных, %" },
+        ]
+      : []),
     { agg: "firstDate", label: "Первая дата" },
     { agg: "lastDate", label: "Последняя дата" },
   ];

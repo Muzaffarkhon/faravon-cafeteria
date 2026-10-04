@@ -116,6 +116,8 @@ type Accessor<R> = {
 
 type DatasetDef<R> = {
   accessors: Record<string, Accessor<R>>;
+  /** Купон строки активирован (есть дата активации или статус «Активирован»). Нет — датасет без купонов. */
+  isActivated?: (r: R) => boolean;
   identity: (r: R) => string;
   load: (conds: Condition[]) => Promise<R[]>;
 };
@@ -170,6 +172,7 @@ const benefits: DatasetDef<BenefitRow> = {
     activatedAt: dateAcc((r) => r.coupon?.activatedAt ?? null),
   },
   identity: (r) => r.application.employeeId,
+  isActivated: (r) => !!r.coupon && (!!r.coupon.activatedAt || r.coupon.status === "USED"),
   load: (conds) =>
     db.applicationItem.findMany({
       where: {
@@ -231,6 +234,7 @@ const coupons: DatasetDef<CouponRow> = {
     validUntil: dateAcc((r) => r.validUntil),
   },
   identity: (r) => r.employeeId,
+  isActivated: (r) => !!r.activatedAt || r.status === "USED",
   load: (conds) =>
     db.coupon.findMany({
       where: {
@@ -340,12 +344,13 @@ function applyConditions<R>(def: DatasetDef<R>, dataset: Dataset, rows: R[], con
 
 // ---------- Агрегаты ----------
 
-type Agg = { count: number; identities: Set<string>; mins: Map<string, Date>; maxs: Map<string, Date> };
+type Agg = { count: number; activated: number; identities: Set<string>; mins: Map<string, Date>; maxs: Map<string, Date> };
 
-const newAgg = (): Agg => ({ count: 0, identities: new Set(), mins: new Map(), maxs: new Map() });
+const newAgg = (): Agg => ({ count: 0, activated: 0, identities: new Set(), mins: new Map(), maxs: new Map() });
 
 function feedAgg<R>(a: Agg, row: R, def: DatasetDef<R>, dateFields: string[]) {
   a.count += 1;
+  if (def.isActivated?.(row)) a.activated += 1;
   a.identities.add(def.identity(row));
   for (const f of dateFields) {
     const d = def.accessors[f]?.date?.(row);
@@ -357,8 +362,8 @@ function feedAgg<R>(a: Agg, row: R, def: DatasetDef<R>, dateFields: string[]) {
   }
 }
 
-const isSummable = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees";
-const isNumericAgg = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees" || fn === "share";
+const isSummable = (fn: AggFn) => fn === "count" || fn === "uniqueEmployees" || fn === "activated";
+const isNumericAgg = (fn: AggFn) => isSummable(fn) || fn === "share" || fn === "activatedShare";
 
 function aggNumber(a: Agg, cf: CalcField, total: number): number | null {
   switch (cf.agg) {
@@ -368,6 +373,10 @@ function aggNumber(a: Agg, cf: CalcField, total: number): number | null {
       return a.identities.size;
     case "share":
       return total > 0 ? (a.count / total) * 100 : 0;
+    case "activated":
+      return a.activated;
+    case "activatedShare":
+      return a.count > 0 ? (a.activated / a.count) * 100 : 0;
     default:
       return null;
   }
@@ -375,7 +384,7 @@ function aggNumber(a: Agg, cf: CalcField, total: number): number | null {
 
 function aggValue(a: Agg, cf: CalcField, dataset: Dataset, total: number): string | number {
   const n = aggNumber(a, cf, total);
-  if (cf.agg === "share") return `${(n ?? 0).toFixed(1)}%`;
+  if (cf.agg === "share" || cf.agg === "activatedShare") return `${(n ?? 0).toFixed(1)}%`;
   if (n != null) return n;
   const f = cf.field ?? PRIMARY_DATE[dataset];
   const d = (cf.agg === "firstDate" ? a.mins : a.maxs).get(f);
@@ -540,6 +549,12 @@ const WORD_RE = /[a-zа-яё0-9]+/gi;
 // Тело автослужебных сообщений бота начинается с тега в квадратных скобках
 // (`[Поделился контактом] ...`, `[Вопрос] ...`) — живой текст от человека так
 // никогда не начинается.
+// Отчества и тюркские/таджикские «сын/дочь» — это всегда часть ФИО, а не тема обращения.
+const PATRONYMIC_RE = /(ович|евич|ьич|овна|евна|ична|угли|кизи|кызы|заде)$/;
+
+// Приветствия на таджикском/узбекском — такой же шум, как «здравствуйте».
+const GREETING_WORDS = ["ассалому", "алейкум", "салом", "рахмат", "барои", "мешавад", "хуб", "ассалом", "алайкум", "рахмат"];
+
 const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
 
 
@@ -558,6 +573,12 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     select: { body: true },
   });
 
+  // Слова из ФИО сотрудников (фамилия, имя, отчество) — люди представляются в чате, это не темы.
+  const names = new Set<string>();
+  for (const e of await db.employee.findMany({ select: { fullName: true } })) {
+    for (const w of e.fullName.toLowerCase().match(WORD_RE) ?? []) if (w.length >= 3) names.add(w);
+  }
+
   const counts = new Map<string, number>();
   for (const m of messages) {
     // Системные служебные сообщения бота помечены тегом `[...]` в начале тела
@@ -565,7 +586,7 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
     const words = m.body.toLowerCase().match(WORD_RE) ?? [];
     for (const w of words) {
-      if (w.length < 3 || STOPWORDS.has(w) || /^\d+$/.test(w)) continue;
+      if (w.length < 3 || STOPWORDS.has(w) || names.has(w) || PATRONYMIC_RE.test(w) || GREETING_WORDS.includes(w) ||/^\d+$/.test(w)) continue;
       counts.set(w, (counts.get(w) ?? 0) + 1);
     }
   }
