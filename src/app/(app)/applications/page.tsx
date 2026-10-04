@@ -16,6 +16,7 @@ import { safeImageSrc } from "@/lib/safe-url";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { CancelItemButton } from "./_cancel-button";
 import { CouponTicket, TaxiTicket } from "./_ticket";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   DRAFT: "neutral",
@@ -153,7 +154,7 @@ export default async function ApplicationsPage() {
                     {a.entries.map((e) => (
                       <li key={e.id} className="flex justify-between gap-3">
                         <span>
-                          {e.createdAt.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })} ·{" "}
+                          {fmtDate(e.createdAt)} ·{" "}
                           {e.kind === "ACCRUAL" || e.kind === "REDEMPTION_REVERSAL" ? t("cashback.accrued") : t("cashback.redeemed")}
                           {e.kind.endsWith("REVERSAL") ? ` · ${t("cashback.reversed")}` : ""}
                         </span>
@@ -216,7 +217,7 @@ export default async function ApplicationsPage() {
                               : null;
                   const validPeriod =
                     groupDone && c.validUntil && (live || c.status === "CREATED")
-                      ? `${t("applications.periodShort")}: ${app.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })} – ${c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}`
+                      ? `${t("applications.periodShort")}: ${fmtDate(app.period.startDate)} – ${fmtDate(c.validUntil)}`
                       : null;
                   return (
                     <CouponTicket
@@ -308,7 +309,7 @@ export default async function ApplicationsPage() {
                           {item.submittedAt && (
                             <span data-numeric>
                               {` · ${t("applications.submittedOn")} `}
-                              {item.submittedAt.toLocaleDateString("ru-RU")}
+                              {fmtDate(item.submittedAt)}
                             </span>
                           )}
                         </div>

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Badge, Table, buttonClass, type BadgeTone } from "@/components/ui";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 const STATUS_TONE: Record<string, BadgeTone> = { PUBLISHED: "success", DRAFT: "neutral" };
 const STATUS_LABEL: Record<string, string> = { PUBLISHED: "Опубликовано", DRAFT: "Черновик" };
@@ -46,10 +47,10 @@ export default async function NewsListPage() {
                   <Badge tone={STATUS_TONE[n.status] ?? "neutral"}>{STATUS_LABEL[n.status] ?? n.status}</Badge>
                 </td>
                 <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {n.publishedAt ? n.publishedAt.toLocaleDateString("ru-RU") : "—"}
+                  {n.publishedAt ? fmtDate(n.publishedAt) : "—"}
                 </td>
                 <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {n.telegramSentAt ? n.telegramSentAt.toLocaleDateString("ru-RU") : "—"}
+                  {n.telegramSentAt ? fmtDate(n.telegramSentAt) : "—"}
                 </td>
                 <td>
                   <div className="flex justify-end">

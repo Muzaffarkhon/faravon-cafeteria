@@ -24,6 +24,7 @@ import {
   type CashierLinkResult,
 } from "./actions";
 import { ALL_ROLES } from "./roles";
+import { fmtDateTime, fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 type PartnerOption = { id: string; name: string };
 
@@ -127,7 +128,7 @@ export function AccountPanel({
         </dd>
         <dt className="text-ink-muted">{t("users.acc.lastLogin")}</dt>
         <dd className="text-ink-muted">
-          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }) : t("users.acc.neverLoggedIn")}
+          {user.lastLoginAt ? fmtDateTime(new Date(user.lastLoginAt)) : t("users.acc.neverLoggedIn")}
         </dd>
       </dl>
 
@@ -392,7 +393,7 @@ export function ServiceAccountRow({
         </td>
         <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
           {user.lastLoginAt
-            ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(user.lastLoginAt)
+            ? fmtDateTimeShort(user.lastLoginAt)
             : "—"}
         </td>
         <td className="text-ink-muted">—</td>

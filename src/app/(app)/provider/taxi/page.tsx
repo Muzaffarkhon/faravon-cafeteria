@@ -11,6 +11,7 @@ import { taxiRecipientsForPartner, buildTaxiSmartFilters } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
 import { SinglePromoCell } from "./_single-promo";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +133,7 @@ export default async function TaxiProviderPage({
                     <td className="text-ink-muted">{r.card}</td>
                     <td className="text-ink-muted">{r.period}</td>
                     <td data-numeric>
-                      {r.approvedAt ? r.approvedAt.toLocaleDateString("ru-RU") : "—"}
+                      {r.approvedAt ? fmtDate(r.approvedAt) : "—"}
                     </td>
                     <td>
                       <SinglePromoCell

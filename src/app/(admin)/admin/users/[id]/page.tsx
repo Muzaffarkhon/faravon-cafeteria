@@ -10,6 +10,7 @@ import { updateEmployee } from "../actions";
 import { EmployeeForm } from "../_form";
 import { AccountPanel, EmployeeActiveToggle } from "../_account";
 import { EmployeeArchiveButton } from "../_archive-button";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -116,7 +117,7 @@ export default async function EditUserPage({
               ? t("users.edit.activeHint")
               : `${t("users.edit.deactivatedPrefix")}${
                   employee.terminatedAt
-                    ? ` ${employee.terminatedAt.toLocaleDateString("ru-RU")}`
+                    ? ` ${fmtDate(employee.terminatedAt)}`
                     : ""
                 }.`}
           </p>
@@ -131,7 +132,7 @@ export default async function EditUserPage({
         <div className="space-y-3 border-t border-line-subtle p-5">
           <p className="text-sm text-ink-muted">
             {employee.archivedAt
-              ? `${t("users.edit.archivedSincePrefix")} ${employee.archivedAt.toLocaleDateString("ru-RU")}. ${t("users.edit.archivedHint")}`
+              ? `${t("users.edit.archivedSincePrefix")} ${fmtDate(employee.archivedAt)}. ${t("users.edit.archivedHint")}`
               : t("users.edit.archiveHint")}
           </p>
           <EmployeeArchiveButton id={id} archived={!!employee.archivedAt} size="md" locale={locale} />

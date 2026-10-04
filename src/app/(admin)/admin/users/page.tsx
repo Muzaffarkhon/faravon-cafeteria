@@ -18,6 +18,7 @@ import { GenerateMissingAccountsBanner } from "./_generate-accounts-button";
 import { EmployeeEditButton } from "./_edit-modal";
 import { RowContextMenu } from "./_row-menu";
 import { ALL_ROLES } from "./roles";
+import { fmtDate, fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -251,7 +252,7 @@ export default async function UsersPage({
                 <td>
                   {e.archivedAt ? (
                     <Badge tone="muted">
-                      {t("users.archivedOn")} {new Intl.DateTimeFormat("ru-RU").format(e.archivedAt)}
+                      {t("users.archivedOn")} {fmtDate(e.archivedAt)}
                     </Badge>
                   ) : e.isActive ? (
                     <Badge tone="success">{employmentStatusLabel(locale, e.status)}</Badge>
@@ -260,7 +261,7 @@ export default async function UsersPage({
                   )}
                 </td>
                 <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {e.user?.lastLoginAt ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(e.user.lastLoginAt) : "—"}
+                  {e.user?.lastLoginAt ? fmtDateTimeShort(e.user.lastLoginAt) : "—"}
                 </td>
                 <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
                   {formatLastEdit(lastEdits.get(e.id), e.updatedAt)}

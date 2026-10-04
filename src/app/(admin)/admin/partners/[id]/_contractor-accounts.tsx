@@ -12,6 +12,7 @@ import {
   setPartnerAccountActive,
   type PartnerAccountResult,
 } from "../actions";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export type ContractorAccount = {
   id: string;
@@ -138,7 +139,7 @@ function AccountRow({
           <Badge tone="neutral">{t("partners.contractor")}</Badge>
         </div>
         <p className="text-xs text-ink-subtle">
-          {t("partners.createdOn")} {new Date(account.createdAt).toLocaleDateString("ru-RU")}
+          {t("partners.createdOn")} {fmtDate(new Date(account.createdAt))}
         </p>
       </div>
 

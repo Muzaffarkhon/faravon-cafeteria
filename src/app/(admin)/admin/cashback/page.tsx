@@ -5,6 +5,7 @@ import { can } from "@/lib/rbac";
 import { formatSomoni } from "@/lib/cashback-math";
 import { Badge, Card, EmptyState, Table } from "@/components/ui";
 import { reverseOperationAction } from "./actions";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 const money = (d: number) => `${formatSomoni(d)} сом.`;
 
@@ -226,7 +227,7 @@ export default async function AdminCashbackPage({
                 {operations.map((o) => (
                   <tr key={o.key} className="align-top">
                     <td className="whitespace-nowrap text-ink-muted" data-numeric>
-                      {o.at.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
+                      {fmtDateTime(o.at)}
                     </td>
                     <td className="text-ink">{o.employee}</td>
                     <td className="text-ink-muted">{o.partner}</td>

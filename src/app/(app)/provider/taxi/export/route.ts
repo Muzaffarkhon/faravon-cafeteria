@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { taxiRecipientsForPartner, buildTaxiSmartFilters } from "@/lib/taxi";
+import { dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 /**
  * Выгрузка номеров одобренных сотрудников для подрядчика такси (§5):
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
       phone: r.phone,
       card: r.card,
       period: r.period,
-      approved: r.approvedAt ? r.approvedAt.toISOString().slice(0, 10) : "",
+      approved: r.approvedAt ? dushanbeIsoDate(r.approvedAt) : "",
       promo: r.promo || "",
       itemId: r.itemId,
     });

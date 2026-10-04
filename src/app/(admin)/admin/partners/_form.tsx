@@ -13,6 +13,7 @@ import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { OtpModal } from "../users/_otp-modal";
 import type { PartnerFormState } from "./actions";
+import { dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 export type PartnerValues = {
   name: string;
@@ -41,7 +42,7 @@ const PARTNER_TRANSLATION_FIELDS = [
 
 function d(v: Date | string | null) {
   if (!v) return "";
-  return new Date(v).toISOString().slice(0, 10);
+  return dushanbeIsoDate(v);
 }
 
 export function PartnerForm({

@@ -7,6 +7,7 @@ import { getLocale, getTranslator } from "@/lib/i18n";
 import { updateCard } from "../actions";
 import { CardForm, type CardValues } from "../_form";
 import { CardHistory, type CardVersionRow } from "../_history";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export default async function EditCardPage({
   params,
@@ -50,7 +51,7 @@ export default async function EditCardPage({
     id: v.id,
     version: v.version,
     reason: v.reason,
-    createdAt: v.createdAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }),
+    createdAt: fmtDateTime(v.createdAt),
     editor: v.editedBy?.employee?.fullName ?? v.editedBy?.login ?? null,
     block: v.block,
     title: v.title,

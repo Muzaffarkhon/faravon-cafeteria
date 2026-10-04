@@ -5,6 +5,7 @@ import { notifyEmployee, flushTelegram } from "@/lib/notify";
 import { generateCouponNumber } from "@/lib/coupon";
 import { isItemWaveReady } from "@/lib/selection";
 import { assertTransition } from "@/lib/application-workflow";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 /**
  * Формирует купон по одобренной позиции. Idempotent: если купон уже есть —
@@ -122,8 +123,8 @@ export async function issueCouponIfReady(
       card: coupon.item.card.title,
       number: coupon.number,
       period: coupon.period.name,
-      validFrom: coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }),
-      validUntil: coupon.validUntil ? coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : null,
+      validFrom: fmtDate(coupon.period.startDate),
+      validUntil: coupon.validUntil ? fmtDate(coupon.validUntil) : null,
     },
     deferFlush,
   });

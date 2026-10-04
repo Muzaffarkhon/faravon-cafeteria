@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { loadCampaignReport, ANSWER_LABEL, DELIVERY_LABEL } from "@/lib/broadcast-report";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       pos: r.position,
       delivery: DELIVERY_LABEL[r.delivery],
       answer: r.answer ? ANSWER_LABEL[r.answer] : "Не ответил",
-      at: r.answeredAt ? r.answeredAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" }) : "",
+      at: r.answeredAt ? fmtDateTime(r.answeredAt) : "",
       reason: r.reason ?? "",
     });
   }

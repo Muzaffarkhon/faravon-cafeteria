@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button } from "@/components/ui";
 import { publishNews, sendNewsToBot } from "../actions";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export function NewsPublishActions({
   id,
@@ -63,7 +64,7 @@ export function NewsPublishActions({
         )}
         {telegramSentAt && (
           <span className="text-xs text-ink-muted">
-            В боте с {new Date(telegramSentAt).toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
+            В боте с {fmtDateTime(new Date(telegramSentAt))}
           </span>
         )}
       </div>

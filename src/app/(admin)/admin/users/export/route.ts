@@ -7,6 +7,7 @@ import { can, ROLE_LABELS } from "@/lib/rbac";
 import { EMPLOYMENT_STATUS_LABELS } from "@/lib/labels";
 import { audit } from "@/lib/audit";
 import { buildEmployeeFilter } from "@/lib/employee-filters";
+import { dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 function styleHeader(row: ExcelJS.Row) {
   row.font = { bold: true, color: { argb: "FF1E293B" } };
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
     newValue: { count: employees.length, isArchive },
   });
 
-  const now = new Date().toISOString().slice(0, 10);
+  const now = dushanbeIsoDate(new Date());
   const filename = `Реестр_сотрудников_${isArchive ? "архив_" : ""}${now}.xlsx`;
 
   return new NextResponse(buffer as ArrayBuffer, {

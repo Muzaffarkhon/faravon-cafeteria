@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { runDailyDigest } from "@/lib/daily-digest";
+import { runReportSchedules } from "@/lib/report-schedule";
 import { runSlaEscalations } from "@/lib/sla-escalation";
 import { deliverTelegramNotifications } from "@/lib/notification-delivery";
 import { safeEqual } from "@/lib/timing-safe";
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
   });
 
   const digest = await runDailyDigest();
+  const reports = await runReportSchedules();
 
   const delivery = await deliverTelegramNotifications({
     db,
@@ -37,5 +39,5 @@ export async function GET(req: NextRequest) {
     log: (m) => console.log(`[cron/daily-digest] ${m}`),
   });
 
-  return NextResponse.json({ ok: true, escalation, digest, delivery });
+  return NextResponse.json({ ok: true, escalation, digest, reports, delivery });
 }

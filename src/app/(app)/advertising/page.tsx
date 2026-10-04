@@ -8,6 +8,7 @@ import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { AdvertisingForm } from "./_form";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +143,7 @@ export default async function AdvertisingPage({
                       </Badge>
                     </td>
                     <td className="text-ink-muted" data-numeric>
-                      {r.submittedAt.toLocaleDateString("ru-RU")}
+                      {fmtDate(r.submittedAt)}
                     </td>
                   </tr>
                 ))}

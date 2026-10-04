@@ -18,6 +18,7 @@ import {
   EMPLOYMENT_STATUS_LABELS,
 } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n";
+import { fmtDateTime, fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -325,7 +326,7 @@ function humanValue(v: unknown, names: Map<string, string>): string {
     // Дата/время в ISO (…T…Z) — показываем по-человечески, во времени Душанбе.
     if (ISO_DATETIME.test(v)) {
       const d = new Date(v);
-      if (!Number.isNaN(d.getTime())) return d.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" });
+      if (!Number.isNaN(d.getTime())) return fmtDateTimeShort(d);
     }
     if (SEGMENT_LABELS[v as Segment]) return SEGMENT_LABELS[v as Segment];
     for (const map of VALUE_LABEL_MAPS) if (map[v]) return map[v];
@@ -492,7 +493,7 @@ export default async function AuditPage({
               {rows.map((r) => (
                 <tr key={r.id} className="align-top">
                   <td className="whitespace-nowrap text-ink-muted" data-numeric>
-                    {r.createdAt.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe" })}
+                    {fmtDateTime(r.createdAt)}
                   </td>
                   <td className="text-ink">{r.actor?.login ?? "—"}</td>
                   <td className="text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>

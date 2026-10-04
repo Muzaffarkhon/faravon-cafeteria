@@ -10,6 +10,7 @@ import { QuickSearch } from "@/components/quick-search";
 import { parseSmartFilterParams, stringFilter, numberFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
 import { SatisfactionSettingsForm } from "./_settings-form";
 import { SatisfactionPreviewButton } from "./_preview-button";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 export const dynamic = "force-dynamic";
 
@@ -174,7 +175,7 @@ export default async function SatisfactionPage({
                     </td>
                     <td className="max-w-[26rem] text-ink-muted">{r.comment || "—"}</td>
                     <td className="text-ink-muted" data-numeric>
-                      {new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(r.createdAt)}
+                      {fmtDateTimeShort(r.createdAt)}
                     </td>
                   </tr>
                 ))}

@@ -202,6 +202,7 @@ model User {
   feedbackHandled     Feedback[]             @relation("FeedbackHandler")
   supportReplies      SupportMessage[]
   reportPresets       ReportPreset[]
+  reportSchedules     ReportSchedule[]       @relation("ReportScheduleUser")
   sessions            UserSession[]
 
   @@index([partnerId])
@@ -486,6 +487,8 @@ model Coupon {
   status          CouponStatus    @default(CREATED)
   deliveryChannel String          @default("PORTAL")
   issuedAt        DateTime?
+  /// Момент активации (погашения) партнёром; у многоразового купона — первый визит.
+  activatedAt     DateTime?
   validUntil      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -820,7 +823,27 @@ model ReportPreset {
   config      Json
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdById String
+  /// Общий срез виден всем с доступом к отчётам; личный — только автору. Менять/удалять может только автор.
+  shared      Boolean  @default(false)
   createdAt   DateTime @default(now())
+
+  schedules ReportSchedule[]
+}
+
+/// Рассылка среза отчёта в Telegram автору по расписанию (отправка ~09:00 по Душанбе, вместе с ежедневным дайджестом).
+model ReportSchedule {
+  id         String       @id @default(cuid())
+  preset     ReportPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  presetId   String
+  user       User         @relation("ReportScheduleUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  /// 1–7 (пн–вс) по Душанбе; null — каждый день.
+  weekday    Int?
+  lastSentAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@unique([presetId, userId])
+  @@index([userId])
 }
 
 model NotificationTemplate {

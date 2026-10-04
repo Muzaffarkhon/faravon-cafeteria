@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma, type BroadcastStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 /** Доставка одному получателю — по связанному уведомлению (Notification). */
 export type Delivery = "DELIVERED" | "PENDING" | "BLOCKED" | "FAILED" | "UNKNOWN";
@@ -176,4 +177,4 @@ export async function loadCampaignList(take = 100): Promise<CampaignSummary[]> {
 }
 
 export const fmtDushanbe = (d: Date) =>
-  d.toLocaleString("ru-RU", { timeZone: "Asia/Dushanbe", dateStyle: "short", timeStyle: "short" });
+  fmtDateTimeShort(d);

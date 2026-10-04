@@ -9,6 +9,7 @@ import type { Locale } from "@/lib/i18n/shared";
 import { EmployeeForm } from "./_form";
 import { AccountPanel, EmployeeActiveToggle } from "./_account";
 import { getEmployeeEditData, updateEmployee, type EmployeeEditData } from "./actions";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 /**
  * Карточка редактирования сотрудника в модалке — вместо перехода на
@@ -142,7 +143,7 @@ export function EmployeeEditButton({
                           ? t("users.edit.activeHint")
                           : `${t("users.edit.deactivatedPrefix")}${
                               data.terminatedAt
-                                ? ` ${new Date(data.terminatedAt).toLocaleDateString("ru-RU")}`
+                                ? ` ${fmtDate(new Date(data.terminatedAt))}`
                                 : ""
                             }.`}
                       </p>

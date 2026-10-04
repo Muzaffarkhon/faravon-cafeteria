@@ -5,6 +5,7 @@ import { Badge, Button, Textarea } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { replyInOwnThread } from "./actions";
+import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export type OwnThreadMsg = {
   id: string;
@@ -60,7 +61,7 @@ export function OwnThread({
             >
               <p className="whitespace-pre-line">{m.body}</p>
               <p className={"mt-1 text-[11px] " + (m.direction === "OUT" ? "text-ink-subtle" : "text-on-brand/70")}>
-                {m.direction === "OUT" ? "C&B" : t("feedback.you")} · {new Date(m.createdAt).toLocaleString("ru-RU")}
+                {m.direction === "OUT" ? "C&B" : t("feedback.you")} · {fmtDateTime(new Date(m.createdAt))}
               </p>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { normalizePhone } from "@/lib/phone";
 import { translate, type TKey } from "./i18n/dict";
 import type { Locale } from "./i18n/shared";
 import type { CouponStatus } from "@prisma/client";
+import { fmtDate } from "@/lib/dushanbe-date";
 
 export const COUPON_STATUS_LABELS: Record<CouponStatus, string> = {
   CREATED: "Сформирован",
@@ -149,7 +150,7 @@ export async function redeemCouponByNumber(
   // нельзя, даже если он уже ISSUED.
   if (now.getTime() < coupon.period.startDate.getTime()) {
     throw new Error(
-      `Купон ещё не действует. Начало действия: ${coupon.period.startDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}.`,
+      `Купон ещё не действует. Начало действия: ${fmtDate(coupon.period.startDate)}.`,
     );
   }
   const pastValid = isCouponExpired(coupon.validUntil, now);
@@ -173,7 +174,7 @@ export async function redeemCouponByNumber(
       throw new Error(`Период действия купона завершён («${coupon.period?.name}»). Купон просрочен.`);
     }
     throw new Error(
-      `Срок действия купона истёк${coupon.validUntil ? ` ${coupon.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}` : ""}.`,
+      `Срок действия купона истёк${coupon.validUntil ? ` ${fmtDate(coupon.validUntil)}` : ""}.`,
     );
   }
 
@@ -186,11 +187,14 @@ export async function redeemCouponByNumber(
         status: "ISSUED",
         OR: [{ validUntil: null }, { validUntil: { gte: now } }],
       },
-      data: { status: "USED" },
+      data: { status: "USED", activatedAt: now },
     });
     if (claimed.count === 0) {
       throw new Error("Купон уже активирован или просрочен.");
     }
+  } else {
+    // Многоразовый: фиксируем только первый визит.
+    await db.coupon.updateMany({ where: { id: coupon.id, activatedAt: null }, data: { activatedAt: now } });
   }
 
   await audit({

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui";
 import { IssueCouponButton, DeleteCouponButton, ForceRedeemCouponButton } from "./_buttons";
 import { BulkIssueProvider, BulkIssueToolbar, CouponSelectCheckbox } from "./_bulk-issue";
+import { fmtDate, fmtDateTimeShort } from "@/lib/dushanbe-date";
 
 const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 
@@ -164,6 +165,7 @@ export default async function CouponsPage({
                   <th>{t("coupons.colCardPartner")}</th>
                   <th>{t("coupons.colPeriod")}</th>
                   <th>{t("coupons.colIssuedAt")}</th>
+                  <th>{t("coupons.colActivatedAt")}</th>
                   <th>{t("coupons.colValidUntil")}</th>
                   <th>{t("coupons.colStatus")}</th>
                   <th className="text-right">{t("coupons.colActions")}</th>
@@ -194,7 +196,8 @@ export default async function CouponsPage({
                           )}
                         </td>
                         <td>—</td>
-                        <td data-numeric>{r.periodEndDate.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" })}</td>
+                        <td>—</td>
+                        <td data-numeric>{fmtDate(r.periodEndDate)}</td>
                         <td>
                           <Badge tone={TAXI_STATUS_TONE[r.promoStatus]}>{t(TAXI_STATUS_KEY[r.promoStatus])}</Badge>
                         </td>
@@ -229,19 +232,13 @@ export default async function CouponsPage({
                         )}
                       </td>
                       <td data-numeric className="whitespace-nowrap">
-                        {c.issuedAt
-                          ? c.issuedAt.toLocaleString("ru-RU", {
-                              timeZone: "Asia/Dushanbe",
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
+                        {c.issuedAt ? fmtDateTimeShort(c.issuedAt) : "—"}
+                      </td>
+                      <td data-numeric className="whitespace-nowrap">
+                        {c.activatedAt ? fmtDateTimeShort(c.activatedAt) : "—"}
                       </td>
                       <td data-numeric>
-                        {c.validUntil ? c.validUntil.toLocaleDateString("ru-RU", { timeZone: "Asia/Dushanbe" }) : "—"}
+                        {c.validUntil ? fmtDate(c.validUntil) : "—"}
                       </td>
                       <td>
                         <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
