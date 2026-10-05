@@ -7,7 +7,9 @@ import type { Locale } from "@/lib/i18n/shared";
 
 export type BannerSlide = {
   id: string;
-  kind?: "partner" | "news" | "group";
+  kind?: "partner" | "news" | "group" | "popular" | "rare" | "new";
+  /** Свежая новость или новая льгота — идёт первой, карусель стартует с неё. */
+  fresh?: boolean;
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
@@ -23,6 +25,9 @@ const KIND_KEY: Record<NonNullable<BannerSlide["kind"]>, TKey> = {
   partner: "banner.partner",
   news: "banner.news",
   group: "banner.group",
+  popular: "banner.popular",
+  rare: "banner.rare",
+  new: "banner.new",
 };
 
 /** Ссылка на приложение под платформу устройства (§реклама): Android → Google Play,
@@ -47,8 +52,9 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
   // есть реальные слайды, «отскока назад» в конце нет.
   // Стартовый слайд выбирается случайно (§6): при каждом заходе показывается
   // разный баннер, а не всегда первый.
+  // Если первый слайд свежий (новая новость/льгота) — стартуем с него, а не случайно.
   const [pos, setPos] = useState(() =>
-    count > 1 ? count + Math.floor(Math.random() * count) : 0,
+    count > 1 ? count + (slides[0]?.fresh ? 0 : Math.floor(Math.random() * count)) : 0,
   ); // единицы = ширина слайда; при одном слайде цикла нет — он стоит на позиции 0
   const [animate, setAnimate] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -157,7 +163,7 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
 
   return (
     <section
-      className="relative"
+      className="relative lg:left-1/2 lg:w-[max(100%,min(96vw,90rem))] lg:-translate-x-1/2"
       aria-roledescription="карусель"
       aria-label="Баннеры партнёров"
       onMouseEnter={() => setPaused(true)}
@@ -215,7 +221,13 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                       ? "bg-amber-500/90 text-white shadow-sm ring-1 ring-white/20"
                       : b.kind === "news"
                         ? "bg-sky-500/90 text-white shadow-sm ring-1 ring-white/20"
-                        : "bg-white/15 text-white",
+                        : b.kind === "popular"
+                          ? "bg-rose-500/90 text-white shadow-sm ring-1 ring-white/20"
+                          : b.kind === "rare"
+                            ? "bg-emerald-500/90 text-white shadow-sm ring-1 ring-white/20"
+                            : b.kind === "new"
+                              ? "bg-violet-500/90 text-white shadow-sm ring-1 ring-white/20"
+                              : "bg-white/15 text-white",
                   )}
                 >
                   {t(KIND_KEY[b.kind ?? "partner"])}
@@ -260,7 +272,7 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
               </>
             );
             const cls =
-              "relative flex h-60 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-64";
+              "relative flex h-64 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-80 lg:h-96";
             return b.linkHref ? (
               <a
                 key={`${b.id}-${i}`}

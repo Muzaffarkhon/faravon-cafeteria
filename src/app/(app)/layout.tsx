@@ -147,11 +147,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     wheelEnabled && session.employee
       ? {
           href: "/gamification/wheel",
-          // Подаренные прокрутки (за оценку) — сверх дневного лимита.
-          available:
-            (await db.wheelSpin.count({
-              where: { employeeId: session.employee.id, dayKey: dushanbeDateKey(), bonus: false },
-            })) < wheelDailyLimit || (await countBonusSpins(session.employee.id)) > 0,
+          // Сколько прокруток осталось: дневные + подаренные (за оценку, опрос) — сверх лимита.
+          remaining:
+            Math.max(
+              0,
+              wheelDailyLimit -
+                (await db.wheelSpin.count({
+                  where: { employeeId: session.employee.id, dayKey: dushanbeDateKey(), bonus: false },
+                })),
+            ) + (await countBonusSpins(session.employee.id)),
         }
       : null;
   // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель

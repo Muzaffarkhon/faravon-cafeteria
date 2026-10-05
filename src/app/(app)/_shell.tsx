@@ -112,7 +112,7 @@ export function AppShell({
   /** Совокупный кешбек по всем партнёрам (диры) — только если есть счета кешбека. */
   cashbackTotal?: number | null;
   /** Колесо подарков включено — кнопка в шапке; available — сегодня ещё не крутил. */
-  wheel?: { href: string; available: boolean } | null;
+  wheel?: { href: string; remaining: number } | null;
   /** Ambient-слой (лепестки и т.п.) — рендерится за контентом. */
   backdrop?: React.ReactNode;
   /** Есть доступ хоть к одному разделу админки — ссылка в меню профиля. */
@@ -273,7 +273,7 @@ export function AppShell({
             <Link
               href={wheel.href}
               onClick={closeMenus}
-              aria-label={wheel.available ? `${t("wheel.title")} — ${t("wheel.availableToday")}` : t("wheel.title")}
+              aria-label={wheel.remaining > 0 ? `${t("wheel.title")} — ${t("wheel.spinsRemaining")} ${wheel.remaining}` : t("wheel.title")}
               title={t("wheel.title")}
               aria-current={isActive(wheel.href) ? "page" : undefined}
               className={cx(
@@ -283,8 +283,15 @@ export function AppShell({
             >
               <WheelIcon className="h-5 w-5 transition-transform duration-700 ease-out group-hover/wheel:rotate-180 motion-reduce:transition-none" />
               <span className="hidden whitespace-nowrap lg:inline">{t("wheel.title")}</span>
-              {wheel.available && !isActive(wheel.href) && (
-                <span className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" aria-hidden="true" />
+              {wheel.remaining > 0 && (
+                <span
+                  className={cx(
+                    "inline-flex min-w-[1.15rem] items-center justify-center rounded-full px-1 text-xs font-bold leading-[1.15rem] tabular-nums",
+                    isActive(wheel.href) ? "bg-on-brand/25 text-on-brand" : "bg-primary text-on-brand",
+                  )}
+                >
+                  {wheel.remaining}
+                </span>
               )}
             </Link>
           )}

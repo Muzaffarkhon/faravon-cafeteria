@@ -114,6 +114,7 @@ export function GiftWheel({
   const uid = useId().replace(/:/g, "");
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
+  const spinLock = useRef(false);
   const [duration, setDuration] = useState(SPIN_MS);
   const [error, setError] = useState<string | null>(null);
   const [win, setWin] = useState<{ result: SpinResult; sector: WheelSectorView | null } | null>(null);
@@ -151,15 +152,20 @@ export function GiftWheel({
     pendingWin.current = null;
     setShowWin(true);
     setSpinning(false);
+    spinLock.current = false;
     router.refresh();
   };
 
   const spin = async () => {
-    if (disabled) return;
+    // Ref, а не state: два быстрых клика приходят до перерисовки, и `disabled` ещё false —
+    // вторая прокрутка улетала на сервер и возвращала «лимит исчерпан», пока шла первая.
+    if (disabled || spinLock.current) return;
+    spinLock.current = true;
     setError(null);
     setSpinning(true);
     const r = await spinWheelAction();
     if (r.error || !r.result) {
+      spinLock.current = false;
       setError(r.error ?? "Ошибка");
       setSpinning(false);
       router.refresh();
@@ -338,7 +344,7 @@ export function GiftWheel({
                   : t("wheel.spin")}
       </button>
 
-      {showWin && win && <WinDialog win={win} locale={locale} coinUnit={coinUnit} onClose={() => setShowWin(false)} />}
+      {showWin && win && <WinDialog win={win} locale={locale} coinUnit={coinUnit} spunOut={isSpunOut} onClose={() => setShowWin(false)} />}
     </div>
   );
 }
@@ -347,11 +353,14 @@ function WinDialog({
   win,
   locale,
   coinUnit,
+  spunOut,
   onClose,
 }: {
   win: { result: SpinResult; sector: WheelSectorView | null };
   locale: Locale;
   coinUnit: string;
+  /** Прокруток больше нет — «приходите завтра» уместно только тогда. */
+  spunOut: boolean;
   onClose: () => void;
 }) {
   const t = (key: TKey) => translate(locale, key);
@@ -395,7 +404,7 @@ function WinDialog({
               +{result.coins} <span className="text-base font-bold">{coinUnit}</span>
             </p>
           )}
-          {result.kind === "NOTHING" && <p className="text-sm text-ink-muted">{t("wheel.winNothingText")}</p>}
+          {result.kind === "NOTHING" && <p className="text-sm text-ink-muted">{t(spunOut ? "wheel.winNothingText" : "wheel.winNothingAgain")}</p>}
           <div className="flex flex-col gap-2 pt-2">
             {result.kind === "COUPON" && (
               <>

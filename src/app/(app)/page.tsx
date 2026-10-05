@@ -28,6 +28,13 @@ import {
 } from "@/lib/catalog-cache";
 import { fmtDate } from "@/lib/dushanbe-date";
 
+/** Сколько слайдов «Топ выбор» и «Мало кто выбрал» показывать (по каждому виду). */
+const RANK_SLIDES = 3;
+/** Сколько дней новость-баннер / льгота считаются «свежими» и идут в карусели первыми. */
+const FRESH_NEWS_DAYS = 7;
+const FRESH_CARD_DAYS = 14;
+const NEW_SLIDES = 3;
+
 export default async function OverviewPage() {
   const session = await getSession();
   const t = await getTranslator();
@@ -269,6 +276,8 @@ export default async function OverviewPage() {
 
   // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
   // «Партнёр») + групповые льготы, набирающие текущую очередь, — с переходом на выбор.
+  const nowMs = new Date().getTime();
+  const freshAt = (d: Date, days: number) => nowMs - d.getTime() < days * 86_400_000;
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
     const isNews = b.kind === "NEWS";
     const cardId = !isNews && b.partnerId ? flexCardByPartner.get(b.partnerId) : undefined;
@@ -281,6 +290,7 @@ export default async function OverviewPage() {
     const linkHref = appHref ?? cardHref ?? safeHref;
     return {
       id: b.id,
+      fresh: isNews && freshAt(b.startsAt ?? b.createdAt, FRESH_NEWS_DAYS),
       kind: isNews ? ("news" as const) : ("partner" as const),
       title: b.title,
       subtitle: b.subtitle,
@@ -317,9 +327,56 @@ export default async function OverviewPage() {
       };
     });
 
-  // Групповые льготы — первыми; дальше баннеры. Стартовый слайд карусель
-  // выбирает случайно при каждом заходе (§6) — см. BannerCarousel.
-  const bannerSlides = [...groupBannerSlides, ...partnerBannerSlides];
+  // «Топ выбор» и «Мало кто выбрал» — обычные (не групповые) активные льготы по числу
+  // выбравших в целевом периоде. У групповых свои слайды с прогрессом набора.
+  const activePlain = flex.filter((c) => c.isActive && c.minParticipants <= 1);
+  // Новые льготы — отдельные слайды первыми; в рейтинге их не дублируем.
+  const newCards = activePlain
+    .filter((c) => freshAt(c.createdAt, FRESH_CARD_DAYS))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, NEW_SLIDES);
+  const newIds = new Set(newCards.map((c) => c.id));
+  const newBenefitSlides: BannerSlide[] = newCards.map((c) => ({
+    id: `new-${c.id}`,
+    kind: "new",
+    fresh: true,
+    title: c.title,
+    subtitle: t("home.newBenefitHint"),
+    imageUrl: safeImageSrc(c.imageUrl),
+    linkHref: `#card-${c.id}`,
+    external: false,
+    cta: period?.windowOpen ? t("home.goToSelection") : t("home.goToBenefit"),
+  }));
+  const rankable = activePlain.filter((c) => !newIds.has(c.id));
+  const pickCount = targetPeriod
+    ? await groupProgress(rankable.map((c) => c.id), targetPeriod.id)
+    : new Map<string, number>();
+  const picks = (c: { id: string }) => pickCount.get(c.id) ?? 0;
+  const ranked = [...rankable].sort((a, b) => picks(b) - picks(a) || a.title.localeCompare(b.title));
+  const popularCards = ranked.filter((c) => picks(c) > 0).slice(0, RANK_SLIDES);
+  const popularIds = new Set(popularCards.map((c) => c.id));
+  const rareCards = ranked
+    .filter((c) => !popularIds.has(c.id))
+    .reverse()
+    .slice(0, RANK_SLIDES);
+  const rankSlide = (c: (typeof rankable)[number], kind: "popular" | "rare"): BannerSlide => ({
+    id: `${kind}-${c.id}`,
+    kind,
+    title: c.title,
+    // У «мало кто выбрал» число не показываем — мотивирующий текст вместо него.
+    subtitle: kind === "rare" ? t("home.rareHint") : `${t("home.chosenBy")} ${picks(c)}`,
+    imageUrl: safeImageSrc(c.imageUrl),
+    linkHref: `#card-${c.id}`,
+    external: false,
+    cta: period?.windowOpen ? t("home.goToSelection") : t("home.goToBenefit"),
+  });
+  const rankBannerSlides = [...popularCards.map((c) => rankSlide(c, "popular")), ...rareCards.map((c) => rankSlide(c, "rare"))];
+
+  // Приоритет: свежие новости и новые льготы, затем групповые, рейтинг льгот и остальные баннеры.
+  // Если первый слайд свежий — карусель стартует с него, иначе стартовый слайд случайный (§6).
+  const freshNewsSlides = partnerBannerSlides.filter((s) => s.fresh);
+  const otherBannerSlides = partnerBannerSlides.filter((s) => !s.fresh);
+  const bannerSlides = [...freshNewsSlides, ...newBenefitSlides, ...groupBannerSlides, ...rankBannerSlides, ...otherBannerSlides];
 
   const firstName = emp.fullName.split(" ")[1] || emp.fullName;
   const periodLine = period
