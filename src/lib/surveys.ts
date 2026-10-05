@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { creditCoinsTx } from "@/lib/coin-wallet";
 import { getWheelSettings } from "@/lib/gamification-settings";
 import { grantBonusSpins } from "@/lib/wheel";
+import { checkAutoTasksForEmployee } from "@/lib/gamification-tasks";
 
 /**
  * Опросы с вопросами и вариантами (модели Survey / SurveyQuestion / SurveyResponse).
@@ -199,6 +200,7 @@ export async function submitSurvey(employeeId: string, surveyId: string, raw: Su
     }
     throw e;
   }
+  await checkAutoTasksForEmployee(employeeId, "SURVEYS_COMPLETED").catch(() => {});
   // Прокрутка — только пока колесо включено; opKey не даёт выдать её дважды.
   const giftSpins =
     survey.giftSpin && (await getWheelSettings()).wheelEnabled

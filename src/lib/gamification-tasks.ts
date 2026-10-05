@@ -206,6 +206,10 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
       });
     case "FEEDBACK_GIVEN":
       return db.satisfactionResponse.count({ where: { employeeId, createdAt: { gte: since } } });
+    case "SURVEYS_COMPLETED":
+      return db.surveyResponse.count({ where: { employeeId, createdAt: { gte: since } } });
+    case "NEWS_READ":
+      return db.newsRead.count({ where: { user: { is: { employeeId } }, readAt: { gte: since } } });
   }
 }
 

@@ -46,6 +46,8 @@ export function TaskForm({
               <option value="APPLICATIONS_SUBMITTED">{t("gamificationAdmin.form.metricApplications")}</option>
               <option value="COUPONS_USED">{t("gamificationAdmin.form.metricCoupons")}</option>
               <option value="FEEDBACK_GIVEN">{t("gamificationAdmin.form.metricFeedback")}</option>
+              <option value="SURVEYS_COMPLETED">{t("gamificationAdmin.form.metricSurveys")}</option>
+              <option value="NEWS_READ">{t("gamificationAdmin.form.metricNews")}</option>
             </Select>
           </Field>
           <Field label={t("gamificationAdmin.form.targetValue")} htmlFor="targetValue" required>

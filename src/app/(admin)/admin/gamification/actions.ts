@@ -150,7 +150,7 @@ export async function deleteWheelSector(sectorId: string): Promise<ActionResult>
 }
 
 const VERIFICATIONS: GamificationVerification[] = ["MANUAL", "AUTO"];
-const METRICS: GamificationAutoMetric[] = ["APPLICATIONS_SUBMITTED", "COUPONS_USED", "FEEDBACK_GIVEN"];
+const METRICS: GamificationAutoMetric[] = ["APPLICATIONS_SUBMITTED", "COUPONS_USED", "FEEDBACK_GIVEN", "SURVEYS_COMPLETED", "NEWS_READ"];
 const SCOPES: TaskScope[] = ["ALL", "DEPARTMENT", "SPECIFIC"];
 
 export async function createGamificationTask(_prev: TaskFormState, formData: FormData): Promise<TaskFormState> {

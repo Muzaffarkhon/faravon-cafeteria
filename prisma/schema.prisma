@@ -952,6 +952,8 @@ enum GamificationAutoMetric {
   APPLICATIONS_SUBMITTED
   COUPONS_USED
   FEEDBACK_GIVEN
+  SURVEYS_COMPLETED
+  NEWS_READ
 }
 
 enum EmployeeTaskStatus {
