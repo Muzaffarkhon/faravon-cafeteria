@@ -59,16 +59,29 @@ function WrappedAxisTick({
   x,
   y,
   payload,
-  maxCharsPerLine = 11,
+  width,
+  visibleTicksCount,
+  maxCharsPerLine: fixedChars,
   maxLines = 3,
 }: {
   x?: number;
   y?: number;
   payload?: { value: string };
+  /** Ширина оси и число подписей — из них считаем, сколько символов влезает в одну полосу. */
+  width?: number;
+  visibleTicksCount?: number;
   maxCharsPerLine?: number;
   maxLines?: number;
 }) {
-  const words = String(payload?.value ?? "").split(/\s+/).filter(Boolean);
+  // Ширина строки — по ширине полосы одной подписи (≈6 px на символ при шрифте 11),
+  // иначе при десятках столбцов соседние подписи заходят друг на друга.
+  const band = width && visibleTicksCount ? width / visibleTicksCount : 0;
+  const maxCharsPerLine = fixedChars ?? (band ? Math.max(4, Math.floor((band - 4) / 6)) : 11);
+  const words = String(payload?.value ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    // Слово длиннее строки («инфраструктуры») режем с многоточием, а не даём вылезти в соседнюю полосу.
+    .map((w) => (w.length > maxCharsPerLine ? `${w.slice(0, maxCharsPerLine - 1)}…` : w));
   const lines: string[] = [];
   let current = "";
   for (const w of words) {
@@ -209,9 +222,9 @@ export function BarChartCard({
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={<WrappedAxisTick />}
+            tick={<WrappedAxisTick maxLines={wide ? 4 : 3} />}
             interval={0}
-            height={52}
+            height={wide ? 68 : 52}
           />
           <YAxis tick={AXIS_STYLE} allowDecimals={false} />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-muted)" }} />

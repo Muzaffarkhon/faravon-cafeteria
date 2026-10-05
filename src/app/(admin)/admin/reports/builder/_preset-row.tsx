@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useOptimistic, useRef, useTransition } from "react";
 import { deleteReportPreset, setReportSchedule, updateReportPreset } from "./actions";
 import { cx } from "@/components/ui";
 
@@ -24,7 +24,8 @@ export function PresetRow({
   author: string;
   schedule: number | null;
 }) {
-  const scheduleForm = useRef<HTMLFormElement>(null);
+  const [scheduleValue, setScheduleValue] = useOptimistic(schedule == null ? "" : String(schedule));
+  const [savingSchedule, startSchedule] = useTransition();
   const renameForm = useRef<HTMLFormElement>(null);
   const renameInput = useRef<HTMLInputElement>(null);
 
@@ -36,25 +37,33 @@ export function PresetRow({
       </a>
       {shared && <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-semibold text-primary-strong">{mine ? "общий" : author}</span>}
 
-      <form ref={scheduleForm} action={setReportSchedule}>
-        <input type="hidden" name="presetId" value={id} />
-        <select
-          name="schedule"
-          defaultValue={schedule == null ? "" : String(schedule)}
-          onChange={() => scheduleForm.current?.requestSubmit()}
-          aria-label="Рассылка в Telegram"
-          title="Присылать этот отчёт в Telegram в ~09:00 по Душанбе"
-          className={cx("rounded-full border border-line-subtle bg-transparent px-1.5 py-0.5 text-[11px]", schedule != null ? "text-primary-strong" : "text-ink-subtle")}
-        >
-          <option value="">✉ нет</option>
-          <option value="0">✉ каждый день</option>
-          {WEEKDAYS.map((d, i) => (
-            <option key={d} value={i + 1}>
-              ✉ по {d}
-            </option>
-          ))}
-        </select>
-      </form>
+      {/* Управляемый select + optimistic: форма с defaultValue после действия сбрасывалась на «нет»,
+          пока с сервера не приходило обновление. */}
+      <select
+        value={scheduleValue}
+        disabled={savingSchedule}
+        onChange={(e) => {
+          const next = e.target.value;
+          const fd = new FormData();
+          fd.set("presetId", id);
+          fd.set("schedule", next);
+          startSchedule(async () => {
+            setScheduleValue(next);
+            await setReportSchedule(fd);
+          });
+        }}
+        aria-label="Рассылка в Telegram"
+        title="Присылать этот отчёт в Telegram в ~09:00 по Душанбе"
+        className={cx("rounded-full border border-line-subtle bg-transparent px-1.5 py-0.5 text-[11px]", scheduleValue !== "" ? "text-primary-strong" : "text-ink-subtle")}
+      >
+        <option value="">✉ нет</option>
+        <option value="0">✉ каждый день</option>
+        {WEEKDAYS.map((d, i) => (
+          <option key={d} value={i + 1}>
+            ✉ по {d}
+          </option>
+        ))}
+      </select>
 
       {mine && (
         <>
