@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -42,6 +42,7 @@ const I = {
   collapse: "M15 6l-6 6 6 6",
   expand: "M9 6l6 6-6 6",
   back: "M15 18l-6-6 6-6",
+  refresh: "M21 12a9 9 0 1 1-3-6.7||M21 3v6h-6",
 };
 
 const SIDEBAR_COLLAPSED_KEY = "faravon.admin.sidebarCollapsed";
@@ -82,6 +83,8 @@ export function AdminShell({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale ?? "ru", key);
   const pathname = usePathname();
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -143,6 +146,16 @@ export function AdminShell({
   /** Профиль, язык и тема: в шапке на десктопе и в верхней полосе на телефоне (там она без вкладок). */
   const renderProfile = (mobile: boolean) => (
     <div className="relative flex shrink-0 items-center gap-2 max-md:gap-1.5" onMouseLeave={() => setProfileOpen(false)}>
+      <button
+        type="button"
+        onClick={() => startRefresh(() => router.refresh())}
+        disabled={refreshing}
+        aria-label="Обновить страницу"
+        title="Обновить страницу"
+        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:bg-surface-muted disabled:cursor-wait"
+      >
+        <Icon path={I.refresh} className={refreshing ? "animate-spin" : undefined} />
+      </button>
       {!mobile && <ThemeToggle compact />}
       <LanguageSwitcher locale={locale ?? "ru"} />
       {displayName && !mobile && (

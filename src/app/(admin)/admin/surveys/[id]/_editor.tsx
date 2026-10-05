@@ -50,6 +50,7 @@ export function SurveyEditor({
         title: head.title,
         description: head.description,
         coins: head.coins,
+        giftSpin: head.giftSpin,
         isActive: head.isActive,
         startsAt: head.startsAt,
         endsAt: head.endsAt,
@@ -97,6 +98,15 @@ export function SurveyEditor({
             <Input id="endsAt" type="datetime-local" value={head.endsAt} onChange={(e) => setHead({ ...head, endsAt: e.target.value })} />
           </Field>
         </div>
+        <label className="flex items-center gap-2.5 text-sm font-semibold text-ink">
+          <input
+            type="checkbox"
+            checked={head.giftSpin}
+            onChange={(e) => setHead({ ...head, giftSpin: e.target.checked })}
+            className="h-4 w-4 rounded border-line-strong accent-[var(--primary)]"
+          />
+          Дарить дополнительную прокрутку колеса (пока колесо включено)
+        </label>
         <label className="flex items-center gap-2.5 text-sm font-semibold text-ink">
           <input
             type="checkbox"

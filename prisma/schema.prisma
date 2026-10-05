@@ -1257,6 +1257,8 @@ model Survey {
   description String?
   /// Монет за прохождение. 0 — без награды.
   coins       Int       @default(0)
+  /// Дарить одну прокрутку колеса за прохождение (только пока колесо включено).
+  giftSpin    Boolean   @default(false)
   isActive    Boolean   @default(false)
   /// Окно показа; null — без ограничения.
   startsAt    DateTime?

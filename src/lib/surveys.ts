@@ -3,6 +3,8 @@ import { Prisma, type SurveyQuestionKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { creditCoinsTx } from "@/lib/coin-wallet";
+import { getWheelSettings } from "@/lib/gamification-settings";
+import { grantBonusSpins } from "@/lib/wheel";
 
 /**
  * Опросы с вопросами и вариантами (модели Survey / SurveyQuestion / SurveyResponse).
@@ -27,6 +29,7 @@ export type SurveyInput = {
   title: string;
   description: string;
   coins: number;
+  giftSpin: boolean;
   isActive: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
@@ -68,6 +71,7 @@ export async function saveSurvey(actorId: string, id: string | null, raw: Survey
     title: input.title,
     description: input.description || null,
     coins: input.coins,
+    giftSpin: input.giftSpin,
     isActive: input.isActive,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
@@ -126,6 +130,8 @@ export type PendingSurvey = {
   title: string;
   description: string | null;
   coins: number;
+  /** Опрос дарит прокрутку и колесо сейчас включено — то есть сотрудник её действительно получит. */
+  giftSpin: boolean;
   questions: { id: string; text: string; kind: SurveyQuestionKind; required: boolean; options: string[] }[];
 };
 
@@ -142,6 +148,7 @@ export async function getPendingSurvey(employeeId: string): Promise<PendingSurve
     title: s.title,
     description: s.description,
     coins: s.coins,
+    giftSpin: s.giftSpin && (await getWheelSettings()).wheelEnabled,
     questions: s.questions.map((q) => ({ id: q.id, text: q.text, kind: q.kind, required: q.required, options: optionsOf(q.options) })),
   };
 }
@@ -149,7 +156,7 @@ export async function getPendingSurvey(employeeId: string): Promise<PendingSurve
 export type SurveyAnswers = Record<string, string | string[]>;
 
 /** Сохранить прохождение и начислить монеты — одной транзакцией, один раз на сотрудника. */
-export async function submitSurvey(employeeId: string, surveyId: string, raw: SurveyAnswers): Promise<{ coins: number }> {
+export async function submitSurvey(employeeId: string, surveyId: string, raw: SurveyAnswers): Promise<{ coins: number; giftSpins: number }> {
   const now = new Date();
   const survey = await db.survey.findFirst({
     where: { id: surveyId, ...liveWhere(now) },
@@ -192,7 +199,17 @@ export async function submitSurvey(employeeId: string, surveyId: string, raw: Su
     }
     throw e;
   }
-  return { coins: survey.coins };
+  // Прокрутка — только пока колесо включено; opKey не даёт выдать её дважды.
+  const giftSpins =
+    survey.giftSpin && (await getWheelSettings()).wheelEnabled
+      ? await grantBonusSpins({
+          employeeId,
+          count: 1,
+          reason: `Опрос «${survey.title}»`,
+          opKey: `survey:${surveyId}:${employeeId}`,
+        })
+      : 0;
+  return { coins: survey.coins, giftSpins };
 }
 
 export type SurveyResults = {

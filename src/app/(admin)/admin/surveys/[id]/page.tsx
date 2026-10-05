@@ -45,6 +45,7 @@ export default async function SurveyPage({ params }: { params: Promise<{ id: str
             title: survey?.title ?? "",
             description: survey?.description ?? "",
             coins: survey?.coins ?? 10,
+            giftSpin: survey?.giftSpin ?? false,
             isActive: survey?.isActive ?? false,
             startsAt: toLocal(survey?.startsAt ?? null),
             endsAt: toLocal(survey?.endsAt ?? null),

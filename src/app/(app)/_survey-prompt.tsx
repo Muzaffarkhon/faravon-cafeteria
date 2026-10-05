@@ -107,6 +107,7 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
                   {t("survey.coinsEarned")} +{survey.coins} {coinUnit}
                 </p>
               )}
+              {survey.giftSpin && <p className="mt-2 text-sm font-semibold text-success-strong">{t("survey.giftSpin")}</p>}
             </div>
           ) : !q ? (
             <div className="text-center">
@@ -118,6 +119,11 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
               {survey.coins > 0 && (
                 <p className="mt-5 rounded-[14px] bg-success-soft px-4 py-3 text-sm font-semibold text-success-strong">
                   🪙 {t("survey.reward")} +{survey.coins} {coinUnit}
+                </p>
+              )}
+              {survey.giftSpin && (
+                <p className="mt-3 rounded-[14px] bg-success-soft px-4 py-3 text-sm font-semibold text-success-strong">
+                  {t("survey.giftSpin")}
                 </p>
               )}
             </div>

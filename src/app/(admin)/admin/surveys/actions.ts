@@ -11,6 +11,7 @@ export type SurveyPayload = {
   title: string;
   description: string;
   coins: number;
+  giftSpin: boolean;
   isActive: boolean;
   /** datetime-local по Душанбе или "" — без ограничения. */
   startsAt: string;
@@ -36,6 +37,7 @@ export async function saveSurveyAction(id: string | null, p: SurveyPayload): Pro
       title: String(p.title ?? ""),
       description: String(p.description ?? ""),
       coins: Number(p.coins),
+      giftSpin: !!p.giftSpin,
       isActive: !!p.isActive,
       startsAt: parseLocal(String(p.startsAt ?? "")),
       endsAt: parseLocal(String(p.endsAt ?? "")),
