@@ -80,6 +80,7 @@ const ACTION_LABELS: Record<string, string> = {
   TAXI_PROMO_BROADCAST: "Промокод разослан",
   TAXI_INDIVIDUAL_PROMOS_SENT: "Индивидуальные промокоды разосланы",
   TAXI_PROMO_SENT_SINGLE: "Индивидуальный промокод отправлен",
+  TAXI_PROMO_RESENT: "Промокод переотправлен из чата поддержки",
   TAXI_NUMBERS_EXPORTED: "Номера на поездки выгружены",
   RBAC_MATRIX_CHANGED: "Изменена матрица прав",
   SUPPORT_REPLY_SENT: "Ответ в чате поддержки",

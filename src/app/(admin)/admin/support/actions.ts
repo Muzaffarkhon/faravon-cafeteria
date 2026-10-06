@@ -13,8 +13,9 @@ import { hashPassword } from "@/lib/password";
 import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin, fuzzyNameKey } from "@/lib/translit";
-import { getFaqKeyboard } from "@/lib/support-chat";
+import { getFaqKeyboard, sendSupportTelegram } from "@/lib/support-chat";
 import { removePhotoFromMessage } from "@/lib/support-photo";
+import { resendTaxiPromo } from "@/lib/taxi";
 
 /** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. `replyToId` — необязательная цитата на конкретное сообщение того же диалога. */
 export async function replyToThread(threadId: string, body: string, replyToId?: string): Promise<ActionResult> {
@@ -30,11 +31,12 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
 
     // Цитата — только на сообщение из этого же диалога (иначе можно было бы
     // сослаться на чужой чат чужим id из формы).
-    let replyTo: { direction: "IN" | "OUT"; body: string } | null = null;
+    let replyTo: { direction: "IN" | "OUT"; body: string; tgMessageId: number | null } | null = null;
+    let sentTgMessageId: number | undefined;
     if (replyToId) {
       replyTo = await db.supportMessage.findFirst({
         where: { id: replyToId, threadId },
-        select: { direction: true, body: true },
+        select: { direction: true, body: true, tgMessageId: true },
       });
       if (!replyTo) throw new Error("Сообщение для ответа не найдено.");
     }
@@ -44,18 +46,21 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token) throw new Error("TELEGRAM_BOT_TOKEN не задан — отправка недоступна.");
 
-      // Telegram не знает о самой цитате (нет sent message_id исходного
-      // сообщения — не сохраняем) — добавляем её отдельной строкой курсивом,
-      // чтобы гостю тоже был виден контекст, на что именно отвечают.
-      const quotePrefix = replyTo
-        ? `<i>${escHtml(replyTo.body.length > 200 ? `${replyTo.body.slice(0, 200)}…` : replyTo.body)}</i>\n\n`
-        : "";
+      // Как в Telegram: настоящий «ответ» на конкретное сообщение (reply_parameters), а не цитата текстом.
+      // У старых сообщений (до сохранения message_id) его нет — тогда прежний запасной вариант: курсивная строка.
+      const nativeReply = replyTo?.tgMessageId ?? undefined;
+      const quotePrefix =
+        replyTo && !nativeReply
+          ? `<i>${escHtml(replyTo.body.length > 200 ? `${replyTo.body.slice(0, 200)}…` : replyTo.body)}</i>\n\n`
+          : "";
       // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
       // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
-      const ok = await sendTelegram(token, thread.telegramId, `${quotePrefix}${escHtml(text)}`, {
-        reply_markup: await getFaqKeyboard(),
+      const sent = await sendSupportTelegram(token, thread.telegramId, `${quotePrefix}${escHtml(text)}`, {
+        replyToTgMessageId: nativeReply,
+        replyMarkup: await getFaqKeyboard(),
       });
-      if (!ok) throw new Error("Не удалось отправить сообщение в Telegram.");
+      if ("error" in sent) throw new Error(sent.error);
+      sentTgMessageId = sent.messageId;
     }
     // WEB — сообщение остаётся только на сайте, сотрудник увидит его в своей
     // «Обратной связи»; Telegram-пуш на каждую реплику намеренно не шлём (см.
@@ -63,7 +68,7 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
 
     await db.$transaction([
       db.supportMessage.create({
-        data: { threadId, direction: "OUT", body: text, authorId: s.user.id, replyToId: replyToId || undefined },
+        data: { threadId, direction: "OUT", body: text, authorId: s.user.id, replyToId: replyToId || undefined, tgMessageId: sentTgMessageId },
       }),
       db.supportMessage.updateMany({
         where: { threadId, direction: "IN", readAt: null },
@@ -96,6 +101,16 @@ export async function purgeMessagePhoto(messageId: string): Promise<ActionResult
       entityId: threadId,
       newValue: { messageId },
     });
+  });
+}
+
+/** Переотправить промокод такси сотруднику в Telegram (тот же код, новым сообщением). */
+export async function resendPromo(itemId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+    await resendTaxiPromo(s.user.id, itemId);
+    return { notice: "Промокод отправлен." };
   });
 }
 

@@ -6,7 +6,7 @@ import { Badge, Button, Textarea } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { deletePhotoInOwnThread, replyInOwnThread } from "./actions";
-import { SUPPORT_PHOTO_ACCEPT, sendSupportPhoto } from "@/lib/support-photo-client";
+import { SUPPORT_PHOTO_ACCEPT, clipboardImage, sendSupportPhoto } from "@/lib/support-photo-client";
 import { fmtDateTime } from "@/lib/dushanbe-date";
 
 export type OwnThreadMsg = {
@@ -15,6 +15,8 @@ export type OwnThreadMsg = {
   body: string;
   createdAt: string;
   image: string | null;
+  /** Сообщение, на которое это — ответ (цитата, как в мессенджере). */
+  replyTo: { body: string; direction: "IN" | "OUT" } | null;
 };
 
 export function OwnThread({
@@ -93,6 +95,16 @@ export function OwnThread({
                 (m.direction === "OUT" ? "bg-surface-muted text-ink" : "bg-primary text-on-brand")
               }
             >
+              {m.replyTo && (
+                <div
+                  className={
+                    "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs " +
+                    (m.direction === "OUT" ? "border-ink-subtle/50 bg-surface-sunken text-ink-muted" : "border-on-brand/50 bg-on-brand/10 text-on-brand/80")
+                  }
+                >
+                  <p className="line-clamp-2 whitespace-pre-line">{m.replyTo.body || "📷"}</p>
+                </div>
+              )}
               {m.image && (
                 <div className="group relative mb-1">
                   <a href={m.image} target="_blank" rel="noopener noreferrer" className="block">
@@ -128,6 +140,14 @@ export function OwnThread({
             rows={2}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              // Скриншот из буфера (Ctrl+V) — как прикреплённое фото; обычный текст вставляется как всегда.
+              const img = clipboardImage(e);
+              if (img) {
+                e.preventDefault();
+                pickPhoto(img);
+              }
+            }}
             onKeyDown={(e) => {
               // Enter — отправить, Shift+Enter — перенос строки (как в мессенджерах).
               if (e.key === "Enter" && !e.shiftKey) {
@@ -174,7 +194,7 @@ export function OwnThread({
               title={t("feedback.attachPhoto")}
               disabled={pending}
               onClick={() => fileRef.current?.click()}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted hover:bg-surface-muted"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary-soft text-primary-strong transition-colors hover:bg-primary-soft-hover"
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m21 12-9 9a6 6 0 0 1-9-9l9-9a4 4 0 0 1 6 6l-9 9a2 2 0 0 1-3-3l8-8" />

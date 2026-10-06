@@ -77,6 +77,8 @@ const esc = (s: string) =>
 const MAX_GUEST_PHOTO_BYTES = 5 * 1024 * 1024;
 
 interface TgMessage {
+  message_id?: number;
+  reply_to_message?: { message_id: number };
   chat: { id: number };
   from?: { id: number; language_code?: string };
   text?: string;
@@ -216,7 +218,11 @@ async function handle(msg: TgMessage) {
     if (photo) {
       const hasThread = !!(await db.supportThread.findUnique({ where: { telegramId }, select: { id: true } }));
       if (hasThread && !hasDisallowedContent(msg, true) && (photo.file_size ?? 0) <= MAX_GUEST_PHOTO_BYTES) {
-        await appendGuestMessage(telegramId, (msg.caption ?? "").trim().slice(0, 1000), photo.file_id);
+        await appendGuestMessage(telegramId, (msg.caption ?? "").trim().slice(0, 1000), {
+          tgFileId: photo.file_id,
+          tgMessageId: msg.message_id,
+          replyToTgMessageId: msg.reply_to_message?.message_id,
+        });
         return;
       }
     }
@@ -300,7 +306,10 @@ async function handle(msg: TgMessage) {
     // их же бота на каждую реплику гостя), а через звук и мигание заголовка
     // прямо в интерфейсе — см. _support-alert.tsx.
     if (text && !text.startsWith("/")) {
-      const appended = await appendGuestMessage(telegramId, text);
+      const appended = await appendGuestMessage(telegramId, text, {
+        tgMessageId: msg.message_id,
+        replyToTgMessageId: msg.reply_to_message?.message_id,
+      });
       if (appended) {
         await handleSelfRegistrationReply(chatId, telegramId, text);
         return;

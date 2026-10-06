@@ -51,13 +51,15 @@ export async function POST(request: Request) {
     });
     if (today >= SUPPORT_PHOTO_PER_DAY) return fail("Слишком много фото за сутки — попробуйте завтра.", 429);
   }
-  if (replyToId && !(await db.supportMessage.findFirst({ where: { id: replyToId, threadId }, select: { id: true } }))) {
-    return fail("Сообщение для ответа не найдено.");
-  }
+  const replyTarget = replyToId
+    ? await db.supportMessage.findFirst({ where: { id: replyToId, threadId }, select: { id: true, tgMessageId: true } })
+    : null;
+  if (replyToId && !replyTarget) return fail("Сообщение для ответа не найдено.");
 
   const direction = isStaff ? "OUT" : "IN";
   let imageUrl: string | null = null;
   let tgFileId: string | null = null;
+  let tgMessageId: number | null = null;
 
   if (thread.source === "TELEGRAM") {
     if (!thread.telegramId) return fail("У диалога нет Telegram-чата.");
@@ -68,9 +70,11 @@ export async function POST(request: Request) {
       thread.telegramId,
       { bytes: bytes as Uint8Array<ArrayBuffer>, mime: kind.mime, name: `photo.${kind.ext}` },
       caption,
+      replyTarget?.tgMessageId ?? undefined,
     );
     if ("error" in sent) return fail(sent.error, 502);
     tgFileId = sent.fileId;
+    tgMessageId = sent.messageId;
   } else {
     if (!process.env.BLOB_READ_WRITE_TOKEN) return fail("Хранилище изображений не настроено (нет BLOB_READ_WRITE_TOKEN).", 503);
     try {
@@ -93,6 +97,7 @@ export async function POST(request: Request) {
         body: caption,
         imageUrl,
         tgFileId,
+        tgMessageId,
         authorId: isStaff ? session.user.id : undefined,
         replyToId,
       },

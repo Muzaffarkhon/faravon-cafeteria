@@ -250,6 +250,82 @@ export async function taxiRegistryRows(filters: {
   });
 }
 
+/**
+ * Активные промокоды такси сотрудника для диалога поддержки: позиции по PHONE_PROMO-льготам
+ * в периодах, которые ещё не закончились, по которым промокод уже заводился. В списке и недоставленные
+ * (бот заблокирован / сообщение не дошло) — сотрудник мог написать в поддержку именно из-за этого,
+ * и C&B может переотправить код или скопировать его в чат.
+ */
+export async function activeTaxiPromosOfEmployee(employeeId: string) {
+  const items = await db.applicationItem.findMany({
+    where: {
+      status: { in: [...ACTIVE_TAXI_STATUSES] },
+      card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" } } } },
+      application: { is: { employeeId, period: { is: { endDate: { gte: new Date() } } } } },
+    },
+    select: {
+      id: true,
+      card: { select: { title: true, partner: { select: { name: true } } } },
+      application: { select: { period: { select: { endDate: true } } } },
+    },
+    orderBy: { decidedAt: "desc" },
+    take: 20,
+  });
+  const latestByItem = await latestTaxiPromoByItem([employeeId]);
+  return items.flatMap((i) => {
+    const n = latestByItem.get(i.id);
+    const promo = (n?.payload as { promo?: string } | null)?.promo ?? null;
+    if (!promo) return [];
+    return [
+      {
+        id: i.id,
+        code: promo,
+        status: promoStatusOf(n),
+        title: i.card.title,
+        partner: i.card.partner?.name ?? null,
+        validUntil: i.application.period.endDate,
+      },
+    ];
+  });
+}
+
+/**
+ * Переотправка уже заведённого промокода сотруднику (например, он разблокировал бота и написал в поддержку):
+ * тот же код уходит новым уведомлением. Вызывается из чата поддержки (право support.manage).
+ */
+export async function resendTaxiPromo(actorUserId: string, itemId: string): Promise<void> {
+  const item = await db.applicationItem.findFirst({
+    where: { id: itemId, status: { in: [...ACTIVE_TAXI_STATUSES] }, card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" } } } } },
+    include: {
+      card: { select: { title: true } },
+      application: { include: { employee: { include: { user: true } }, period: { select: { name: true } } } },
+    },
+  });
+  if (!item) throw new Error("Позиция не найдена или недоступна.");
+  const userId = item.application.employee.user?.id;
+  if (!userId) throw new Error("У сотрудника нет активного аккаунта.");
+  const latest = (await latestTaxiPromoByItem([item.application.employee.id])).get(item.id);
+  const promo = (latest?.payload as { promo?: string } | null)?.promo;
+  if (!promo) throw new Error("Промокод по этой позиции ещё не заводился.");
+
+  await db.notification.create({
+    data: {
+      userId,
+      event: "TAXI_PROMO_CODE",
+      channel: "TELEGRAM",
+      payload: { itemId: item.id, promo, card: item.card.title, period: item.application.period.name },
+    },
+  });
+  await audit({
+    actorId: actorUserId,
+    action: "TAXI_PROMO_RESENT",
+    entityType: "ApplicationItem",
+    entityId: item.id,
+    newValue: { promo },
+  });
+  flushTelegram();
+}
+
 export type TaxiPromoInfo = { status: PromoStatus; promo: string | null };
 
 /**

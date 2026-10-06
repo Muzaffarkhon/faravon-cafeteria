@@ -47,13 +47,23 @@ export async function openOrReopenThread(telegramId: string): Promise<void> {
  * (например, показать WELCOME), а не как реплику в чате.
  * `tgFileId` — фото гостя: храним только file_id, сам файл остаётся в Telegram.
  */
-export async function appendGuestMessage(telegramId: string, body: string, tgFileId?: string): Promise<boolean> {
+export async function appendGuestMessage(
+  telegramId: string,
+  body: string,
+  opts: { tgFileId?: string; tgMessageId?: number; replyToTgMessageId?: number } = {},
+): Promise<boolean> {
   const thread = await db.supportThread.findUnique({ where: { telegramId } });
   if (!thread) return false;
   const wasClosed = thread.status === "CLOSED";
+  // Гость ответил на конкретное сообщение (reply в Telegram) — привязываем к нему, как цитату в админке.
+  const replyTo = opts.replyToTgMessageId
+    ? await db.supportMessage.findFirst({ where: { threadId: thread.id, tgMessageId: opts.replyToTgMessageId }, select: { id: true } })
+    : null;
 
   await db.$transaction([
-    db.supportMessage.create({ data: { threadId: thread.id, direction: "IN", body, tgFileId } }),
+    db.supportMessage.create({
+      data: { threadId: thread.id, direction: "IN", body, tgFileId: opts.tgFileId, tgMessageId: opts.tgMessageId, replyToId: replyTo?.id },
+    }),
     db.supportThread.update({
       where: { id: thread.id },
       data: { status: "OPEN", lastMessageAt: new Date() },
@@ -89,4 +99,37 @@ export async function getFaqKeyboard(): Promise<
       },
     ]),
   };
+}
+
+/**
+ * Отправка текста гостю в Telegram с возвратом message_id (он нужен для будущих ответов на это сообщение).
+ * `replyToTgMessageId` — настоящий ответ-цитата Telegram на сообщение гостя/наше, а не строка с курсивом в тексте.
+ */
+export async function sendSupportTelegram(
+  token: string,
+  chatId: string,
+  html: string,
+  opts: { replyToTgMessageId?: number; replyMarkup?: unknown } = {},
+): Promise<{ messageId: number } | { error: string }> {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: html,
+        parse_mode: "HTML",
+        ...(opts.replyToTgMessageId
+          ? { reply_parameters: { message_id: opts.replyToTgMessageId, allow_sending_without_reply: true } }
+          : {}),
+        ...(opts.replyMarkup ? { reply_markup: opts.replyMarkup } : {}),
+      }),
+    });
+    const json = (await r.json().catch(() => null)) as { ok?: boolean; description?: string; result?: { message_id?: number } } | null;
+    const messageId = json?.result?.message_id;
+    if (!r.ok || !json?.ok || messageId == null) return { error: json?.description ?? "Не удалось отправить сообщение в Telegram." };
+    return { messageId };
+  } catch {
+    return { error: "Не удалось связаться с Telegram." };
+  }
 }

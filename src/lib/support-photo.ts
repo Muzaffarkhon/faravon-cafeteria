@@ -46,17 +46,22 @@ export async function sendPhotoToTelegram(
   chatId: string,
   file: { bytes: Uint8Array<ArrayBuffer>; mime: string; name: string },
   caption: string,
-): Promise<{ fileId: string } | { error: string }> {
+  replyToTgMessageId?: number,
+): Promise<{ fileId: string; messageId: number } | { error: string }> {
   try {
     const form = new FormData();
     form.append("chat_id", chatId);
     if (caption) form.append("caption", caption);
+    if (replyToTgMessageId) form.append("reply_parameters", JSON.stringify({ message_id: replyToTgMessageId, allow_sending_without_reply: true }));
     form.append("photo", new Blob([file.bytes], { type: file.mime }), file.name);
     const r = await fetch(`${TG_API}/bot${token}/sendPhoto`, { method: "POST", body: form });
-    const json = (await r.json().catch(() => null)) as { ok?: boolean; description?: string; result?: { photo?: { file_id: string }[] } } | null;
+    const json = (await r.json().catch(() => null)) as
+      | { ok?: boolean; description?: string; result?: { message_id?: number; photo?: { file_id: string }[] } }
+      | null;
     const fileId = json?.result?.photo?.at(-1)?.file_id;
-    if (!r.ok || !json?.ok || !fileId) return { error: json?.description ?? "Telegram не принял фото." };
-    return { fileId };
+    const messageId = json?.result?.message_id;
+    if (!r.ok || !json?.ok || !fileId || messageId == null) return { error: json?.description ?? "Telegram не принял фото." };
+    return { fileId, messageId };
   } catch {
     return { error: "Не удалось связаться с Telegram." };
   }

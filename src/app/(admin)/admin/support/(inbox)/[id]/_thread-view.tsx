@@ -14,8 +14,9 @@ import {
   unarchiveThread,
   deleteThread,
   purgeMessagePhoto,
+  resendPromo,
 } from "../../actions";
-import { SUPPORT_PHOTO_ACCEPT, sendSupportPhoto } from "@/lib/support-photo-client";
+import { SUPPORT_PHOTO_ACCEPT, clipboardImage, sendSupportPhoto } from "@/lib/support-photo-client";
 import type { EmployeeMatch } from "../../actions";
 import { fmtDateTime } from "@/lib/dushanbe-date";
 
@@ -30,7 +31,14 @@ export type Msg = {
   image: string | null;
 };
 
-export type ActiveCoupon = { id: string; number: string; title: string; partner: string | null; validUntil: string | null };
+export type ActiveCoupon = {
+  id: string;
+  kind: "coupon" | "promo";
+  /** Только у купонов: колесо подарков / за монеты (задачи, покупка) / обычный выбор. */
+  source: "wheel" | "coins" | null;
+  /** Только у промокодов: доставлен ли сотруднику. */
+  status?: "NONE" | "DELIVERED" | "BLOCKED" | "PENDING";
+  number: string; title: string; partner: string | null; validUntil: string | null };
 
 export type QuickReply = { id: string; text: string };
 
@@ -216,6 +224,8 @@ export function ThreadView({
   const [purgeId, setPurgeId] = useState<string | null>(null);
   const [purgePending, startPurge] = useTransition();
   const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [couponNote, setCouponNote] = useState<string | null>(null);
+  const [resending, startResend] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -272,6 +282,30 @@ export function ThreadView({
       el.scrollTo({ top: el.scrollHeight, behavior: first ? "auto" : "smooth" });
     }
   }, [messages]);
+
+  function flashNote(msg: string) {
+    setCouponNote(msg);
+    window.setTimeout(() => setCouponNote(null), 2500);
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard
+      .writeText(code)
+      .then(() => flashNote(t("support.copied")))
+      .catch(() => flashNote(code));
+  }
+
+  function insertCode(code: string) {
+    setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${code}` : code));
+    textareaRef.current?.focus();
+  }
+
+  function resend(itemId: string) {
+    startResend(async () => {
+      const r = await resendPromo(itemId);
+      flashNote(r.error ?? r.notice ?? t("support.resent"));
+    });
+  }
 
   function pickPhoto(file: File | null) {
     setErr(null);
@@ -407,17 +441,59 @@ export function ThreadView({
             {couponsOpen && (
               <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
                 {coupons.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-surface px-2.5 py-1.5 text-xs">
+                  <li key={c.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs">
                     <span className="font-mono font-semibold text-ink">{c.number}</span>
+                    {c.kind === "promo" && (
+                      <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-semibold text-primary-strong">{t("support.promoTag")}</span>
+                    )}
+                    {c.source && (
+                      <span className="rounded-full bg-violet-100 px-1.5 text-[10px] font-semibold text-violet-700">
+                        {c.source === "wheel" ? t("support.sourceWheel") : t("support.sourceCoins")}
+                      </span>
+                    )}
+                    {c.kind === "promo" && c.status === "BLOCKED" && (
+                      <span className="rounded-full bg-danger-soft px-1.5 text-[10px] font-semibold text-danger">{t("support.promoBlocked")}</span>
+                    )}
+                    {c.kind === "promo" && c.status === "PENDING" && (
+                      <span className="rounded-full bg-warning-soft px-1.5 text-[10px] font-semibold text-warning-strong">{t("support.promoPending")}</span>
+                    )}
                     <span className="text-ink">{c.title}</span>
                     {c.partner && <span className="text-ink-muted">{c.partner}</span>}
-                    <span className="ml-auto text-ink-subtle">
-                      {c.validUntil ? `${t("support.couponUntil")} ${fmtDateTime(new Date(c.validUntil))}` : t("support.couponNoLimit")}
+                    <span className="ml-auto flex shrink-0 items-center gap-1">
+                      <span className="mr-1 text-ink-subtle">
+                        {c.validUntil ? `${t("support.couponUntil")} ${fmtDateTime(new Date(c.validUntil))}` : t("support.couponNoLimit")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyCode(c.number)}
+                        className="rounded-full border border-line px-2 py-0.5 font-semibold text-ink-muted hover:bg-surface-muted"
+                      >
+                        {t("support.copy")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertCode(c.number)}
+                        disabled={status === "CLOSED"}
+                        className="rounded-full border border-line px-2 py-0.5 font-semibold text-ink-muted hover:bg-surface-muted disabled:opacity-40"
+                      >
+                        {t("support.insertToReply")}
+                      </button>
+                      {c.kind === "promo" && (
+                        <button
+                          type="button"
+                          onClick={() => resend(c.id)}
+                          disabled={resending}
+                          className="rounded-full bg-primary-soft px-2 py-0.5 font-semibold text-primary-strong hover:bg-primary-soft-hover disabled:opacity-50"
+                        >
+                          {t("support.resendPromo")}
+                        </button>
+                      )}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
+            {couponNote && <p className="mt-1.5 text-xs font-medium text-success-strong" role="status">{couponNote}</p>}
           </div>
         )}
         {!alreadyLinked && (
@@ -655,6 +731,14 @@ export function ThreadView({
               rows={2}
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onPaste={(e) => {
+                // Скриншот из буфера (Ctrl+V) — как прикреплённое фото; обычный текст вставляется как всегда.
+                const img = clipboardImage(e);
+                if (img) {
+                  e.preventDefault();
+                  pickPhoto(img);
+                }
+              }}
               onKeyDown={(e) => {
                 // Enter — отправить, Shift+Enter — перенос строки (как в мессенджерах).
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -700,7 +784,7 @@ export function ThreadView({
                 title={t("support.attachPhoto")}
                 disabled={pending}
                 onClick={() => fileRef.current?.click()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted hover:bg-surface-muted"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary-soft text-primary-strong transition-colors hover:bg-primary-soft-hover"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m21 12-9 9a6 6 0 0 1-9-9l9-9a4 4 0 0 1 6 6l-9 9a2 2 0 0 1-3-3l8-8" />

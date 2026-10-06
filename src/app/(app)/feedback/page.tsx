@@ -19,7 +19,7 @@ export default async function FeedbackPage() {
 
   const threads = await db.supportThread.findMany({
     where: { source: "WEB", employeeId: session.employee.id },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
+    include: { messages: { orderBy: { createdAt: "asc" }, include: { replyTo: { select: { body: true, direction: true } } } } },
     orderBy: { createdAt: "desc" },
     take: 30,
   });
@@ -54,6 +54,7 @@ export default async function FeedbackPage() {
                   body: m.body,
                   createdAt: m.createdAt.toISOString(),
                   image: m.imageUrl,
+                  replyTo: m.replyTo ? { body: m.replyTo.body, direction: m.replyTo.direction } : null,
                 }))}
               />
             ))}

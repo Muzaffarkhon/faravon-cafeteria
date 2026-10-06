@@ -28,3 +28,12 @@ export async function sendSupportPhoto(opts: {
     return "Сеть недоступна: не удалось отправить фото.";
   }
 }
+
+/** Картинка из буфера обмена (скриншот, скопированное фото) или null, если там только текст/другое. */
+export function clipboardImage(e: { clipboardData: DataTransfer | null }): File | null {
+  const files = Array.from(e.clipboardData?.files ?? []);
+  const img = files.find((f) => SUPPORT_PHOTO_ACCEPT.split(",").includes(f.type));
+  if (!img) return null;
+  // У вставленного скриншота имя безликое («image.png») — даём понятное.
+  return new File([img], `screenshot-${Date.now()}.${img.type === "image/jpeg" ? "jpg" : img.type === "image/webp" ? "webp" : "png"}`, { type: img.type });
+}
