@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
     sheet.addRow(totalsRecord).font = { bold: true };
   }
 
-  // Лист «Условия»: из чего собран отчёт — чтобы выгрузку можно было воспроизвести.
   const optionLabel = (field: string, value: string) => {
     const meta = fieldMeta(cfg.dataset, field);
     return (meta?.options ?? options[field] ?? []).find((o) => o.value === value)?.label ?? value;

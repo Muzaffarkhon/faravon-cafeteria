@@ -84,10 +84,7 @@ export function FlexSelection({
   const [error, setError] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  // Ввод номера телефона для PHONE_PROMO-льготы (id карточки, для которой открыт ввод).
   const [phoneFor, setPhoneFor] = useState<string | null>(null);
-  // Лайки (§10): оптимистичный оверрайд поверх серверных cards[].liked/likeCount,
-  // чтобы не ждать revalidate по каждому клику (round-trip до БД заметно долгий).
   const [likeOverride, setLikeOverride] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [, likeStart] = useTransition();
   function onLikeClick(c: Card) {
@@ -99,11 +96,6 @@ export function FlexSelection({
       if (res.error) setLikeOverride((m) => ({ ...m, [c.id]: cur }));
     });
   }
-  // Двойной клик/тап по фото карточки — лайк, как в Instagram: всегда
-  // ставит (никогда не снимает) и показывает всплывающее сердечко, даже
-  // если льгота уже лайкнута. `onClick` (не `onDoubleClick`) с ручным
-  // замером времени между кликами — срабатывает одинаково от мыши и от
-  // тача на мобильном, без разницы в поведении между браузерами.
   const lastTapRef = useRef<Record<string, number>>({});
   const [heartPulseId, setHeartPulseId] = useState<Record<string, boolean>>({});
   function onImageTap(c: Card) {
@@ -117,7 +109,6 @@ export function FlexSelection({
     setHeartPulseId((m) => ({ ...m, [c.id]: true }));
     window.setTimeout(() => setHeartPulseId((m) => ({ ...m, [c.id]: false })), 900);
   }
-  // Автовыбор (§5) — тот же оптимистичный приём, что и у лайков.
   const [autoPickOverride, setAutoPickOverride] = useState<Record<string, boolean>>({});
   const [, autoPickStart] = useTransition();
   function onAutoPickClick(c: Card) {
@@ -133,10 +124,8 @@ export function FlexSelection({
   }
   const [phoneValue, setPhoneValue] = useState(defaultPhone);
   const selected = new Set(selectedIds);
-  // «Выбрать как в прошлый раз» (§4) — подтверждение перед добавлением.
   const [pickAgainTarget, setPickAgainTarget] = useState<{ cardId: string; title: string } | null>(null);
 
-  // Переход с баннера партнёра (#card-<id>) — подсветить и подкрутить к льготе.
   useEffect(() => {
     const known = new Set(cards.map((c) => c.id));
     const focus = () => {
@@ -171,7 +160,6 @@ export function FlexSelection({
     });
   }
 
-  // Нажатие «Выбрать» на карточке: для PHONE_PROMO сначала спросить номер телефона.
   function onSelectClick(c: Card, isSel: boolean) {
     if (isSel) return onToggle(c.id);
     if (c.phonePromo) {
@@ -335,37 +323,35 @@ export function FlexSelection({
                     {c.partner && <div className="mt-0.5 text-sm text-ink-subtle">{c.partner}</div>}
                   </div>
                   <div className="flex shrink-0 items-center gap-0.5">
-                    {!c.phonePromo && (
-                      <button
-                        type="button"
-                        onClick={() => onAutoPickClick(c)}
-                        aria-pressed={autoPickOverride[c.id] ?? c.autoPicked}
-                        aria-label={
-                          (autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")
-                        }
-                        title={(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")}
-                        className={cx(
-                          "flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold transition-colors",
-                          (autoPickOverride[c.id] ?? c.autoPicked)
-                            ? "border-primary bg-primary-soft text-primary-strong"
-                            : "border-line-strong text-ink-muted hover:bg-surface-muted",
-                        )}
+                    <button
+                      type="button"
+                      onClick={() => onAutoPickClick(c)}
+                      aria-pressed={autoPickOverride[c.id] ?? c.autoPicked}
+                      aria-label={
+                        (autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")
+                      }
+                      title={(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickOn") : t("flex.autoPickOff")}
+                      className={cx(
+                        "flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold transition-colors",
+                        (autoPickOverride[c.id] ?? c.autoPicked)
+                          ? "border-primary bg-primary-soft text-primary-strong"
+                          : "border-line-strong text-ink-muted hover:bg-surface-muted",
+                      )}
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       >
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17 2.1l4 4-4 4M3 12.9v-1a4 4 0 0 1 4-4h14M7 21.9l-4-4 4-4M21 11.1v1a4 4 0 0 1-4 4H3" />
-                        </svg>
-                        {(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickBtnOn") : t("flex.autoPickBtnOff")}
-                      </button>
-                    )}
+                        <path d="M17 2.1l4 4-4 4M3 12.9v-1a4 4 0 0 1 4-4h14M7 21.9l-4-4 4-4M21 11.1v1a4 4 0 0 1-4 4H3" />
+                      </svg>
+                      {(autoPickOverride[c.id] ?? c.autoPicked) ? t("flex.autoPickBtnOn") : t("flex.autoPickBtnOff")}
+                    </button>
                     {(() => {
                       const likeState = likeOverride[c.id] ?? { liked: c.liked, count: c.likeCount };
                       return (
@@ -563,7 +549,6 @@ export function FlexSelection({
           );
         };
 
-        // Группировка по категории карточки. Без категории — группа «Другое» в конце.
         const groups = new Map<string, Card[]>();
         for (const c of cards) {
           const key = c.category?.trim() || "";
@@ -594,9 +579,6 @@ export function FlexSelection({
         );
       })()}
 
-      {/* Неподвижная панель подтверждения — как корзина, снизу справа на десктопе, над нижним меню
-          на мобильных. Рендерится порталом в <body>: внутри контента родитель с transform
-          (.animate-page) создаёт containing block и fixed «падал» вниз страницы (§1). */}
       {windowOpen &&
         mounted &&
         createPortal(

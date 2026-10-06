@@ -58,7 +58,6 @@ export default function Page() {
       }
       setItems((s) => (s ?? []).map((it) => (it.id === id ? { ...it, status } : it)));
       router.refresh(); // обновить счётчик в меню
-      // После одобрения — сразу в баннеры, там уже создан черновик с данными заявки.
       if (status === "APPROVED" && data?.bannerId) {
         router.push(`/admin/partner-banners?new=${data.bannerId}`);
       }

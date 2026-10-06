@@ -25,12 +25,10 @@ export function CoinBalance({ balance, coinUnit }: { balance: number; coinUnit: 
       const raw = localStorage.getItem(STORAGE_KEY);
       prev = raw !== null ? Number(raw) : null;
     } catch {
-      /* приватный режим/заблокировано — просто не анимируем */
     }
     try {
       localStorage.setItem(STORAGE_KEY, String(balance));
     } catch {
-      /* см. выше */
     }
 
     if (prev === null || balance <= prev) return;

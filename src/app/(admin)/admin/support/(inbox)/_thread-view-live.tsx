@@ -64,8 +64,6 @@ export function ThreadViewLive({
   const cacheRef = useRef<Map<string, ThreadData>>(new Map());
   const [data, setData] = useState<ThreadData | null>(null);
 
-  // Принять свежие данные диалога: показать и, если есть непрочитанные, сразу отметить их
-  // и обновить счётчики — список слева и бейдж в меню (иначе висят до следующего опроса).
   const apply = useCallback(
     (id: string, json: ThreadData) => {
       cacheRef.current.set(id, json);
@@ -80,8 +78,6 @@ export function ThreadViewLive({
     [onListChanged],
   );
 
-  // По одной загрузке на диалог: на медленной сети опрос не плодит параллельные
-  // запросы, и новый не отменяет ещё не пришедший ответ (иначе диалог не открывался вовсе).
   const inFlightRef = useRef<Set<string>>(new Set());
   const activeIdRef = useRef(activeId);
   useEffect(() => {
@@ -99,7 +95,6 @@ export function ThreadViewLive({
         else cacheRef.current.set(id, json); // успел переключиться на другой чат — только в кэш
       })
       .catch(() => {
-        // сеть подвела — оставляем то, что уже было показано
       })
       .finally(() => inFlightRef.current.delete(id));
   }, [activeId, apply]);
@@ -115,7 +110,6 @@ export function ThreadViewLive({
     reload();
   }, [activeId, reload]);
 
-  // Живое обновление открытого диалога: лёгкий опрос, полная перезагрузка — только при изменениях.
   const versionRef = useRef<string | null>(null);
   useEffect(() => {
     versionRef.current = data && data.threadId === activeId ? data.version : null;
@@ -124,7 +118,6 @@ export function ThreadViewLive({
     if (!activeId) return;
     let checking = false;
     const tick = async () => {
-      // Вкладка скрыта, диалог ещё грузится или прошлая проверка не вернулась — пропускаем тик.
       if (document.visibilityState === "hidden" || checking || inFlightRef.current.has(activeId)) return;
       checking = true;
       try {
@@ -133,13 +126,11 @@ export function ThreadViewLive({
         const { version } = (await r.json()) as { version: string };
         if (version !== versionRef.current) reload();
       } catch {
-        // сеть подвела — повторим на следующем тике
       } finally {
         checking = false;
       }
     };
     const id = setInterval(tick, POLL_MS);
-    // Вернулись на вкладку — проверяем сразу, не ждём тика.
     document.addEventListener("visibilitychange", tick);
     return () => {
       clearInterval(id);

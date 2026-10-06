@@ -55,8 +55,6 @@ export function RowContextMenu({
     rowRef.current = row;
     const onMenu = (e: MouseEvent) => {
       e.preventDefault();
-      // Для нижних строк открываем меню вверх от курсора, а не вниз — иначе
-      // оно упирается в нижний край экрана и часть пунктов не помещается.
       setAt({
         x: Math.min(e.clientX, window.innerWidth - 200),
         y: e.clientY,
@@ -74,9 +72,6 @@ export function RowContextMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
-    // Правый клик по другой строке открывает её меню — это должно закрывать
-    // наше, иначе открытые меню копятся стопкой. Клик по своей же строке
-    // пропускаем: там меню просто переезжает на новое место.
     const onCtx = (e: MouseEvent) => {
       if (!rowRef.current?.contains(e.target as Node)) close();
     };

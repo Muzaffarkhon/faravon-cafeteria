@@ -144,7 +144,6 @@ export function OwnThread({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={(e) => {
-              // Скриншот из буфера (Ctrl+V) — как прикреплённое фото; обычный текст вставляется как всегда.
               const img = clipboardImage(e);
               if (img) {
                 e.preventDefault();

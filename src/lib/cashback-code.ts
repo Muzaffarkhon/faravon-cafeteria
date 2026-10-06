@@ -39,7 +39,6 @@ export function matchCashbackCodeWindow(employeeId: string, input: string, now: 
   const given = Buffer.from(digits);
   const w = windowOf(now);
   let matched: number | null = null;
-  // Без раннего выхода: время проверки не зависит от того, какое окно совпало.
   for (const cand of [w, w - 1]) {
     const ok = timingSafeEqual(given, Buffer.from(codeFor(employeeId, cand)));
     if (ok && matched === null) matched = cand;

@@ -72,7 +72,6 @@ async function decideContext(itemId: string) {
     },
   });
   if (!item) throw new Error("Позиция не найдена.");
-  // Разделение полномочий: согласующий не решает по своей собственной заявке.
   if (s.user.employeeId && item.application.employeeId === s.user.employeeId) {
     throw new Error("Нельзя решать по собственной заявке — требуется другой согласующий.");
   }
@@ -86,11 +85,6 @@ export async function approveItem(itemId: string): Promise<ActionResult> {
 async function approveItemImpl(itemId: string) {
   const { session, item } = await decideContext(itemId);
 
-  // Одобрение и выпуск купона — два отдельных шага. Одобрение фиксируется
-  // сразу; выпуск купона повторяем идемпотентно (formCouponForItem /
-  // issueCouponIfReady сами это умеют). Повторный клик «Одобрить» по уже
-  // одобренной позиции — это до-выпуск купона, если он сорвался в прошлый раз,
-  // и «Позиция одобрена» тогда уже не шлём — сотрудник получил её один раз.
   const isFirstApproval = item.status !== "APPROVED";
   if (isFirstApproval) {
     assertTransition(item.status, "APPROVED", "C_AND_B");
@@ -120,8 +114,6 @@ async function approveItemImpl(itemId: string) {
     revalidatePath("/applications");
   };
 
-  // Сбой выпуска купона не отменяет одобрение: позиция остаётся APPROVED,
-  // а сообщение подсказывает повторить.
   let outcome: ApproveOutcome = "pending";
   let issueError: Error | null = null;
   try {
@@ -130,10 +122,6 @@ async function approveItemImpl(itemId: string) {
     issueError = e instanceof Error ? e : new Error("ошибка");
   }
 
-  // «Купон готов» отправлен внутри issueAfterApprove — вдогонку ему «Позиция
-  // одобрена» не нужна, это одно и то же событие с точки зрения сотрудника.
-  // Шлём отдельное уведомление только на первом одобрении и только если
-  // купон в этот же клик не ушёл (не выдан или выпуск не удался).
   if (isFirstApproval && outcome !== "issued") {
     await notifyEmployee({
       employeeId: item.application.employeeId,
@@ -199,8 +187,6 @@ async function rejectItemImpl(itemId: string, comment: string) {
   revalidatePath("/applications");
 }
 
-/* ---------------------------------------------------------- массовые действия --- */
-
 export type BulkResult = { ok: number; failed: number; errors: string[] };
 
 export async function bulkApprove(ids: string[]): Promise<BulkResult> {
@@ -249,9 +235,6 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
           newValue: { status: "APPROVED", bulk: true },
         });
       }
-      // Позиция одобрена — засчитываем; сбой выпуска купона не отменяет
-      // одобрения, только добавляет предупреждение (повторный bulkApprove
-      // по этим id до-выпустит купон идемпотентно).
       ok++;
       let outcome: ApproveOutcome = "pending";
       try {
@@ -263,8 +246,6 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
           }`,
         );
       }
-      // «Купон готов» уже отправлен внутри issueAfterApprove — вдогонку
-      // «Позиция одобрена» не нужна, см. approveItemImpl.
       if (isFirstApproval && outcome !== "issued") {
         await notifyEmployee({
           employeeId: item.application.employeeId,

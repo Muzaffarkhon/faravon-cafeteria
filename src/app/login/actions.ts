@@ -14,8 +14,6 @@ const IP_WINDOW_MS = 15 * 60_000;
 // Персональная защита от перебора работает строго по аккаунту (MAX_FAILED = 5).
 const IP_MAX_FAILED = 300;
 
-// Фиктивный хэш (cost 12): сверяемся с ним, когда логина нет, чтобы время
-// ответа не выдавало существование учётной записи (timing-атака / перебор логинов).
 const DUMMY_HASH = "$2b$12$WMakJ6WuXA6D24/EiklcP.RTTq9Nhd/LwtFImI5s8zsr0H/RactTa";
 
 export type LoginState = { error?: string };
@@ -26,8 +24,6 @@ export async function loginAction(
 ): Promise<LoginState> {
   const login = String(formData.get("login") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  // Только внутренний путь: /path без протокол-относительного //, без \, без \n.
-  // Иначе `redirect(next)` мог увести на внешний фишинг после успешного входа.
   const nextRaw = String(formData.get("next") ?? "/");
   const next = /^\/(?!\/)[^\s\\]*$/.test(nextRaw) ? nextRaw : "/";
   const honeypot = String(formData.get("company") ?? ""); // скрытое поле — заполняют только боты
@@ -38,12 +34,6 @@ export async function loginAction(
   const { ip, userAgent } = await clientMeta();
   const genericError = { error: "Неверный логин или пароль." };
 
-  // Лимит перебора по IP (§5.1). Окно отсчитываем от последнего УСПЕШНОГО входа
-  // с этого адреса: за общим офисным NAT входят сотни сотрудников, и их опечатки
-  // копились в один счётчик — в день запуска это заблокировало бы весь офис.
-  // Перебор и «распыление» паролей успехом не заканчиваются, поэтому для
-  // атакующего окно остаётся полным; счётчик по самому аккаунту (MAX_FAILED)
-  // работает независимо от IP.
   const windowStart = new Date(Date.now() - IP_WINDOW_MS);
   const lastOk = await db.loginAttempt.findFirst({
     where: { ip, success: true, createdAt: { gt: windowStart } },
@@ -103,9 +93,6 @@ export async function loginAction(
     });
     await db.loginAttempt.create({ data: { login, ip, userAgent, success: false } });
     await audit({ actorId: user.id, action: "LOGIN_FAILED", entityType: "User", entityId: user.id });
-    // Именно на попытке, которая ставит блокировку, нужно предупредить сразу —
-    // иначе сотрудник продолжает вводить верный пароль и видит generic-ошибку,
-    // не понимая, что аккаунт уже заблокирован.
     if (lockedNow) {
       return { error: `Слишком много неверных попыток. Вход заблокирован ещё на ${LOCK_MINUTES} мин.` };
     }

@@ -165,7 +165,6 @@ export async function submitSurvey(employeeId: string, surveyId: string, raw: Su
   });
   if (!survey) throw new SurveyError("Опрос уже завершён.");
 
-  // Принимаем только варианты, которые есть в вопросе, — ответ приходит от клиента.
   const answers: SurveyAnswers = {};
   for (const q of survey.questions) {
     const options = optionsOf(q.options);
@@ -201,7 +200,6 @@ export async function submitSurvey(employeeId: string, surveyId: string, raw: Su
     throw e;
   }
   await checkAutoTasksForEmployee(employeeId, "SURVEYS_COMPLETED").catch(() => {});
-  // Прокрутка — только пока колесо включено; opKey не даёт выдать её дважды.
   const giftSpins =
     survey.giftSpin && (await getWheelSettings()).wheelEnabled
       ? await grantBonusSpins({

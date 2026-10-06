@@ -19,8 +19,6 @@ type Petal = {
   op: number;
 };
 
-// Стартуют ниже экрана (top: 120%), поднимаются на dy·100vh и растворяются.
-// Отрицательные delay разбрасывают фазы, чтобы лепестки были по всей высоте сразу.
 const PETALS: Petal[] = [
   { left: 3, size: 64, tone: "red", dur: 40, delay: 0, dx: 80, dy: -1.5, rot: 150, op: 0.42 },
   { left: 13, size: 40, tone: "peach", dur: 46, delay: -10, dx: -50, dy: -1.4, rot: -120, op: 0.6 },
@@ -81,7 +79,6 @@ export function PetalDrift({
             viewBox="0 0 48 48"
             fill={TONE[p.tone]}
           >
-            {/* Лепесток-«листок» брендового паттерна: два дуговых бока, острые кончики */}
             <path d="M24 4A22 22 0 0 1 24 44A22 22 0 0 1 24 4Z" />
           </svg>
         </i>

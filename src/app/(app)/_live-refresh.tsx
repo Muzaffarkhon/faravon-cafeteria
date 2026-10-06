@@ -34,8 +34,6 @@ export function LiveRefresh({ sse = false }: { sse?: boolean }) {
         es = new EventSource("/api/stream");
         es.addEventListener("update", refresh);
         es.onerror = () => {
-          // На скрытой вкладке рвём соединение, чтобы не держать функцию;
-          // иначе EventSource переподключится сам (retry задан сервером).
           if (document.visibilityState === "hidden") {
             es?.close();
             es = null;

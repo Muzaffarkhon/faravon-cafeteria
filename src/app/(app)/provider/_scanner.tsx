@@ -27,9 +27,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Кнопку показываем, если есть либо нативный сканер Telegram, либо getUserMedia
-  // (веб-камера ноутбука для QR тоже годится). Проверку делаем после гидратации —
-  // SSR про устройство не знает.
   const [canScan, setCanScan] = useState(false);
   const [resolved, setResolved] = useState(false);
   const autoStartedRef = useRef(false);
@@ -58,8 +55,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
     setResolved(true);
   }, []);
 
-  // Камера-первый сценарий (§касса): как только известно, что скан возможен —
-  // сразу включаем камеру; если нет — просим родителя показать ручной ввод.
   useEffect(() => {
     if (!resolved || !autoStart || autoStartedRef.current) return;
     autoStartedRef.current = true;
@@ -71,10 +66,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
   async function start() {
     setError(null);
 
-    // 1. Внутри Telegram сначала пробуем нативный сканер. В некоторых клиентах
-    //    showScanQrPopup объявлен, но при вызове бросает исключение — тогда не
-    //    выходим, а переходим на getUserMedia ниже (раньше здесь падал весь
-    //    обработчик клика, и кнопка «не реагировала»).
     const tg = (window as unknown as { Telegram?: { WebApp?: TgScan } }).Telegram?.WebApp;
     if (tg?.showScanQrPopup) {
       try {
@@ -89,7 +80,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
       }
     }
 
-    // 2. Веб-камера. getUserMedia требует https (или localhost) — на http вернёт undefined.
     if (!navigator.mediaDevices?.getUserMedia) {
       setError(
         window.isSecureContext
@@ -106,8 +96,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
       });
       streamRef.current = stream;
       setActive(true);
-      // <video> монтируется всегда (просто скрыт, пока !active), поэтому ref
-      // уже доступен и не нужно ждать перерисовку.
       const video = videoRef.current;
       if (!video) {
         stop();
@@ -210,7 +198,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
 
   if (!resolved) return null;
   if (!canScan) {
-    // Камера недоступна совсем (старый телефон): объясняем и даём сфотографировать код; ручной ввод покажет родитель (onFallback).
     return (
       <div className="space-y-2">
         <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">{t("provider.cameraOldDevice")}</p>
@@ -238,7 +225,6 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
         {t("provider.scanQr")}
       </Button>
 
-      {/* Видео монтируется всегда: иначе videoRef.current === null в момент start(). */}
       <div className="space-y-2" hidden={!active}>
         <div className="relative overflow-hidden rounded-xl border border-line bg-black">
           <video ref={videoRef} playsInline muted className="block max-h-72 w-full object-cover" />

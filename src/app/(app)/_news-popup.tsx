@@ -23,7 +23,6 @@ export function NewsPopup({ news }: { news: PendingNews }) {
     try {
       if (sessionStorage.getItem(dismissKey(news.id))) return;
     } catch {
-      /* приватный режим / storage недоступен — просто показываем попап */
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
@@ -35,7 +34,6 @@ export function NewsPopup({ news }: { news: PendingNews }) {
     try {
       sessionStorage.setItem(dismissKey(news.id), "1");
     } catch {
-      /* не критично — попап просто может показаться повторно в этой же вкладке */
     }
     setOpen(false);
   };

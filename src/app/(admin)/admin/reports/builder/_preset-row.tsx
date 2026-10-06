@@ -31,14 +31,11 @@ export function PresetRow({
 
   return (
     <div className="flex items-center gap-1.5 rounded-full border border-line bg-surface py-0.5 pl-3 pr-1 text-xs">
-      {/* Обычная ссылка, не next/link: нужен полный переход — клиентские редакторы пересоздаются с новым initial-состоянием. */}
       <a href={href} className="font-semibold text-ink hover:underline" title={mine ? undefined : `Автор: ${author}`}>
         {name}
       </a>
       {shared && <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-semibold text-primary-strong">{mine ? "общий" : author}</span>}
 
-      {/* Управляемый select + optimistic: форма с defaultValue после действия сбрасывалась на «нет»,
-          пока с сервера не приходило обновление. */}
       <select
         value={scheduleValue}
         disabled={savingSchedule}

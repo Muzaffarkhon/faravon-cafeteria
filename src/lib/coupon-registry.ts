@@ -52,8 +52,6 @@ export function countCouponRegistry(f: CouponFilters) {
 
 export type CouponRegistryRow = Awaited<ReturnType<typeof listCouponRegistry>>[number];
 
-// Только key+type — важны для парсинга sf_<key>/sf_<key>_v из query, а не для UI
-// (лейблы и options для пикера умного фильтра описаны отдельно в page.tsx).
 const COUPON_FILTER_FIELDS: SmartFilterField[] = [
   { key: "number", label: "", type: "text" },
   { key: "employee", label: "", type: "text" },
@@ -68,7 +66,6 @@ const COUPON_FILTER_FIELDS: SmartFilterField[] = [
 /** Строки такси (PHONE_PROMO — без Coupon), видимые в реестре /coupons при этих фильтрах.
  *  Общее для страницы и выгрузки: иначе такси-строки были в таблице, а файл выходил пустым. */
 export async function listTaxiRegistryRows(cf: ReturnType<typeof buildCouponFilters>) {
-  // Фильтры по статусу/номеру/сроку/льготе купона к такси неприменимы — у этих позиций нет купона.
   if (cf.hasCouponOnlyFilters) return [];
   const rows = await taxiRegistryRows({ periodId: cf.periodId, partnerId: cf.partnerId, employeeQuery: cf.employeeQuery });
   const q = cf.q.toLowerCase();

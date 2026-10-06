@@ -10,6 +10,5 @@ export async function cleanupBlob(oldUrl: string | null, newUrl: string | null) 
   try {
     await del(oldUrl);
   } catch {
-    // нет BLOB_READ_WRITE_TOKEN или файл уже удалён — не блокируем сохранение
   }
 }

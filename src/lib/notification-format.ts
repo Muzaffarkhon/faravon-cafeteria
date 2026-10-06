@@ -247,7 +247,6 @@ function buildVars(event: string, payload: Record<string, unknown>, locale: Loca
   if (event === "APPLICATION_SUBMITTED") {
     vars.countNoun = locale === "ru" ? positionNoun(Number(payload.count) || 0) : COUNT_NOUN[locale];
   }
-  // В payload слово «групповая» лежит по-русски — для tg/uz подставляем перевод.
   if (locale !== "ru" && vars.group) vars.group = GROUP_WORD[locale];
   // Доступен во всех шаблонах как {siteUrl} — если PLATFORM_URL не задан,
   // пустой, и блоки [[ ... {siteUrl} ... ]] в шаблонах сами исчезают.
@@ -259,16 +258,12 @@ function buildVars(event: string, payload: Record<string, unknown>, locale: Loca
 export function renderTemplate(body: string, vars: Record<string, string>): string {
   const value = (name: string) => str(vars[name.trim()]);
 
-  // 1. Опциональные блоки [[ ... ]] — убрать, если хоть один {x} внутри пустой.
   let out = body.replace(/\[\[([\s\S]*?)\]\]/g, (_m, inner: string) => {
     const tokens = inner.match(/\{([^}]+)\}/g) ?? [];
     const allFilled = tokens.every((t) => value(t.slice(1, -1)) !== "");
     return allFilled ? inner : "";
   });
 
-  // 2. Обычные подстановки {x} — экранируем: тело шаблона (b/code и т.п.) —
-  // доверенная разметка, а вот значения ({card}, {employee}…) могут содержать
-  // &, < или > (напр. карточка «Спорт & фитнес») и не должны ломать HTML.
   out = out.replace(/\{([^}]+)\}/g, (_m, name: string) => escHtml(value(name)));
 
   return out.replace(/[ \t]{2,}/g, " ").trim();
@@ -290,8 +285,6 @@ export function formatNotificationText(
   const lookup = (key: string) =>
     templates instanceof Map ? templates.get(key) : templates ? templates[key] : undefined;
 
-  // tg/uz: правка админа → зашитый перевод → русский текст (правка админа или зашитый).
-  // Русскую правку админа на другой язык не подставляем: она написана по-русски.
   const body =
     (locale !== "ru" ? (lookup(`${event}:${locale}`) ?? DEFAULT_TEMPLATES_I18N[locale][event]) : undefined) ??
     lookup(event) ??

@@ -34,10 +34,6 @@ export async function carryUnfilledGroupSelections(
 
   for (const card of groupCards) {
     const approved = await groupApprovedCount(card.id, closedPeriodId);
-    // «Минимум N» (без волн): порог набран на весь период — переносить нечего.
-    // «Набор волнами» — общий счётчик тут не показатель: волны 1..K могли уже
-    // набраться и выдаться, а перенести нужно только хвост последней,
-    // незавершённой волны (см. ниже — отбор по isItemWaveReady на каждую позицию).
     if (!card.groupWaves && approved >= card.minParticipants) continue;
 
     const candidates = await db.applicationItem.findMany({
@@ -50,11 +46,6 @@ export async function carryUnfilledGroupSelections(
     });
     if (candidates.length === 0) continue;
 
-    // Для волн: переносим только тех, чья волна ещё не набралась (иначе тут
-    // остались бы позиции, которым просто не успели сформировать купон, хотя
-    // их волна уже полная, — их трогать не нужно, дальше их подхватит обычная
-    // выдача). Баг из-за которого этот файл когда-то не учитывал волны вообще
-    // и позволял целой недобранной волне «зависнуть» без выдачи и без переноса.
     let items = candidates;
     if (card.groupWaves) {
       const readiness = await Promise.all(
@@ -110,11 +101,6 @@ export async function carryUnfilledGroupSelections(
       });
     }
 
-    // Исходные позиции в закрытом периоде закрываем (перенос уже создал новые),
-    // а сформированные под ненабравшуюся группу купоны (CREATED) — аннулируем,
-    // иначе они «висят» в реестре как готовые к выдаче. Только для реально
-    // перенесённых позиций — при волнах на той же карточке могли остаться
-    // другие, уже полностью набранные волны, их купоны трогать нельзя.
     if (carriedSourceIds.length > 0) {
       await db.applicationItem.updateMany({
         where: { id: { in: carriedSourceIds } },

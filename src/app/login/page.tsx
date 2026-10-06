@@ -6,12 +6,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { LoginForm } from "./_login-form";
 
-// Логин бота (@BotFather) — та же ссылка, что открывается по кнопке
-// «Поделиться контактом» внутри самого Telegram. `?start=support` заводит
-// диалог напрямую в чат поддержки (см. src/app/api/telegram/route.ts) —
-// не нужно самому искать бота и нажимать кнопку внутри переписки.
-// В песочнице TELEGRAM_BOT_USERNAME указывает на отдельного тестового бота,
-// чтобы не задевать реальных сотрудников через боевой вебхук.
 const BOT_URL = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME?.trim() || "cafeteria_farovon_bot"}`;
 
 function TelegramIcon({ className }: { className?: string }) {
@@ -51,11 +45,6 @@ export default async function LoginPage() {
     >
       <PetalDrift />
 
-      {/* Переключатели темы/языка — отдельной строкой-шапкой в углу окна, как
-          на остальных страницах, а не внутри самой карточки входа (там они
-          были лишним элементом формы). Отдельная строка вместо абсолютного
-          позиционирования — чтобы на узких экранах карточка не могла
-          наехать на них сверху. */}
       <div className="relative z-20 flex justify-end">
         <div className="flex items-center gap-2">
           <ThemeToggle compact />
@@ -65,7 +54,6 @@ export default async function LoginPage() {
 
       <div className="relative z-10 flex flex-1 items-center justify-center">
         <div className="w-full max-w-[400px] overflow-hidden rounded-[28px] shadow-[0_20px_60px_oklch(0.22_0.03_30_/_0.15)]">
-          {/* Красная шапка */}
           <div className="bg-primary px-7 pb-8 pt-10 text-center">
             <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface shadow-md">
               <BrandMark size={40} priority />
@@ -76,7 +64,6 @@ export default async function LoginPage() {
             <p className="mt-1.5 text-sm text-on-brand/80">{t("login.tagline")}</p>
           </div>
 
-          {/* Белое тело */}
           <div className="bg-surface p-7">
             <LoginForm
               loginLabel={t("login.loginLabel")}

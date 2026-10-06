@@ -30,7 +30,6 @@ export async function GET(req: NextRequest) {
   wb.creator = "Кафетерий льгот «Фаровон»";
   wb.created = report.period.startDate;
 
-  // --- Метрики ---
   const s1 = wb.addWorksheet("Метрики");
   s1.columns = [
     { header: "Показатель", key: "m", width: 42 },
@@ -52,7 +51,6 @@ export async function GET(req: NextRequest) {
   ];
   metricRows.forEach((r) => s1.addRow({ m: r[0], v: r[1], h: r[2] }));
 
-  // --- Топ льгот ---
   const s2 = wb.addWorksheet("Топ льгот");
   s2.columns = [
     { header: "Льгота", key: "t", width: 44 },
@@ -65,7 +63,6 @@ export async function GET(req: NextRequest) {
   const activations = new Map(report.topActivations.map((r) => [r.title, r.n]));
   report.topSelections.forEach((r) => s2.addRow({ t: r.title, s: r.n, a: approvals.get(r.title) ?? 0, u: activations.get(r.title) ?? 0 }));
 
-  // --- Отклонения ---
   const s3 = wb.addWorksheet("Отклонения");
   s3.columns = [
     { header: "Причина", key: "r", width: 60 },
@@ -74,7 +71,6 @@ export async function GET(req: NextRequest) {
   styleHeader(s3.getRow(1));
   report.rejectionsByReason.forEach((r) => s3.addRow({ r: r.reason, n: r.n }));
 
-  // --- Подразделения ---
   const s4 = wb.addWorksheet("Подразделения");
   s4.columns = [
     { header: "Подразделение", key: "d", width: 36 },

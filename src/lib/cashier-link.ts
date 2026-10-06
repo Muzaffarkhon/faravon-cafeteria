@@ -46,7 +46,6 @@ export async function createCashierLink(userId: string, actorId: string): Promis
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + LINK_TTL_HOURS * 3600_000);
   await db.$transaction([
-    // Прежние неиспользованные ссылки этой учётки гасим — одновременно живёт одна.
     db.cashierLink.deleteMany({ where: { userId, usedAt: null } }),
     db.cashierLink.create({ data: { userId, tokenHash: sha256(token), expiresAt, createdBy: actorId } }),
   ]);
@@ -78,7 +77,6 @@ export async function consumeCashierLink(token: string, meta: { ip: string; user
   });
   if (!link || !eligible(link.user)) return { ok: false };
 
-  // Условие в самом UPDATE: «ещё не использована и не истекла». Две одновременные попытки → одна выиграет.
   const won = await db.cashierLink.updateMany({
     where: { id: link.id, usedAt: null, expiresAt: { gt: new Date() } },
     data: { usedAt: new Date(), usedIp: meta.ip, usedAgent: meta.userAgent },

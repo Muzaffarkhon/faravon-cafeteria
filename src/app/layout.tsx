@@ -31,7 +31,6 @@ export const viewport: Viewport = {
   ],
 };
 
-// Ставит data-theme до отрисовки — без вспышки светлой темы у выбравших тёмную.
 const THEME_INIT = `try{var t=localStorage.getItem('faravon.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}`;
 
 export default function RootLayout({
@@ -44,11 +43,8 @@ export default function RootLayout({
       <head>
         <InlineScript html={THEME_INIT} />
         <InlineScript html={`(function(){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;});})();`} />
-        {/* manifest + apple-touch-icon приходят из export const metadata ниже */}
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      {/* suppressHydrationWarning: расширения браузера (антибаннеры, менеджеры
-          паролей) дописывают атрибуты в <body> до гидратации — это не наш рассинхрон */}
       <body className="min-h-full bg-canvas text-ink" suppressHydrationWarning>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
         <Script src="/pwa.js" strategy="afterInteractive" />

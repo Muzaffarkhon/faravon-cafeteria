@@ -3,9 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-// Опрашиваем так же часто, как SSE опрашивает БД для персонала (см.
-// STAFF_POLL_MS в api/stream/route.ts) — это тот же по духу «рабочий»
-// поток, только опрос вместо push, потому что нужен и на скрытой вкладке.
 const POLL_MS = 8_000;
 const BLINK_MS = 1200;
 const BLINK_TITLE = "🔴 Новое сообщение — Farovon";
@@ -83,11 +80,6 @@ export function SupportAlert() {
       });
     }
 
-    // Браузеры не дают проигрывать звук без предшествующего жеста
-    // пользователя — AudioContext, созданный внутри setInterval, молча
-    // остаётся «подвешенным» и звука не даёт. Поэтому создаём и
-    // разблокируем его один раз по первому клику/нажатию где угодно на
-    // странице, а дальше переиспользуем для звука из поллинга.
     function unlockAudio() {
       if (audioCtx.current) return;
       try {
@@ -96,7 +88,6 @@ export function SupportAlert() {
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         audioCtx.current = new Ctx();
       } catch {
-        /* звук недоступен в этом браузере — не критично */
       }
     }
     window.addEventListener("pointerdown", unlockAudio);
@@ -138,7 +129,6 @@ export function SupportAlert() {
         osc.start();
         osc.stop(ctx.currentTime + 0.18);
       } catch {
-        /* звук не критичен */
       }
     }
 
@@ -147,19 +137,13 @@ export function SupportAlert() {
         const r = await fetch("/api/support/unread-count", { cache: "no-store" });
         if (!r.ok) return;
         const { count } = (await r.json()) as { count: number };
-        // null — первый опрос: запоминаем как базу, не сигналим о старых
-        // непрочитанных, которые уже были на момент открытия страницы.
         if (lastCount.current !== null && count > lastCount.current) {
           beep();
           if (!document.hasFocus() || document.visibilityState === "hidden") startBlink();
         }
-        // Счётчики (бейджи в меню) рендерятся на сервере — перерисовываем при ЛЮБОМ
-        // изменении: раньше только при росте, и прочитанный чат висел в бейдже,
-        // пока админ сам не обновит страницу.
         if (lastCount.current !== null && count !== lastCount.current) router.refresh();
         lastCount.current = count;
       } catch {
-        /* сеть подвела — подхватим на следующем опросе */
       }
     }
 

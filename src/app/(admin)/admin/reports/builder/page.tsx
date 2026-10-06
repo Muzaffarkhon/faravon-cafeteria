@@ -26,7 +26,6 @@ const VIEW_LABELS: Record<ReportView, string> = { table: "Таблица", chart
 
 const query = (params: Record<string, string>, omit: string[] = [], set: Record<string, string | null> = {}) => {
   const p = new URLSearchParams();
-  // omit убирает ключи только из исходных параметров — значения из set (новый режим) сохраняются.
   for (const [k, v] of Object.entries(params)) if (!omit.includes(k) && !(k in set)) p.set(k, v);
   for (const [k, v] of Object.entries(set)) if (v != null) p.set(k, v);
   return p.toString();
@@ -88,7 +87,6 @@ export default async function ReportBuilderPage({
 
         <div className="flex gap-0.5 rounded-full border border-line bg-surface p-0.5">
           {(Object.keys(DATASET_LABELS) as Dataset[]).map((d) => (
-            // Обычная ссылка (полный переход): смена источника сбрасывает поля и условия.
             <a key={d} href={`${BASE}?dataset=${d}`} className={pill(d === dataset)}>
               {DATASET_LABELS[d]}
             </a>

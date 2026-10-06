@@ -57,7 +57,6 @@ export async function saveReportPreset(formData: FormData): Promise<void> {
   const shared = formData.get("shared") === "on";
   const dup = await db.reportPreset.findFirst({ where: { createdById: s.user.id, name }, select: { id: true } });
   if (dup) {
-    // Тот же автор и имя — обновляем срез, а не плодим дубли.
     await db.reportPreset.update({ where: { id: dup.id }, data: { config, shared } });
   } else {
     await db.reportPreset.create({ data: { name, config, shared, createdById: s.user.id } });

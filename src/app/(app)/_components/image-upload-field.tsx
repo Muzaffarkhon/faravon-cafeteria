@@ -37,7 +37,6 @@ function geometry(
   const cover = Math.max(fr.w / nat.w, fr.h / nat.h);
   const dispW = nat.w * cover * zoom;
   const dispH = nat.h * cover * zoom;
-  // допустимый диапазон фокус-точки, при котором картинка укрывает рамку
   const fx = clamp(focus.x, fr.w / (2 * dispW), 1 - fr.w / (2 * dispW));
   const fy = clamp(focus.y, fr.h / (2 * dispH), 1 - fr.h / (2 * dispH));
   const offX = fr.w / 2 - fx * dispW;
@@ -77,7 +76,6 @@ export function ImageUploadField({
   const [manual, setManual] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // --- редактор кадрирования ---
   const [editFile, setEditFile] = useState<File | null>(null);
   const [editUrl, setEditUrl] = useState<string>("");
   const [nat, setNat] = useState({ w: 0, h: 0 });
@@ -88,7 +86,6 @@ export function ImageUploadField({
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const cancelRef = useRef<(() => void) | null>(null);
 
-  // Рамка меняет размер вместе с шириной колонки — следим ResizeObserver'ом.
   useEffect(() => {
     const el = boxRef.current;
     if (!el || !editFile) return;
@@ -100,7 +97,6 @@ export function ImageUploadField({
     return () => ro.disconnect();
   }, [editFile]);
 
-  // Освобождаем objectURL при закрытии редактора / размонтировании.
   useEffect(() => {
     if (!editUrl) return;
     return () => URL.revokeObjectURL(editUrl);
@@ -190,7 +186,6 @@ export function ImageUploadField({
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
-      /* noop */
     }
   }
 
@@ -260,7 +255,6 @@ export function ImageUploadField({
       return;
     }
 
-    // растр + задан aspect → редактор кадрирования
     if (!isSvg && aspect && isOptimizableRaster(file.type)) {
       openEditor(file);
       return;
@@ -388,7 +382,6 @@ export function ImageUploadField({
         </div>
       )}
 
-      {/* --- редактор кадрирования --- */}
       {editFile && (
         <div className="mb-2 space-y-2">
           <div className="text-xs font-semibold text-ink-muted">

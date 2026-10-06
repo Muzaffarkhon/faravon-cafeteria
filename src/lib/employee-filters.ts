@@ -5,8 +5,6 @@ import { ALL_ROLES } from "@/app/(admin)/admin/users/roles";
 
 const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["ACTIVE", "PROBATION", "TERMINATED"];
 
-// Только key+type — важны для парсинга sf_<key>/sf_<key>_v из query, а не для UI
-// (лейблы и options для пикера умного фильтра описаны отдельно в page.tsx).
 const USER_FILTER_FIELDS: SmartFilterField[] = [
   { key: "fullName", label: "", type: "text" },
   { key: "login", label: "", type: "text" },
@@ -27,8 +25,6 @@ export function buildEmployeeFilter(sp: Record<string, string | undefined>, arch
   const role = ALL_ROLES.find((r) => r === smartValues.role?.v);
   const empStatus = EMPLOYMENT_STATUSES.find((s) => s === smartValues.emp?.v);
   const tg = (["yes", "no"] as const).find((v) => v === smartValues.tg?.v);
-  // "acc" объединяет старые чипы (active/off/none) и новое состояние из
-  // умного фильтра (neverLoggedIn) — единая точка правды для статуса учётки.
   const acc = (["active", "off", "none", "neverLoggedIn"] as const).find(
     (v) => v === smartValues.account?.v,
   );

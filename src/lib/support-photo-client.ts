@@ -34,6 +34,5 @@ export function clipboardImage(e: { clipboardData: DataTransfer | null }): File 
   const files = Array.from(e.clipboardData?.files ?? []);
   const img = files.find((f) => SUPPORT_PHOTO_ACCEPT.split(",").includes(f.type));
   if (!img) return null;
-  // У вставленного скриншота имя безликое («image.png») — даём понятное.
   return new File([img], `screenshot-${Date.now()}.${img.type === "image/jpeg" ? "jpg" : img.type === "image/webp" ? "webp" : "png"}`, { type: img.type });
 }

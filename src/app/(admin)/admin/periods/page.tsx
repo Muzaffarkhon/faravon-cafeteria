@@ -17,10 +17,6 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   CLOSED: "neutral",
 };
 
-// Даты периода хранятся в UTC, пересчитанные из местной полночи/конца дня
-// Душанбе (+05:00, см. TZ в actions.ts). toLocaleDateString() без timeZone
-// берёт часовой пояс сервера (на Vercel — UTC), из-за чего список показывал
-// дату на день раньше сохранённой.
 const fmt = (d: Date) => fmtDate(d);
 
 export default async function PeriodsPage() {
@@ -29,7 +25,6 @@ export default async function PeriodsPage() {
   if (!can(session.roles, "periods.manage")) redirect("/");
   const locale = await getLocale();
   const t = await getTranslator();
-  // Очистка заявок и купонов — тестовое действие: показываем только в песочнице.
   const sandbox = isSandbox();
 
   const periods = await db.period.findMany({

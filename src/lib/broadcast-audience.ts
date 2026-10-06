@@ -137,7 +137,6 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
     });
   }
 
-  // Только действующие сотрудники с активной учёткой.
   const userWhere: Prisma.UserWhereInput = { isActive: true };
   if (f.segment === "NEVER_LOGGED_IN") {
     userWhere.lastLoginAt = null;
@@ -147,7 +146,6 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
     const period = await db.period.findFirst({ where: { status: "OPEN" }, select: { id: true } });
     if (!period) return empty("Нет открытого периода — выбирать «не выбравших» не из чего.");
     userWhere.lastLoginAt = { not: null };
-    // «Выбрал» = есть поданная позиция (не черновик и не отменённая).
     and.push({
       applications: { none: { periodId: period.id, items: { some: { status: { notIn: ["DRAFT", "CANCELLED"] } } } } },
     });

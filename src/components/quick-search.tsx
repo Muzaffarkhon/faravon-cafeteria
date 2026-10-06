@@ -20,7 +20,6 @@ export function QuickSearch({
   preserveKeys?: string[];
 }) {
   const preserve = [...preserveKeys, ...Object.keys(sp).filter((k) => k.startsWith("sf_"))];
-  // На телефоне форма занимает всю доступную ширину и сжимается (min-w-0), а не выдавливает страницу шире экрана.
   return (
     <form method="get" action={basePath} className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
       {hiddenChipInputs(sp, preserve)}

@@ -47,10 +47,6 @@ async function cleanup() {
 }
 
 async function seed() {
-  // 0. Тестовый период, в котором купон действует прямо сейчас (начисление кешбека требует, чтобы
-  // период уже начался). Это DRAFT с окном выбора в 2099 году: планировщик периодов
-  // (period-lifecycle) открывает DRAFT по windowStart ≤ сейчас, так что он никогда не откроется
-  // сам и не появится у сотрудников; реальные периоды не затрагиваются.
   const now = new Date();
   const DAY = 24 * 3600_000;
   const period =
@@ -76,7 +72,6 @@ async function seed() {
     period.endDate = new Date(now.getTime() + 60 * DAY);
   }
 
-  // 1. Партнёр
   const partner =
     (await db.partner.findFirst({ where: { name: PARTNER_NAME } })) ??
     (await db.partner.create({
@@ -84,7 +79,6 @@ async function seed() {
     }));
   if (partner.status !== "ACTIVE") await db.partner.update({ where: { id: partner.id }, data: { status: "ACTIVE" } });
 
-  // 2. Карточка + версия v1
   let card = await db.benefitCard.findFirst({ where: { partnerId: partner.id, title: CARD_TITLE } });
   if (!card) {
     card = await db.benefitCard.create({
@@ -111,7 +105,6 @@ async function seed() {
     card = await db.benefitCard.update({ where: { id: card.id }, data: { archivedAt: null, isActive: true } });
   }
 
-  // 3. Сотрудник (номер проверяем на коллизию с реальным сотрудником)
   const phoneNorm = normalizePhone(EMPLOYEE_PHONE);
   const clash = await db.employee.findFirst({ where: { phoneNormalized: phoneNorm, NOT: { fullName: EMPLOYEE_NAME } } });
   if (clash) throw new Error(`Тестовый номер ${EMPLOYEE_PHONE} уже у сотрудника «${clash.fullName}».`);
@@ -124,7 +117,6 @@ async function seed() {
     await db.employee.update({ where: { id: employee.id }, data: { isActive: true, archivedAt: null } });
   }
 
-  // 4. Пользователи (пароль генерируется только для новых)
   const creds: string[] = [];
   const ensureUser = async (login: string, data: { roles: ("EMPLOYEE" | "CONTRACTOR")[]; employeeId?: string; partnerId?: string }) => {
     const existing = await db.user.findUnique({ where: { login } });
@@ -140,7 +132,6 @@ async function seed() {
   await ensureUser(EMPLOYEE_LOGIN, { roles: ["EMPLOYEE"], employeeId: employee.id });
   await ensureUser(CASHIER_LOGIN, { roles: ["CONTRACTOR"], partnerId: partner.id });
 
-  // 5. Заявка сотрудника и выданный купон-кешбек (со снимком правил)
   const app = await db.application.upsert({
     where: { employeeId_periodId: { employeeId: employee.id, periodId: period.id } },
     create: { employeeId: employee.id, periodId: period.id },

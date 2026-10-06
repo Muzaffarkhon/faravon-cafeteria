@@ -19,7 +19,6 @@ const DISMISS_KEY = "faravon.survey.dismissed";
 export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurvey; locale: Locale; coinUnit: string }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
-  // -1 — заставка, 0..n-1 — вопросы.
   const [step, setStep] = useState(-1);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [done, setDone] = useState(false);
@@ -32,7 +31,6 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
     try {
       if (localStorage.getItem(DISMISS_KEY) === dismissValue) return;
     } catch {
-      /* приватный режим — просто показываем */
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage доступен только после монтирования
     setOpen(true);
@@ -42,7 +40,6 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
     try {
       localStorage.setItem(DISMISS_KEY, dismissValue);
     } catch {
-      /* не критично */
     }
     setOpen(false);
   }
@@ -87,7 +84,6 @@ export function SurveyPrompt({ survey, locale, coinUnit }: { survey: PendingSurv
         aria-label={survey.title}
         className="flex max-h-[92dvh] w-full max-w-[460px] flex-col overflow-hidden rounded-t-[24px] bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.25)] sm:rounded-[24px]"
       >
-        {/* Прогресс: заставка — 0, каждый пройденный вопрос — шаг. */}
         <div className="h-1.5 w-full bg-surface-muted" aria-hidden="true">
           <div
             className="h-full bg-primary transition-[width] duration-300"

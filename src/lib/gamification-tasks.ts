@@ -99,8 +99,6 @@ export async function joinTask(params: { employeeId: string; taskId: string; pri
     if (card.status !== "PUBLISHED" || !card.isActive || card.archivedAt) {
       throw new GamificationTaskError("Выбранный приз сейчас недоступен.");
     }
-    // Приз покупается автоматически при выполнении задачи на баланс + награду — дороже выбрать нельзя,
-    // иначе задача закроется, а приз так и не купится.
     const balance = await getCoinBalance(params.employeeId);
     if (card.coinPrice > balance + task.coinReward) {
       throw new GamificationTaskError(
@@ -112,8 +110,6 @@ export async function joinTask(params: { employeeId: string; taskId: string; pri
     where: { employeeId_taskId: { employeeId: params.employeeId, taskId: params.taskId } },
   });
   if (existing) {
-    // Отменённая в ПРОШЛОМ периоде задача возвращается: та же строка (уникальность
-    // employeeId+taskId не позволяет создать вторую) переиспользуется как новая попытка.
     const currentPeriodId = (await getCurrentPeriod())?.id ?? null;
     if (existing.status !== "CANCELLED" || existing.cancelledPeriodId === currentPeriodId) {
       throw new GamificationTaskError("Вы уже взяли эту задачу.");
@@ -186,9 +182,6 @@ export async function completeEmployeeTaskManual(params: { employeeTaskId: strin
   const et = await db.employeeTask.findUniqueOrThrow({ where: { id: params.employeeTaskId }, include: { task: true } });
   if (et.task.verification !== "MANUAL") throw new GamificationTaskError("Эта задача проверяется автоматически.");
 
-  // Атомарный claim по IN_PROGRESS — иначе двойной клик "Подтвердить" мог бы
-  // дважды пройти rewardCompletedTask (двойное начисление монет само по себе
-  // idempotent по opKey, но двойная покупка выбранного заранее приза — нет).
   const claimed = await db.employeeTask.updateMany({
     where: { id: et.id, status: "IN_PROGRESS" },
     data: { status: "COMPLETED", completedAt: new Date(), confirmedById: params.actorId },
@@ -206,9 +199,6 @@ async function computeAutoProgress(metric: GamificationAutoMetric, employeeId: s
         where: { application: { is: { employeeId } }, status: { not: "DRAFT" }, viaCoins: false, createdAt: { gte: since } },
       });
     case "COUPONS_USED":
-      // item.viaCoins: false — купон, выданный за покупку самих монет, не должен
-      // засчитываться в задачу на использование купонов (тот же путь фарма, что
-      // и у APPLICATIONS_SUBMITTED).
       return db.coupon.count({
         where: { employeeId, status: "USED", updatedAt: { gte: since }, item: { viaCoins: false } },
       });
@@ -236,9 +226,6 @@ async function checkAndCompleteAutoTask(et: InProgressAutoTask): Promise<boolean
     await db.employeeTask.update({ where: { id: et.id }, data: { progressValue } });
     return false;
   }
-  // Атомарный claim по IN_PROGRESS — на случай, если мгновенная проверка и
-  // ночной крон (или два мгновенных вызова подряд) пересеклись во времени
-  // (см. rewardCompletedTask: двойная покупка приза не idempotent).
   const claimed = await db.employeeTask.updateMany({
     where: { id: et.id, status: "IN_PROGRESS" },
     data: { progressValue, status: "COMPLETED", completedAt: new Date() },
@@ -289,9 +276,6 @@ export async function recomputeAutoTasks(): Promise<{ checked: number; completed
   let failed = 0;
   for (const et of inProgress) {
     if (!et.task.autoMetric || et.task.targetValue == null) continue;
-    // try/catch на итерацию — иначе один сотрудник со сбоем (например,
-    // недостаточно монет на автопокупку заранее выбранного приза) прерывал бы
-    // весь суточный прогон, оставляя непроверенными всех остальных в списке.
     try {
       if (await checkAndCompleteAutoTask(et)) completed += 1;
     } catch (e) {

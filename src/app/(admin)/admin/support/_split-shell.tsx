@@ -21,8 +21,6 @@ export function SupportSplitShell({
 }) {
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] min-h-[420px] overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-md sm:h-[calc(100dvh-6.5rem)]">
-      {/* Список — свой (более тёмный) фон, отдельно от белого окна чата
-          справа, иначе на светлой теме обе панели сливаются в одну страницу. */}
       <div
         className={cx(
           "w-full shrink-0 flex-col overflow-hidden border-r-2 border-line-strong bg-surface-muted sm:flex sm:w-[340px]",

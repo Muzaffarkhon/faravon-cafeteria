@@ -10,14 +10,12 @@ import { linkByPhone, reissueOtp, SafeLinkError, isKnownTelegramId } from "./lin
 import { startNotificationLoop } from "./notifications";
 import { platformUrl } from "../src/lib/platform-url";
 
-// --- минимальная загрузка .env (Prisma грузит свой, но токен бота — здесь) ---
 try {
   for (const line of readFileSync(resolve(process.cwd(), ".env"), "utf8").split("\n")) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?(.*?)"?\s*$/i);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
   }
 } catch {
-  /* .env не обязателен */
 }
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -98,9 +96,6 @@ interface TgMessage {
   poll?: unknown;
 }
 
-// Разрешены только текст и «Поделиться контактом» — любые файлы/медиа от
-// пользователя отклоняются без обработки (снижает поверхность атаки через
-// вложения). Не касается исходящих сообщений бота (например, QR-кода).
 function hasDisallowedContent(msg: TgMessage): boolean {
   return !!(
     msg.photo ||
@@ -130,8 +125,6 @@ async function handle(msg: TgMessage) {
     }
 
     if (msg.contact) {
-      // Принимаем номер только если это подтверждённо собственный контакт
-      // отправителя (иначе — захват аккаунта по чужому номеру из справочника).
       if (msg.contact.user_id !== fromId) {
         await send(
           chatId,
@@ -191,7 +184,6 @@ async function main() {
   }
   console.log(`Telegram-бот запущен: @${(me.result as { username?: string }).username}`);
 
-  // Фоновая доставка уведомлений из таблицы Notification (§5.10)
   startNotificationLoop();
 
   let offset = 0;

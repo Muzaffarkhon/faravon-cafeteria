@@ -14,7 +14,6 @@ const FIELD: Record<Locale, string> = { ru: "text", tg: "text_tg", uz: "text_uz"
 const EMPTY: Record<Locale, string> = { ru: "", tg: "", uz: "" };
 const MAX = 3500;
 
-// Поле datetime-local — время по Душанбе (UTC+5), независимо от часового пояса браузера админа.
 const DUSHANBE_MS = 5 * 60 * 60 * 1000;
 const nowLocal = () => new Date(Date.now() + DUSHANBE_MS).toISOString().slice(0, 16);
 const fmtLocal = (v: string) => {
@@ -39,14 +38,12 @@ export function BroadcastForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [texts, setTexts] = useState<Record<Locale, string>>(EMPTY);
   const [lang, setLang] = useState<Locale>("ru");
-  // null — значение по умолчанию для сегмента (для «по льготе» — спрашивать подтверждение).
   const [askConfirm, setAskConfirm] = useState<boolean | null>(null);
   const [couponHint, setCouponHint] = useState(false);
   const [later, setLater] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [confirming, setConfirming] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  // После успешной отправки форма очищается — повторное нажатие не продублирует рассылку.
   const [state, formAction, pending] = useActionState<BroadcastState, FormData>(async (prev, fd) => {
     const res = await sendBroadcast(prev, fd);
     if (res.sent != null || res.scheduledAt) {
@@ -61,16 +58,13 @@ export function BroadcastForm({
 
   const guests = filters.segment === "NOT_REGISTERED";
   const confirmOn = !guests && (askConfirm ?? filters.segment === "BY_CARD");
-  // Шаблоны выбранной аудитории — первыми.
   const templates = [...BROADCAST_TEMPLATES].sort(
     (a, b) => Number(b.segment === filters.segment) - Number(a.segment === filters.segment),
   );
-  // Язык, на котором есть получатели, но нет перевода: им уйдёт русский текст.
   const missing = LOCALES.filter((l) => l !== "ru" && byLocale[l] > 0 && !texts[l].trim());
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
-      {/* Те же фильтры, что применены слева: получатели пересчитываются на сервере при отправке. */}
       {(Object.keys(filters) as (keyof AudienceFilters)[]).map((k) => (
         <input key={k} type="hidden" name={k} value={filters[k]} />
       ))}
@@ -99,7 +93,6 @@ export function BroadcastForm({
         </Select>
       </Field>
 
-      {/* Три языка — вкладками, а не тремя полями подряд: форма не уезжает за экран. */}
       <div>
         <div role="tablist" aria-label="Язык текста" className="flex gap-1 border-b border-line">
           {LOCALES.map((l) => (

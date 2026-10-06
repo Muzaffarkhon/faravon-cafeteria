@@ -30,7 +30,6 @@ export default async function AdminCashbackPage({
     }),
   ]);
 
-  // ── Сверка: баланс каждого счёта должен равняться сумме его журнала.
   const sumOf = new Map<string, Record<string, number>>();
   for (const r of sums) {
     const m = sumOf.get(r.accountId) ?? {};
@@ -43,7 +42,6 @@ export default async function AdminCashbackPage({
   };
   const mismatches = accounts.filter((a) => ledgerBalance(a.id) !== a.balance);
 
-  // ── Сводка по партнёрам.
   type Row = { name: string; accrued: number; redeemed: number; reversed: number; liability: number; accounts: number };
   const byPartner = new Map<string, Row>();
   for (const a of accounts) {
@@ -59,7 +57,6 @@ export default async function AdminCashbackPage({
   const partners = [...byPartner.values()].sort((x, y) => y.liability - x.liability);
   const totalLiability = partners.reduce((s, p) => s + p.liability, 0);
 
-  // ── Журнал: операции (списание и начисление одной покупки — одна строка), с признаком сторно.
   const ids = recent.map((e) => e.id);
   const reversedIds = new Set(
     (await db.cashbackEntry.findMany({ where: { reversesEntryId: { in: ids } }, select: { reversesEntryId: true } })).map(

@@ -133,10 +133,6 @@ export function AppShell({
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
-  // «Скоро»-пункты (пока не запущенные разделы, напр. геймификация) не
-  // занимают место в и так тесной строке вкладок — уходят в «Ещё». Иначе при
-  // достаточном числе вкладок такой пункт просто обрезался прокруткой без
-  // всякого намёка, что он там есть.
   const primaryGroups = groups.filter((g) => PRIMARY_GROUPS.has(g.id));
   const primaryAll: NavItem[] = primaryGroups.flatMap((g) => g.items);
   const primary = primaryAll.filter((it) => !it.soon);
@@ -149,11 +145,6 @@ export function AppShell({
   const moreActive = moreItems.some((it) => isActive(it.href));
   const moreBadge = moreItems.reduce((n, it) => n + (it.badge ?? 0), 0);
 
-  // Нижняя навигация (мобайл) вмещает не более 5 вкладок (включая «Ещё») —
-  // без подписей под иконками (см. рендер ниже) 5 иконок помещаются в ряд
-  // даже на узких экранах. Раньше лимит был 4, из-за чего «Геймификация»,
-  // пятый пункт «Кабинета», была недостижима на мобильном без «Ещё».
-  // На десктопе такой проблемы нет — там вкладки не обрезаются (прокрутка).
   const BOTTOM_TAB_LIMIT = 5;
   const bottomReservesMoreSlot = moreGroups.length > 0 || primary.length > BOTTOM_TAB_LIMIT;
   const bottomPrimary = primary.slice(0, bottomReservesMoreSlot ? BOTTOM_TAB_LIMIT - 1 : BOTTOM_TAB_LIMIT);
@@ -175,7 +166,6 @@ export function AppShell({
     setProfileOpen(false);
   };
 
-  // Закрыть выпадашки по Esc
   useEffect(() => {
     if (!moreOpen && !profileOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -190,17 +180,12 @@ export function AppShell({
 
   const pill = (active: boolean) =>
     cx(
-      // min-h-11 — тач-таргет по HIG (44pt) поверх компактной строки вкладок.
       "flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-bold transition-colors",
       active
         ? "bg-primary text-on-brand"
         : "text-ink hover:bg-surface-muted",
     );
 
-  // Вкладки шапки — квадратные кнопки только с иконкой (44×44, тач-таргет по
-  // HIG), подпись — во всплывающей подсказке (title) и для скринридера
-  // (aria-label), не в самой кнопке: раньше 5 текстовых вкладок не помещались
-  // на средних экранах и обрезались молча (см. жалобу на «Ген» от «Геймификация»).
   const iconTab = (active: boolean) =>
     cx(
       "relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[11px] transition-colors",
@@ -212,14 +197,10 @@ export function AppShell({
       {backdrop}
       <LiveRefresh sse={sseEnabled} />
 
-      {/* ── Верхняя навигация (десктоп + планшет) ── */}
       <header
         className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur"
         style={{ paddingTop: "max(env(safe-area-inset-top), var(--tg-top))" }}
       >
-        {/* Без потолка ширины — иначе на широких экранах строка вкладок
-            зажата в 1152px и урезает пункты («Обратная связь» → «Обра»),
-            хотя справа и слева пусто. */}
         <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
           <Link href="/" className="mr-1 flex shrink-0 items-center gap-2" aria-label="На главную">
             <BrandMark size={26} priority />
@@ -228,9 +209,6 @@ export function AppShell({
             </span>
           </Link>
 
-          {/* Прокручиваемая лента вкладок — на мобильном те же разделы уже есть
-              внизу (нижняя навигация, sm:hidden), так что здесь скрываем её и
-              отдаём место счётчикам/языку/профилю, которые иначе обрезались. */}
           <div
             ref={navScrollRef}
             className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex"
@@ -249,10 +227,6 @@ export function AppShell({
                 >
                   <Icon path={it.icon} />
                   {it.badge ? (
-                    // Полностью внутри кнопки (top-0.5/right-0.5, без отрицательных
-                    // отступов) — у ленты вкладок overflow-x-auto, из-за чего браузер
-                    // сам включает overflow-y:auto (см. комментарий про «Ещё» ниже),
-                    // и бейдж с отрицательным сдвигом обрезался бы этим контейнером сверху.
                     <span className="absolute right-0.5 top-0.5 inline-flex min-w-[1.05rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-on-brand tabular-nums">
                       {it.badge}
                     </span>
@@ -262,13 +236,8 @@ export function AppShell({
             })}
           </div>
 
-          {/* На мобильном лента вкладок скрыта — эта «распорка» прижимает счётчики, «Ещё» и профиль
-              вправо. Без неё они липнут к логотипу слева, и выпадающие меню (right-0) уезжают за левый край экрана. */}
           <div className="min-w-0 flex-1 sm:hidden" aria-hidden="true" />
 
-          {/* Счётчики — в один ряд с вкладками, справа. Выбор льгот теперь один
-              единый значок (было 2 отдельных — «выбрано» и «черновики»),
-              рядом баланс монет и совокупный кешбек, если они у сотрудника есть. */}
           {wheel && (
             <Link
               href={wheel.href}
@@ -296,9 +265,6 @@ export function AppShell({
             </Link>
           )}
 
-          {/* Кошелёк — раньше 3 отдельные плашки подряд («выбор», монеты, кешбек),
-              каждая со своей рамкой/паддингом; собраны в одну с тонкими
-              разделителями между тем, что реально показывается. */}
           {(selectionStat || typeof coinBalance === "number" || (typeof cashbackTotal === "number" && cashbackTotal > 0)) && (
             <div className="flex shrink-0 items-center divide-x divide-primary-strong/15 rounded-[10px] bg-primary-soft px-1">
               {selectionStat && (
@@ -404,8 +370,6 @@ export function AppShell({
             </div>
           )}
 
-          {/* Профиль — тема и язык переехали внутрь меню профиля (ниже), в
-              самой шапке от них остались только имя и аватар. */}
           <div className="relative flex shrink-0 items-center gap-2" onMouseLeave={() => setProfileOpen(false)}>
             {displayName && (
               <span className="hidden max-w-[10rem] truncate text-[13px] font-semibold text-ink sm:inline">
@@ -469,7 +433,6 @@ export function AppShell({
                   <button
                     type="button"
                     onClick={() => {
-                      // Меню закрываем сразу: окно подтверждения живёт отдельно от него (см. ниже).
                       setProfileOpen(false);
                       setLogoutOpen(true);
                     }}
@@ -481,8 +444,6 @@ export function AppShell({
                 </div>
               </>
             )}
-            {/* Вне выпадающего меню: на телефоне (Telegram Mini App) касание шлёт «mouseleave», меню закрывалось,
-                а вместе с ним исчезало и окно подтверждения, вложенное в него. */}
             <ConfirmDialog
               open={logoutOpen}
               tone="danger"
@@ -495,7 +456,6 @@ export function AppShell({
           </div>
         </div>
 
-        {/* Полоса заполнения выбора льгот — по нижней кромке шапки. */}
         {selectionStat && selectionStat.max > 0 && (
           <div className="h-[3px] w-full bg-primary-soft" aria-hidden="true">
             <div
@@ -506,19 +466,12 @@ export function AppShell({
         )}
       </header>
 
-      {/* ── Контент ── */}
-      {/* Широкие реестры (много колонок) помечают свой корень `data-wide` и
-          получают всю доступную ширину — остальные страницы остаются
-          читаемой колонкой в max-w-6xl. Верхняя навигация уже отделяет
-          контент от края экрана, так что сами отступы страницы — минимум
-          6px по бокам и снизу (сверху — запас под шапку). */}
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-1.5 pb-1.5 pt-5 has-[[data-wide]]:max-w-none">
         <div key={pathname} className="animate-page">
           {children}
         </div>
       </main>
 
-      {/* ── Нижняя навигация (мобайл) ── */}
       <nav
         className="sticky bottom-0 z-40 flex border-t border-line bg-surface/95 backdrop-blur sm:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -563,7 +516,6 @@ export function AppShell({
         )}
       </nav>
 
-      {/* ── Мобильный лист «Ещё» ── */}
       {moreOpen && mobileMoreGroups.length > 0 && (
         <div className="fixed inset-0 z-50 sm:hidden" role="dialog" aria-modal="true">
           <button
@@ -665,8 +617,6 @@ function ScrollNav() {
 
   return (
     <div
-      // Слева, а не справа — справа снизу иногда всплывает панель подтверждения выбора
-      // (flex-selection.tsx), и обе плавающие кнопки садились в один угол одна на другую.
       className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-3.5 z-30 flex flex-col gap-1 rounded-full border border-line bg-surface/90 p-1 shadow-lg backdrop-blur-md transition-opacity sm:bottom-6 sm:left-6"
       role="navigation"
       aria-label="Быстрая навигация по странице"

@@ -13,17 +13,12 @@ import { invalidatePeriodCache } from "@/lib/catalog-cache";
 
 export type PeriodFormState = { error?: string };
 
-// Таджикистан: UTC+5, без переходов на летнее время.
 const TZ = "+05:00";
 
 function parse(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Укажите название периода.");
 
-  // Дату из <input type="date"> (YYYY-MM-DD) трактуем в поясе Душанбе:
-  // «start» — начало этого дня по местному, «end» — конец дня по местному.
-  // Раньше `new Date("2026-09-30")` = полночь UTC = 05:00 в Душанбе, поэтому
-  // окно закрывалось на день раньше.
   const date = (k: string, label: string, boundary: "start" | "end") => {
     const v = String(formData.get(k) ?? "").trim();
     if (!v) throw new Error(`Укажите дату: ${label}.`);
@@ -45,9 +40,6 @@ function parse(formData: FormData) {
 
   if (startDate > endDate) throw new Error("Начало периода позже его конца.");
   if (windowStart > windowEnd) throw new Error("Начало окна выбора позже его конца.");
-  // §2: окно выбора открывается ДО начала периода (обычно в предыдущем месяце).
-  // Требуем лишь, чтобы окно не выходило за конец периода и не открывалось
-  // абсурдно рано (более чем за 60 дней до старта).
   if (windowEnd > endDate) {
     throw new Error("Окно выбора не должно заканчиваться позже конца периода.");
   }
@@ -146,8 +138,6 @@ export async function setPeriodStatus(
       newValue: { status },
     });
 
-    // §6: при закрытии периода не набравшие порог групповые льготы переносим
-    // в следующий период. Сбой переноса не отменяет закрытие.
     if (status === "CLOSED") {
       try {
         const { carryUnfilledGroupSelections } = await import("@/lib/group-rollover");
@@ -158,8 +148,6 @@ export async function setPeriodStatus(
       }
     }
 
-    // При открытии периода заранее готовим черновик следующего месяца — чтобы
-    // C&B не создавал период руками каждый месяц, только поправил при нужде.
     if (status === "OPEN") {
       try {
         const { ensureNextPeriodDraft } = await import("@/lib/period-lifecycle");
@@ -218,9 +206,6 @@ export async function resetFlowData(periodId: string): Promise<ActionResult> {
     const s = await requireSession();
     assertCan(s.roles, "periods.manage");
 
-    // Разрушающая очистка допустима только в песочнице. На боевом деплое
-    // SANDBOX_LABEL не задан, поэтому действие не выполнится, даже если
-    // вызвать его напрямую в обход интерфейса.
     if (!isSandbox()) {
       throw new Error("Очистка заявок и купонов доступна только в тестовой среде.");
     }

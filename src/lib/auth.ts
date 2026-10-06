@@ -12,16 +12,7 @@ import type { Role } from "@prisma/client";
 
 const COOKIE = "faravon_session";
 const MAX_AGE = 60 * 60 * 12; // 12h, ТЗ v2 §5.1
-// Подрядчик (CONTRACTOR) — общий PIN на кассу партнёра, залогинен на одном
-// устройстве постоянно (не личный аккаунт сотрудника, короткая сессия тут
-// только создавала бы лишний повод для кассира вводить PIN заново каждый
-// день). Реальный «выход» для скомпрометированного терминала — деактивировать
-// учётку или перевыпустить PIN (issueOtpForUser поднимает sessionEpoch,
-// который здесь и дальше проверяется в getSession()).
 const MAX_AGE_CONTRACTOR = 60 * 60 * 24 * 365 * 10; // 10 лет — по факту «навсегда»
-// Не чаще раза в минуту — connection_limit=1 на боевой БД, лишний write на
-// каждый рендер страницы недопустим (см. хендоф от 27 сентября про
-// исчерпание пула соединений).
 const TOUCH_THROTTLE_MS = 60_000;
 
 function secret() {
@@ -54,12 +45,6 @@ export async function createSession(payload: SessionPayload) {
     )?.sessionEpoch ??
     0;
 
-  // Переиспользуем sid текущей валидной сессии ТОГО ЖЕ пользователя —
-  // createSession перевыпускает JWT не только при логине, но и при смене
-  // пароля/профиля (см. profile/actions.ts, change-password/actions.ts):
-  // это не новое устройство, новую строку UserSession заводить не нужно.
-  // Другой пользователь (общий терминал подрядчика) или невалидная/отсутствующая
-  // кука — считаем новой сессией.
   let sid = existing && existing.sub === payload.sub ? existing.sid : null;
   if (!sid) {
     sid = randomUUID();

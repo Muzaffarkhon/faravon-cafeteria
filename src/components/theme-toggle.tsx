@@ -31,7 +31,6 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (v === "light" || v === "dark" || v === "system") setThemeState(v);
     } catch {
-      /* приватный режим */
     }
   }, []);
 
@@ -40,7 +39,6 @@ export function ThemeToggle({ compact = false, className }: { compact?: boolean;
     try {
       localStorage.setItem(KEY, t);
     } catch {
-      /* noop */
     }
     const root = document.documentElement;
     if (t === "system") root.removeAttribute("data-theme");

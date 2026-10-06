@@ -65,10 +65,6 @@ export default async function ApplicationsPage() {
     );
   }
 
-  // Ориентир по сроку рассмотрения для PENDING-позиций — берём порог первой
-  // ступени эскалации (после него уходит напоминание согласующим), чтобы не
-  // придумывать отдельное число: сотрудник видит тот же ориентир, на который
-  // реально настроена система.
   const slaRule = await db.slaEscalationRule.findFirst({
     where: { level: 1, active: true },
     select: { afterHours: true },
@@ -76,9 +72,6 @@ export default async function ApplicationsPage() {
 
   const allItems = applications.flatMap((a) => a.items);
 
-  // Статус промокода такси по каждой одобренной PHONE_PROMO-позиции — чтобы
-  // на месте пустого блока купона не оставался голый бейдж «Одобрено»,
-  // неотличимый от QR-льготы, купон по которой ещё просто не выдан.
   const taxiItemIds = allItems
     .filter(
       (i) =>
@@ -91,7 +84,6 @@ export default async function ApplicationsPage() {
   const coupons = allItems.filter((i) => i.coupon).length;
   const pending = allItems.filter((i) => i.status === "PENDING").length;
 
-  // QR только для действующих (выданных, не просроченных) купонов.
   const issuedCoupons = applications.flatMap((app) =>
     app.items
       .map((i) => i.coupon)
@@ -109,7 +101,6 @@ export default async function ApplicationsPage() {
     ),
   );
 
-  // Прогресс набора групп для льгот с порогом (§ minParticipants), по периодам.
   const groupByPeriod = new Map<string, Map<string, number>>();
   for (const app of applications) {
     const gc = app.items.map((i) => i.card).filter((c) => c.minParticipants > 1).map((c) => c.id);
@@ -190,7 +181,6 @@ export default async function ApplicationsPage() {
                 const groupHave = isGroup ? groupByPeriod.get(app.periodId)?.get(item.cardId) ?? 0 : 0;
                 const groupDone = !isGroup || groupHave >= item.card.minParticipants;
 
-                // Купон уже выдан/формируется — показываем билет с QR вместо строки статуса.
                 if (item.coupon) {
                   const c = item.coupon;
                   const qr = qrByCoupon.get(c.id) ?? null;
@@ -198,7 +188,6 @@ export default async function ApplicationsPage() {
                   const periodPassed = isCouponPeriodPassed(app.period);
                   const expired = isCouponOverdue({ ...c, period: app.period });
                   const live = c.status === "ISSUED" && !expired;
-                  // Активированный купон действует до конца срока, затем «истёк».
                   const activatedLive = c.status === "USED" && !pastValid && !periodPassed;
                   const hint = expired
                     ? periodPassed
@@ -238,7 +227,6 @@ export default async function ApplicationsPage() {
                   );
                 }
 
-                // Одобренная позиция такси — промокод от партнёра (без QR).
                 if (
                   item.card.partner?.deliveryMode === "PHONE_PROMO" &&
                   ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED"].includes(item.status)
@@ -280,7 +268,6 @@ export default async function ApplicationsPage() {
                   );
                 }
 
-                // Остальные статусы (черновик/на согласовании/отклонено/ждёт группу) — обычная строка.
                 return (
                   <li
                     key={item.id}

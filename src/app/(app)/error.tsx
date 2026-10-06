@@ -17,7 +17,6 @@ export default function AppError({
   const locale = useClientLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   useEffect(() => {
-    // Не выводим полный объект ошибки (стек) в консоль посетителя — только digest.
     console.error(`Ошибка страницы${error.digest ? ` (${error.digest})` : ""}`);
   }, [error]);
 

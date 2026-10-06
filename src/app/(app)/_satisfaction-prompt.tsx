@@ -51,7 +51,6 @@ export function SatisfactionPrompt({
       const today = dushanbeDateKey();
       if (localStorage.getItem(DISMISS_KEY) === today) return;
     } catch {
-      /* приватный режим — просто показываем */
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
@@ -62,7 +61,6 @@ export function SatisfactionPrompt({
       try {
         localStorage.setItem(DISMISS_KEY, dushanbeDateKey());
       } catch {
-        /* не критично */
       }
     }
     setOpen(false);
@@ -72,8 +70,6 @@ export function SatisfactionPrompt({
   function submit() {
     if (!rating) return;
     if (preview) {
-      // Предпросмотр не пишет в базу — иначе тестовые оценки админа попадали
-      // бы в реальную статистику на этой же странице.
       setDone(true);
       setTimeout(() => {
         setOpen(false);
@@ -89,7 +85,6 @@ export function SatisfactionPrompt({
         return;
       }
       setDone(true);
-      // С подарком окно не закрываем само — в нём ссылка на колесо.
       if (!giftSpins) setTimeout(() => setOpen(false), 1600);
     });
   }

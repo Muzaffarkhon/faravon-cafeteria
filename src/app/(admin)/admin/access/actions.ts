@@ -30,7 +30,6 @@ export async function saveRbacMatrix(
     const s = await requireSession();
     assertCan(s.roles, "access.manage");
 
-    // Собираем полную сетку role × permission из формы.
     const rows: { role: Role; permission: string; allowed: boolean }[] = [];
     const nextAllow: Record<string, Set<Role>> = {};
     for (const permission of ALL_PERMISSIONS) {
@@ -42,8 +41,6 @@ export async function saveRbacMatrix(
       }
     }
 
-    // Защита от самоблокировки: после сохранения текущий пользователь должен
-    // сохранить доступ и к матрице, и к назначению ролей.
     for (const guard of ["access.manage", "users.manage"] as const) {
       if (!s.roles.some((r) => nextAllow[guard].has(r))) {
         throw new Error(

@@ -47,9 +47,6 @@ export default async function GamificationAdminPage() {
     }),
     getGamificationEnabled(),
     getDailyBonusCoins(),
-    // Тот же паттерн, что в /admin/news — список отделов для Select, не
-    // свободный ввод (опечатка в свободном тексте → задача не находит ни
-    // одного сотрудника, ошибка не заметна сразу).
     db.employee.findMany({
       where: { isActive: true, archivedAt: null },
       select: { department: true },
@@ -74,7 +71,6 @@ export default async function GamificationAdminPage() {
       take: 50,
     }),
   ]);
-  // Прокруток сегодня — для контроля наплыва/спама в моменте (§ дневной лимит — 1 на сотрудника).
   const spinsToday = await db.wheelSpin.count({ where: { dayKey: dushanbeDateKey() } });
   const prizeCards = prizeCardsRaw
     .filter((c) => !prizeCardProblem(c))
@@ -86,8 +82,6 @@ export default async function GamificationAdminPage() {
   const activeSectors = wheelSectors.filter((s) => s.isActive).length;
   const pendingTotal = pendingManual.length + pendingRequests.length;
 
-  // Обзор: тумблер геймификации + беглый счёт по остальным вкладкам — вместо
-  // того чтобы всё это разворачивать здесь же полными таблицами.
   const overviewPanel = (
     <>
       <GamificationEnabledToggle enabled={enabled} dailyBonusCoins={dailyBonusCoins} locale={locale} />

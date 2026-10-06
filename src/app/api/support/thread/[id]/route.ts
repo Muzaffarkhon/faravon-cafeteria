@@ -78,7 +78,6 @@ async function activeCouponsOf(employeeId: string | null | undefined) {
       id: c.id,
       kind: "coupon" as const,
       used: c.status === "USED",
-      // Откуда купон: колесо подарков / за монеты (в т. ч. приз за задачу) / обычный выбор.
       source: c.item.viaWheel ? ("wheel" as const) : c.item.viaCoins ? ("coins" as const) : null,
       number: c.number,
       title: c.item.card.title,
@@ -108,8 +107,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
 
-  // ?light=1 — открытый диалог опрашивает раз в несколько секунд, «изменилось ли что-то»:
-  // один короткий запрос вместо полной выборки (с поиском сотрудника для привязки).
   if (req.nextUrl.searchParams.get("light") === "1") {
     const light = await db.supportThread.findUnique({
       where: { id },
@@ -121,7 +118,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     if (!light) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    // Число фото — в отпечаток: удаление фото у сообщения с подписью не меняет число сообщений.
     const photos = await db.supportMessage.count({
       where: { threadId: id, OR: [{ imageUrl: { not: null } }, { tgFileId: { not: null } }] },
     });
@@ -160,7 +156,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       thread.messages.at(-1)?.id,
       String(thread.messages.filter((m) => m.imageUrl || m.tgFileId).length),
     ),
-    // Есть непрочитанные входящие — панель отметит их прочитанными и обновит счётчики.
     unread: thread.messages.some((m) => m.direction === "IN" && !m.readAt),
     messages: thread.messages.map((m) => ({
       id: m.id,
@@ -169,7 +164,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: m.createdAt.toISOString(),
       author: m.author?.employee?.fullName ?? m.author?.login ?? null,
       replyTo: m.replyTo ? { id: m.replyTo.id, direction: m.replyTo.direction, body: m.replyTo.body } : null,
-      // Из Telegram — через прокси (файл остаётся в боте), с сайта — прямая ссылка на Blob.
       image: m.tgFileId ? `/api/support/photo/${m.id}` : m.imageUrl,
     })),
     quickReplies: quickReplies.map((r) => ({ id: r.id, text: r.text })),

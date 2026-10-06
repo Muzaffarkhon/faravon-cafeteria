@@ -162,8 +162,6 @@ export function defaultCalcLabel(dataset: Dataset, agg: AggFn, field?: string): 
 export type GroupField = { field: string; bucket?: DateBucket };
 export type CalcField = { agg: AggFn; label: string; /** для firstDate/lastDate — поле-дата */ field?: string };
 
-// ---------- Условия ----------
-
 export type Op = "eq" | "ne" | "in" | "contains" | "notContains" | "between" | "gte" | "lte" | "empty" | "notEmpty";
 
 export const OP_LABELS: Record<Op, string> = {
@@ -217,8 +215,6 @@ export function parseConditions(dataset: Dataset, raw: string | null | undefined
     return [];
   }
 }
-
-// ---------- Конфиг ----------
 
 export type ReportView = "table" | "chart" | "both";
 

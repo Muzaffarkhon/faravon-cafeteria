@@ -124,8 +124,6 @@ export async function runPeriodLifecycle(opts: {
     result.closed.push({ id: p.id, name: p.name });
   }
 
-  // Открываем следующий период, только если сейчас нет ни одного открытого
-  // (то же ограничение, что и у ручного действия — один открытый период за раз).
   const stillOpen = await db.period.findFirst({ where: { status: "OPEN" } });
   if (!stillOpen) {
     const next = await db.period.findFirst({

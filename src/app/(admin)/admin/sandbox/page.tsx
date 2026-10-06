@@ -16,7 +16,6 @@ export default async function SandboxPage() {
   const sandbox = isSandbox();
   const url = sandboxUrl();
 
-  // В песочнице показываем, сколько данных накопил текущий прогон.
   const counts = sandbox
     ? await Promise.all([
         db.employee.count(),

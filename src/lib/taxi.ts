@@ -75,8 +75,6 @@ async function latestTaxiPromoByItem(employeeIds: string[]) {
  * Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах.
  * `extraWhere` — доп. условия «умного фильтра» (см. components/smart-filter.tsx), AND'ятся с остальными.
  */
-// Только key+type — важны для парсинга sf_<key>/sf_<key>_v из query, а не для UI
-// (лейблы и options для пикера умного фильтра описаны отдельно в page.tsx).
 const TAXI_FILTER_FIELDS: SmartFilterField[] = [
   { key: "employee", label: "", type: "text" },
   { key: "department", label: "", type: "text" },
@@ -96,7 +94,6 @@ export function buildTaxiSmartFilters(sp: Record<string, string | undefined>): P
   const departmentF = stringFilter(smartValues.department);
   if (departmentF) smartFilters.push({ application: { is: { employee: { is: { department: departmentF } } } } });
   const phoneF = stringFilter(smartValues.phone);
-  // Показанный телефон — contactPhone (указан сотрудником) либо телефон из профиля.
   if (phoneF) {
     smartFilters.push({
       OR: [{ contactPhone: phoneF }, { application: { is: { employee: { is: { phone: phoneF } } } } }],
@@ -206,8 +203,6 @@ export async function taxiRegistryRows(filters: {
           ...(filters.partnerId ? { partnerId: filters.partnerId } : {}),
         },
       },
-      // Одним объектом: два отдельных spread-а по ключу `application` затирали
-      // друг друга — при фильтре и по периоду, и по сотруднику период терялся.
       application: {
         is: {
           ...(filters.periodId ? { periodId: filters.periodId } : {}),

@@ -29,7 +29,6 @@ export function OtpModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* буфер недоступен — пусть перепишут вручную */
     }
   }
 

@@ -6,9 +6,6 @@ import { LOCALES, LOCALE_SHORT, type Locale } from "@/lib/i18n/shared";
 import { setLocale } from "@/app/i18n-actions";
 import { cx } from "./ui";
 
-// Эмодзи-флаги на Windows (без Segoe UI Emoji с цветными флагами) рендерятся
-// как обычные буквы "RU"/"TJ"/"UZ" вместо флажка — поэтому рисуем флаг
-// сами простыми SVG-полосами вместо эмодзи.
 function FlagIcon({ locale, className }: { locale: Locale; className?: string }) {
   const stripes: Record<Locale, string[]> = {
     ru: ["#ffffff", "#0039a6", "#d52b1e"],

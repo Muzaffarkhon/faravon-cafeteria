@@ -15,7 +15,6 @@ try {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
   }
 } catch {
-  /* .env необязателен */
 }
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -36,7 +35,6 @@ async function call(method: string, body?: Record<string, unknown>) {
   return r.json();
 }
 
-// Описания — то, что видит человек в списке под полем ввода при наборе «/».
 const COMMANDS = [
   { command: "start", description: "Приветствие" },
   { command: "login", description: "Новый одноразовый пароль (если уже привязаны)" },

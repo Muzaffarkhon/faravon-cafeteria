@@ -7,7 +7,6 @@ import { loadSurveyResults } from "@/lib/surveys";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { SurveyEditor } from "./_editor";
 
-// Значение для <input type="datetime-local"> — время по Душанбе (UTC+5).
 const toLocal = (d: Date | null) => (d ? new Date(d.getTime() + 5 * 3_600_000).toISOString().slice(0, 16) : "");
 const optionsOf = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 

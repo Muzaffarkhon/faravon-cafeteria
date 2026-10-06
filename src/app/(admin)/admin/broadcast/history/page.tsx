@@ -12,7 +12,6 @@ import { SEGMENT_LABELS, type Segment } from "@/lib/broadcast-segments";
 import { AnswersBar, BroadcastSubnav, followUpHref } from "../_parts";
 import { CancelScheduledButton } from "../_cancel-button";
 
-// after() может отправить просроченную отложенную рассылку (гостям — напрямую, ~25 с).
 export const maxDuration = 60;
 
 export default async function BroadcastHistoryPage() {
@@ -20,7 +19,6 @@ export default async function BroadcastHistoryPage() {
   if (!session) redirect("/login");
   if (!can(session.roles, "cards.manage")) redirect("/");
   const t = await getTranslator();
-  // Подстраховка крона: просроченная отложенная рассылка уйдёт, как только кто-то откроет историю.
   after(() => dispatchDueBroadcasts());
   const campaigns = await loadCampaignList();
   const scheduled = campaigns.filter((c) => c.status === "SCHEDULED");

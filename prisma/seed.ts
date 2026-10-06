@@ -9,7 +9,6 @@ const db = new PrismaClient();
 async function main() {
   console.log("Seeding…");
 
-  // ---- Text blocks (ТЗ v2 §5.3, §5.6) ----
   await db.textBlock.upsert({
     where: { key: "GOAL" },
     update: {},
@@ -31,7 +30,6 @@ async function main() {
     },
   });
 
-  // ---- Partners (ТЗ v2 §5.9) ----
   const partnerData = [
     { key: "musaffo", name: "Тренажёрный зал «Мусаффо»", category: "Спорт", discountType: "Скидка до 30%" },
     { key: "kayrakkum", name: "Ковры «Кайраккум»", category: "Товары для дома", discountType: "Скидка до 30%" },
@@ -62,7 +60,6 @@ async function main() {
     partners[p.key] = rec.id;
   }
 
-  // ---- Flexible benefit cards (ТЗ v2 §5.6) ----
   const flex = [
     { partner: "musaffo", title: "Тренажёрный зал «Мусаффо»", condition: "скидка до 30%" },
     { partner: "kayrakkum", title: "Ковры «Кайраккум»", condition: "скидка до 30%" },
@@ -91,7 +88,6 @@ async function main() {
     });
   }
 
-  // ---- Recognition programs (ТЗ v2 §5.4) ----
   const recognition = [
     { title: "Выплата наставнику", description: "Вознаграждение за успешное сопровождение нового сотрудника в адаптационный период" },
     { title: "«Юбилейная выплата 50+»", description: "Признание сотрудников, отмечающих юбилей (50 лет и более)" },
@@ -103,7 +99,6 @@ async function main() {
     });
   }
 
-  // ---- Care showcase (ТЗ v2 §5.5) ----
   const care = [
     "Служебный транспорт",
     "Обед / питание",
@@ -116,7 +111,6 @@ async function main() {
     await db.benefitCard.create({ data: { block: Block.CARE, title: care[i], sortOrder: i } });
   }
 
-  // ---- Стартовая версия (v1) для карточек без истории ----
   for (const card of await db.benefitCard.findMany()) {
     const has = await db.benefitCardVersion.count({ where: { cardId: card.id } });
     if (has > 0) continue;
@@ -139,7 +133,6 @@ async function main() {
     });
   }
 
-  // ---- Period with an open selection window (ТЗ v2 §5.7) ----
   const now = new Date("2026-08-01T00:00:00Z");
   const monthStart = new Date(Date.UTC(2026, 7, 1));
   const monthEnd = new Date(Date.UTC(2026, 7, 31, 23, 59, 59));
@@ -159,7 +152,6 @@ async function main() {
   });
   void now;
 
-  // ---- Users & employees ----
   const pass = await bcrypt.hash("Password1", 12);
 
   async function makeStaff(
@@ -178,9 +170,7 @@ async function main() {
     void position;
   }
   await makeStaff("c_and_b", [Role.C_AND_B], "Админ C&B", "Контент и привилегии");
-  // Глобальный подрядчик без привязки — гасит купоны любого партнёра.
   await makeStaff("contractor", [Role.CONTRACTOR], "Подрядчик", "Вендор / провайдер");
-  // Подрядчик на каждого активного партнёра: логин p_<slug>, гасит только свои купоны.
   for (const p of partnerData) {
     if ((p.status ?? PartnerStatus.ACTIVE) !== PartnerStatus.ACTIVE) continue;
     await makeStaff(
@@ -221,7 +211,6 @@ async function main() {
     });
   }
 
-  // ---- Шаблоны уведомлений (§5.10) ----
   for (const [event, def] of Object.entries(DEFAULT_TEMPLATES)) {
     await db.notificationTemplate.upsert({
       where: { event },
@@ -230,7 +219,6 @@ async function main() {
     });
   }
 
-  // ---- Матрица ролей и прав (§4.2) — заполняем дефолтами из кода ----
   const ALL_SEED_ROLES: Role[] = [Role.EMPLOYEE, Role.C_AND_B, Role.CONTRACTOR];
   for (const permission of ALL_PERMISSIONS) {
     const allowedRoles = DEFAULT_PERMISSIONS[permission] as readonly Role[];
@@ -243,7 +231,6 @@ async function main() {
     }
   }
 
-  // ---- Матрица SLA-эскалаций (§5.12) ----
   const slaDefaults = [
     { level: 1, afterHours: 72, notifyRoles: [Role.C_AND_B], active: true },
     { level: 2, afterHours: 120, notifyRoles: [Role.C_AND_B], active: true },
@@ -256,7 +243,6 @@ async function main() {
     });
   }
 
-  // ---- Демо-баннер партнёра для билборда на дашборде ----
   const demoBannerTitle = "Тренажёрный зал «Мусаффо» — скидка до 30%";
   const hasDemoBanner = await db.partnerBanner.findFirst({ where: { title: demoBannerTitle } });
   if (!hasDemoBanner) {

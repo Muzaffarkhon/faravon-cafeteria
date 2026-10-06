@@ -6,7 +6,6 @@ import { safeEqual } from "@/lib/timing-safe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Как у cron/deliver-notifications: рассылка всем — пара минут отправки пачками.
 export const maxDuration = 300;
 const DELIVERY_BUDGET_MS = 240_000;
 

@@ -34,18 +34,14 @@ function ResultIcon({ tone }: { tone: "success" | "neutral" }) {
 
 export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; initialNumber?: string }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  // ── Основной сценарий: касса партнёра, поиск по телефону ──
   const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [coupon, setCoupon] = useState<CouponView | null>(null);
-  // Купона уже нет, но у сотрудника остался кешбек у этого партнёра.
   const [cashbackOnly, setCashbackOnly] = useState<CashbackView | null>(null);
   const [notFoundName, setNotFoundName] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // ── Резервный сценарий: сканирование QR (камера видна сразу на экране,
-  // без лишнего тапа), ручной ввод — если не распозналось ──
   const [showManual, setShowManual] = useState(false);
   const [number, setNumber] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
@@ -128,8 +124,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
       }
       const c = r.coupon ?? null;
       setCoupon(c);
-      // Кешбек считается от суммы покупки — её вводит кассир, поэтому такой
-      // купон всегда ведём в форму кешбека, а не гасим молча.
       if (!c?.redeemable || c.cashback) {
         setPhase("found");
         return;
@@ -144,8 +138,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     });
   }
 
-  // Открыто по ссылке из QR (обычной камерой): сразу гасим купон и убираем номер
-  // из адреса, чтобы обновление страницы не повторяло операцию.
   const autoLookedUp = useRef(false);
   useEffect(() => {
     if (!initialNumber || autoLookedUp.current) return;
@@ -166,7 +158,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     lookupAndRedeem(n);
   }
 
-  // ── Кешбек: ввод суммы покупки (по купону или только накопленный баланс) ──
   if (phase === "cashback" && cashbackOnly) {
     return <CashbackForm view={cashbackOnly} locale={locale} onBack={reset} />;
   }
@@ -174,7 +165,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     return <CashbackForm view={coupon.cashback} locale={locale} onBack={reset} />;
   }
 
-  // ── Найдено: карточка с данными и активацией ──
   if (phase === "found" && coupon) {
     return (
       <div className="mx-auto max-w-sm">
@@ -227,7 +217,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     );
   }
 
-  // ── Активировано ──
   if (phase === "done") {
     return (
       <div className="mx-auto max-w-sm">
@@ -249,7 +238,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     );
   }
 
-  // ── Не найдено / нет действующей льготы ──
   if (phase === "not_found" || phase === "no_benefit") {
     return (
       <div className="mx-auto max-w-sm">
@@ -269,7 +257,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
     );
   }
 
-  // ── Исходное состояние: ввод телефона ──
   return (
     <div className="mx-auto max-w-sm space-y-4">
       <div className="rounded-[24px] bg-surface p-6 shadow-md">
@@ -301,9 +288,6 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
           <span className="h-px flex-1 bg-line" />
         </div>
 
-        {/* Камера видна сразу на экране кассы (без лишнего тапа) — валидный
-            скан своего купона активируется мгновенно, без отдельного тапа
-            «Активировать» (см. onScan). Ручной ввод — если QR не считался. */}
         <div className="space-y-4">
           <CouponScanner onScan={onScan} autoStart onFallback={() => setShowManual(true)} locale={locale} />
 

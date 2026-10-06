@@ -28,7 +28,6 @@ export async function POST(req: Request) {
   if (status !== "APPROVED" && status !== "REJECTED") {
     return NextResponse.json({ error: "invalid status" }, { status: 400 });
   }
-  // §10: одобренную заявку отклонить уже нельзя — решение окончательное.
   if (before.status === "APPROVED" && status !== "APPROVED") {
     return NextResponse.json(
       { error: "Заявка уже одобрена — изменить решение нельзя." },
@@ -51,10 +50,6 @@ export async function POST(req: Request) {
     newValue: { status },
   });
 
-  // При первом одобрении заявки автоматически заводим черновик баннера партнёра
-  // с уже подставленными данными — C&B останется дооформить (картинка, ссылка) и включить.
-  // Проверяем по журналу аудита, что баннер по этой заявке ещё не заводили —
-  // иначе повторное одобрение (после возврата в PENDING/REJECTED) плодит дубли.
   let bannerId: string | null = null;
   const spawnedBefore =
     status === "APPROVED"
@@ -73,8 +68,6 @@ export async function POST(req: Request) {
         partnerId: before.partnerId,
         title: before.productName,
         subtitle: before.productDescription.slice(0, 300),
-        // Ссылки на приложение из заявки переносим в баннер; href — на первую
-        // из них, чтобы клик по баннеру вёл в стор (C&B может уточнить).
         androidUrl: before.androidUrl,
         iosUrl: before.iosUrl,
         href: before.androidUrl ?? before.iosUrl ?? null,

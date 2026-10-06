@@ -78,9 +78,6 @@ export async function runSlaEscalations(opts: {
       level: rule.level,
     };
 
-    // Сначала атомарно поднимаем уровень позиции (условие level > текущего).
-    // Если count===0 — параллельный запуск cron уже эскалировал эту позицию
-    // либо она вышла из PENDING; уведомления не дублируем.
     const claimed = await db.applicationItem.updateMany({
       where: { id: item.id, status: "PENDING", escalationLevel: { lt: rule.level } },
       data: { escalationLevel: rule.level, lastEscalatedAt: now },

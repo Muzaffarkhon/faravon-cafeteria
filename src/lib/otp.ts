@@ -50,8 +50,6 @@ export async function issueOtpForUser(
       otpExpiresAt: isContractorPin ? null : new Date(Date.now() + OTP_TTL_HOURS * 3600_000),
       failedLoginCount: 0,
       lockedUntil: null,
-      // Выдача нового кода = «начать вход заново»: отзываем все прежние сессии
-      // этого пользователя (защита, если аккаунт/устройство было скомпрометировано).
       sessionEpoch: { increment: 1 },
     },
   });
@@ -67,7 +65,6 @@ export async function issueOtpForUser(
 
 /** Создать код идентификации для сотрудника (для передачи через администратора). */
 export async function issueIdentificationCode(employeeId: string, issuedById: string): Promise<string> {
-  // погасить прежние неиспользованные коды
   await db.identificationCode.updateMany({
     where: { employeeId, usedAt: null },
     data: { usedAt: new Date() },

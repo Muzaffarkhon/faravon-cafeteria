@@ -34,7 +34,6 @@ export class SafeLinkError extends Error {}
  */
 export class PhoneNotRecognizedError extends SafeLinkError {}
 
-// --- rate-limit (§5.1: защита от перебора номеров/кодов и генерации OTP) ---
 const RL_WINDOW_MS = 15 * 60_000;
 const RL_MAX_ATTEMPTS = 8; // всего попыток идентификации за окно на один telegramId
 const RL_REISSUE_WINDOW_MS = 60 * 60_000;
@@ -63,7 +62,6 @@ async function recordAttempt(telegramId: string, kind: string, ok: boolean) {
   try {
     await db.telegramAuthAttempt.create({ data: { telegramId, kind, ok } });
   } catch {
-    /* журнал попыток не критичен — не роняем выдачу из-за него */
   }
 }
 
@@ -78,7 +76,6 @@ async function issueForEmployee(
   }
   let user = await db.user.findUnique({ where: { employeeId: employee.id } });
   if (!user) {
-    // Автоматически заводим учётную запись для сотрудника, если админ ещё не создавал логин вручную
     const existingUsers = await db.user.findMany({ select: { login: true } });
     const takenLogins = new Set(existingUsers.map((u) => u.login.toLowerCase()));
     const baseLogin = loginFromFullName(employee.fullName);
@@ -118,9 +115,6 @@ async function issueForEmployee(
     }
   }
 
-  // У сотрудника уже есть привязка к ДРУГОМУ Telegram. Самостоятельная
-  // перепривязка по номеру запрещена (иначе — захват аккаунта по номеру из
-  // справочника). Перепривязку разрешает только код от администратора (allowRelink).
   if (employee.telegramId && employee.telegramId !== telegramId && !opts.allowRelink) {
     throw new SafeLinkError(
       "Вы уже зарегистрированы в системе под другим Telegram-аккаунтом. Дублирование учётных записей запрещено. Для смены напишите администратору за кодом.",
@@ -128,8 +122,6 @@ async function issueForEmployee(
   }
 
   await db.employee.update({ where: { id: employee.id }, data: { telegramId } });
-  // issueOtpForUser поднимает sessionEpoch → все прежние сессии этого
-  // пользователя отзываются (защита, если аккаунт был скомпрометирован).
   const otp = await issueOtpForUser(user.id, via);
   await audit({
     actorId: user.id,
@@ -153,8 +145,6 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
   await assertNotRateLimited(telegramId, "phone");
   let ok = false;
   try {
-    // Только таджикский номер (+992): иначе номер другой страны с теми же 9 цифрами
-    // выдал бы доступ к чужой учётной записи (см. isTajikInternational).
     if (!isTajikInternational(phone)) {
       throw new PhoneNotRecognizedError(
         "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
@@ -174,7 +164,6 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
       },
       select: EMP_SELECT,
     });
-    // Фолбэк для записей, где phoneNormalized ещё не заполнен (созданы до бэкофилла).
     if (!match) {
       const legacy = await db.employee.findMany({
         where: {
@@ -200,14 +189,11 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
         await db.employee.update({ where: { id: hits[0].id }, data: updateData });
         match = hits[0];
       } else if (hits.length > 1) {
-        // неоднозначно — не рискуем привязать не того
         throw new PhoneNotRecognizedError(
           "По этому номеру несколько сотрудников. Напишите администратору за кодом идентификации.",
         );
       }
     }
-    // Единый ответ и для «не найдено», и для «неактивен» — чтобы бот не был
-    // оракулом «этот номер есть в справочнике».
     if (!match) {
       throw new PhoneNotRecognizedError(
         "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
@@ -218,8 +204,6 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
       ok = true;
       return res;
     } catch (e) {
-      // Скрываем состояние учётки за общим текстом (см. выше), но «уже привязан
-      // другой Telegram» оставляем — это подсказка легитимному пользователю.
       if (
         e instanceof SafeLinkError &&
         /напишите администратору за кодом|привязан другой Telegram|уже зарегистрированы/i.test(e.message)
@@ -250,7 +234,6 @@ export async function linkByCode(rawCode: string, telegramId: string): Promise<L
     const employee = await db.employee.findUnique({ where: { id: rec.employeeId }, select: EMP_SELECT });
     if (!employee) throw new SafeLinkError("Сотрудник не найден.");
 
-    // Код от администратора = явная авторизация перепривязки.
     const result = await issueForEmployee(employee, telegramId, "telegram:code", { allowRelink: true });
     await db.identificationCode.update({ where: { id: rec.id }, data: { usedAt: new Date() } });
     ok = true;
@@ -341,10 +324,6 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
       return res;
     }
 
-    // Служебная учётка (C&B, подрядчик) без карточки сотрудника — Telegram у нёй
-    // привязан прямо к User.telegramId, а не к Employee, поэтому не находится
-    // выше. Без этой ветки /login для таких аккаунтов всегда отвечал «не
-    // привязан», хотя ровно этот Telegram и стоит в их профиле.
     const serviceUser = await db.user.findFirst({
       where: { telegramId, employeeId: null },
       select: { id: true, login: true, isActive: true, partner: { select: { name: true } } },

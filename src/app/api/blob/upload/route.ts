@@ -22,8 +22,6 @@ export const runtime = "nodejs";
  * Требует env `BLOB_READ_WRITE_TOKEN` (создаётся вместе с Blob-store в Vercel).
  */
 
-// §5.12: PNG/JPG/WebP/SVG, ограничение размера 2 МБ. SVG санитизируется на
-// клиенте перед загрузкой; тут — только тип и размер.
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 const MAX_BYTES = 2 * 1024 * 1024; // 2 МБ
 
@@ -72,7 +70,6 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const contentType = request.headers.get("content-type") ?? "";
 
-  // --- 1. Серверная загрузка (multipart/form-data) ---
   if (contentType.startsWith("multipart/form-data")) {
     try {
       const form = await request.formData();
@@ -128,7 +125,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
   }
 
-  // --- 2. Клиентская загрузка (@vercel/blob/client upload()) — запасной путь ---
   const body = (await request.json()) as HandleUploadBody;
 
   try {
@@ -140,7 +136,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         try {
           if (clientPayload) purpose = JSON.parse(clientPayload).purpose ?? "card";
         } catch {
-          /* оставляем card */
         }
         const { permission } = resolvePurpose(purpose);
 
@@ -154,8 +149,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
-        // Долетает только когда роут публично доступен (в проде). Локально без
-        // туннеля не вызывается — не критично, URL клиент получает напрямую.
         let userId: string | undefined;
         let purpose = "card";
         try {
@@ -165,7 +158,6 @@ export async function POST(request: Request): Promise<NextResponse> {
             purpose = parsed.purpose ?? "card";
           }
         } catch {
-          /* ignore */
         }
         if (userId) {
           await audit({ actorId: userId, ...auditLabelsFor(purpose), entityId: "-", newValue: { url: blob.url } });

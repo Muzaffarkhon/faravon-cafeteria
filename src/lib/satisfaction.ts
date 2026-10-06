@@ -99,26 +99,20 @@ export async function submitSatisfactionResponse(
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new Error("Оценка должна быть от 1 до 5 звёзд.");
   }
-  // Оценку принимаем только когда опрос положен: за неё дарятся прокрутки колеса,
-  // иначе их можно было бы «накрутить» повторными вызовами действия.
   const { eligible, lastResponseId } = await eligibility(employeeId);
   if (!eligible) throw new Error("Сейчас оценка не требуется — спасибо!");
   const trimmedComment = comment?.trim() || null;
   await db.satisfactionResponse.create({
     data: { employeeId, rating, comment: trimmedComment },
   });
-  // Мгновенная проверка авто-задач геймификации на метрику FEEDBACK_GIVEN —
-  // не дожидаясь ночного крона (см. lib/gamification-tasks.ts).
   await checkAutoTasksForEmployee(employeeId, "FEEDBACK_GIVEN").catch(() => {});
 
-  // Подарок за оценку — бесплатные прокрутки колеса (если колесо включено).
   const wheel = await getWheelSettings();
   const giftSpins = wheel.wheelEnabled
     ? await grantBonusSpins({
         employeeId,
         count: wheel.wheelSpinsForRating,
         reason: "Подарок за оценку сервиса",
-        // Ключ цикла, а не ответа: два одновременных ответа одного цикла получат подарок один раз.
         opKey: `rating:${employeeId}:${lastResponseId ?? "first"}`,
       })
     : 0;

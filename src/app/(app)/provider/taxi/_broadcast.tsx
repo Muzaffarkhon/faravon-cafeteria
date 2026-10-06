@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState } from "react";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import {

@@ -15,7 +15,6 @@ import { consumeCashierLink } from "@/lib/cashier-link";
 export async function activateCashierPhone(token: string): Promise<void> {
   const meta = await clientMeta();
   const r = await consumeCashierLink(token, meta);
-  // Ссылка недействительна (или её только что использовали) — страница сама покажет причину.
   if (!r.ok) redirect(`/activate/${encodeURIComponent(token)}`);
 
   await db.user.update({ where: { id: r.user.id }, data: { lastLoginAt: new Date(), failedLoginCount: 0, lockedUntil: null } });

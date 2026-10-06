@@ -19,8 +19,6 @@ import { platformUrl } from "@/lib/platform-url";
 
 export type BroadcastTexts = Record<Locale, string>;
 
-// «Гостям» (нажавшим «Старт») пишем напрямую, без очереди: сколько бы их ни было,
-// укладываемся в лимит бота (25 сообщений/с) и время функции.
 export const GUEST_MAX = 600;
 const GUEST_BATCH = 25;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -82,7 +80,6 @@ export async function executeCampaign(id: string, opts: { from: "SCHEDULED" | "S
   };
 
   const fail = async (error: string): Promise<ExecuteResult> => {
-    // Отложенная рассылка, которую не удалось отправить, видна в истории как отменённая — с причиной в журнале.
     await db.broadcastCampaign.update({ where: { id }, data: { status: "CANCELLED" } });
     await audit({ actorId: c.createdById, action: "BROADCAST_FAILED", entityType: "BroadcastCampaign", entityId: id, newValue: { error } });
     return { sent: 0, failed: 0, error };
@@ -123,14 +120,11 @@ export async function executeCampaign(id: string, opts: { from: "SCHEDULED" | "S
           if (x.r.blocked) blocked.push(x.chatId);
         }
       }
-      // Заблокировавших бота больше не трогаем.
       if (blocked.length) {
         await db.telegramGuest.updateMany({ where: { telegramId: { in: blocked } }, data: { blockedAt: new Date() } });
       }
     }
   } else {
-    // Каждому получателю — строка в истории, связанная с его уведомлением (статус доставки).
-    // id генерируем сами: уведомлению нужен id получателя (кнопки «Да / Нет»), получателю — id уведомления.
     const rows = audience.users.map((u) => ({ user: u, rid: newId(), nid: newId() }));
     await db.$transaction([
       db.notification.createMany({

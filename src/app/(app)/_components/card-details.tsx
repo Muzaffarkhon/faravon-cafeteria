@@ -72,11 +72,6 @@ export function CardDetailsButton({ card, locale }: { card: CardDetails; locale:
 
       {open &&
         createPortal(
-          // Портал в <body> — иначе модалка остаётся потомком карточки с
-          // hover:-translate-y (см. flex-selection.tsx): при наведении рядом
-          // с краем карточки её translate то включается, то выключается
-          // (мышь то внутри, то снаружи из-за сдвига), и fixed-модалка внутри
-          // такого transform-родителя дёргается вместе с ней — глюк-мигание.
           <div
             className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6"
             onClick={() => setOpen(false)}

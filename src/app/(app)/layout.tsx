@@ -35,7 +35,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   await ensureRbac(); // подтянуть матрицу прав из БД перед проверками can()
 
-  // Язык, выбранный до появления поля User.locale, запоминаем один раз из cookie (дальше — при смене языка).
   if (!session.user.locale) {
     const chosen = asLocale((await cookies()).get(LOCALE_COOKIE)?.value);
     if (chosen) await db.user.update({ where: { id: session.user.id }, data: { locale: chosen } }).catch(() => {});
@@ -45,7 +44,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const canManageSupport = can(roles, "support.manage");
   const roleLabel = roles.map((r) => ROLE_LABELS[r]).join(", ");
 
-  // Имя рядом с кнопкой профиля: «Фамилия И.» у сотрудника, иначе — логин.
   const displayName = (() => {
     if (session.employee?.fullName) {
       const parts = session.employee.fullName.trim().split(/\s+/);
@@ -56,12 +54,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return session.user.login;
   })();
 
-  // Служебная учётка (C&B и т.п.) без карточки сотрудника, с доступом в
-  // админку — для неё ВСЕ страницы (включая «Работу») открываются в
-  // AdminShell, а не только /admin/* (см. (admin)/layout.tsx — тот же шелл
-  // для физически вложенных туда страниц). У сотрудников с доступом в
-  // админку обычный «Кабинет» остаётся как есть — они просто получают
-  // ссылку «Админ-панель» в меню профиля (ниже).
   if (!session.employee) {
     const { groups, hasAdminAccess } = await getAdminNav(session);
     if (hasAdminAccess) {
@@ -90,7 +82,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     partnerId,
   });
 
-  // Счётчики выбора льгот — в закреплённой шапке (перенесены из «Витрины заботы»).
   let selectionStat: { used: number; drafts: number; max: number } | null = null;
   const pendingNews = session.employee
     ? await getPendingNewsFor(session.user.id, {
@@ -116,16 +107,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getGamificationEnabled(),
     getWheelSettings(),
   ]);
-  // Окна при заходе — на любой странице (раньше оценка была только на главной, и кто
-  // открывал сайт по ссылке из бота на другую страницу, её не видел). Одно окно за раз:
-  // новость → оценка сервиса → опрос за монеты.
   const satisfactionEligible =
     !!session.employee && !pendingNews && (await isEligibleForSatisfactionSurvey(session.employee.id));
   const pendingSurvey =
     session.employee && !pendingNews && !satisfactionEligible ? await getPendingSurvey(session.employee.id) : null;
-  // Баланс монет и совокупный кешбек — в закреплённой шапке, снаружи их
-  // собственных страниц (/gamification, /applications), чтобы были видны
-  // сразу, без перехода.
   const [coinBalance, cashbackTotal] = session.employee
     ? await Promise.all([
         gamificationEnabled ? getCoinBalance(session.employee.id) : Promise.resolve(null),
@@ -141,13 +126,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     locale,
     gamificationEnabled,
   });
-  // Кнопка колеса в шапке — на любой странице, независимо от геймификации.
   // Точка-подсказка горит, пока лимит прокруток на сегодня не исчерпан.
   const wheel =
     wheelEnabled && session.employee
       ? {
           href: "/gamification/wheel",
-          // Сколько прокруток осталось: дневные + подаренные (за оценку, опрос) — сверх лимита.
           remaining:
             Math.max(
               0,
@@ -158,8 +141,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ) + (await countBonusSpins(session.employee.id)),
         }
       : null;
-  // «Каталог» и «Аналитика и доступ» переехали в отдельную админ-панель
-  // (/admin) со своим левым меню — здесь остаются только «Кабинет»/«Работа».
   const groups = allGroups.filter((g) => g.id === "cabinet" || g.id === "work");
   const hasAdminAccess = allGroups.some(
     (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,

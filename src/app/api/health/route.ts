@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// Пинг-эндпоинт для внешнего мониторинга (UptimeRobot и т.п.).
-// Выполняет запрос к БД, поэтому держит Neon «тёплым» (scale-to-zero).
-// force-dynamic — чтобы Next не отдавал статически закешированный ответ.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

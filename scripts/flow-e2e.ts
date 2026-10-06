@@ -34,7 +34,6 @@ async function notifCount(event: string) {
 }
 
 async function main() {
-  // --- предусловия ---
   head("Предусловия");
   const period = await db.period.findFirst({ where: { status: "OPEN" }, orderBy: { startDate: "desc" } });
   assert(period, "есть период в статусе OPEN");
@@ -57,7 +56,6 @@ async function main() {
   const existing = await db.applicationItem.count();
   assert(existing === 0, "флоу пуст (запусти flow:reset, если нет)");
 
-  // --- Шаг: сотрудник выбирает 3 льготы (toggleSelection) ---
   head("ivanov: выбор 3 льгот → DRAFT");
   const app = await db.application.create({ data: { employeeId: ivanov!.id, periodId: period!.id } });
   for (const c of flex) {
@@ -67,7 +65,6 @@ async function main() {
   assert(drafts.length === 3, "создано 3 позиции в статусе DRAFT");
   assert((await pendingCount()) === 0, "счётчик «Согласование» = 0 (черновики не считаются)");
 
-  // --- Шаг: подтверждение выбора (submitSelection) ---
   head("ivanov: «Подтвердить выбор» → PENDING + уведомление согласующим");
   for (const d of drafts) assertTransition(d.status, "PENDING", "EMPLOYEE");
   await db.applicationItem.updateMany({
@@ -88,7 +85,6 @@ async function main() {
   const sample = await db.notification.findFirst({ where: { event: "APPLICATION_SUBMITTED" } });
   console.log(`    текст для бота: "${formatNotificationText("APPLICATION_SUBMITTED", sample!.payload as Record<string, unknown>)}"`);
 
-  // --- Шаг: согласующий одобряет 2, отклоняет 1 (approveItem / rejectItem) ---
   head("approver: одобрить 2, отклонить 1");
   const pend = await db.applicationItem.findMany({ where: { applicationId: app.id, status: "PENDING" }, orderBy: { createdAt: "asc" } });
   const [a1, a2, r1] = pend;
@@ -108,7 +104,6 @@ async function main() {
   assert((await pendingCount()) === 0, "счётчик «Согласование» = 0");
   assert((await notifCount("ITEM_APPROVED")) === 2 && (await notifCount("ITEM_REJECTED")) === 1, "уведомления сотруднику: 2 одобрено, 1 отклонено");
 
-  // --- Шаг: HR BP формирует купоны (createCoupon) ---
   head("hrbp: сформировать купоны для одобренных позиций");
   const approved = await db.applicationItem.findMany({ where: { applicationId: app.id, status: "APPROVED" }, include: { card: true } });
   let seq = (await db.coupon.count()) + 1;
@@ -133,7 +128,6 @@ async function main() {
   assert((await db.applicationItem.count({ where: { applicationId: app.id, status: "COUPON_CREATED" } })) === 2, "2 позиции → COUPON_CREATED");
   assert((await notifCount("COUPON_CREATED")) === 2, "2 уведомления COUPON_CREATED");
 
-  // --- Шаг: HR BP выдаёт купоны (issueCoupon) ---
   head("hrbp: выдать купоны");
   const created = await db.coupon.findMany({ where: { status: "CREATED" }, include: { item: true } });
   for (const c of created) {
@@ -146,7 +140,6 @@ async function main() {
   assert((await db.applicationItem.count({ where: { applicationId: app.id, status: "COUPON_ISSUED" } })) === 2, "2 позиции → COUPON_ISSUED");
   assert((await notifCount("COUPON_ISSUED")) === 2, "2 уведомления COUPON_ISSUED");
 
-  // --- Итог ---
   head("Итоговое состояние");
   const byStatus = await db.applicationItem.groupBy({ by: ["status"], _count: true });
   console.log("  позиции:", byStatus.map((s) => `${s.status}=${s._count}`).join("  "));

@@ -45,7 +45,6 @@ export async function updateNotificationTemplate(
     return { error: `Недопустимые плейсхолдеры: ${bad.map((b) => `{${b}}`).join(", ")}` };
   }
 
-  // Переводы tg/uz: пусто или совпадает с зашитым — не храним (действует зашитый перевод).
   const translations: Record<string, string> = {};
   for (const l of ["tg", "uz"] as const) {
     const text = String(formData.get(`body_${l}`) ?? "").trim();

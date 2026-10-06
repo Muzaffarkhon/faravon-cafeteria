@@ -34,8 +34,6 @@ async function main() {
   const actor = await db.user.findFirst({ where: { roles: { has: "C_AND_B" } } });
   if (!actor) throw new Error("Нет пользователя C&B.");
 
-  // Два периода: закрываемый (в прошлом) и следующий (в будущем) — с датами,
-  // которые точно не пересекутся с реальными периодами песочницы.
   const closed = await db.period.create({
     data: {
       name: `${tag} — закрываемый`,
@@ -68,7 +66,6 @@ async function main() {
     },
   });
 
-  // 5 сотрудников: 1-3 — полная (уже выданная) волна №1, 4-5 — недобор волны №2.
   await db.employee.createMany({
     data: Array.from({ length: 5 }, (_, i) => ({ fullName: `${tag} #${i + 1}`, position: "Тест", department: "Тест переноса" })),
   });
@@ -80,7 +77,6 @@ async function main() {
     apps.push(await db.application.create({ data: { employeeId: emp.id, periodId: closed.id } }));
   }
 
-  // Волна №1 (сотрудники 1-3) — уже выдана: купон ISSUED, позиция COUPON_ISSUED.
   const wave1Items = [];
   for (let i = 0; i < 3; i++) {
     const item = await db.applicationItem.create({
@@ -103,8 +99,6 @@ async function main() {
     wave1Items.push(item);
   }
 
-  // Волна №2 (сотрудники 4-5) — недобор: одна APPROVED (купон ещё не сформирован),
-  // одна COUPON_CREATED (купон сформирован, но не выдан — волна не набралась).
   const item4 = await db.applicationItem.create({
     data: { applicationId: apps[3].id, cardId: card.id, status: "APPROVED", submittedAt: new Date() },
   });
@@ -131,7 +125,6 @@ async function main() {
   const result = await carryUnfilledGroupSelections(closed.id, actor.id);
   console.log("Результат carryUnfilledGroupSelections:", result);
 
-  // --- Проверки ---
   check(result.cards === 1, "затронута ровно одна карточка");
   check(result.carried === 2, "перенесено ровно 2 позиции (хвост волны 2)");
 
@@ -162,7 +155,6 @@ async function main() {
     check(app?.periodId === next.id, "перенесённая позиция #4 принадлежит следующему периоду");
   }
 
-  // Идемпотентность: повторный вызов не должен создавать дубли/переносить снова.
   const result2 = await carryUnfilledGroupSelections(closed.id, actor.id);
   check(result2.carried === 0, "повторный вызов идемпотентен — новых переносов нет");
 
@@ -180,7 +172,6 @@ async function cleanup() {
   const users = await db.user.findMany({ where: { employeeId: { in: empIds } } });
   await db.notification.deleteMany({ where: { userId: { in: users.map((u) => u.id) } } });
   await db.coupon.deleteMany({ where: { itemId: { in: itemIds } } });
-  // Переносные позиции ссылаются на исходные через carriedFromId — сначала их.
   await db.applicationItem.deleteMany({ where: { carriedFromId: { in: itemIds } } });
   await db.applicationItem.deleteMany({ where: { id: { in: itemIds } } });
   await db.application.deleteMany({ where: { id: { in: appIds } } });

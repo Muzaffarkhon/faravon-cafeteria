@@ -42,7 +42,6 @@ export async function computeNavBadges(opts: {
       canConfirmCoupons && partnerId
         ? db.coupon.count({ where: { partnerId, status: "ISSUED" } })
         : 0,
-      // Один инбокс на оба источника (Telegram-гости и веб-«Обратная связь»).
       canManageSupport
         ? db.supportThread.count({ where: { messages: { some: { direction: "IN", readAt: null } } } })
         : 0,

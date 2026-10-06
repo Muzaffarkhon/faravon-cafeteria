@@ -31,7 +31,6 @@ function LoginFormInner({
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="next" value={next} />
-      {/* honeypot: скрыт от людей, заполняют боты (§5.1) */}
       <input
         type="text"
         name="company"

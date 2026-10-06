@@ -42,12 +42,6 @@ const SUPPORT_OPENED =
 
 const ADMIN_BUTTON_LABEL = "🆘 Написать администратору";
 
-// Вторая строка — «Написать администратору» — есть всегда, вместе с
-// «Поделиться контактом»: обычная кнопка (не request_contact), по нажатию
-// отправляет свой текст как сообщение (см. проверку text === ADMIN_BUTTON_LABEL
-// ниже). Из-за one_time_keyboard клавиатура схлопывается после каждого
-// ответа — поэтому её нужно прикладывать к каждому сообщению бота, где
-// кнопка администратора должна быть под рукой (не только на /start).
 const CONTACT_KEYBOARD = {
   reply_markup: {
     keyboard: [[{ text: "📱 Поделиться контактом", request_contact: true }], [{ text: ADMIN_BUTTON_LABEL }]],
@@ -97,9 +91,6 @@ interface TgMessage {
   poll?: unknown;
 }
 
-// Разрешены только текст и «Поделиться контактом» — любые файлы/медиа от
-// пользователя отклоняются без обработки (снижает поверхность атаки через
-// вложения). Не касается исходящих сообщений бота (например, QR-кода).
 function hasDisallowedContent(msg: TgMessage, photoAllowed: boolean): boolean {
   return !!(
     (msg.photo && !photoAllowed) ||
@@ -124,7 +115,6 @@ interface TgCallbackQuery {
 }
 
 async function openContactSupportThread(telegramId: string, rawPhone: string) {
-  // Номер другой страны не приводим к «+992…»: иначе C&B принял бы его за таджикский.
   const phone = isTajikInternational(rawPhone) ? formatTajikPhone(rawPhone) : null;
   await openOrReopenThread(telegramId);
   if (phone) await db.supportThread.update({ where: { telegramId }, data: { phone } });
@@ -212,8 +202,6 @@ async function handle(msg: TgMessage) {
   const telegramId = String(fromId);
 
   try {
-    // Фото принимаем только в уже открытый диалог поддержки (и не больше 5 МБ) — как реплику в чат;
-    // всё остальное медиа, как и фото вне диалога, по-прежнему отклоняется.
     const photo = msg.photo?.at(-1);
     if (photo) {
       const hasThread = !!(await db.supportThread.findUnique({ where: { telegramId }, select: { id: true } }));
@@ -232,10 +220,6 @@ async function handle(msg: TgMessage) {
     }
 
     if (msg.contact) {
-      // Принимаем номер, ТОЛЬКО если это подтверждённо собственный контакт
-      // отправителя (user_id совпадает с from.id). Отсутствие user_id = номер
-      // не привязан к Telegram или скрыт приватностью — доверять ему нельзя
-      // (иначе — захват аккаунта по чужому номеру из справочника).
       if (msg.contact.user_id !== fromId) {
         await send(
           chatId,
@@ -249,11 +233,6 @@ async function handle(msg: TgMessage) {
         await send(chatId, grantMessage(g.login, g.otp, g.fullName), { reply_markup: { remove_keyboard: true } });
       } catch (e) {
         if (!(e instanceof PhoneNotRecognizedError) || (await isKnownTelegramId(telegramId))) throw e;
-        // Номер подтверждён Telegram-контактом, но сотрудника с ним нет —
-        // не бросаем человека с текстовой ошибкой: сразу открываем чат
-        // поддержки и сохраняем ЭТОТ (проверенный) номер за тредом, чтобы
-        // C&B искал по нему, а не по тому, что гость мог случайно
-        // опечатать текстом. Остаётся попросить ФИО, чтобы найти карточку.
         await openContactSupportThread(telegramId, msg.contact.phone_number);
         await send(
           chatId,
@@ -268,9 +247,6 @@ async function handle(msg: TgMessage) {
 
     const text = (msg.text || "").trim();
 
-    // Deep-link со страницы входа (?start=support) — Telegram присылает его
-    // как текст "/start support". Сразу открываем чат поддержки, не
-    // заставляя человека ещё и нажимать кнопку внутри переписки.
     if (text === "/start support" || text === ADMIN_BUTTON_LABEL) {
       await noteGuest(telegramId, msg.from?.language_code);
       await openOrReopenThread(telegramId);
@@ -283,8 +259,6 @@ async function handle(msg: TgMessage) {
       return;
     }
     if (text === "/id") {
-      // Для учёток подрядчиков/C&B без Employee: этот ID вставляет администратор
-      // в поле «Telegram ID» учётной записи, чтобы приходили уведомления (§11/§12).
       await send(
         chatId,
         `Ваш Telegram ID: <code>${telegramId}</code>\n` +
@@ -298,13 +272,6 @@ async function handle(msg: TgMessage) {
       return;
     }
 
-    // Обычное сообщение (не команда) — если для этого чата уже открыт
-    // (или раньше был) тред поддержки, это реплика в чат, а не непонятый
-    // ввод. Команды (/login и т.п.) до этой точки не доходят —
-    // они обработаны выше и возвращаются раньше.
-    // C&B узнаёт о новом сообщении не через Telegram-пуш (это заваливало бы
-    // их же бота на каждую реплику гостя), а через звук и мигание заголовка
-    // прямо в интерфейсе — см. _support-alert.tsx.
     if (text && !text.startsWith("/")) {
       const appended = await appendGuestMessage(telegramId, text, {
         tgMessageId: msg.message_id,
@@ -324,13 +291,7 @@ async function handle(msg: TgMessage) {
     await noteGuest(telegramId, msg.from?.language_code);
     await send(chatId, WELCOME, CONTACT_KEYBOARD);
   } catch (e) {
-    // Наружу — только заранее одобренный текст. Всё прочее (Prisma, сеть)
-    // логируем, пользователю — общая фраза (не оракул для перебора).
     if (e instanceof SafeLinkError) {
-      // Любое сообщение об ошибке, которое отправляет человека к
-      // администратору — это и есть тупик, который решает чат поддержки.
-      // Правило по подстроке, а не по списку сообщений: новая ошибка с той
-      // же фразой получит кнопку сама, без правки этого места.
       const extra = /напишите администратору/i.test(e.message) ? SUPPORT_BUTTON : {};
       await send(chatId, `⚠️ ${e.message}`, extra);
     } else {
@@ -346,8 +307,6 @@ async function handleFaqTap(faqId: string, cb: TgCallbackQuery) {
   if (!faq) return;
 
   const telegramId = String(cb.from.id);
-  // Тап по вопросу — как и обычное сообщение, открывает/переоткрывает диалог
-  // и остаётся в истории для C&B, а не только у гостя.
   await openOrReopenThread(telegramId);
   await appendGuestMessage(telegramId, `[Вопрос] ${faq.question}`);
 
@@ -358,9 +317,6 @@ async function handleFaqTap(faqId: string, cb: TgCallbackQuery) {
       db.supportThread.update({ where: { id: thread.id }, data: { lastMessageAt: new Date() } }),
     ]);
   }
-  // Редактируем то же сообщение бота (с которого была нажата кнопка) вместо
-  // отправки нового — иначе список вопросов дублируется под каждым ответом
-  // и чат быстро зарастает одинаковыми клавиатурами.
   await tg("editMessageText", {
     chat_id: cb.message.chat.id,
     message_id: cb.message.message_id,
@@ -378,7 +334,6 @@ async function handleCallback(cb: TgCallbackQuery) {
   if (confirm) {
     const reply = await answerBroadcastConfirm({ ...confirm, telegramId: String(cb.from.id) });
     if (reply === null) return;
-    // Убираем кнопки с сообщения рассылки — ответ дан, второй раз нажимать нечего.
     await tg("editMessageReplyMarkup", {
       chat_id: cb.message.chat.id,
       message_id: cb.message.message_id,

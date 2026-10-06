@@ -31,7 +31,6 @@ export function flushTelegram() {
       }
     });
   } catch {
-    // after() доступен только в контексте запроса — вне его доставку сделает cron/бот
   }
 }
 

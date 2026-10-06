@@ -3,8 +3,6 @@
 import type { ComponentProps, KeyboardEvent } from "react";
 import { Textarea } from "./ui";
 
-// Ключи по e.code (физическая клавиша), а не e.key — иначе Ctrl+B/I/U не
-// сработает при русской/таджикской раскладке (e.key даёт кириллицу).
 const WRAP: Record<string, string> = { KeyB: "**", KeyI: "_", KeyU: "__" };
 
 function setNativeValue(el: HTMLTextAreaElement, value: string) {

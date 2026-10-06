@@ -15,9 +15,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await ensureRbac();
 
   const { roles } = session;
-  // Учётки с доступом в админку получают весь набор инструментов здесь —
-  // «Работа» (Согласование, Купоны и т.п.) в том числе, а не отдельно в
-  // обычной шапке (см. (app)/layout.tsx: для них она рендерит этот же шелл).
   const { groups, hasAdminAccess } = await getAdminNav(session);
   if (!hasAdminAccess) redirect("/");
   const locale = await getLocale();

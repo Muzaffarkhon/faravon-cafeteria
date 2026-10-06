@@ -43,10 +43,6 @@ export default async function OverviewPage() {
 
   if (!session?.employee) {
     const roles = session?.roles ?? [];
-    // Плитки строятся из того же списка разделов, что и меню «Ещё» в шапке
-    // (src/app/(app)/_nav.ts) — чтобы раздел нельзя было добавить в одно
-    // место и забыть про другое. Счётчики — из того же computeNavBadges,
-    // что и меню, иначе плитки снова разошлись бы с тем, что видно наверху.
     const partnerId = session?.user.partnerId ?? null;
     const [partner, badges] = await Promise.all([
       partnerId
@@ -65,19 +61,11 @@ export default async function OverviewPage() {
     const hasAdminAccess = allGroups.some(
       (g) => (g.id === "catalog" || g.id === "admin") && g.items.length > 0,
     );
-    // Учётка без карточки сотрудника (C&B, сервисный аккаунт) с доступом в
-    // админку — «Кабинет» ей не нужен вовсе, все инструменты (включая
-    // «Работу») собраны в левом меню /admin. Остаётся только для тех, у
-    // кого есть исключительно «Работа» (подрядчик, согласующий и т.п.).
     if (hasAdminAccess) redirect("/admin");
 
     const groups = allGroups.filter((g) => g.id === "work");
     const total = groups.reduce((n, g) => n + g.items.length, 0);
 
-    // Подрядчик-кассир/подрядчик такси: единственный (или единственный +
-    // «Реклама») пункт — касса партнёра либо выдача промокодов. «Кабинет» с
-    // плиткой в один клик до той же страницы был лишним шагом — открываем
-    // сразу (вкладки шапки, включая «Реклама», остаются доступны как обычно).
     const workItems = groups.find((g) => g.id === "work")?.items ?? [];
     const soleWorkHref = (href: string) =>
       groups.length === 1 &&
@@ -147,25 +135,17 @@ export default async function OverviewPage() {
   }
 
   const emp = session.employee;
-  // Сотрудник ни разу не подавал заявку — значит, ему ещё не встречались ни
-  // статусы, ни купон/промокод. Показываем короткое объяснение механики один
-  // раз: как только появится первая позиция (любого статуса), блок исчезает
-  // сам — не нужен ни клиентский стейт, ни отдельная настройка «прочитано».
   const everSubmitted = await db.applicationItem.count({
     where: { application: { employeeId: emp.id } },
   });
   const isNewEmployee = everSubmitted === 0;
   const ctx = await resolveSelectionContext();
-  // Для показа периода/окна — период с открытым окном; для выбора — целевой
-  // (после старта периода выбор переносится на следующий, §2).
   const period = ctx.windowPeriod;
   const targetPeriod = ctx.targetPeriod;
 
   const { recognition: recognitionRaw, care: careRaw, flex: flexRaw } =
     await getCachedBenefitCards();
 
-  // Переводы (§i18n) — карточка и её партнёр локализуются один раз здесь, весь
-  // остальной код страницы (баннеры, группы, вывод) дальше работает как обычно.
   const localizeCard = <T extends { title: string; description: string | null; condition: string | null; translations: unknown }>(
     c: T,
   ): T => ({
@@ -191,7 +171,6 @@ export default async function OverviewPage() {
 
   const banners = await getCachedActiveBanners();
 
-  // Баннер партнёра → якорь на его гибкую льготу в списке ниже (активная в приоритете).
   const flexCardByPartner = new Map<string, string>();
   for (const c of flex) if (c.partnerId && c.isActive && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
   for (const c of flex) if (c.partnerId && !flexCardByPartner.has(c.partnerId)) flexCardByPartner.set(c.partnerId, c.id);
@@ -199,9 +178,6 @@ export default async function OverviewPage() {
   const windowOpen = ctx.windowOpen && !ctx.missingNextPeriod;
 
   let application = targetPeriod ? await getApplicationWithItems(emp.id, targetPeriod.id) : null;
-  // Автовыбор (§5): заявки на период ещё нет — первое обращение сотрудника
-  // после открытия окна. Применяем сохранённые льготы один раз здесь, а не
-  // при каждом заходе (иначе вернули бы то, что сотрудник сам убрал).
   if (!application && windowOpen && targetPeriod) {
     await ensureAutoPicks(emp.id, targetPeriod);
     application = await getApplicationWithItems(emp.id, targetPeriod.id);
@@ -213,15 +189,7 @@ export default async function OverviewPage() {
   const draftCount = items.filter((i) => i.status === "DRAFT").length;
   const maxSelections = targetPeriod?.maxSelections ?? period?.maxSelections ?? 4;
 
-  // Статус позиции по карточке — чтобы показать «уже выбрано / отклонено / в обработке».
   const itemStatusByCard = new Map(items.map((i) => [i.cardId, i.status] as const));
-  // Очередь наборов для групповых льгот: как только счётчик доходит до порога —
-  // это готовая группа (купоны выдаются сразу, см. issueCouponIfReady), а счётчик
-  // для интерфейса начинается заново для следующей группы. Без этого прогресс-бар
-  // навсегда «застревал» зелёным и полным после первого набора порога, и сотрудники
-  // думали, что мест больше нет, хотя выбор в новую группу по-прежнему шёл сразу.
-  // Только для карточек с groupWaves (набор группами). У «минимум N» (groupWaves=false)
-  // очереди нет: набрали порог — прогресс скрывается (см. groupHidden ниже).
   const groupWaveOf = (
     have: number,
     min: number,
@@ -233,13 +201,7 @@ export default async function OverviewPage() {
     const inWave = have - (wave - 1) * min;
     return { inWave, wave, done: inWave === min };
   };
-  // Прогресс набора групп для карточек с порогом (§ minParticipants).
   const groupCards = flex.filter((c) => c.minParticipants > 1);
-  // «Минимум N»: порог набран — бар и баннер прогресса больше не нужны.
-  // Также скрываем баннер, если исторически кому-то уже выдали купон(ы) по
-  // этой карточке (groupCount > 0), а РЕАЛЬНО ждущих решения не осталось
-  // (groupPendingCount = 0) — иначе «нужно ещё N» никого не ждёт и вводит в
-  // заблуждение (см. groupPendingCount).
   const groupHiddenOf = (c: { id: string; minParticipants: number; groupWaves: boolean }) => {
     const have = groupCount.get(c.id) ?? 0;
     if (have > 0 && (groupPending.get(c.id) ?? 0) === 0) return true;
@@ -252,9 +214,6 @@ export default async function OverviewPage() {
       ])
     : [new Map<string, number>(), new Map<string, number>()];
 
-  // «Выбрать как в прошлый раз» (§4): льготы из последнего прошлого периода,
-  // которые сотрудник ещё не выбрал/не пытался выбрать в текущем — с учётом
-  // только тех, что всё ещё опубликованы и активны (пересечение с `flex`).
   const flexTitleById = new Map(flex.map((c) => [c.id, c.title]));
   const previousPicks =
     windowOpen && targetPeriod
@@ -263,8 +222,6 @@ export default async function OverviewPage() {
           .map((p) => ({ cardId: p.cardId, title: flexTitleById.get(p.cardId)! }))
       : [];
 
-  // Лайки на карточки витрины (§10): не привязаны к периоду, просто счётчик
-  // популярности + собственный лайк сотрудника.
   const flexIds = flex.map((c) => c.id);
   const [likeCounts, myLikes, autoPickedIds] = await Promise.all([
     db.cardLike.groupBy({ by: ["cardId"], where: { cardId: { in: flexIds } }, _count: { cardId: true } }),
@@ -274,8 +231,6 @@ export default async function OverviewPage() {
   const likeCountByCard = new Map(likeCounts.map((l) => [l.cardId, l._count.cardId]));
   const likedCardIds = new Set(myLikes.map((l) => l.cardId));
 
-  // Слайды баннера (§6): реклама партнёров + свои новости (kind NEWS, без пометки
-  // «Партнёр») + групповые льготы, набирающие текущую очередь, — с переходом на выбор.
   const nowMs = new Date().getTime();
   const freshAt = (d: Date, days: number) => nowMs - d.getTime() < days * 86_400_000;
   const partnerBannerSlides: BannerSlide[] = banners.map((b) => {
@@ -286,7 +241,6 @@ export default async function OverviewPage() {
     const androidUrl = safeLinkHref(b.androidUrl);
     const iosUrl = safeLinkHref(b.iosUrl);
     const appHref = androidUrl ?? iosUrl;
-    // Приоритет клика: ссылка на приложение → якорь на льготу → произвольная ссылка.
     const linkHref = appHref ?? cardHref ?? safeHref;
     return {
       id: b.id,
@@ -315,7 +269,6 @@ export default async function OverviewPage() {
         kind: "group",
         title: c.title,
         subtitle:
-          // Набор собран — «Нужно ещё 0» не пишем: скидка уже действует.
           remaining <= 0
             ? `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}. ${t("home.groupBenefitComplete")}`
             : `${t("home.groupBenefitPrefix")} ${inWave} ${t("home.groupBenefitOf")} ${c.minParticipants}.${waveHint} ${t("home.groupBenefitNeedMore")} ${remaining}${period?.windowOpen ? ` ${t("home.groupBenefitClickHint")}` : "."}`,
@@ -327,10 +280,7 @@ export default async function OverviewPage() {
       };
     });
 
-  // «Топ выбор» и «Мало кто выбрал» — обычные (не групповые) активные льготы по числу
-  // выбравших в целевом периоде. У групповых свои слайды с прогрессом набора.
   const activePlain = flex.filter((c) => c.isActive && c.minParticipants <= 1);
-  // Новые льготы — отдельные слайды первыми; в рейтинге их не дублируем.
   const newCards = activePlain
     .filter((c) => freshAt(c.createdAt, FRESH_CARD_DAYS))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -363,7 +313,6 @@ export default async function OverviewPage() {
     id: `${kind}-${c.id}`,
     kind,
     title: c.title,
-    // У «мало кто выбрал» число не показываем — мотивирующий текст вместо него.
     subtitle: kind === "rare" ? t("home.rareHint") : `${t("home.chosenBy")} ${picks(c)}`,
     imageUrl: safeImageSrc(c.imageUrl),
     linkHref: `#card-${c.id}`,
@@ -372,8 +321,6 @@ export default async function OverviewPage() {
   });
   const rankBannerSlides = [...popularCards.map((c) => rankSlide(c, "popular")), ...rareCards.map((c) => rankSlide(c, "rare"))];
 
-  // Приоритет: свежие новости и новые льготы, затем групповые, рейтинг льгот и остальные баннеры.
-  // Если первый слайд свежий — карусель стартует с него, иначе стартовый слайд случайный (§6).
   const freshNewsSlides = partnerBannerSlides.filter((s) => s.fresh);
   const otherBannerSlides = partnerBannerSlides.filter((s) => !s.fresh);
   const bannerSlides = [...freshNewsSlides, ...newBenefitSlides, ...groupBannerSlides, ...rankBannerSlides, ...otherBannerSlides];
@@ -387,8 +334,6 @@ export default async function OverviewPage() {
 
   return (
     <div className="space-y-8">
-      {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
-      {/* Той же ширины, что и карусель баннеров (см. _banner-carousel.tsx), — шире колонки контента. */}
       <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6 lg:relative lg:left-1/2 lg:w-[max(100%,min(96vw,90rem))] lg:-translate-x-1/2">
         <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
           {t("home.greeting")}, {firstName}
@@ -551,8 +496,6 @@ export default async function OverviewPage() {
             groupCount: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).inWave,
             groupWave: groupWaveOf(groupCount.get(c.id) ?? 0, c.minParticipants, c.groupWaves).wave,
             groupHidden: groupHiddenOf(c),
-            // Своя группа уже собрана и купон выдан — счётчик следующей группы ему
-            // не про него (раньше видел «1 / 5, скидка заработает…» при выданном купоне).
             groupMineIssued: itemStatusByCard.get(c.id) === "COUPON_ISSUED",
             phonePromo: c.partner?.deliveryMode === "PHONE_PROMO",
             likeCount: likeCountByCard.get(c.id) ?? 0,

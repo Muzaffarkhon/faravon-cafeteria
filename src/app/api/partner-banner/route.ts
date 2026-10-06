@@ -97,8 +97,6 @@ export async function PUT(req: Request) {
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const prev = await db.partnerBanner.findUnique({ where: { id }, select: { imageUrl: true } });
   const item = await db.partnerBanner.update({ where: { id }, data: parsed });
-  // Замена/удаление картинки баннера раньше не чистила старый файл в Vercel
-  // Blob — он оставался там навсегда и копил объём хранилища.
   await cleanupBlob(prev?.imageUrl ?? null, parsed.imageUrl);
   invalidateBannersCache();
   return NextResponse.json(item);

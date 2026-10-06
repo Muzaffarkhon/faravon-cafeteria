@@ -134,20 +134,15 @@ export async function redeemCouponByNumber(
     );
   }
   if (coupon.status === "USED") throw new Error("Купон уже активирован.");
-  // Кешбек проводится отдельно — по сумме покупки (см. lib/cashback.ts, applyCashback).
   if (coupon.benefitMode === "CASHBACK") {
     throw new Error("Это льгота с кешбеком: введите сумму покупки.");
   }
-  // Многоразовый купон: гасится при каждом визите, но не «сгорает» — действует весь период.
   const reusable = coupon.benefitMode === "PERIOD";
   if (coupon.status !== "ISSUED") {
     throw new Error(`Купон нельзя активировать: статус «${COUPON_STATUS_LABELS[coupon.status]}».`);
   }
 
   const now = new Date();
-  // Купон может быть одобрен и выдан ещё в окне выбора, ДО начала самого
-  // периода (окно открывается заранее) — гасить его партнёру раньше срока
-  // нельзя, даже если он уже ISSUED.
   if (now.getTime() < coupon.period.startDate.getTime()) {
     throw new Error(
       `Купон ещё не действует. Начало действия: ${fmtDate(coupon.period.startDate)}.`,
@@ -178,8 +173,6 @@ export async function redeemCouponByNumber(
     );
   }
 
-  // Атомарный переход ISSUED → USED: условия в WHERE не дают погасить купон
-  // дважды при гонке и не дают погасить просроченный.
   if (!reusable) {
     const claimed = await db.coupon.updateMany({
       where: {
@@ -193,7 +186,6 @@ export async function redeemCouponByNumber(
       throw new Error("Купон уже активирован или просрочен.");
     }
   } else {
-    // Многоразовый: фиксируем только первый визит.
     await db.coupon.updateMany({ where: { id: coupon.id, activatedAt: null }, data: { activatedAt: now } });
   }
 

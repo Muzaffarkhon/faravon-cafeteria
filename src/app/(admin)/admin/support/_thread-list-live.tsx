@@ -87,10 +87,6 @@ export function ThreadListLive({
     void load();
   }, [load]);
 
-  // Действие в открытом диалоге (ответ/закрытие/архив/удаление) бампает
-  // refreshSignal — перечитываем список сразу же, а не ждём следующий тик
-  // опроса (до POLL_MS): иначе диалог с новым сообщением не поднимался наверх
-  // и не пропадал непрочитанным, пока не пройдёт до 8 секунд.
   useEffect(() => {
     if (!refreshSignal) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- подгружает список с сервера (внешний источник), а не зеркалирует проп/стейт
@@ -103,9 +99,6 @@ export function ThreadListLive({
     return () => clearInterval(id);
   }, [load]);
 
-  // Выбранный диалог живёт в хэше адреса (`#<id>`), не в пути — см.
-  // `_support-inbox-client.tsx`. `basePath` поэтому всегда один и тот же:
-  // фильтры/поиск не зависят от того, какой чат сейчас открыт.
   const basePath = "/admin/support";
 
   const clearHref = () => {

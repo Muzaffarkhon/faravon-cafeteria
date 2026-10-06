@@ -48,7 +48,6 @@ async function main() {
 
   const dayKey = dushanbeDateKey();
   if (!(await db.user.findFirst({ where: { roles: { has: "C_AND_B" } } }))) throw new Error("Нет пользователя C&B.");
-  // Временные сотрудники без Telegram и без учётки — уведомления о купоне никуда не уйдут.
   const tag = `ТЕСТ колесо ${Date.now()}`;
   await db.employee.createMany({
     data: Array.from({ length: N + 1 }, (_, i) => ({ fullName: `${tag} #${i + 1}`, position: "Тест", department: "Тест колеса" })),
@@ -64,13 +63,11 @@ async function main() {
   const startedAt = new Date();
 
   await db.wheelSector.updateMany({ where: { id: { in: sectorsBefore.map((s) => s.id) } }, data: { isActive: false } });
-  // Геймификация выключена намеренно: колесо должно работать без неё.
   await db.gamificationSettings.upsert({
     where: { id: "default" },
     create: { id: "default", enabled: false, wheelEnabled: true, wheelSpinCost: 0 },
     update: { enabled: false, wheelEnabled: true, wheelSpinCost: 0 },
   });
-  // Купон почти гарантированно выбирается первым — так все N бьются за K мест.
   const couponSector = await db.wheelSector.create({
     data: { position: 1, kind: "COUPON", cardId: card.id, quantity: K, weight: 1_000_000 },
   });
@@ -113,7 +110,6 @@ async function main() {
     check(block === "taken", `для победителя листок помечен «Уже ваша» (block=${block})`);
   } finally {
     console.log("\nОткат тестовых данных…");
-    // Всё, что висит на временных сотрудниках, и сами сотрудники.
     const empIds = employees.map((e) => e.id);
     await db.coupon.deleteMany({ where: { employeeId: { in: empIds } } });
     await db.wheelSpin.deleteMany({ where: { employeeId: { in: empIds } } });

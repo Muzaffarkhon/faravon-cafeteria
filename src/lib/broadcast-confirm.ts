@@ -42,7 +42,6 @@ export async function answerBroadcastConfirm(params: {
     },
   });
   if (!rec) return null;
-  // Кнопка из пересланного сообщения не даёт ответить за другого.
   if ((rec.user.telegramId ?? rec.user.employee?.telegramId) !== params.telegramId) return null;
   const locale = asLocale(rec.user.locale) ?? "ru";
 

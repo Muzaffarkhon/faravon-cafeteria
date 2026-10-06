@@ -26,14 +26,12 @@ if (!process.env.DATABASE_URL) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 1. Есть ли что применять? `migrate status` не берёт advisory-lock.
 let hasPending = true;
 try {
   const out = execSync("npx prisma migrate status", { encoding: "utf8" });
   hasPending = !/Database schema is up to date/i.test(out);
   console.log(`[predeploy] migrate status: ${hasPending ? "есть ожидающие миграции" : "схема актуальна"}`);
 } catch (e) {
-  // status не смог достучаться — пусть решает migrate deploy с ретраями.
   console.warn("[predeploy] migrate status не отработал, продолжаю с migrate deploy:", e.message);
 }
 
@@ -42,7 +40,6 @@ if (!hasPending) {
   process.exit(0);
 }
 
-// 2. migrate deploy с ретраями (Neon advisory-lock / холодный старт).
 const MAX_TRIES = 4;
 for (let i = 1; i <= MAX_TRIES; i++) {
   try {

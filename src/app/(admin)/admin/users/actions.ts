@@ -41,8 +41,6 @@ function str(formData: FormData, key: string): string | null {
   return v || null;
 }
 
-/* --------------------------------------------------------------- employees --- */
-
 export type EmployeeFormState = {
   error?: string;
   ok?: boolean;
@@ -65,7 +63,6 @@ function parseEmployee(formData: FormData): EmployeeInput {
   const position = String(formData.get("position") ?? "").trim();
   const department = String(formData.get("department") ?? "").trim();
   if (!fullName) throw new Error("Укажите ФИО.");
-  // Буквы кириллицы (вкл. таджикские ғ ӣ қ ӯ ҳ ҷ), латиницы, пробел, дефис, апостроф, точка.
   if (!/^[A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ][A-Za-zА-Яа-яЁёҒғӢӣҚқӮӯҲҳҶҷ .'-]{1,}$/.test(fullName)) {
     throw new Error("ФИО: только буквы (в т.ч. таджикские), пробел, дефис и апостроф.");
   }
@@ -246,8 +243,6 @@ export async function getEmployeeEditData(id: string): Promise<EmployeeEditData 
   };
 }
 
-/* ----------------------------------------------------------------- accounts --- */
-
 export type AccountResult = { error?: string; ok?: boolean; otp?: string };
 
 /** Создать учётную запись для существующего сотрудника. */
@@ -319,7 +314,6 @@ export async function createServiceAccount(
     };
   }
 
-  // Привязка к партнёру — только для подрядчика; гасит купоны только своего партнёра.
   const partnerIdRaw = String(formData.get("partnerId") ?? "").trim();
   let partnerId: string | null = null;
   if (partnerIdRaw) {
@@ -542,7 +536,6 @@ export async function setEmployeeActive(
       isActive: active,
       status: active ? "ACTIVE" : "TERMINATED",
       terminatedAt: active ? null : new Date(),
-      // уволенный уходит в архив, возвращённый — обратно в активный список
       archivedAt: active ? null : new Date(),
     },
   });
@@ -581,7 +574,6 @@ export async function setEmployeeArchived(
     where: { id: employeeId },
     data: { archivedAt: archived ? new Date() : null },
   });
-  // Архивной записи вход не нужен; при восстановлении вход включает администратор отдельно.
   if (archived && emp.user?.isActive) {
     await db.user.update({ where: { id: emp.user.id }, data: { isActive: false } });
   }
@@ -618,8 +610,6 @@ export async function issuePassword(userId: string): Promise<AccountResult> {
   revalidatePath("/admin/users");
   return { ok: true, otp };
 }
-
-/* ------------------------------------------------------------ импорт Excel --- */
 
 export type ImportState = {
   error?: string;
@@ -724,7 +714,6 @@ export async function importEmployees(
     return { error: "В файле нет данных (ожидается строка заголовков и хотя бы одна строка)." };
   }
 
-  // Карта: ключ поля → номер столбца
   const colOf: Partial<Record<ColKey, number>> = {};
   ws.getRow(1).eachCell((cell, col) => {
     const h = norm(cellText(cell.value));
@@ -742,7 +731,6 @@ export async function importEmployees(
   const wantDeactivate = formData.get("deactivateAbsent") === "on";
   const rowErrors: string[] = [];
 
-  // 1) Один запрос — все существующие сотрудники (для сопоставления в памяти).
   const existing = await db.employee.findMany({
     select: {
       id: true,
@@ -762,7 +750,6 @@ export async function importEmployees(
     if (e.telegramId) tgOwner.set(e.telegramId, e.id);
   }
 
-  // 2) Разбор всех строк файла в память.
   const seenNames = new Set<string>();
   const tgInFile = new Set<string>();
   const toCreate: ImportRow[] = [];
@@ -826,7 +813,6 @@ export async function importEmployees(
     if (!prev) {
       toCreate.push(data);
     } else if (
-      // обновляем только при реальном изменении — иначе повторный импорт ничего не пишет
       prev.position !== data.position ||
       prev.department !== data.department ||
       (prev.phone ?? null) !== data.phone ||
@@ -838,7 +824,6 @@ export async function importEmployees(
     }
   }
 
-  // 3) Массовые записи: createMany + update-транзакции батчами.
   let usersCreated = 0;
   if (!dryRun) {
     try {
@@ -889,16 +874,12 @@ export async function importEmployees(
     }
   }
 
-  // 4) Деактивация отсутствующих — по нормализованным ФИО, одним updateMany на батч.
   let deactivated = 0;
   let deactivateList: string[] | undefined;
   if (wantDeactivate && seenNames.size > 0) {
     const absent = existing.filter((e) => e.isActive && !seenNames.has(norm(e.fullName)));
     deactivateList = absent.map((e) => e.fullName);
     deactivated = absent.length;
-    // Предохранитель: сопоставление идёт по ФИО (нестабильный ключ). Если файл
-    // «увольняет» подозрительно много людей — это почти наверняка кривой файл
-    // (не тот лист, другая раскладка ФИО). Требуем сначала прогнать dry-run.
     const activeCount = existing.filter((e) => e.isActive).length;
     const cap = Math.max(15, Math.ceil(activeCount * 0.25));
     if (!dryRun && absent.length > cap) {
@@ -1004,8 +985,6 @@ export async function generateMissingEmployeeAccounts(): Promise<{
   return { ok: true, count: usersToCreate.length };
 }
 
-/* ------------------------------------------------------------- удаление --- */
-
 /**
  * Итог удаления. `blocked` — что именно помешало: по нему интерфейс предлагает
  * перейти к незакрытым обращениям или сразу отправить карточку в архив.
@@ -1039,9 +1018,6 @@ export async function deleteEmployee(
   if (!emp) return { error: "Сотрудник не найден." };
   if (emp.user?.id === s.user.id) return { error: "Нельзя удалить собственную запись." };
 
-  // Закрытые обращения удалению не мешают: разговор окончен, хранить его
-  // отдельно от карточки сотрудника незачем. Незакрытые — мешают: это
-  // незавершённая работа C&B.
   const [applications, coupons, feedback] = await Promise.all([
     db.application.count({ where: { employeeId } }),
     db.coupon.count({ where: { employeeId } }),
@@ -1062,9 +1038,6 @@ export async function deleteEmployee(
   try {
     await db.$transaction(async (tx) => {
       if (opts?.cascade) {
-        // Каскад: сотрудник отвязывается от всей своей истории, а не только
-        // от закрытых обращений — купоны удаляются первыми, иначе заявки не
-        // удалить (Coupon.itemId ссылается на ApplicationItem без каскада).
         await tx.coupon.deleteMany({ where: { employeeId } });
         await tx.application.deleteMany({ where: { employeeId } }); // тянет ApplicationItem (onDelete: Cascade)
         await tx.feedback.deleteMany({ where: { employeeId } });
@@ -1075,8 +1048,6 @@ export async function deleteEmployee(
         await tx.notification.deleteMany({ where: { userId: emp.user.id } });
         await tx.user.delete({ where: { id: emp.user.id } });
       }
-      // Коды идентификации от администратора ссылаются на сотрудника обычным полем, без
-      // внешнего ключа — база их не подчистит, убираем сами.
       await tx.identificationCode.deleteMany({ where: { employeeId } });
       await tx.feedback.deleteMany({ where: { employeeId } }); // здесь остались только закрытые (или уже пусто после каскада)
       await tx.employee.delete({ where: { id: employeeId } });
@@ -1142,8 +1113,6 @@ export async function deleteServiceAccount(userId: string): Promise<AccountResul
   revalidatePath("/admin/access");
   return { ok: true };
 }
-
-/* ------------------------------------------------ привязка телефона кассы --- */
 
 export type CashierLinkResult = { error?: string; url?: string; qrSvg?: string; expiresAt?: string };
 

@@ -22,8 +22,6 @@ export async function formCouponForItem(itemId: string, actorId: string) {
   });
   if (!item) throw new Error("Позиция не найдена.");
   if (item.coupon) return item.coupon;
-  // Партнёр работает по номеру телефона (напр. такси) — купон/QR не нужен,
-  // промокод рассылает подрядчик через раздел «Промокоды».
   if (item.card.partner?.deliveryMode === "PHONE_PROMO") {
     throw new Error(
       "Льгота этого партнёра выдаётся по номеру телефона — купон и QR не формируются. Промокод отправляет подрядчик.",
@@ -43,7 +41,6 @@ export async function formCouponForItem(itemId: string, actorId: string) {
         employeeId: item.application.employeeId,
         periodId: item.application.periodId,
         type: "PROMO",
-        // Снимок правил карточки: дальнейшая правка карточки не меняет условия этого купона.
         benefitMode: item.card.mode,
         cashbackPercent: item.card.mode === "CASHBACK" ? item.card.cashbackPercent : null,
         nominal: item.card.condition,
@@ -62,8 +59,6 @@ export async function formCouponForItem(itemId: string, actorId: string) {
     entityId: item.id,
     newValue: { number },
   });
-  // Уведомление сотруднику не шлём здесь — оно одно, при фактической выдаче
-  // купона (COUPON_ISSUED). Для негрупповых льгот выдача происходит сразу.
   return coupon;
 }
 
@@ -84,7 +79,6 @@ export async function issueCouponIfReady(
     },
   });
   if (!coupon || coupon.status !== "CREATED") return false;
-  // Партнёр «по номеру телефона» — QR не выдаём (защита для ранее заведённых купонов).
   if (coupon.item.card.partner?.deliveryMode === "PHONE_PROMO") return false;
 
   const min = coupon.item.card.minParticipants;
@@ -93,8 +87,6 @@ export async function issueCouponIfReady(
     if (!ready) return false;
   }
 
-  // Атомарный переход купона + позиции в одной транзакции: иначе падение между
-  // ними оставляло купон ISSUED, а позицию — в COUPON_CREATED (рассинхрон).
   const claimedOk = await db.$transaction(async (tx) => {
     const claimed = await tx.coupon.updateMany({
       where: { id: couponId, status: "CREATED" },

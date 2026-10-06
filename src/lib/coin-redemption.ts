@@ -56,9 +56,6 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
   if (!period) throw new CoinRedemptionError("Нет открытого периода для выбора льгот — не из чего сформировать купон.");
   const application = await ensureGrantApplication(redemption.employeeId, ctx);
 
-  // Счёт + создание позиции в одной сериализуемой транзакции — иначе два
-  // параллельных redeemWithCoins для одного сотрудника могли бы оба пройти
-  // проверку лимита до того, как любой из них создаст свою позицию.
   const item = await db.$transaction(
     async (tx) => {
       const usedCount = await tx.applicationItem.count({
@@ -77,9 +74,6 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
           data: { applicationId: application.id, cardId: redemption.benefitCardId, status: "APPROVED", viaCoins: true },
         });
       } catch (e) {
-        // @@unique([applicationId, cardId]) — эта льгота уже выбрана в периоде
-        // обычным способом (DRAFT/PENDING/APPROVED...). Без перехвата сотрудник
-        // увидел бы сырое сообщение Prisma про constraint violation.
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
           throw new CoinRedemptionError("Эта льгота уже выбрана в этом периоде обычным способом — купить её ещё и за монеты нельзя.");
         }
@@ -98,8 +92,6 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
       data: { couponId: coupon.id, status: "FULFILLED" },
     });
   } catch (e) {
-    // Купон не сформировался — снимаем позицию, иначе она бы навсегда занимала
-    // слот maxCoinRedemptions, хотя покупка не состоялась (монеты вернёт вызывающий).
     await db.applicationItem.update({ where: { id: item.id }, data: { status: "CANCELLED" } }).catch(() => {});
     throw e;
   }
@@ -147,9 +139,6 @@ export async function redeemWithCoins(params: {
   if (!card.coinPrice || !card.coinRedemptionMode) {
     throw new CoinRedemptionError("Эта карточка не продаётся за монеты.");
   }
-  // Раньше проверялся только UI-фильтр магазина (coinPrice not null + isActive +
-  // PUBLISHED + archivedAt null) — прямой вызов action мог купить архивную/DRAFT
-  // карточку в обход витрины.
   if (card.status !== "PUBLISHED" || !card.isActive || card.archivedAt) {
     throw new CoinRedemptionError("Эта льгота сейчас недоступна для покупки.");
   }
@@ -160,9 +149,6 @@ export async function redeemWithCoins(params: {
     throw new CoinRedemptionError("Эта льгота выдаётся по номеру телефона, купон не формируется.");
   }
 
-  // Ранняя проверка лимита (best-effort — окончательная проверка внутри
-  // fulfillRedemption, в транзакции): не тратим монеты впустую, если лимит
-  // на этот период уже занят уже подтверждёнными покупками.
   const ctx = await resolveSelectionContext();
   if (ctx.targetPeriod) {
     const used = await countCommittedCoinRedemptions(params.employeeId, ctx.targetPeriod.id);
@@ -212,11 +198,6 @@ export async function decideCoinRedemption(params: {
   actorId: string;
 }): Promise<void> {
   if (!(await getGamificationEnabled())) throw new CoinRedemptionError("Функция геймификации временно отключена.");
-  // Атомарный claim по PENDING (updateMany, не findUnique+update) — иначе два
-  // параллельных клика "Одобрить"/"Отклонить" на одну заявку оба прошли бы
-  // проверку статуса до того, как любой из них его сменит, и купон/возврат
-  // монет мог бы случиться дважды. CoinRedemptionStatus.APPROVED раньше нигде
-  // не проставлялся — используем его здесь как маркер "уже забрано в обработку".
   const claimStatus = params.decision === "APPROVE" ? "APPROVED" : "REJECTED";
   const claimed = await db.coinRedemption.updateMany({
     where: { id: params.redemptionId, status: "PENDING" },

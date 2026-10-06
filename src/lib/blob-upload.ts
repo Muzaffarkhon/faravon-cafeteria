@@ -60,7 +60,6 @@ export function guardedUpload(opts: {
         opts.onProgress?.(Math.round((e.loaded / e.total) * 100));
       }
     });
-    // Тело отправлено — ждём, пока сервер зальёт в Blob и ответит.
     xhr.upload.addEventListener("load", arm);
     xhr.addEventListener("progress", arm);
 

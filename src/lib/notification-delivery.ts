@@ -13,8 +13,6 @@ import { confirmKeyboard } from "./broadcast-confirm-keys";
 
 const TG_API = "https://api.telegram.org";
 
-// Пропускная способность рассылки: 25 сообщений параллельно, не чаще раза в
-// секунду — под лимитом Telegram (~30/с разным чатам).
 const BATCH_SIZE = 25;
 const BATCH_INTERVAL_MS = 1000;
 
@@ -27,7 +25,6 @@ async function tgResult(r: Response): Promise<TgResult> {
     | { ok?: boolean; error_code?: number; description?: string }
     | null;
   const ok = !!data?.ok;
-  // 403 = бот заблокирован (или чат удалён) — постоянная ошибка, ретраить бессмысленно.
   const blocked = !ok && data?.error_code === 403;
   return { ok, blocked };
 }
@@ -107,9 +104,6 @@ export async function deliverTelegramNotifications(opts: {
   limit?: number;
   log?: (msg: string) => void;
 }): Promise<DeliveryResult> {
-  // 300 за запуск — это ~12 с отправки при BATCH_SIZE/BATCH_INTERVAL_MS,
-  // с запасом укладывается в maxDuration cron-функции; бот-воркер просто
-  // повторяет цикл, пока очередь не разойдётся.
   const { db, token, limit = 300, log } = opts;
   if (!token) {
     log?.("TELEGRAM_BOT_TOKEN не задан — доставка пропущена.");
@@ -121,8 +115,6 @@ export async function deliverTelegramNotifications(opts: {
   });
   const templates = templateMapFromRows(templateRows);
 
-  // Не пытаемся вечно: уведомления старше 7 дней (бот заблокирован, чат удалён,
-  // «отравленное» сообщение) больше не выбираем — иначе они забивают очередь.
   const STALE_MS = 7 * 24 * 60 * 60 * 1000;
   const pending = await db.notification.findMany({
     where: {
@@ -130,8 +122,6 @@ export async function deliverTelegramNotifications(opts: {
       blockedAt: null,
       channel: "TELEGRAM",
       sentAt: { gt: new Date(Date.now() - STALE_MS) },
-      // Адресат в Telegram: сотрудник с привязкой ЛИБО учётка без Employee
-      // (подрядчик, C&B) с собственным User.telegramId (§11/§12).
       user: {
         is: {
           OR: [
@@ -161,10 +151,6 @@ export async function deliverTelegramNotifications(opts: {
       skipped++;
       return;
     }
-    // Атомарно «забираем» уведомление: помечаем deliveredAt ещё до отправки.
-    // Параллельные воркеры (несколько after()-флашей, cron, бот) на это же уведомление
-    // получат count=0 и не отправят его повторно — иначе при массовом согласовании
-    // одно уведомление уходило по несколько раз.
     const claim = await db.notification.updateMany({
       where: { id: n.id, deliveredAt: null },
       data: { deliveredAt: new Date() },
@@ -174,20 +160,14 @@ export async function deliverTelegramNotifications(opts: {
       return;
     }
     const payload = n.payload as Record<string, unknown> | null;
-    // Язык получателя (User.locale); не выбран — русский.
     const locale = asLocale(n.user.locale) ?? "ru";
     const body = formatNotificationText(n.event, payload, templates, locale);
 
     let result: TgResult;
     if (n.event === "COUPON_ISSUED" && typeof payload?.number === "string" && payload.number) {
-      // §11: вместо текстового кода — QR-картинка купона. В подписи номер не
-      // нужен (партнёр сканирует QR) — рендерим тот же шаблон без {number},
-      // строка «№ ...» уйдёт сама через [[ ... ]] (тот же механизм, что и для
-      // остальных опциональных блоков, а не разбор готового HTML регуляркой).
       const caption = formatNotificationText(n.event, { ...payload, number: undefined }, templates, locale);
       result = await sendTelegramQr(token, tgId, couponScanUrl(payload.number), caption);
     } else if (typeof payload?.confirmId === "string") {
-      // Рассылка с подтверждением — кнопки «Да / Нет» (broadcast-confirm.ts).
       result = await sendTelegramDetailed(token, tgId, body, { reply_markup: confirmKeyboard(payload.confirmId, locale) });
     } else {
       result = await sendTelegramDetailed(token, tgId, body);
@@ -196,7 +176,6 @@ export async function deliverTelegramNotifications(opts: {
     if (result.ok) {
       delivered++;
     } else if (result.blocked) {
-      // Бот заблокирован сотрудником — постоянная ошибка, ретраить бессмысленно.
       await db.notification.update({
         where: { id: n.id },
         data: { deliveredAt: null, blockedAt: new Date() },
@@ -204,16 +183,12 @@ export async function deliverTelegramNotifications(opts: {
       failed++;
       log?.(`уведомление ${n.id}: бот заблокирован получателем`);
     } else {
-      // не ушло — возвращаем в очередь, повторит cron/бот
       await db.notification.update({ where: { id: n.id }, data: { deliveredAt: null } });
       failed++;
       log?.(`не удалось отправить уведомление ${n.id}`);
     }
   };
 
-  // Пачками по BATCH_SIZE параллельно, не быстрее одной пачки в секунду: это
-  // и есть лимит бота (~30 сообщений в секунду разным чатам). Последовательная
-  // отправка на рассылке в 3000 человек растянулась бы на часы.
   for (let i = 0; i < pending.length; i += BATCH_SIZE) {
     const batch = pending.slice(i, i + BATCH_SIZE);
     const paced = i + BATCH_SIZE < pending.length ? [sleep(BATCH_INTERVAL_MS)] : [];

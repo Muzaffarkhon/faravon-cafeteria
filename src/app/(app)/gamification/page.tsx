@@ -61,10 +61,6 @@ export default async function GamificationPage() {
       : c.partner,
   }));
 
-  // Карточки, уже выбранные обычным способом (не за монеты) в целевом периоде —
-  // fulfillRedemption всё равно бы их отклонил (unique [applicationId, cardId]),
-  // но раньше это выяснялось только ПОСЛЕ списания монет и отката (redemption
-  // сразу уходил в REJECTED). Показываем это заранее, вместо кнопки.
   const targetPeriod = (await resolveSelectionContext()).targetPeriod;
   const normallySelectedCardIds = new Set<string>();
   if (targetPeriod) {
@@ -138,7 +134,6 @@ export default async function GamificationPage() {
                       <Select name="prizeCardId" defaultValue="" className="mt-1">
                         <option value="">{t("gamification.prizeCardNone")}</option>
                         {shopCards.map((card) => {
-                          // Приз покупается на баланс + награду за задачу: дороже выбрать нельзя.
                           const tooExpensive = (card.coinPrice ?? 0) > balance + task.coinReward;
                           return (
                             <option key={card.id} value={card.id} disabled={tooExpensive}>
@@ -165,7 +160,6 @@ export default async function GamificationPage() {
         {mine.length === 0 ? (
           <EmptyState>{t("gamification.noMyTasks")}</EmptyState>
         ) : (
-          // «Мои задачи» — карточки (как купоны), а не таблица: название, награда, статус, прогресс и отмена в одном месте.
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {mine.map((et) => {
               const target = et.task.verification === "AUTO" ? et.task.targetValue : null;

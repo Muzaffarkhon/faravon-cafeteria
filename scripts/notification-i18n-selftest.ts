@@ -24,7 +24,6 @@ for (const l of ["tg", "uz"] as const) {
     n++;
   }
 }
-// правка админа для tg побеждает зашитый перевод; русская правка на tg не подставляется
 const m = templateMapFromRows([{ event: "BROADCAST", body: "RU {text}", translations: { tg: "TG {text}" } }]);
 assert.equal(formatNotificationText("BROADCAST", { text: "x" }, m, "tg"), "TG x");
 assert.equal(formatNotificationText("BROADCAST", { text: "x" }, m, "uz"), DEFAULT_TEMPLATES_I18N.uz.BROADCAST.replace("{text}", "x"));

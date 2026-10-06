@@ -19,8 +19,6 @@ function nodeText(node: ReactNode): string {
   return "";
 }
 
-// Русские даты в таблицах (17.09.2026[, 14:05]) — без этого сортировались бы
-// как текст (не по времени). Числа/«#seq»-чипы/проценты — тоже по значению.
 const RU_DATE = /^(\d{2})\.(\d{2})\.(\d{4})(?:,?\s+(\d{2}):(\d{2}))?/;
 
 function sortKey(text: string): string | number {

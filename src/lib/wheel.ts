@@ -53,8 +53,6 @@ export type SectorBlock = "soldOut" | "taken" | "noPeriod" | "cardUnavailable" |
 async function sectorBlocks(employeeId: string, sectors: WheelSectorRow[], periodId: string | null) {
   const takenCardIds = new Set<string>();
   if (periodId && sectors.some((s) => s.kind === "COUPON")) {
-    // @@unique([applicationId, cardId]) действует при любом статусе позиции —
-    // даже отменённая обычная позиция не даст положить выигрыш под ту же льготу.
     const items = await db.applicationItem.findMany({
       where: { application: { is: { employeeId, periodId } } },
       select: { cardId: true },
@@ -86,7 +84,6 @@ export async function getWheelState(employeeId: string) {
   ]);
   const blocks = await sectorBlocks(employeeId, sectors, ctx.targetPeriod?.id ?? null);
   const dailyLimit = settings.wheelDailyLimit;
-  // Подаренные прокрутки — сверх дневного лимита; тратятся, когда дневные кончились.
   const spinsRemaining = Math.max(0, dailyLimit - spinsTodayCount) + bonusSpins;
   return {
     enabled: settings.wheelEnabled,
@@ -156,7 +153,6 @@ export type SpinResult = {
  *   последний купон получит ровно одна, остальные уйдут на повторный выбор.
  */
 export async function spinWheel(employeeId: string, actorId: string): Promise<SpinResult> {
-  // Колесо живёт отдельно от рубильника геймификации — только свой переключатель.
   const settings = await getWheelSettings();
   if (!settings.wheelEnabled) throw new WheelError("Колесо подарков сейчас выключено.");
 
@@ -170,7 +166,6 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
     db.wheelSpin.count({ where: { employeeId, dayKey, bonus: false } }),
     countBonusSpins(employeeId),
   ]);
-  // Дневные кончились — крутим за счёт подаренной прокрутки (бесплатно).
   const useBonus = spinsCount >= settings.wheelDailyLimit;
   if (useBonus && bonusLeft === 0) {
     throw new WheelError(`Лимит прокруток на сегодня исчерпан (${settings.wheelDailyLimit} из ${settings.wheelDailyLimit}) — приходите завтра.`);
@@ -213,7 +208,6 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
           },
         });
         if (useBonus) {
-          // Условный UPDATE: две одновременные прокрутки не потратят одну подаренную дважды.
           const grant = await tx.wheelBonusSpin.findFirst({
             where: { employeeId, usedAt: null },
             orderBy: { createdAt: "asc" },
@@ -252,9 +246,6 @@ export async function spinWheel(employeeId: string, actorId: string): Promise<Sp
         }
         return created;
       },
-      // Утром крутят разом: транзакции ждут свободное соединение пула. Со
-      // стандартными 2 с ожидания / 5 с работы в нагрузочном тесте (30 прокруток
-      // одновременно) две трети падали по таймауту, хотя ничего не нарушали.
       { maxWait: 15_000, timeout: 20_000 });
     } catch (e) {
       if (e instanceof WheelError) throw e;
@@ -289,8 +280,6 @@ async function issueWonCoupon(spin: { id: string; itemId: string | null; sectorI
     const coupon = await formCouponForItem(spin.itemId!, actorId);
     await issueCouponIfReady(coupon.id, actorId);
   } catch (e) {
-    // Удаляем, а не отменяем: отменённая позиция держала бы @@unique([applicationId, cardId])
-    // и сотрудник уже не смог бы ни выиграть, ни выбрать эту льготу в периоде.
     await db.applicationItem
       .delete({ where: { id: spin.itemId! } })
       .catch(() => db.applicationItem.update({ where: { id: spin.itemId! }, data: { status: "CANCELLED" } }))

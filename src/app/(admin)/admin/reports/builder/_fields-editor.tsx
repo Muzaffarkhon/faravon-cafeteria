@@ -44,7 +44,6 @@ export function FieldsEditor({
   const dateFields = FIELD_CATALOG[dataset].filter((f) => f.kind === "date");
   const calcCatalog = CALC_CATALOG[dataset];
   const groupLabel = (id: string) => fieldMeta(dataset, id)?.label ?? id;
-  // Названия колонок правятся локально, переход — по потере фокуса (иначе поле теряло бы фокус на каждый символ).
   const [labels, setLabels] = useState(() => calcFields.map((c) => c.label));
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -68,7 +67,6 @@ export function FieldsEditor({
         if (j !== i) return c;
         const agg = next.agg ?? c.agg;
         const field = isDateAgg(agg) ? (next.field ?? c.field ?? PRIMARY_DATE[dataset]) : undefined;
-        // Название обновляем только если оно было стандартным.
         const wasDefault = c.label === defaultCalcLabel(dataset, c.agg, c.field);
         return { agg, field, label: wasDefault ? defaultCalcLabel(dataset, agg, field) : c.label };
       }),

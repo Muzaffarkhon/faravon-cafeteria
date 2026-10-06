@@ -16,7 +16,6 @@ const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
 };
 
 const d = (v: Date | null | undefined) => (v ? dushanbeIsoDate(v) : "");
-// Дата и время по Душанбе — для момента выдачи.
 const dt = (v: Date | null | undefined) =>
   v ? v.toLocaleString("sv-SE", { timeZone: TIMEZONE }).slice(0, 16) : "";
 
@@ -76,7 +75,6 @@ export async function GET(req: NextRequest) {
       valid: d(c.validUntil),
     });
   }
-  // Такси (по номеру телефона): купона нет — номер = промокод, статус = доставка промокода.
   for (const r of taxiRows) {
     ws.addRow({
       number: r.promo ?? "",

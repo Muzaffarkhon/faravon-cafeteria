@@ -28,8 +28,6 @@ export async function fetchThreadRows(sp: ThreadListSearchParams): Promise<{ row
             { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } },
             { phone: { contains: q, mode: "insensitive" } },
             { topic: { contains: q, mode: "insensitive" } },
-            // «Поиск внутри чата» — ищем и по тексту переписки, не только по
-            // тому, что видно в строке списка (имя/телефон/тема).
             { messages: { some: { body: { contains: q, mode: "insensitive" } } } },
           ],
         }
@@ -45,9 +43,6 @@ export async function fetchThreadRows(sp: ThreadListSearchParams): Promise<{ row
         _count: { select: { messages: { where: { direction: "IN", readAt: null } } } },
       },
     }),
-    // Тот же признак «гостю уже отправлен логин/пароль», что и на странице
-    // диалога (alreadyLinked) — гость привязан, если его Telegram уже стоит
-    // в карточке сотрудника.
     db.employee.findMany({ where: { telegramId: { not: null } }, select: { telegramId: true } }),
   ]);
   const linkedTelegramIds = new Set(linkedEmployees.map((e) => e.telegramId as string));
@@ -84,8 +79,6 @@ export async function fetchThreadRows(sp: ThreadListSearchParams): Promise<{ row
   if (loginMissing) rows = rows.filter((r) => r.loginMissing);
   if (unreadOnly) rows = rows.filter((r) => r.unread > 0);
 
-  // Непрочитанные — наверх, дальше по свежести. Тредов немного, сортировка
-  // в памяти проще и понятнее, чем городить это в orderBy.
   rows.sort((a, b) => {
     const unread = (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0);
     return unread !== 0 ? unread : b.lastMessageAt.getTime() - a.lastMessageAt.getTime();

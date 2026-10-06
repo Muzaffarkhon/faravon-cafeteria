@@ -5,7 +5,6 @@ import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ImportForm } from "./_form";
 
-// Импорт большого справочника может идти дольше стандартных 15 с.
 export const maxDuration = 60;
 
 export default async function ImportUsersPage() {
@@ -21,7 +20,6 @@ export default async function ImportUsersPage() {
         title={t("users.import.title")}
         description={t("users.import.description")}
         action={
-          // route handler, отдаёт файл — нужен обычный переход, не клиентская навигация
           // eslint-disable-next-line @next/next/no-html-link-for-pages
           <a href="/admin/users/import/template" className={buttonClass({ variant: "secondary", size: "sm" })}>
             {t("users.import.downloadTemplate")}

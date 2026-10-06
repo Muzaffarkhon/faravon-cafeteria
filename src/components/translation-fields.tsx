@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input, Textarea } from "./ui";
+import { Button, Field, Input } from "./ui";
 import { RichTextarea } from "./rich-textarea";
 
 /** sourceId — id DOM-элемента с русским текстом этого поля, если он не совпадает
@@ -43,9 +43,6 @@ export function TranslationFields({
     setValue((prev) => ({ ...prev, [locale]: { ...prev[locale], [field]: v } }));
   }
 
-  // Черновой перевод по кнопке: берёт текущий русский текст прямо из DOM (эти
-  // поля — не controlled-состояние этого компонента, а полей формы-родителя),
-  // тянет /api/translate и подставляет результат — сотрудник правит вручную.
   async function autoTranslate() {
     const sources = fields.map((f) => {
       const el = document.getElementById(f.sourceId ?? f.name) as

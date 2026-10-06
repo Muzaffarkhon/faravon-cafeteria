@@ -10,7 +10,6 @@ export default async function ProviderPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Номер купона из ссылки в QR (обычная камера телефона): после входа возвращаемся к тому же купону.
   const raw = (await searchParams).number;
   const initialNumber = (Array.isArray(raw) ? raw[0] : raw)?.trim().toUpperCase().slice(0, 64) || undefined;
   const session = await getSession();
@@ -25,7 +24,6 @@ export default async function ProviderPage({
         select: { name: true, deliveryMode: true },
       })
     : null;
-  // Подрядчик такси (свой поток) — QR-касса не применяется, ведём на «Промокоды».
   if (partner?.deliveryMode === "PHONE_PROMO" && can(session.roles, "promo.broadcast")) {
     redirect("/provider/taxi");
   }

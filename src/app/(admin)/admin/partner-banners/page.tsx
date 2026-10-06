@@ -36,7 +36,6 @@ export default function Page() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((list: Banner[]) => {
         setBanners(list);
-        // ?new=<id> — пришли после одобрения заявки на рекламу: открываем черновик на правку.
         const newId = new URLSearchParams(window.location.search).get("new");
         const draft = newId ? list.find((b) => b.id === newId) : undefined;
         if (draft) setForm({ ...draft });

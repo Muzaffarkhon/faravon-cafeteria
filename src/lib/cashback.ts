@@ -121,11 +121,9 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
   }
   const paramsHash = hashParams(employeeId, partnerId, purchase, useBalance);
 
-  // 1. Повтор (двойное нажатие, повторный запрос) — возвращаем результат первой операции.
   const dup = await existingOperation(operationKey, paramsHash);
   if (dup) return dup;
 
-  // 2. Код клиента: защита от перебора, затем сверка.
   const fails = await db.auditLog.count({
     where: {
       action: "CASHBACK_CODE_FAILED",
@@ -143,7 +141,6 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
     throw new CashbackError("Неверный код клиента. Попросите показать актуальный код в приложении.");
   }
 
-  // 3. Правила и лимиты.
   const state = await getCashbackState(employeeId, partnerId);
   if (!state.canAccrue && state.balance === 0) {
     throw new CashbackError("У сотрудника нет действующей льготы-кешбека у этого партнёра.");
@@ -160,7 +157,6 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
     throw new CashbackError(`Достигнут дневной лимит операций (${MAX_OPERATIONS_PER_DAY}) по этому сотруднику.`);
   }
 
-  // 4. Проведение: сверка баланса и запись — в одной сериализуемой транзакции.
   let calc: ReturnType<typeof calcCashback>;
   try {
     calc = await db.$transaction(
@@ -170,7 +166,6 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
           create: { employeeId, partnerId },
           update: {},
         });
-        // Код одноразовый: окно должно быть новее последнего использованного.
         const used = await tx.cashbackAccount.updateMany({
           where: { id: account.id, OR: [{ lastCodeWindow: null }, { lastCodeWindow: { lt: window } }] },
           data: { lastCodeWindow: window },
@@ -206,7 +201,6 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
       { isolationLevel: "Serializable" },
     );
   } catch (e) {
-    // Параллельный дубль с тем же ключом: вернуть результат победителя.
     if (e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2002" || e.code === "P2034")) {
       const again = await existingOperation(operationKey, paramsHash);
       if (again) return again;
@@ -230,7 +224,6 @@ export async function applyCashback(input: ApplyCashbackInput): Promise<ApplyCas
       accrued: formatSomoni(calc.accrue),
     },
   });
-  // Сотрудник узнаёт о каждой операции: так подмену или фиктивный чек заметят.
   await notifyEmployee({
     employeeId,
     event: "CASHBACK_OPERATION",

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { PARTNER_STATUSES, partnerStatusLabel } from "@/lib/labels";
-import { Button, Field, Input, Select, Textarea, buttonClass } from "@/components/ui";
+import { Button, Field, Input, Select, buttonClass } from "@/components/ui";
 import { RichTextarea } from "@/components/rich-textarea";
 import { FormattedText } from "@/components/formatted-text";
 import { TranslationFields } from "@/components/translation-fields";

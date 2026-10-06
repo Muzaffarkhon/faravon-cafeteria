@@ -253,13 +253,11 @@ const FIELD_LABELS: Record<string, string> = {
   archivedAt: "Архивировано",
   isArchive: "Архив",
   fromAdRequest: "Заявка на рекламу",
-  // кешбек (суммы — в сомони, см. MONEY_KEYS)
   purchase: "Чек",
   redeemed: "Списано кешбека",
   paid: "К оплате",
   accrued: "Начислено кешбека",
   operationKey: "Операция",
-  // рассылки и уведомления
   sent: "Отправлено",
   failed: "Не доставлено",
   segment: "Кому",
@@ -270,7 +268,6 @@ const FIELD_LABELS: Record<string, string> = {
   ru: "Русский",
   tg: "Таджикский",
   uz: "Узбекский",
-  // прочее
   restoredFrom: "Восстановлено из версии",
   value: "Значение",
   next: "Новое значение",
@@ -284,7 +281,6 @@ const FIELD_LABELS: Record<string, string> = {
   cardId: "Льгота",
   partnerName: "Партнёр",
   expiresAt: "Действует до",
-  // колесо подарков
   kind: "Тип приза",
   prize: "Приз",
   prizeLabel: "Приз",
@@ -345,7 +341,6 @@ function humanValue(v: unknown, names: Map<string, string>): string {
   if (v == null) return "—";
   if (typeof v === "boolean") return v ? "да" : "нет";
   if (typeof v === "string") {
-    // Дата/время в ISO (…T…Z) — показываем по-человечески, во времени Душанбе.
     if (ISO_DATETIME.test(v)) {
       const d = new Date(v);
       if (!Number.isNaN(d.getTime())) return fmtDateTimeShort(d);
@@ -355,8 +350,6 @@ function humanValue(v: unknown, names: Map<string, string>): string {
     return v;
   }
   if (Array.isArray(v)) return v.map((x) => humanValue(x, names)).join(", ") || "—";
-  // Вложенный объект (напр. настройки полей конструктора отчётов) — тоже
-  // расписываем как «поле: значение», а не роняем в нечитаемое [object Object].
   if (typeof v === "object") return humanDiff(v, names).join("; ") || "—";
   return String(v);
 }
@@ -438,8 +431,6 @@ export default async function AuditPage({
     include: { actor: { select: { login: true } } },
   });
 
-  // Вместо сырого cuid в колонке «Объект» — логин/ФИО/название, если тип
-  // сущности это позволяет узнать одним батч-запросом на тип.
   const idsByType = new Map<string, Set<string>>();
   for (const r of rows) {
     if (!r.entityId) continue;
@@ -457,7 +448,6 @@ export default async function AuditPage({
       : [],
     partnerIds.length ? db.partner.findMany({ where: { id: { in: partnerIds } }, select: { id: true, name: true } }) : [],
   ]);
-  // id из самих записей (partnerId/employeeId/cardId) → названия одним запросом на тип.
   const refIds: Record<string, Set<string>> = { partnerId: new Set(), employeeId: new Set(), cardId: new Set() };
   const collectRefs = (v: unknown) => {
     if (!v || typeof v !== "object") return;

@@ -53,8 +53,6 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
   if (!card || card.block !== "FLEX") throw new Error("Некорректная карточка.");
   if (!card.isActive) throw new Error("Эта льгота пока недоступна («скоро»).");
 
-  // §такси: для льгот партнёра с режимом PHONE_PROMO промокод уходит на номер
-  // телефона. По умолчанию — номер из профиля; сотрудник может указать другой.
   const isPhonePromo = card.partner?.deliveryMode === "PHONE_PROMO";
   let phone: string | null = null;
   if (isPhonePromo) {
@@ -70,8 +68,6 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
     phone = raw;
   }
 
-  // Заявка почти всегда уже существует (кроме самого первого выбора за период) —
-  // один запрос вместо upsert+findUnique экономит лишний round-trip к БД.
   let withItems = await getApplicationWithItems(employee.id, period.id);
   if (!withItems) {
     await getOrCreateApplication(employee.id, period.id);
@@ -81,24 +77,18 @@ async function toggleSelectionImpl(cardId: string, contactPhone?: string) {
   const existing = withItems?.items.find((i) => i.cardId === cardId);
 
   if (existing && existing.status === "DRAFT") {
-    // Условное удаление: только пока позиция всё ещё DRAFT — иначе гонка с
-    // submitSelection (DRAFT→PENDING) удалила бы уже отправленную заявку.
     const del = await db.applicationItem.deleteMany({
       where: { id: existing.id, status: "DRAFT" },
     });
     if (del.count === 0) throw new Error("Позиция уже отправлена на согласование.");
     await audit({ actorId: session.user.id, action: "SELECTION_REMOVED", entityType: "ApplicationItem", entityId: existing.id });
   } else if (existing) {
-    // Одна льгота — один раз за период (ТЗ v2 §5.6): повторно выбрать нельзя.
     if (existing.status === "REJECTED")
       throw new Error("Эта льгота была отклонена в текущем периоде. Выберите другую.");
     if (existing.status === "CANCELLED")
       throw new Error("Вы уже отменяли эту льготу в текущем периоде. Выберите другую.");
     throw new Error("Эта льгота уже выбрана и находится в обработке.");
   } else {
-    // Счёт + создание в одной сериализуемой транзакции — иначе две вкладки
-    // одного сотрудника могли обе пройти проверку `used < maxSelections` и
-    // добавить больше лимита.
     const item = await db.$transaction(
       async (tx) => {
         const current = await tx.applicationItem.findMany({
@@ -152,10 +142,11 @@ async function toggleAutoPickImpl(cardId: string) {
   } else {
     const card = await db.benefitCard.findUnique({ where: { id: cardId }, include: { partner: true } });
     if (!card || card.block !== "FLEX") throw new Error("Некорректная карточка.");
-    // §такси: промокод по телефону требует явного подтверждения номера каждый
-    // раз — автовыбор для таких льгот не предлагаем.
     if (card.partner?.deliveryMode === "PHONE_PROMO") {
-      throw new Error("Для этой льготы нужен номер телефона — автовыбор недоступен.");
+      const emp = await db.employee.findUnique({ where: { id: s.employee.id }, select: { phone: true } });
+      if (!emp?.phone?.trim()) {
+        throw new Error("Для автовыбора этой льготы добавьте номер телефона в профиле — промокод придёт на него.");
+      }
     }
     await db.autoPick.create({ data: { cardId, employeeId: s.employee.id } });
   }
@@ -187,10 +178,6 @@ async function submitSelectionImpl() {
     newValue: { items: drafts.length },
   });
 
-  // Уведомление согласующим о новой заявке (§5.7, §5.10). dedupeKeyPrefix
-  // защищает от дубля при повторном вызове для той же заявки (двойной клик,
-  // повтор запроса при плохой сети — сервер-экшен ничем, кроме этого, от
-  // повторного вызова не защищён).
   await notifyApprovers({
     event: "APPLICATION_SUBMITTED",
     payload: {
@@ -199,15 +186,9 @@ async function submitSelectionImpl() {
       period: period.name,
       count: drafts.length,
     },
-    // Ключ по конкретному набору позиций (не просто applicationId!) — сотрудник
-    // может подтверждать выбор несколькими партиями по мере добавления льгот
-    // в один и тот же период, и каждая такая партия — законное отдельное
-    // уведомление. Дедуп должен ловить именно повтор ОДНОЙ И ТОЙ ЖЕ партии.
     dedupeKeyPrefix: `application-submitted:${withItems!.id}:${drafts.map((d) => d.id).sort().join(",")}`,
   });
 
-  // Мгновенная проверка авто-задач геймификации на метрику
-  // APPLICATIONS_SUBMITTED — не дожидаясь ночного крона.
   await checkAutoTasksForEmployee(employee.id, "APPLICATIONS_SUBMITTED").catch(() => {});
 
   revalidatePath("/", "layout");
@@ -224,10 +205,6 @@ async function cancelItemImpl(itemId: string) {
   assertCan(s.roles, "application.select");
   if (!s.employee) throw new Error("Доступно только сотрудникам.");
 
-  // Не через employeeContext(): она требует, чтобы окно выбора НОВЫХ льгот
-  // было открыто сейчас, а окно отмены уже отправленной позиции — обычно
-  // позже (действует до старта периода, часто уже после закрытия окна
-  // выбора). Проверяем период именно этой позиции, а не «текущий».
   const item = await db.applicationItem.findUnique({
     where: { id: itemId },
     include: { application: { include: { period: true } } },
@@ -235,9 +212,6 @@ async function cancelItemImpl(itemId: string) {
   if (!item || item.application.employeeId !== s.employee.id) {
     throw new Error("Позиция не найдена.");
   }
-  // §6: уже отправленную позицию можно отменить только в окне отмены —
-  // с начала окна выбора периода до его старта. Черновик убирается кнопкой
-  // «убрать» в любой момент.
   if (item.status === "PENDING" && !isWithinCancelWindow(item.application.period)) {
     throw new Error(
       "Отменить отправленный выбор можно только в окне выбора этого периода — до его начала.",

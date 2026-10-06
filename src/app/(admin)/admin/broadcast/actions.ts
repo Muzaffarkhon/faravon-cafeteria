@@ -15,7 +15,6 @@ export type BroadcastState = { sent?: number; failed?: number; scheduledAt?: str
 
 const LANG_NAME: Record<Locale, string> = { ru: "русском", tg: "таджикском", uz: "узбекском" };
 
-// Время в форме — по Душанбе (UTC+5, без перехода на летнее время).
 const DUSHANBE_OFFSET = "+05:00";
 const MAX_SCHEDULE_DAYS = 60;
 
@@ -27,10 +26,8 @@ export async function sendBroadcast(
   const session = await requireSession();
   assertCan(session.roles, "cards.manage");
 
-  // Плейсхолдеры шаблонов подставляем при отправке, чтобы в текстах не хардкодить адрес сайта.
   const siteUrl = platformUrl() || "";
 
-  // Русский текст обязателен; перевод, которого нет, заменяется русским.
   const texts = {} as BroadcastTexts;
   for (const l of LOCALES) {
     const raw = String(formData.get(l === "ru" ? "text" : `text_${l}`) ?? "").trim();
@@ -45,7 +42,6 @@ export async function sendBroadcast(
     }
     const text = raw.replaceAll("{siteUrl}", siteUrl).replaceAll("{botUrl}", BOT_URL);
     if (text.length > 3500) return { error: `Текст на ${LANG_NAME[l]} слишком длинный (максимум 3500 символов).` };
-    // Незаполненные пометки шаблона вроде [дата] не должны уйти сотрудникам.
     const leftover = text.match(/\[[^\]\n]{1,40}\]/);
     if (leftover) return { error: `В тексте на ${LANG_NAME[l]} осталась пометка ${leftover[0]} — заполните её или удалите.` };
     texts[l] = text;
@@ -61,7 +57,6 @@ export async function sendBroadcast(
     return { error: "Кнопки подтверждения и напоминание о купоне — только для сотрудников, не для гостей бота." };
   }
 
-  // Отложенная отправка: поле пустое — отправляем сейчас.
   const rawAt = String(formData.get("scheduledAt") ?? "").trim();
   let scheduledAt: Date | null = null;
   if (rawAt) {
@@ -80,15 +75,11 @@ export async function sendBroadcast(
   if (audience.guests.length > GUEST_MAX) {
     return { error: `Слишком много получателей за раз (${audience.guests.length}, максимум ${GUEST_MAX}).` };
   }
-  // Админ подтверждал конкретное число: если аудитория за это время изменилась
-  // (кто-то ответил, привязал Telegram), не шлём «вслепую» — пусть проверит заново.
-  // Для отложенной не проверяем: её аудитория и так соберётся заново в момент отправки.
   const expected = Number(formData.get("expected"));
   if (!scheduledAt && formData.has("expected") && expected !== recipients) {
     return { error: `Список получателей изменился: было ${expected}, сейчас ${recipients}. Обновите страницу и проверьте получателей.` };
   }
 
-  // Одна льгота опрашивается каждый период — без периода в названии рассылки в истории не различить.
   const [card, period] =
     filters.segment === "BY_CARD"
       ? await Promise.all([

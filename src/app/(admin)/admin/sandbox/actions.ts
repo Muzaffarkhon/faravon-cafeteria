@@ -25,7 +25,6 @@ export async function resetSandboxData(): Promise<ActionResult> {
     const s = await requireSession();
     assertCan(s.roles, "periods.manage");
 
-    // Порядок важен: сначала то, что ссылается на другое.
     const cashbackEntries = await db.cashbackEntry.deleteMany({});
     const cashbackAccounts = await db.cashbackAccount.deleteMany({});
     const coupons = await db.coupon.deleteMany({});

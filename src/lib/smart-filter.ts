@@ -103,7 +103,6 @@ export function numberFilter(fv?: FilterValue): Record<string, unknown> | undefi
 /** Строит Prisma `DateTimeFilter`-совместимый объект из даты (yyyy-mm-dd). */
 export function dateFilter(fv?: FilterValue): Record<string, unknown> | undefined {
   if (!fv) return undefined;
-  // yyyy-mm-dd трактуем как календарный день по Душанбе (UTC+5), а не по UTC.
   const d = (s?: string) => (s ? new Date(`${s}T00:00:00+05:00`) : undefined);
   const endOfDay = (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1);
   const a = d(fv.v);

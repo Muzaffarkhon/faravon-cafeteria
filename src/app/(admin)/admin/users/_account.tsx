@@ -59,8 +59,6 @@ function OtpBanner({ otp, login, locale }: { otp: string; login?: string; locale
   );
 }
 
-/* --------------------------------------------- учётная запись сотрудника --- */
-
 export function AccountPanel({
   employeeId,
   user,
@@ -259,8 +257,6 @@ export function RoleEditor({ userId, roles, locale }: { userId: string; roles: R
   );
 }
 
-/* ------------------------------------------------ офбординг сотрудника --- */
-
 export function EmployeeActiveToggle({
   employeeId,
   isActive,
@@ -313,8 +309,6 @@ export function EmployeeActiveToggle({
   );
 }
 
-/* ------------------------------------------ служебные учётные записи --- */
-
 export function ServiceAccountRow({
   user,
   partners,
@@ -340,7 +334,6 @@ export function ServiceAccountRow({
   const [tg, setTg] = useState(user.telegramId ?? "");
   const [showRoles, setShowRoles] = useState(false);
   const isContractor = user.roles.includes("CONTRACTOR");
-  // Ссылка привязки телефона — только для «чистого» подрядчика с партнёром (в админскую учётку по ссылке не войти).
   const canLinkPhone = isContractor && user.roles.length === 1 && !!user.partnerId && user.isActive;
   const [link, setLink] = useState<CashierLinkResult | null>(null);
 

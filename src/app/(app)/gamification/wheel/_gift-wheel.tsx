@@ -21,8 +21,6 @@ export type WheelSectorView = {
   card: CardDetails | null;
 };
 
-// Геометрия в координатах viewBox 400×400: листки — фирменная «линза» из двух дуг
-// (как в petals.tsx), лучами от центральной розетки к краю.
 const C = 200;
 const R_IN = 40;
 const R_OUT = 190;
@@ -41,7 +39,6 @@ function leafLayout(n: number) {
   const mid = (R_IN + R_OUT) / 2;
   const half = Math.min(len * 0.3, ((Math.PI * mid) / n) * 0.94);
   const r = (half * half + (len / 2) ** 2) / (2 * half);
-  // Полуширина листка на расстоянии rad от центра колеса.
   const widthAt = (rad: number) => Math.max(0, Math.sqrt(r * r - (rad - mid) ** 2) - (r - half));
 
   const badgeAt = mid + len * 0.18;
@@ -49,7 +46,6 @@ function leafLayout(n: number) {
   const labelTo = badgeAt - badgeR - 5;
   const fontSize = n > 10 ? 8.5 : 10;
   const lineStep = fontSize * 1.15;
-  // Ближайшая к центру точка, где листок уже шире N строк текста.
   const fromFor = (lines: number) => {
     const need = (lines * lineStep) / 2 + 2;
     for (let rad = R_IN; rad < labelTo; rad++) if (widthAt(rad) >= need) return rad;
@@ -80,7 +76,6 @@ function wrapLabel(s: string, max: number, lines: number): string[] {
   const words = s.split(/\s+/);
   let first = "";
   while (words.length && (first ? `${first} ${words[0]}` : words[0]).length <= max) first = first ? `${first} ${words.shift()}` : words.shift()!;
-  // Первое слово длиннее строки — переносим его с дефисом.
   if (!first) return [`${s.slice(0, max - 1)}-`, truncate(s.slice(max - 1), max)];
   return words.length ? [first, truncate(words.join(" "), max)] : [first];
 }
@@ -129,12 +124,10 @@ export function GiftWheel({
     setSessionSpins(0);
   }
 
-  // Сначала тратятся дневные прокрутки, потом подаренные (так же решает сервер).
   const dailyLeft = Math.max(0, dailyLimit - spinsTodayCount - sessionSpins);
   const displayedSpinsToday = Math.min(dailyLimit, spinsTodayCount + sessionSpins);
   const displayedRemaining = Math.max(0, spinsRemaining - sessionSpins);
   const bonusLeft = Math.min(bonusSpins, displayedRemaining - dailyLeft);
-  // Прокрутка за счёт подаренной — бесплатна.
   const effectiveCost = dailyLeft > 0 ? cost : 0;
 
   const n = sectors.length;
@@ -157,8 +150,6 @@ export function GiftWheel({
   };
 
   const spin = async () => {
-    // Ref, а не state: два быстрых клика приходят до перерисовки, и `disabled` ещё false —
-    // вторая прокрутка улетала на сервер и возвращала «лимит исчерпан», пока шла первая.
     if (disabled || spinLock.current) return;
     spinLock.current = true;
     setError(null);
@@ -178,18 +169,13 @@ export function GiftWheel({
     const ms = reduced ? 700 : SPIN_MS;
     setDuration(ms);
     if (index < 0) {
-      // Раскладку поменяли, пока страница была открыта — показываем приз без докрутки.
       finish();
       return;
     }
-    // Листок i стоит на угле i·step по часовой; под стрелку (0°) его приводит поворот −i·step.
     const current = ((rotation % 360) + 360) % 360;
     const target = (((-index * step - current) % 360) + 360) % 360;
-    // Небольшой разброс, чтобы остановка не выглядела «по линейке», но стрелка у
-    // узкого кончика листка всё равно однозначно на нём.
     const jitter = (Math.random() - 0.5) * step * 0.12;
     setRotation(rotation + (reduced ? 360 : 360 * 6) + target + jitter);
-    // Страховка, если transitionend не придёт (вкладка ушла в фон и т.п.).
     window.setTimeout(finish, ms + 800);
   };
 
@@ -221,15 +207,11 @@ export function GiftWheel({
             <circle cx={C} cy={C} r={198} fill="none" stroke="var(--primary)" strokeOpacity={0.25} strokeWidth={3} />
             {sectors.map((s, i) => {
               const blocked = !!s.block;
-              // Занятый листок красим в заметно серый (не почти белый var(--surface-muted)) —
-              // иначе на светлом фоне колеса (var(--primary-soft)) он сливался с фоном и
-              // почти не читался (жалоба: «уже выбранные купоны листа слишком белые»).
               const fill = blocked ? "var(--line-strong)" : i % 2 === 0 ? "var(--brand-500)" : "var(--petal-400)";
               const { labelY, fontSize, lineStep } = leaf;
               const text = blockLabel(s.block) ?? (s.kind === "NOTHING" ? t("wheel.nothing") : s.label);
               const lines = wrapLabel(text, leaf.maxChars, leaf.lines);
               const coinsText = `+${s.coins ?? 0}`;
-              // Кегль числа монет — чтобы и «+5», и «+1000» помещались в кружок.
               const coinsFont = Math.min(badgeR * 0.72, (badgeR * 1.7) / (coinsText.length * CHAR_W));
               return (
                 <g key={s.id} transform={`rotate(${i * step} ${C} ${C})`}>
@@ -251,7 +233,6 @@ export function GiftWheel({
                       {coinsText}
                     </text>
                   ) : s.kind === "COUPON" ? (
-                    // подарок — купон без картинки
                     <path
                       transform={`translate(${C - badgeR * 0.5} ${badgeY - badgeR * 0.5}) scale(${badgeR / 24})`}
                       d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6c-2-4-7-4-7-1s5 1 7 1c2 0 7 2 7-1s-5-3-7 1"
@@ -289,7 +270,6 @@ export function GiftWheel({
             <image href="/brand/mark.png" x={C - 24} y={C - 24} width={48} height={48} />
           </svg>
         </div>
-        {/* Стрелка не вращается — колесо крутится под ней */}
         <svg viewBox="0 0 40 52" className="pointer-events-none absolute left-1/2 top-[-14px] w-10 -translate-x-1/2 drop-shadow-md" aria-hidden="true">
           <path d="M20 50C20 50 3 30 3 19a17 17 0 0 1 34 0c0 11-17 31-17 31z" fill="var(--primary)" />
           <circle cx={20} cy={19} r={7} fill="var(--surface)" />

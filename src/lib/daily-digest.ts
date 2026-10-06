@@ -48,7 +48,6 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
     },
   });
 
-  // Уже отправленные сегодня — пропускаем.
   const already = await db.notification.findMany({
     where: { event: "DAILY_DIGEST", sentAt: { gte: dayStart }, userId: { in: users.map((u) => u.id) } },
     select: { userId: true },
@@ -83,9 +82,6 @@ export async function runDailyDigest(now = new Date()): Promise<{ queued: number
       continue;
     }
 
-    // dedupeKey — настоящая защита от дубля (уникальный индекс в БД): проверка
-    // sentToday выше не атомарна и не спасает, если два крона (напр. боевого и
-    // тестового окружений, у них общая БД) стартуют в одну и ту же минуту.
     try {
       await db.notification.create({
         data: {

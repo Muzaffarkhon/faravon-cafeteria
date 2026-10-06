@@ -19,7 +19,6 @@ export default async function AccessPage() {
 
   const permRows = await db.rolePermission.findMany({ select: { role: true, permission: true, allowed: true } });
 
-  // Матрица из БД + дефолты из кода для прав, по которым строк нет.
   const seen = new Set(permRows.map((r) => r.permission));
   const allowed = {} as Record<Permission, Role[]>;
   for (const p of ALL_PERMISSIONS) {

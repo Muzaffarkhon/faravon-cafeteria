@@ -26,12 +26,7 @@ import { ThreadViewLive } from "./_thread-view-live";
  */
 export function SupportInboxClient({ locale }: { locale: Locale }) {
   const searchParams = useSearchParams();
-  // Сервер не видит хэш (браузер его не отправляет), поэтому первый рендер
-  // всегда без выбранного диалога — иначе гидратация не совпадёт с тем, что
-  // отрисовал сервер. Хэш подхватываем эффектом сразу после монтирования.
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
-  // Растёт при каждом действии в диалоге (ответ/закрытие/архив/удаление) —
-  // заставляет ThreadListLive перечитать список сразу же, см. её комментарий.
   const [listRefreshSignal, setListRefreshSignal] = useState(0);
   const bumpListRefresh = useCallback(() => setListRefreshSignal((n) => n + 1), []);
 
@@ -40,7 +35,6 @@ export function SupportInboxClient({ locale }: { locale: Locale }) {
       setActiveId(window.location.hash.slice(1) || undefined);
     }
     syncFromHash();
-    // Кнопки «назад»/«вперёд» в браузере меняют хэш нативно — подхватываем и это.
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
   }, []);

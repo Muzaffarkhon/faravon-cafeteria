@@ -47,7 +47,6 @@ function parse(formData: FormData) {
     const parsed = JSON.parse(String(formData.get("translations") ?? "{}"));
     if (parsed && typeof parsed === "object" && Object.keys(parsed).length) translations = parsed;
   } catch {
-    /* поле пришло в неожиданном виде — просто не сохраняем переводы */
   }
 
   return {

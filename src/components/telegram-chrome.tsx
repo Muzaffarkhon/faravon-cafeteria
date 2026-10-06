@@ -44,8 +44,8 @@ export function TelegramChrome() {
       const apply = () => {
         const top =
           (tg.safeAreaInset?.top ?? 0) + (tg.contentSafeAreaInset?.top ?? 0);
-        // Старый клиент не отдаёт отступы — резервируем место под кнопки.
-        const px = top > 0 ? Math.round(top) : 64;
+        const mobile = tg.platform === "android" || tg.platform === "ios" || tg.platform === "android_x";
+        const px = top > 0 ? Math.round(top) : mobile ? 64 : 0;
         document.documentElement.style.setProperty("--tg-top", `${px}px`);
       };
 

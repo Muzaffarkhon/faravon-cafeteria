@@ -29,8 +29,6 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
     const thread = await db.supportThread.findUnique({ where: { id: threadId } });
     if (!thread) throw new Error("Диалог не найден.");
 
-    // Цитата — только на сообщение из этого же диалога (иначе можно было бы
-    // сослаться на чужой чат чужим id из формы).
     let replyTo: { direction: "IN" | "OUT"; body: string; tgMessageId: number | null } | null = null;
     let sentTgMessageId: number | undefined;
     if (replyToId) {
@@ -46,15 +44,11 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token) throw new Error("TELEGRAM_BOT_TOKEN не задан — отправка недоступна.");
 
-      // Как в Telegram: настоящий «ответ» на конкретное сообщение (reply_parameters), а не цитата текстом.
-      // У старых сообщений (до сохранения message_id) его нет — тогда прежний запасной вариант: курсивная строка.
       const nativeReply = replyTo?.tgMessageId ?? undefined;
       const quotePrefix =
         replyTo && !nativeReply
           ? `<i>${escHtml(replyTo.body.length > 200 ? `${replyTo.body.slice(0, 200)}…` : replyTo.body)}</i>\n\n`
           : "";
-      // Экранируем: это обычный текст от человека, а не шаблон с разметкой —
-      // случайные `<`/`&` не должны ломать HTML-сообщение в Telegram.
       const sent = await sendSupportTelegram(token, thread.telegramId, `${quotePrefix}${escHtml(text)}`, {
         replyToTgMessageId: nativeReply,
         replyMarkup: await getFaqKeyboard(),
@@ -62,9 +56,6 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
       if ("error" in sent) throw new Error(sent.error);
       sentTgMessageId = sent.messageId;
     }
-    // WEB — сообщение остаётся только на сайте, сотрудник увидит его в своей
-    // «Обратной связи»; Telegram-пуш на каждую реплику намеренно не шлём (см.
-    // support-chat-feature.md — тот же принцип, что и для Telegram-гостей).
 
     await db.$transaction([
       db.supportMessage.create({
@@ -369,10 +360,6 @@ export async function linkEmployeeToThread(
 
   const otp = await issueOtpForUser(user.id, `admin:support_chat:${s.user.login}`, s.user.id);
 
-  // Тот же вид сообщения, что и при обычной идентификации через бота
-  // (linkByPhone/linkByCode) — иначе гость получает от одного и того же
-  // бота два визуально разных сообщения с логином/паролем. В историю чата
-  // (админ видит как обычный текст, без HTML) — та же формулировка без тегов.
   const html = grantMessage(user.login, otp, employee.fullName, false);
   const plain = html.replace(/<\/?code>/g, "");
 
@@ -419,6 +406,5 @@ export async function openChatWithUser(userId: string): Promise<void> {
     update: { archivedAt: null },
     select: { id: true },
   });
-  // Открытый диалог живёт в хэше адреса (см. _support-inbox-client.tsx), не в пути.
   redirect(`/admin/support#${thread.id}`);
 }

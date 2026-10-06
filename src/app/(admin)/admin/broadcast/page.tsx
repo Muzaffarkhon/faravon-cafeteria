@@ -21,7 +21,6 @@ import { BroadcastForm } from "./_form";
 import { FilterForm } from "./_filter-form";
 import { BroadcastSubnav, StepHeader } from "./_parts";
 
-// Рассылка «гостям» идёт напрямую (до ~600 сообщений, ~25 с) — запас по времени функции.
 export const maxDuration = 60;
 
 export default async function BroadcastPage({
@@ -40,7 +39,6 @@ export default async function BroadcastPage({
   const byCard = filters.segment === "BY_CARD";
   const byCampaign = filters.segment === "BY_CAMPAIGN";
 
-  // Подстраховка крона: просроченная отложенная рассылка уйдёт, как только кто-то откроет раздел.
   after(() => dispatchDueBroadcasts());
   const [periods, cards, history] = await Promise.all([
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true }, take: 24 }),
@@ -49,14 +47,10 @@ export default async function BroadcastPage({
       : Promise.resolve([]),
     loadCampaignList(),
   ]);
-  // По умолчанию — открытый период: рассылка «пойдёте ли» почти всегда про текущий.
   if (byCard && !filters.periodId) filters.periodId = periods.find((p) => p.status === "OPEN")?.id ?? periods[0]?.id ?? "";
-  // Написать повторно можно только по уже отправленной рассылке сотрудникам (у гостей нет списка получателей).
   const campaigns = history.filter((c) => c.status === "SENT" && c.segment !== "NOT_REGISTERED" && c.total > 0);
-  // По умолчанию — последняя рассылка: обычно добивают именно её.
   if (byCampaign && !filters.campaignId) filters.campaignId = campaigns[0]?.id ?? "";
   const campaign = campaigns.find((c) => c.id === filters.campaignId);
-  // Без кнопок «Да / Нет» ответов нет — только «все получатели».
   if (byCampaign && campaign && !campaign.askConfirm) filters.campaignAnswer = "ALL";
 
   const [departments, positions, audience] = await Promise.all([
@@ -76,7 +70,6 @@ export default async function BroadcastPage({
   ]);
   const recipients = audience.users.length + audience.guests.length;
 
-  // Полное описание аудитории — для окна подтверждения: админ видит, кому именно уходит.
   const audienceLabel = [
     t(`broadcast.segment.${filters.segment}` as const),
     byCard && cards.find((c) => c.id === filters.cardId)?.title,

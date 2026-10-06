@@ -19,7 +19,6 @@ export type SurveyPayload = {
   questions: SurveyQuestionInput[];
 };
 
-// Время в форме — по Душанбе (UTC+5, без перехода на летнее время).
 const parseLocal = (v: string) => {
   if (!v) return null;
   const d = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? new Date(`${v}:00+05:00`) : null;

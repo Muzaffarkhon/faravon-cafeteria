@@ -14,12 +14,10 @@ export async function setLocale(locale: string): Promise<void> {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
   });
-  // Запоминаем язык за учёткой — рассылки и уведомления пишут человеку на его языке.
   try {
     const s = await getSession();
     if (s && s.user.locale !== locale) await db.user.update({ where: { id: s.user.id }, data: { locale } });
   } catch {
-    // язык в cookie уже сохранён — сбой записи в БД не должен ломать переключение
   }
   revalidatePath("/");
 }

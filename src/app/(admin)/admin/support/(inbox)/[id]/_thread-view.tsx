@@ -83,8 +83,6 @@ function EmployeeLinkPanel({
   function save(employeeId: string) {
     setErr(null);
     start(async () => {
-      // Номер сохраняем всегда тот, что реально пришёл от гостя — не то, что
-      // сейчас в строке поиска (там может быть ФИО, если искали по имени).
       const r = await linkEmployeeToThread(threadId, employeeId, guestPhone);
       if (r.error) setErr(r.error);
       else if (r.login && r.otp) setSaved((s) => ({ ...s, [employeeId]: { login: r.login!, otp: r.otp! } }));
@@ -256,9 +254,6 @@ export function ThreadView({
     });
   }
 
-  // Закрыть по клику вне кнопки/списка быстрых ответов — без фонового
-  // перехватчика на весь экран (он же ломал закрытие по уходу мыши: курсор
-  // технически всегда оставался «внутри» такого слоя).
   useEffect(() => {
     if (!quickOpen) return;
     function onClickOutside(e: MouseEvent) {
@@ -268,12 +263,6 @@ export function ThreadView({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [quickOpen]);
 
-  // Прочитанными входящие отмечает ThreadViewLive — сразу при загрузке, вместе с
-  // обновлением счётчиков (список и бейдж в меню).
-
-  // Прокрутка к последнему сообщению: при открытии диалога — всегда, при новых
-  // сообщениях — если админ и так был внизу (не дёргаем, когда он читает историю выше)
-  // или это его собственный ответ.
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
   const lastIdRef = useRef<string | null>(null);
@@ -398,9 +387,6 @@ export function ThreadView({
                 onClick={() =>
                   start(async () => {
                     await closeThread(threadId);
-                    // Закрытый диалог смотреть дальше незачем — выходим к
-                    // списку, чтобы сразу выбрать следующий чат, а не читать
-                    // тот же (уже закрытый) диалог второй раз.
                     onListChanged?.();
                     onBack();
                   })
@@ -675,15 +661,6 @@ export function ThreadView({
         ) : (
           <>
             {quickReplies.length > 0 && (
-              // Свёрнутая кнопка вместо строки чипов — та же горизонтальная
-              // прокрутка требовала листать по одному в большом потоке, а
-              // перенос в несколько строк «съедал» половину окна чата.
-              // Разворачивается списком ПОВЕРХ (не раздвигая раскладку) —
-              // всё видно сразу, без прокрутки вбок. Открытие по наведению
-              // (не только по клику) — на мыши это фактически одно действие
-              // «навёл → выбрал», а не два клика подряд. Наведение отслеживается
-              // только в пределах этого блока (кнопка + список) — увели мышь
-              // отсюда, список закрывается; клик вне блока ловит useEffect выше.
               <div
                 ref={quickRef}
                 className="relative"
@@ -714,15 +691,8 @@ export function ThreadView({
                   </svg>
                 </button>
                 {quickOpen && (
-                  // bottom-full (без зазора от кнопки) — иначе между кнопкой и
-                  // списком была мёртвая зона в пару пикселей: мышь считалась
-                  // «ушедшей» из наведённой области ровно при переходе к списку.
                   <div className="absolute bottom-full left-0 z-50 flex max-h-64 w-[min(26rem,90vw)] flex-col gap-1.5 overflow-y-auto rounded-xl border border-line bg-surface p-1.5 pb-2.5 shadow-lg">
                     {quickReplies.map((r) => (
-                      // Каждый вариант — отдельная «плашка» со своим фоном, а
-                      // не просто тонкая линия между строк: на светлой теме
-                      // едва заметный бордер сливался с фоном, разделения не
-                      // было видно вовсе.
                       <button
                         key={r.id}
                         type="button"
@@ -762,7 +732,6 @@ export function ThreadView({
               value={text}
               onChange={(e) => setText(e.target.value)}
               onPaste={(e) => {
-                // Скриншот из буфера (Ctrl+V) — как прикреплённое фото; обычный текст вставляется как всегда.
                 const img = clipboardImage(e);
                 if (img) {
                   e.preventDefault();
@@ -785,7 +754,6 @@ export function ThreadView({
               </p>
             )}
             {photoUrl && (
-              // Предпросмотр перед отправкой: крупное превью (клик — на весь экран), имя, размер и «убрать».
               <div className="relative flex items-start gap-3 rounded-xl border border-primary/25 bg-primary-soft/50 p-2">
                 <button type="button" onClick={() => setZoom(photoUrl)} className="shrink-0 cursor-zoom-in" aria-label={t("support.previewPhoto")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}

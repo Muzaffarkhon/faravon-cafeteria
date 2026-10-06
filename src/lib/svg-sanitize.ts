@@ -6,18 +6,13 @@
  */
 export function sanitizeSvg(source: string): string {
   let s = source;
-  // DOCTYPE/ENTITY (XXE)
   s = s.replace(/<!DOCTYPE[\s\S]*?>/gi, "");
   s = s.replace(/<!ENTITY[\s\S]*?>/gi, "");
-  // <script>…</script>
   s = s.replace(/<script[\s\S]*?<\/script\s*>/gi, "");
   s = s.replace(/<script[^>]*\/>/gi, "");
-  // потенциально опасные элементы
   s = s.replace(/<(foreignObject|iframe|embed|object|audio|video|animate|set|use)\b[\s\S]*?<\/\1\s*>/gi, "");
   s = s.replace(/<(foreignObject|iframe|embed|object|use|animate|set)\b[^>]*\/>/gi, "");
-  // on*-обработчики
   s = s.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  // javascript:/data:text/html в href/src
   s = s.replace(/(href|xlink:href|src)\s*=\s*("|')\s*(javascript:|data:text\/html)[^"']*\2/gi, '$1=$2#$2');
   return s.trim();
 }

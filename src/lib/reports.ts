@@ -23,13 +23,11 @@ export async function computeReport(periodId: string) {
   const period = await db.period.findUnique({ where: { id: periodId } });
   if (!period) return null;
 
-  // Доступ и активация — глобально (§12)
   const [accounts, everLoggedIn] = await Promise.all([
     db.user.count({ where: { roles: { has: "EMPLOYEE" } } }),
     db.user.count({ where: { roles: { has: "EMPLOYEE" }, lastLoginAt: { not: null } } }),
   ]);
 
-  // Только нужные поля — при тысячах заявок это в разы меньше памяти/трафика.
   const apps = await db.application.findMany({
     where: { periodId },
     select: {
@@ -56,8 +54,6 @@ export async function computeReport(periodId: string) {
   const hasSelection = (a: (typeof apps)[number]) =>
     a.items.some((i) => i.status !== "CANCELLED");
   const withSelection = apps.filter(hasSelection).length;
-  // Вовлечение считаем среди активированных (вошедших) сотрудников —
-  // иначе числитель может превысить знаменатель everLoggedIn.
   const engagedLoggedIn = apps.filter(
     (a) => a.employee.user?.lastLoginAt != null && hasSelection(a),
   ).length;
@@ -66,7 +62,6 @@ export async function computeReport(periodId: string) {
   const decided = items.filter((i) => i.decidedAt && ["APPROVED", "COUPON_CREATED", "COUPON_ISSUED", "REJECTED"].includes(i.status));
   const rejected = items.filter((i) => i.status === "REJECTED");
   const issued = items.filter((i) => i.status === "COUPON_ISSUED");
-  // Реальный результат выбора: купон выдан → активирован на кассе (дата активации или статус «Активирован»).
   const isActivated = (i: (typeof items)[number]) => !!i.coupon && (!!i.coupon.activatedAt || i.coupon.status === "USED");
   const couponsIssued = items.filter((i) => i.coupon?.issuedAt);
   const activated = items.filter(isActivated);
@@ -79,7 +74,6 @@ export async function computeReport(periodId: string) {
     .filter((i) => i.coupon?.issuedAt && i.decidedAt)
     .map((i) => (i.coupon!.issuedAt!.getTime() - i.decidedAt!.getTime()) / DAY);
 
-  // §5.12: SLA считаем в РАБОЧИХ днях
   const slaBreached =
     decided.filter(
       (i) =>
@@ -92,7 +86,6 @@ export async function computeReport(periodId: string) {
         i.status === "PENDING" && businessDaysBetween(i.submittedAt!, nowDate) > SLA_DAYS,
     ).length;
 
-  // Топ льгот
   const bySelections = new Map<string, number>();
   const byApprovals = new Map<string, number>();
   for (const i of live) {
@@ -107,7 +100,6 @@ export async function computeReport(periodId: string) {
   const topSelections = [...bySelections.entries()].map(([title, n]) => ({ title, n })).sort((a, b) => b.n - a.n);
   const topApprovals = [...byApprovals.entries()].map(([title, n]) => ({ title, n })).sort((a, b) => b.n - a.n);
 
-  // Отклонения по причинам
   const reasons = new Map<string, number>();
   for (const i of rejected) {
     const key = i.decisionComment?.trim() || "(без указания причины)";
@@ -115,7 +107,6 @@ export async function computeReport(periodId: string) {
   }
   const rejectionsByReason = [...reasons.entries()].map(([reason, n]) => ({ reason, n })).sort((a, b) => b.n - a.n);
 
-  // По подразделениям
   const dept = new Map<string, { employees: Set<string>; items: number }>();
   for (const a of apps) {
     const d = dept.get(a.employee.department) ?? { employees: new Set(), items: 0 };

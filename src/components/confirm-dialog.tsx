@@ -52,10 +52,6 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  // Портал в <body> — иначе диалог остаётся потомком строки таблицы/карточки,
-  // и если у родителя есть transform/filter (напр. hover-эффект), fixed-диалог
-  // окажется зажат в его контексте наложения и может уехать под шапку (см. тот
-  // же приём в card-details.tsx / flex-selection.tsx).
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/40 p-5"

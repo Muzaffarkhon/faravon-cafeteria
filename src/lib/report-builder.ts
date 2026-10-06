@@ -59,8 +59,6 @@ export async function listReportOptions(dataset: Dataset): Promise<Record<string
   };
 }
 
-// ---------- Даты и бакеты ----------
-
 /** Сдвиг на UTC+5: UTC-геттеры результата дают календарные поля по Душанбе. */
 const toDushanbe = (d: Date) => new Date(d.getTime() + 5 * 3_600_000);
 
@@ -93,8 +91,6 @@ function dateBucketKey(utc: Date, bucket: DateBucket): string {
       return String(d.getUTCFullYear());
   }
 }
-
-// ---------- Датасеты ----------
 
 const ITEM_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Черновик",
@@ -176,7 +172,6 @@ const benefits: DatasetDef<BenefitRow> = {
   load: (conds) =>
     db.applicationItem.findMany({
       where: {
-        // Отменённые скрыты, пока явно не задано условие по статусу.
         status: conds.some((c) => c.field === "status") ? undefined : { not: "CANCELLED" },
         application: { periodId: periodEq(conds) && periodEq(conds) !== CURRENT_PERIOD ? periodEq(conds) : undefined },
         submittedAt: primaryDateRange("benefits", conds),
@@ -291,8 +286,6 @@ const support: DatasetDef<SupportRow> = {
 
 const DATASETS = { benefits, coupons, support } as unknown as Record<Dataset, DatasetDef<unknown>>;
 
-// ---------- Условия ----------
-
 function matchesCondition(raw: string | null, kind: "enum" | "text" | "date", c: Condition): boolean {
   const v = c.value ?? "";
   const lc = (s: string) => s.toLowerCase();
@@ -341,8 +334,6 @@ function applyConditions<R>(def: DatasetDef<R>, dataset: Dataset, rows: R[], con
   });
   return rows.filter((r) => checks.every(({ acc, kind, c }) => matchesCondition(acc.raw(r), kind, c)));
 }
-
-// ---------- Агрегаты ----------
 
 type Agg = { count: number; activated: number; identities: Set<string>; mins: Map<string, Date>; maxs: Map<string, Date> };
 
@@ -475,8 +466,6 @@ export async function runBuilderReport(cfg: BuilderConfig): Promise<BuilderResul
   return (await runWithRows(DATASETS[cfg.dataset], cfg)).result;
 }
 
-// ---------- Сравнение с предыдущим периодом ----------
-
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
 /**
@@ -524,8 +513,6 @@ export async function runBuilderReportCompared(
   return { result: { ...result, columns, rows }, compareNote: `Сравнение с периодом «${prev.name}».` };
 }
 
-// Частые русские служебные слова + типичные приветственные обороты — не несут
-// смысла в сводке «что чаще всего пишут», только шумят в топе.
 const STOPWORDS = new Set([
   "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все", "она",
   "так", "его", "но", "да", "ты", "к", "у", "же", "вы", "за", "бы", "по", "только", "ее",
@@ -546,13 +533,8 @@ const STOPWORDS = new Set([
 
 const WORD_RE = /[a-zа-яё0-9]+/gi;
 
-// Тело автослужебных сообщений бота начинается с тега в квадратных скобках
-// (`[Поделился контактом] ...`, `[Вопрос] ...`) — живой текст от человека так
-// никогда не начинается.
-// Отчества и тюркские/таджикские «сын/дочь» — это всегда часть ФИО, а не тема обращения.
 const PATRONYMIC_RE = /(ович|евич|ьич|овна|евна|ична|угли|кизи|кызы|заде)$/;
 
-// Приветствия на таджикском/узбекском — такой же шум, как «здравствуйте».
 const GREETING_WORDS = ["ассалому", "алейкум", "салом", "рахмат", "барои", "мешавад", "хуб", "ассалом", "алайкум", "рахмат"];
 
 const SYSTEM_MESSAGE_RE = /^\[[^\]]+\]/;
@@ -588,8 +570,6 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
     select: { body: true },
   });
 
-  // Словарь профиля сотрудников: ФИО отдельно, должности/подразделения отдельно. Гость при авторегистрации
-  // в боте пишет «ФИО, должность, отдел» (см. self-registration.ts) — это ответы на вопросы бота, а не обращение.
   const words = (text: string) => text.toLowerCase().match(WORD_RE) ?? [];
   const names = new Set<string>();
   const jobWords = new Set<string>();
@@ -600,8 +580,6 @@ export async function topSupportWords(cfg: BuilderConfig, limit = 30): Promise<W
 
   const counts = new Map<string, number>();
   for (const m of messages) {
-    // Системные служебные сообщения бота помечены тегом `[...]` в начале тела
-    // (см. appendGuestMessage в api/telegram/route.ts) — это не текст человека.
     if (SYSTEM_MESSAGE_RE.test(m.body)) continue;
     const ws = words(m.body);
     if (isRegistrationReply(ws, names, jobWords)) continue;

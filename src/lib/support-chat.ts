@@ -55,7 +55,6 @@ export async function appendGuestMessage(
   const thread = await db.supportThread.findUnique({ where: { telegramId } });
   if (!thread) return false;
   const wasClosed = thread.status === "CLOSED";
-  // Гость ответил на конкретное сообщение (reply в Telegram) — привязываем к нему, как цитату в админке.
   const replyTo = opts.replyToTgMessageId
     ? await db.supportMessage.findFirst({ where: { threadId: thread.id, tgMessageId: opts.replyToTgMessageId }, select: { id: true } })
     : null;

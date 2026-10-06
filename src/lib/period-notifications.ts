@@ -5,8 +5,6 @@ import { fmtDate } from "@/lib/dushanbe-date";
 const DAY = 24 * 60 * 60 * 1000;
 const CLOSING_LEAD_DAYS = 3; // §5.10: напоминание за 3 дня до конца окна
 
-// См. комментарий в admin/periods/page.tsx — без timeZone дата в уведомлении
-// сотруднику уходит на день раньше реального конца окна выбора.
 const fmt = (d: Date) => fmtDate(d);
 
 /**
@@ -31,10 +29,7 @@ export async function runPeriodWindowNotifications(): Promise<{
   });
 
   for (const p of periods) {
-    // --- «окно открыто» — всем сотрудникам с учётной записью ---
     if (!p.windowOpenNotifiedAt && p.windowStart <= now && p.windowEnd > now) {
-      // Сначала атомарно «забираем» период (флаг ставится ДО рассылки). Если
-      // count===0 — параллельный запуск cron уже занялся этим, выходим.
       const claim = await db.period.updateMany({
         where: { id: p.id, windowOpenNotifiedAt: null },
         data: { windowOpenNotifiedAt: now },
@@ -58,7 +53,6 @@ export async function runPeriodWindowNotifications(): Promise<{
       }
     }
 
-    // --- «закроется через 3 дня» — сотрудникам без выбора ---
     const leadStart = new Date(p.windowEnd.getTime() - CLOSING_LEAD_DAYS * DAY);
     if (!p.windowClosingNotifiedAt && now >= leadStart && now < p.windowEnd) {
       const claimClosing = await db.period.updateMany({

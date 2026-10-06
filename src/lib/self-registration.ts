@@ -78,8 +78,6 @@ export async function resolveSelfRegistrationStep(telegramId: string, text: stri
 
   if (thread.regCandidateEmployeeId) {
     const candidateId = thread.regCandidateEmployeeId;
-    // SafeLinkError (рейт-лимит, проблема учётки) всплывает наружу как есть —
-    // route.ts уже умеет показывать её текст.
     const verified = await verifyPhoneForCandidate(candidateId, text, telegramId);
 
     if (verified.kind === "granted") {
@@ -90,7 +88,6 @@ export async function resolveSelfRegistrationStep(telegramId: string, text: stri
       return { kind: "granted", result: verified.result };
     }
 
-    // Номер не распознан в тексте вовсе — не тратим попытку, просто напоминаем.
     if (verified.kind === "no_number") {
       const candidate = await db.employee.findUnique({ where: { id: candidateId }, select: { fullName: true } });
       return { kind: "ask_phone", fullName: candidate?.fullName ?? "" };

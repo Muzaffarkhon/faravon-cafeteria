@@ -165,7 +165,6 @@ export function SmartFilterButton({
         Фильтры{activeCount ? ` (${activeCount})` : ""}
       </button>
 
-      {/* В портал в <body>: иначе fixed считается от предка (контент страницы), а не от окна, и при короткой таблице окно уезжает вверх. */}
       {open &&
         createPortal(
         <div

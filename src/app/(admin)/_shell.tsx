@@ -100,7 +100,6 @@ export function AdminShell({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
     } catch {
-      /* localStorage недоступен — остаёмся развёрнутыми */
     }
     setNavOrder(loadNavOrder());
     setHydrated(true);
@@ -118,7 +117,6 @@ export function AdminShell({
     try {
       localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(next));
     } catch {
-      /* не критично — порядок просто не переживёт перезагрузку */
     }
   }
 
@@ -128,7 +126,6 @@ export function AdminShell({
       try {
         localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
       } catch {
-        /* не критично */
       }
       return next;
     });
@@ -205,7 +202,6 @@ export function AdminShell({
             <button
               type="button"
               onClick={() => {
-                // Меню закрываем сразу: окно подтверждения живёт отдельно от него (см. ниже).
                 setProfileOpen(false);
                 setLogoutOpen(true);
               }}
@@ -217,8 +213,6 @@ export function AdminShell({
           </div>
         </>
       )}
-      {/* Вне выпадающего меню: на телефоне касание шлёт «mouseleave», меню закрывалось, а с ним и вложенное окно подтверждения.
-          renderProfile вызывается дважды (шапка и мобильная полоса), окно общее — рисуем его один раз. */}
       {!mobile && (
         <ConfirmDialog
           open={logoutOpen}
@@ -235,7 +229,6 @@ export function AdminShell({
 
   return (
     <div className="flex min-h-dvh items-start bg-canvas text-ink">
-      {/* Мобильный хедер с гамбургером — сама навигация вне потока (drawer). */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 md:hidden">
         <button
           type="button"
@@ -249,7 +242,6 @@ export function AdminShell({
         {renderProfile(true)}
       </div>
 
-      {/* Затемнение под мобильным drawer'ом */}
       {mobileOpen && (
         <button
           type="button"
@@ -259,7 +251,6 @@ export function AdminShell({
         />
       )}
 
-      {/* ── Левое меню: fixed-drawer на мобильном, sticky-колонка на десктопе ── */}
       <aside
         className={cx(
           "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 ease-in-out",
@@ -427,7 +418,6 @@ export function AdminShell({
         </div>
       </aside>
 
-      {/* ── Правая колонка: закреплённая шапка + прокручиваемый контент ── */}
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
         <header className="sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur md:flex">
           <span className="truncate text-[15px] font-bold text-ink">{activeItem?.label ?? t("shell.adminPanel")}</span>
@@ -435,9 +425,6 @@ export function AdminShell({
           {renderProfile(false)}
         </header>
 
-        {/* Левое меню и шапка уже отделяют контент от края экрана — сами по
-            себе отступы страницы были избыточны и «резали» широкие таблицы.
-            Минимум 6px слева/справа/снизу, сверху оставлен запас под шапку. */}
         <main className="relative px-1.5 pb-1.5 pt-4 sm:pt-6">
           <div key={pathname} className="animate-page mx-auto w-full max-w-6xl has-[[data-wide]]:max-w-none">
             {children}

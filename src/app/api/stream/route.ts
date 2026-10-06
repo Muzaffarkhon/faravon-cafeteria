@@ -6,28 +6,14 @@ import { onlineSessionWhere } from "@/lib/user-sessions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Верхняя граница жизни функции. Соединение всё равно закрывается раньше
-// (MAX_LIFETIME_MS), а браузер (EventSource) переподключается сам.
 export const maxDuration = 30;
 
-// Живое обновление разделов без внешней инфраструктуры (нет WebSocket-сервера,
-// нет Redis). На Vercel Hobby держать SSE открытым долго нельзя — лимит времени
-// функции, — поэтому соединение короткоживущее: сервер стримит ~25 с и
-// закрывается, EventSource переподключается через `retry`. Пока соединение
-// живо, сервер каждые pollMs сверяет «сигнатуру» релевантных пользователю
-// данных и присылает событие `update` только при её изменении.
-// Опрос — по роли: персонал C&B держит реестры открытыми и ждёт реакции в
-// секундах, сотруднику достаточно увидеть свою заявку/купон с задержкой.
-// При 3000 сотрудников разница в частоте — это сотни запросов в секунду к БД.
 const STAFF_POLL_MS = 8000;
 const EMPLOYEE_POLL_MS = 20_000;
 const STAFF_RETRY_MS = 3000;
 const EMPLOYEE_RETRY_MS = 15_000;
 const MAX_LIFETIME_MS = 25_000;
 
-// Мягкий лимит одновременных SSE-соединений на пользователя (в пределах одного
-// инстанса функции). Защита от «открыл 50 вкладок» → 50×N агрегатов каждые
-// pollMs. EventSource переподключается, поэтому кратковременный отказ безвреден.
 const MAX_CONN_PER_USER = 6;
 const liveConns = new Map<string, number>();
 
@@ -106,7 +92,6 @@ export async function GET(request: Request) {
     );
   }
 
-  // Частота опроса зависит от роли (см. константы выше).
   const isStaff =
     can(session.roles, "applications.decide") ||
     can(session.roles, "coupons.manage") ||
@@ -148,23 +133,17 @@ export async function GET(request: Request) {
         try {
           controller.close();
         } catch {
-          /* уже закрыт */
         }
       };
 
       request.signal.addEventListener("abort", close);
 
-      // Подсказка браузеру: когда переподключаться после разрыва.
       send(`retry: ${isStaff ? STAFF_RETRY_MS : EMPLOYEE_RETRY_MS}\n\n`);
 
-      // null — базовая сигнатура ещё не получена (например, Neon просыпается).
-      // Пока её нет, первый удачный опрос принимаем за базу и НЕ шлём `update`,
-      // иначе холодный старт всегда выглядел бы как изменение.
       let last: string | null = null;
       try {
         last = await signatureFor(session);
       } catch {
-        /* сверимся на следующем тике */
       }
       send(`event: hello\ndata: ${JSON.stringify({ t: Date.now() })}\n\n`);
 

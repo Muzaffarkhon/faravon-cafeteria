@@ -34,8 +34,6 @@ async function main() {
   assert(ivanov, "сотрудник ivanov существует");
   const admin = await db.user.findFirst({ where: { roles: { has: "C_AND_B" } } });
   assert(admin, "есть пользователь C&B");
-  // coinPrice: null — карточка ещё не продаётся за монеты, иначе тест временно
-  // подменил бы реальную цену/режим живого предложения магазина.
   const card = await db.benefitCard.findFirst({
     where: {
       block: "FLEX",
@@ -49,9 +47,6 @@ async function main() {
   });
   assert(card, "есть подходящая FLEX-карточка (minParticipants=1, не PHONE_PROMO, ещё не продаётся за монеты)");
 
-  // Снимок состояния ДО теста — восстанавливаем в конце точно к нему, а не
-  // сносим общие записи (баланс/история монет могли принадлежать реальному
-  // использованию ivanov, не только этому прогону).
   const accountExisted = !!(await db.coinAccount.findUnique({ where: { employeeId: ivanov!.id } }));
   const balanceBefore = await getCoinBalance(ivanov!.id);
   ok(`снимок до теста: account=${accountExisted ? "есть" : "нет"}, баланс=${balanceBefore}`);
@@ -89,8 +84,6 @@ async function main() {
   await db.coupon.delete({ where: { id: coupon.id } });
   await db.applicationItem.delete({ where: { id: coupon.itemId } });
   await db.coinRedemption.delete({ where: { id: redemption.id } });
-  // Только 2 записи, созданные этим прогоном (opKey уникален на редемпшн/задачу) —
-  // не трогаем остальную историю монет ivanov.
   await db.coinEntry.deleteMany({
     where: { opKey: { in: [`task-reward:${et.id}`, `redemption:${redemption.id}`] } },
   });

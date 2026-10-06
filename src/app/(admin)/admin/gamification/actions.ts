@@ -93,7 +93,6 @@ export async function saveWheelSector(sectorId: string | null, _prev: ToggleForm
     if (problem) return { error: `Эту льготу разыграть нельзя: ${problem}.` };
     quantity = intField(formData, "quantity");
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100_000) return { error: "Сколько человек могут выиграть — целое число от 1." };
-    // Уже выигранное не отзываем: при той же льготе остаток нельзя увести ниже нуля.
     if (existing?.kind === "COUPON" && existing.cardId === cardId && quantity < existing.wonCount) {
       return { error: `Уже выиграно ${existing.wonCount} — количество не может быть меньше.` };
     }
@@ -104,7 +103,6 @@ export async function saveWheelSector(sectorId: string | null, _prev: ToggleForm
     return { error: `На колесе помещается не больше ${WHEEL_MAX_SECTORS} листков.` };
   }
 
-  // Смена приза в листке начинает розыгрыш заново — счётчик прежнего купона к новому не относится.
   const prizeChanged = !existing || existing.kind !== kind || existing.cardId !== cardId;
   const data = { kind, position, weight, label, coins, cardId, quantity, ...(prizeChanged ? { wonCount: 0 } : {}) } as const;
   const saved = existing
@@ -141,7 +139,6 @@ export async function deleteWheelSector(sectorId: string): Promise<ActionResult>
   return runAction(async () => {
     const s = await requireSession();
     assertCan(s.roles, "gamification.manage");
-    // Прокрутки хранят снимок приза, связь с листком обнуляется (onDelete: SetNull).
     await db.wheelSector.delete({ where: { id: sectorId } });
     await audit({ actorId: s.user.id, action: "WHEEL_SECTOR_DELETED", entityType: "WheelSector", entityId: sectorId });
     revalidatePath("/admin/gamification");

@@ -12,7 +12,6 @@ export const DELIVERY_LABEL: Record<Delivery, string> = {
   FAILED: "Не доставлено",
   UNKNOWN: "—",
 };
-// Совпадает с STALE_MS в notification-delivery.ts: старше — доставка больше не пытается.
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function deliveryOf(n: { deliveredAt: Date | null; blockedAt: Date | null; sentAt: Date } | null): Delivery {
@@ -22,9 +21,7 @@ function deliveryOf(n: { deliveredAt: Date | null; blockedAt: Date | null; sentA
   return Date.now() - n.sentAt.getTime() > STALE_MS ? "FAILED" : "PENDING";
 }
 
-// Служебные строки, которые бот сам пишет в чат поддержки («[Рассылка …] Ответ: Нет») — не причина.
 const SYSTEM_LINE = /^\[[^\]]+\]/;
-// Причиной считаем первое сообщение сотрудника в течение двух суток после ответа «Нет».
 const REASON_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 /** Получатели рассылки, их ответы, доставка и причина «Нет» — для страницы отчёта и выгрузки. */
@@ -53,7 +50,6 @@ export async function loadCampaignReport(id: string) {
   const threads = await db.supportThread.findMany({ where: { telegramId: { in: tgIds } }, select: { id: true, telegramId: true } });
   const threadByTg = new Map(threads.map((t) => [t.telegramId, t.id]));
 
-  // Причина «Нет»: бот просит её сразу после ответа, сотрудник пишет в чат поддержки.
   const noThreadIds = campaign.recipients.flatMap((r) => (r.answer === "NO" ? (threadByTg.get(tgOf(r) ?? "") ?? []) : []));
   const messages = noThreadIds.length
     ? await db.supportMessage.findMany({
@@ -90,7 +86,6 @@ export async function loadCampaignReport(id: string) {
         threadId,
       };
     })
-    // «Нет» сверху — с ними нужно работать; дальше «Да», в конце не ответившие.
     .sort((a, b) => (a.answer ? order[a.answer] : 2) - (b.answer ? order[b.answer] : 2) || a.fullName.localeCompare(b.fullName, "ru"));
 
   return { campaign, rows };

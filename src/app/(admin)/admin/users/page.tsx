@@ -85,8 +85,6 @@ export default async function UsersPage({
   ];
   const { where: empWhere, role, acc, empStatus, tg, loginF } = buildEmployeeFilter(sp, archiveView);
 
-  // Служебные учётки — не сотрудники: у них нет статуса работы, а «без учётки»
-  // для них невозможно. По таким фильтрам их просто не показываем.
   const serviceHidden = archiveView || page > 1 || !!empStatus || acc === "none";
 
   const [empTotal, employees, serviceUsers, partners, archivedCount, missingAccountsCount] = await Promise.all([
@@ -98,7 +96,6 @@ export default async function UsersPage({
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
-    // Служебные — их немного; показываем на первой странице основного списка.
     serviceHidden
       ? Promise.resolve([])
       : db.user.findMany({
@@ -126,14 +123,12 @@ export default async function UsersPage({
 
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
-    // Переход по страницам сохраняет и поиск, и выбранные чипы.
     for (const [k, v] of Object.entries(sp)) if (v && k !== "page") p.set(k, v);
     if (n > 1) p.set("page", String(n));
     const str = p.toString();
     return str ? `/admin/users?${str}` : "/admin/users";
   };
 
-  // Экспорт получает тот же query целиком (кроме пагинации) — тот же срез, что виден в таблице.
   const exportQuery = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (v && k !== "page") exportQuery.set(k, v);
   const exportHref = `/admin/users/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;

@@ -117,7 +117,6 @@ export default async function CouponsPage({
     return str ? `/coupons?${str}` : "/coupons";
   };
 
-  // Экспорт получает тот же query целиком (кроме пагинации) — тот же срез, что виден в таблице.
   const exportQuery = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (v && k !== "page") exportQuery.set(k, v);
   const exportHref = `/coupons/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
@@ -131,7 +130,6 @@ export default async function CouponsPage({
         </Link>
       </header>
 
-      {/* Реестр купонов */}
       <section className="space-y-3">
         <BulkIssueProvider>
         <div className="flex flex-wrap items-center justify-between gap-3">

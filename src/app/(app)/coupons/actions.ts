@@ -34,11 +34,8 @@ async function createCouponImpl(itemId: string) {
   });
   if (existing?.coupon) throw new Error("Купон уже сформирован.");
 
-  // Формируем и, если готово (не групповая или группа набрана), сразу выдаём.
   const coupon = await formCouponForItem(itemId, s.user.id);
   const issued = await issueCouponIfReady(coupon.id, s.user.id);
-  // issueCouponIfReady шлёт COUPON_ISSUED с deferFlush — доставляем сейчас,
-  // иначе сообщение «купон готов» ждёт cron.
   flushTelegram();
 
   revalidateAll();
@@ -87,7 +84,6 @@ async function issueCouponImpl(couponId: string) {
   }
   assertTransition(coupon.item.status, "COUPON_ISSUED", "C_AND_B");
 
-  // Групповая льгота: выдать купон можно только после набора ЕГО волны (§ minParticipants, § groupWaves).
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
     const ready = await isItemWaveReady(coupon.item.cardId, coupon.periodId, coupon.itemId, min);
@@ -99,8 +95,6 @@ async function issueCouponImpl(couponId: string) {
     }
   }
 
-  // Атомарный переход CREATED → ISSUED + позиция — в одной транзакции
-  // (защита от гонки «двойной клик» и от рассинхрона купон/позиция).
   const claimedOk = await db.$transaction(async (tx) => {
     const claimed = await tx.coupon.updateMany({
       where: { id: couponId, status: "CREATED" },
@@ -268,8 +262,6 @@ export async function forceRedeemCoupon(couponId: string): Promise<ActionResult>
     const coupon = await db.coupon.findUnique({ where: { id: couponId }, select: { number: true } });
     if (!coupon) throw new Error("Купон не найден.");
 
-    // actorPartnerId = null — тот же путь, что у «глобального» подрядчика:
-    // партнёрская принадлежность купона не проверяется.
     await redeemCouponByNumber(coupon.number, s.user.id, null, true);
 
     revalidateAll();

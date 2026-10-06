@@ -1,4 +1,3 @@
-import React from "react";
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
@@ -12,8 +11,6 @@ import type {
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
-
-/* ------------------------------------------------------------------ Button --- */
 
 export type ButtonVariant =
   | "primary"
@@ -34,15 +31,12 @@ const BUTTON_BASE =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // Основное действие — заливка брендом, многослойная тень, тактильное нажатие.
   primary:
     "bg-primary text-on-brand shadow-sm hover:bg-primary-hover hover:shadow-md " +
     "active:bg-primary-active active:shadow-xs",
-  // Вторичное — контурная кнопка на поверхности.
   secondary:
     "border border-line-strong bg-surface text-ink shadow-xs " +
     "hover:border-line-strong hover:bg-surface-muted active:bg-surface-sunken",
-  // Вторичное с акцентом — мягкая брендовая заливка.
   soft:
     "border border-primary-border/60 bg-primary-soft text-primary-strong " +
     "hover:border-primary-border hover:bg-primary-soft-hover active:bg-primary-soft-hover",
@@ -56,8 +50,6 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  // Мобильный минимум тач-таргета (HIG: 44pt) выдержан на md/lg;
-  // sm — для плотных таблиц на десктопе, тоже увеличен с 32px.
   sm: "h-9 gap-1.5 px-3 text-[13px]",
   md: "h-11 px-4 text-sm",
   lg: "h-12 px-5 text-[0.9375rem]",
@@ -114,11 +106,7 @@ export function Button({
   );
 }
 
-/* ------------------------------------------------------------- Form controls --- */
-
 const CONTROL_BASE =
-  // text-base на мобильных (≥16px) — иначе iOS Safari зумит страницу при фокусе;
-  // на sm+ возвращаем компактный 14px.
   "control-focus rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-base text-ink sm:text-sm " +
   "shadow-xs outline-none transition-[border-color,box-shadow] duration-150 " +
   "placeholder:text-ink-subtle " +
@@ -188,8 +176,6 @@ export function Field({
   );
 }
 
-/* -------------------------------------------------------------------- Card --- */
-
 export function Card({
   className,
   children,
@@ -222,11 +208,6 @@ export function CardHeader({
   );
 }
 
-/* ------------------------------------------------------------------- Table --- */
-
-// Сортировка по клику на заголовок колонки — интерактивность, поэтому вынесена
-// в отдельный клиентский модуль (этот файл рендерится и на сервере); реэкспорт
-// сохраняет прежний путь импорта (`@/components/ui`) для всех страниц.
 export { Table } from "./table";
 
 /**
@@ -249,8 +230,6 @@ export function RowId({ id, seq, className }: { id: string; seq: number; classNa
     </span>
   );
 }
-
-/* ------------------------------------------------------------------- Badge --- */
 
 export type BadgeTone =
   | "neutral"
@@ -290,8 +269,6 @@ export function Badge({
     </span>
   );
 }
-
-/* -------------------------------------------------------------- Page chrome --- */
 
 export function PageHeader({
   title,

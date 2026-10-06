@@ -31,7 +31,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       : []),
   ];
   ws.getRow(1).font = { bold: true };
-  // ?answer=YES|NO|NONE|UNDELIVERED — выгрузка того же среза, что выбран на странице отчёта.
   const answer = req.nextUrl.searchParams.get("answer");
   const rows = report.rows.filter((r) =>
     answer === "YES" || answer === "NO"

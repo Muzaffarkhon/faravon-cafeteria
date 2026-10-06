@@ -33,7 +33,6 @@ export async function loadBitmap(
     try {
       return await createImageBitmap(file);
     } catch {
-      /* Safari/старые движки — падаем на <img> */
     }
   }
   const url = URL.createObjectURL(file);
@@ -113,7 +112,6 @@ export async function optimizeImageFile(
   const outW = Math.max(1, Math.round(srcW * scale));
   const outH = Math.max(1, Math.round(srcH * scale));
 
-  // Ничего не даст: и так в пределах стороны и лимита.
   if (scale === 1 && file.size <= targetBytes) {
     if ("close" in bitmap) bitmap.close();
     return { file, changed: false, width: srcW, height: srcH };
@@ -128,7 +126,6 @@ export async function optimizeImageFile(
     return { file, changed: false, width: srcW, height: srcH };
   }
   ctx.imageSmoothingQuality = "high";
-  // Плоский белый фон вместо прозрачности — WebP/JPEG её не хранят одинаково.
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, outW, outH);
   ctx.drawImage(bitmap as CanvasImageSource, 0, 0, outW, outH);
@@ -140,8 +137,6 @@ export async function optimizeImageFile(
   }
   const { blob: best, type: outType } = encoded;
 
-  // Пережатое оказалось не легче исходника (бывает на маленьких PNG-иконках)
-  // и исходник уже влезает — оставляем исходник.
   if (best.size >= file.size && file.size <= targetBytes && scale === 1) {
     return { file, changed: false, width: srcW, height: srcH };
   }

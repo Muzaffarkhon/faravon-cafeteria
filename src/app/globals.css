@@ -1,20 +1,10 @@
 @import "tailwindcss";
 
-/* =============================================================================
-   Дизайн-система «Кафетерий льгот» — Фаровон
-   Ярко-красная фирменная палитра. Три слоя токенов: primitive → semantic → utility.
-   Формат цвета — OKLCH. Тема одна на весь продукт (светлая).
-   ========================================================================== */
-
 :root {
-  /* ---------------------------------------------------------------------------
-     СЛОЙ 1. PRIMITIVE — сырые значения шкал. В разметке напрямую не используются.
-     ------------------------------------------------------------------------ */
 
   --surface-elevated: rgba(255, 255, 255, 0.8);
   --surface-strong: rgba(255, 255, 255, 0.96);
 
-  /* Фирменный красный «Фаровон». Опорный тон — brand-600. */
   --brand-50:  oklch(0.971 0.013 24);
   --brand-100: oklch(0.938 0.030 24);
   --brand-200: oklch(0.884 0.058 25);
@@ -27,7 +17,6 @@
   --brand-900: oklch(0.393 0.135 26);
   --brand-950: oklch(0.271 0.093 25);
 
-  /* Коралл лепестков логотипа — тёплый вторичный акцент для декора. */
   --petal-50:  oklch(0.975 0.011 40);
   --petal-100: oklch(0.945 0.026 40);
   --petal-200: oklch(0.898 0.050 40);
@@ -36,7 +25,6 @@
   --petal-500: oklch(0.732 0.120 38);
   --petal-600: oklch(0.665 0.128 36);
 
-  /* Тёплый нейтральный. Подтон уведён в сторону фирменного красного (hue ≈ 34). */
   --sand-50:  oklch(0.986 0.002 48);
   --sand-100: oklch(0.969 0.004 44);
   --sand-200: oklch(0.930 0.006 42);
@@ -49,17 +37,12 @@
   --sand-900: oklch(0.223 0.009 30);
   --sand-950: oklch(0.157 0.008 28);
 
-  /* Статусные тона (нейтральные к бренду). */
   --green-soft:   oklch(0.960 0.033 155);
   --green-base:   oklch(0.596 0.130 152);
   --green-strong: oklch(0.470 0.118 153);
   --amber-soft:   oklch(0.965 0.043 85);
   --amber-base:   oklch(0.760 0.150 70);
   --amber-strong: oklch(0.520 0.130 55);
-
-  /* ---------------------------------------------------------------------------
-     СЛОЙ 2. SEMANTIC — назначение. Эти токены расходятся по интерфейсу.
-     ------------------------------------------------------------------------ */
 
   --canvas:          var(--sand-50);
   --surface:         #ffffff;
@@ -71,9 +54,6 @@
   --line-strong: var(--sand-300);
   --line-subtle: var(--sand-100);
 
-  /* Текст — насыщенный нейтральный чёрный, без тёплой мути и без серого.
-     Вторичный текст тем же чёрным: иерархия держится на размере, начертании
-     и капсе, а не на осветлении цвета. */
   --ink:        #000000;
   --ink-muted:  #000000;
   --ink-subtle: #1c1c1e;
@@ -95,8 +75,6 @@
   --warning:        var(--amber-base);
   --warning-strong: var(--amber-strong);
   --warning-soft:   var(--amber-soft);
-  /* Опасность в красном бренде цветом не отличить — полагаемся на контекст и текст.
-     Тон намеренно уведён темнее бренда. */
   --danger:         var(--brand-700);
   --danger-strong:  var(--brand-800);
   --danger-soft:    var(--brand-50);
@@ -104,18 +82,11 @@
 
   --focus: var(--brand-600);
 
-  /* Верхний отступ под кнопки Telegram Mini App; заполняется telegram-chrome.tsx */
   --tg-top: 0px;
 
-  /* Кастомная тень фокуса (не Tailwind-утилита) */
   --shadow-focus: 0 0 0 3px oklch(0.64 0.205 27 / 0.28);
 }
 
-/* -----------------------------------------------------------------------------
-   ТЁМНАЯ ТЕМА. Переопределяем только семантические токены (СЛОЙ 2).
-   Применяется по data-theme="dark" и по системной теме, если явно не выбрана
-   светлая (data-theme="light").
-   -------------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --surface-elevated: rgba(28, 24, 23, 0.82);
@@ -204,13 +175,7 @@
   --focus: var(--brand-400);
 }
 
-/* -----------------------------------------------------------------------------
-   СЛОЙ 3. UTILITY — токены Tailwind (bg-*, text-*, border-*, rounded-*, shadow-*).
-   -------------------------------------------------------------------------- */
 @theme {
-  /* Типографическая шкала — крупнее «мелкого» текста для читабельности.
-     xs 12→13px, sm 14→15px, base 16→16.5px; межстрочные подтянуты пропорционально.
-     Утилиты text-xs / text-sm / text-base по всему приложению становятся крупнее. */
   --text-xs: 0.8125rem;            /* 13px */
   --text-xs--line-height: 1.15rem;
   --text-sm: 0.9375rem;            /* 15px */
@@ -218,7 +183,6 @@
   --text-base: 1.03125rem;         /* 16.5px */
   --text-base--line-height: 1.6rem;
 
-  /* Радиусы — компактная продуктовая шкала */
   --radius-xs:  0.25rem;
   --radius-sm:  0.375rem;
   --radius-md:  0.5rem;
@@ -226,45 +190,36 @@
   --radius-xl:  1rem;
   --radius-2xl: 1.25rem;
 
-  /* Тени — многослойные, с тёплым подтоном (ambient + direct) */
   --shadow-xs: 0 1px 2px oklch(0.22 0.03 30 / 0.06);
   --shadow-sm: 0 1px 2px oklch(0.22 0.03 30 / 0.07), 0 1px 1px oklch(0.22 0.03 30 / 0.04);
   --shadow-md: 0 2px 4px oklch(0.22 0.03 30 / 0.06), 0 6px 16px oklch(0.22 0.03 30 / 0.08);
   --shadow-lg: 0 4px 8px oklch(0.22 0.03 30 / 0.06), 0 16px 40px oklch(0.22 0.03 30 / 0.12);
 
-  /* Типографика — системный стек (продуктовый регистр, безопасно для кириллицы) */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas,
     monospace;
-  /* Заголовочный (display). Подключить лицензионный Tilda Sans woff2 в
-     public/fonts/ + next/font/local — тогда шрифт из макета подхватится
-     автоматически. До тех пор — близкий системный гуманистический стек. */
   --font-display:
     "Tilda Sans", "Tilda Sans VF", "Golos Text", "Segoe UI", ui-rounded,
     system-ui, var(--font-sans);
 }
 
 @theme inline {
-  /* Совместимость с прежней разметкой */
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
 
-  /* Семантические поверхности */
   --color-canvas:          var(--canvas);
   --color-surface:         var(--surface);
   --color-surface-muted:   var(--surface-muted);
   --color-surface-sunken:  var(--surface-sunken);
   --color-surface-inverse: var(--surface-inverse);
 
-  /* Границы */
   --color-line:        var(--line);
   --color-line-strong: var(--line-strong);
   --color-line-subtle: var(--line-subtle);
 
-  /* Текст */
   --color-ink:        var(--ink);
   --color-ink-muted:  var(--ink-muted);
   --color-ink-subtle: var(--ink-subtle);
@@ -272,7 +227,6 @@
   --color-on-brand:   var(--on-brand);
   --color-on-inverse: var(--on-inverse);
 
-  /* Бренд */
   --color-primary:            var(--primary);
   --color-primary-hover:      var(--primary-hover);
   --color-primary-active:     var(--primary-active);
@@ -281,7 +235,6 @@
   --color-primary-soft-hover: var(--primary-soft-hover);
   --color-primary-border:     var(--primary-border);
 
-  /* Статусы */
   --color-success:        var(--success);
   --color-success-strong: var(--success-strong);
   --color-success-soft:   var(--success-soft);
@@ -293,7 +246,6 @@
   --color-danger-soft:    var(--danger-soft);
   --color-danger-border:  var(--danger-border);
 
-  /* Фирменная шкала red-* — переопределяет дефолт Tailwind. */
   --color-red-50:  var(--brand-50);
   --color-red-100: var(--brand-100);
   --color-red-200: var(--brand-200);
@@ -306,7 +258,6 @@
   --color-red-900: var(--brand-900);
   --color-red-950: var(--brand-950);
 
-  /* Тёплая нейтральная шкала — переопределяет дефолтный neutral-*. */
   --color-neutral-50:  var(--sand-50);
   --color-neutral-100: var(--sand-100);
   --color-neutral-200: var(--sand-200);
@@ -319,7 +270,6 @@
   --color-neutral-900: var(--sand-900);
   --color-neutral-950: var(--sand-950);
 
-  /* Коралл лепестков */
   --color-petal-50:  var(--petal-50);
   --color-petal-100: var(--petal-100);
   --color-petal-200: var(--petal-200);
@@ -329,9 +279,6 @@
   --color-petal-600: var(--petal-600);
 }
 
-/* -----------------------------------------------------------------------------
-   БАЗОВЫЙ СЛОЙ
-   -------------------------------------------------------------------------- */
 @layer base {
   html {
     font-family: var(--font-sans);
@@ -339,8 +286,6 @@
     text-size-adjust: 100%;
   }
 
-  /* Заголовки — display-гарнитура (Tilda Sans / близкий системный стек).
-     Точечно можно переопределить классом font-sans. */
   h1,
   h2,
   h3,
@@ -349,8 +294,6 @@
     letter-spacing: -0.01em;
   }
 
-  /* Тонкие ненавязчивые полосы прокрутки вместо системных «толстых со стрелками»
-     (заметны на вложенных скроллах таблиц). */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
@@ -379,8 +322,6 @@
       radial-gradient(circle at bottom left, rgba(242, 172, 145, 0.18), transparent 24%),
       linear-gradient(180deg, #fffaf8 0%, #fff7f4 12%, var(--canvas) 100%);
     color: var(--ink);
-    /* Без принудительного сглаживания: на macOS `antialiased` делает текст
-       тоньше и «серее» — отдаём рендер браузеру, чёрный получается плотнее. */
   }
 
   :root[data-theme="dark"] body {
@@ -402,8 +343,6 @@
     text-wrap: balance;
   }
 
-  /* Единый фокус-ринг на клавиатурном фокусе.
-     Поля ввода получают собственный стиль через .control-focus — исключаем их. */
   :focus-visible:not(input):not(select):not(textarea) {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
@@ -445,22 +384,16 @@
   }
 }
 
-/* -----------------------------------------------------------------------------
-   УТИЛИТЫ ПРОЕКТА
-   -------------------------------------------------------------------------- */
 @layer utilities {
-  /* Кольцо фокуса для кастомных состояний (например, выбранная карточка) */
   .ring-focus {
     box-shadow: var(--shadow-focus);
   }
 
-  /* Фокус полей ввода: фирменная граница + мягкое кольцо */
   .control-focus:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px oklch(0.64 0.205 27 / 0.2);
   }
 
-  /* Тонкая фирменная сетка-водяной-знак (фон входа и пустых состояний) */
   .petal-field {
     background-color: var(--canvas);
     background-image: radial-gradient(
@@ -485,14 +418,12 @@
     background-size: 22px 22px;
   }
 
-  /* Дрейф фирменных лепестков — ambient-слой (позиционирование задаётся классом) */
   .petal-drift {
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
   }
 
-  /* Плавное появление контента при переходе между разделами */
   .animate-page {
     animation: page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -512,7 +443,6 @@
     }
   }
 
-  /* Неопределённый прогресс: бегунок ездит по дорожке, пока нет процентов */
   .progress-indeterminate {
     position: absolute;
     inset-block: 0;
@@ -532,7 +462,6 @@
     }
   }
 
-  /* Двойной клик/тап по карточке льготы — сердечко всплывает и плавно тает (§10). */
   .animate-heart-pop {
     animation: heart-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -554,7 +483,6 @@
     100% { opacity: 0; }
   }
 
-  /* Пополнение баланса монет (ежедневный бонус, завершённая задача — § coin-balance). */
   .animate-coin-gain {
     animation: coin-gain 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
@@ -600,10 +528,6 @@
     .petal-drift > i { animation: none; opacity: 0.28; }
   }
 
-  /* Перетаскивание лепестков мышью (только точный указатель; включает
-     PetalDrag через класс .is-interactive на слое). Когда drag доступен,
-     слой поднимается над контентом (иначе лепестки не «поймать»), но сам
-     контейнер остаётся сквозным — курсор ловят только сами лепестки. */
   @media (pointer: fine) {
     .petal-drift.is-interactive {
       z-index: 25;
@@ -613,9 +537,6 @@
       pointer-events: auto;
       cursor: grab;
     }
-    /* Дрейф ставится на паузу из JS (animation-play-state), сдвиг за курсором —
-       через свойство translate; здесь только курсор и порядок наложения, без
-       filter/opacity, чтобы соседние лепестки не перерисовывались. */
     .petal-drift.is-interactive > i.is-dragging {
       cursor: grabbing;
       z-index: 3;
@@ -632,3 +553,13 @@
   }
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}

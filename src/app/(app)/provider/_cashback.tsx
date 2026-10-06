@@ -22,7 +22,6 @@ export function CashbackForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const cur = t("provider.cb.currency");
   const [text, setText] = useState("");
-  // По умолчанию кешбек НЕ списывается: списание — только по просьбе клиента.
   const [useBalance, setUseBalance] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +56,6 @@ export function CashbackForm({
     }
     setError(null);
     start(async () => {
-      // Токен операции одноразовый по смыслу: повторное нажатие «Провести» вернёт результат первой операции.
       const r = await submitCashback({ token: view.token, purchase, useBalance, code });
       if (r.ok) setDone(r);
       else setError(r.error);

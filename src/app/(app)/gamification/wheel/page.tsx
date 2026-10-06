@@ -20,8 +20,6 @@ export default async function GiftWheelPage() {
   if (!session.employee) redirect("/");
   const employeeId = session.employee.id;
 
-  // Колесо не зависит от геймификации: без неё скрываем только монетные блоки
-  // (баланс, бонус за визит) и ведём «назад» на витрину.
   const [state, balance, spins, dailyBonus, gamificationOn, t, locale] = await Promise.all([
     getWheelState(employeeId),
     getCoinBalance(employeeId),

@@ -58,7 +58,6 @@ export async function changeOwnPassword(
   });
   await audit({ actorId: user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: user.id, newValue: { self: true } });
 
-  // текущая сессия остаётся живой — пересоздаём cookie с новым epoch
   await createSession({
     sub: user.id,
     login: user.login,

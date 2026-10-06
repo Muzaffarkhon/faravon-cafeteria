@@ -74,12 +74,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
   const count = slides.length;
   const loop = count > 1;
 
-  // Три копии подряд; позиция живёт вокруг средней копии — так при любом
-  // направлении (и автопрокрутке, и перетаскивании) слева и справа всегда
-  // есть реальные слайды, «отскока назад» в конце нет.
-  // Стартовый слайд выбирается случайно (§6): при каждом заходе показывается
-  // разный баннер, а не всегда первый.
-  // Если первый слайд свежий (новая новость/льгота) — стартуем с него, а не случайно.
   const [pos, setPos] = useState(() =>
     count > 1 ? count + (slides[0]?.fresh ? 0 : Math.floor(Math.random() * count)) : 0,
   ); // единицы = ширина слайда; при одном слайде цикла нет — он стоит на позиции 0
@@ -94,7 +88,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
   const moved = useRef(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // держим pos в пределах средней копии [count, 2*count)
   const normalize = useCallback(
     (p: number) => {
       if (!loop) return p;
@@ -106,7 +99,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
     [loop, count],
   );
 
-  // userPaused — явная остановка кнопкой; paused — временная (hover / фокус внутри).
   const [userPaused, setUserPaused] = useState(false);
   useEffect(() => {
     if (!loop || paused || userPaused) return;
@@ -117,8 +109,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
     return () => clearInterval(t);
   }, [loop, paused, userPaused]);
 
-  // Когда pos вышел за среднюю копию — после завершения анимации бесшовно
-  // возвращаем его в диапазон [count, 2*count) без анимации (слайд тот же).
   useEffect(() => {
     if (!loop) return;
     const n = normalize(pos);
@@ -168,7 +158,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
         try {
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         } catch {
-          /* noop */
         }
       }
     }
@@ -197,7 +186,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(e) => {
-        // снимаем паузу, только когда фокус ушёл за пределы карусели
         if (!e.currentTarget.contains(e.relatedTarget as Node)) setPaused(false);
       }}
     >
@@ -211,7 +199,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
         onDragStart={(e) => e.preventDefault()}
         onContextMenu={(e) => loop && e.preventDefault()}
         onClickCapture={(e) => {
-          // если было перетаскивание — не даём сработать ссылке баннера
           if (moved.current) {
             e.preventDefault();
             e.stopPropagation();
@@ -225,8 +212,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
           style={{ transform: `translateX(-${pos * 100}%)` }}
         >
           {rendered.map((b, i) => {
-            // Слайды из фото карточек (льготы) — на широком экране «текст слева, фото справа»: фото целиком по своим
-            // пропорциям, без растяжения и обрезки. Настоящие баннеры (partner/news) остаются на всю ширину.
             const split = !!b.imageUrl && (b.kind === "new" || b.kind === "popular" || b.kind === "rare" || b.kind === "group");
             const inner = (
               <>
@@ -322,7 +307,6 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                     e.preventDefault();
                     return;
                   }
-                  // Ссылка на приложение: открываем стор под платформу устройства.
                   const appHref = resolveAppHref(b);
                   if (appHref && appHref !== b.linkHref) {
                     e.preventDefault();

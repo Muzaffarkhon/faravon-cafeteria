@@ -69,9 +69,6 @@ function toCouponView(
   actorPartnerId?: string | null,
 ): CouponView {
   const expired = isCouponOverdue(c);
-  // Купон мог быть одобрен и выдан ещё в окне выбора, до начала самого
-  // периода — партнёр не должен успеть погасить его раньше срока
-  // (см. ту же проверку в redeemCouponByNumber).
   const notYetValid = c.status === "ISSUED" && new Date() < c.period.startDate;
   const wrongPartner = !!actorPartnerId && c.partnerId !== actorPartnerId;
   return {
@@ -106,7 +103,6 @@ async function withCashback(
   c: NonNullable<Awaited<ReturnType<typeof lookupCouponByNumber>>>,
   actorId: string,
 ): Promise<CouponView> {
-  // Купон другого партнёра: баланс и токен не выдаём (иначе баланс у конкурента виден кассе).
   if (view.mode !== "CASHBACK" || !c.partnerId || view.wrongPartner) return view;
   const st = await getCashbackState(c.employeeId, c.partnerId);
   return {
@@ -148,7 +144,6 @@ export async function lookupCouponByPhone(phone: string): Promise<PhoneLookupRes
   const { employee, coupon } = await lookupCouponByEmployeePhone(phone, s.user.partnerId);
   if (!employee) return { status: "not_found" };
   if (!coupon) {
-    // Купона нет, но накопленный кешбек у партнёра остаётся — его можно потратить.
     const partnerId = s.user.partnerId;
     if (partnerId) {
       const [account, partner] = await Promise.all([
@@ -182,11 +177,6 @@ export async function redeemCoupon(number: string): Promise<RedeemResult> {
   const t = await getTranslator();
   try {
     const coupon = await redeemCouponByNumber(number, s.user.id, s.user.partnerId);
-    // Мгновенная проверка авто-задач геймификации на метрику COUPONS_USED —
-    // не дожидаясь ночного крона (см. lib/gamification-tasks.ts). Вызов здесь,
-    // а не внутри coupon.ts — иначе получился бы циклический импорт
-    // (gamification-tasks.ts уже зависит от coupon-flow.ts, который зависит
-    // от coupon.ts).
     await checkAutoTasksForEmployee(coupon.employeeId, "COUPONS_USED").catch(() => {});
     revalidatePath("/provider");
     return { ok: true };
@@ -216,7 +206,6 @@ export async function submitCashback(input: {
   if (!claims || claims.actorId !== s.user.id) {
     return { ok: false, error: t("provider.errors.opExpired") };
   }
-  // Кассир партнёра работает только со своим партнёром.
   if (s.user.partnerId && s.user.partnerId !== claims.partnerId) {
     return { ok: false, error: t("provider.errors.wrongPartnerCashback") };
   }

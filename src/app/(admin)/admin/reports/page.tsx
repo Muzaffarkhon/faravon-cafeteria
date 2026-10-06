@@ -88,7 +88,6 @@ function BarList({
 }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
-    // Список прокручивается внутри карточки, шапка закреплена — не нужно листать всю страницу.
     <div className="max-h-[26rem] overflow-y-auto rounded-xl bg-surface px-4 pb-4 shadow-sm">
       <div className="sticky top-0 z-10 flex items-baseline justify-between bg-surface pb-2 pt-4">
         <h3 className="text-xs font-bold text-ink">{title}</h3>
@@ -134,14 +133,10 @@ export default async function ReportsPage({
   }
 
   const sp = await searchParams;
-  // По умолчанию — открытый период, а не первый по дате: свежесозданный
-  // черновик следующего месяца (см. ensureNextPeriodDraft) обычно новее по
-  // startDate и раньше подставлялся вместо активного, показывая «Нет данных».
   const defaultPeriodId = periods.find((p) => p.status === "OPEN")?.id ?? periods[0].id;
   const periodId = sp.period && periods.some((p) => p.id === sp.period) ? sp.period : defaultPeriodId;
   const report = (await computeReport(periodId)) as Report;
   const k = report.kpis;
-  // Предыдущий по дате период — для сравнения показателей (активация считается по всем аккаунтам сразу, её не сравниваем).
   const prevPeriod = periods[periods.findIndex((p) => p.id === periodId) + 1];
   const prev = prevPeriod ? await computeReport(prevPeriod.id) : null;
   const pk = prev?.kpis;
@@ -152,7 +147,6 @@ export default async function ReportsPage({
 
   return (
     <div data-wide className="space-y-4 text-[13px]">
-      {/* flex-wrap: на телефоне ряд переносится, а не уезжает влево за экран (justify-end + длинный список периодов). */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <form method="get" className="flex min-w-0 max-w-full items-center gap-2">
           <Select name="period" defaultValue={periodId} className="w-auto min-w-0 max-w-full py-1.5 text-sm">

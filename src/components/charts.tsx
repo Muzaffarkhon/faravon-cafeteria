@@ -73,14 +73,11 @@ function WrappedAxisTick({
   maxCharsPerLine?: number;
   maxLines?: number;
 }) {
-  // Ширина строки — по ширине полосы одной подписи (≈6 px на символ при шрифте 11),
-  // иначе при десятках столбцов соседние подписи заходят друг на друга.
   const band = width && visibleTicksCount ? width / visibleTicksCount : 0;
   const maxCharsPerLine = fixedChars ?? (band ? Math.max(4, Math.floor((band - 4) / 6)) : 11);
   const words = String(payload?.value ?? "")
     .split(/\s+/)
     .filter(Boolean)
-    // Слово длиннее строки («инфраструктуры») режем с многоточием, а не даём вылезти в соседнюю полосу.
     .map((w) => (w.length > maxCharsPerLine ? `${w.slice(0, maxCharsPerLine - 1)}…` : w));
   const lines: string[] = [];
   let current = "";
@@ -161,7 +158,6 @@ function Bar3D({ x = 0, y = 0, width = 0, height = 0, fill }: { x?: number; y?: 
   const top = y + d; // верх лицевой грани
   const fh = height - d; // высота лицевой грани
   if (fh <= 0) return <rect x={x} y={y} width={width} height={height} fill={fill} rx={2} />;
-  // Внешний контур столбца (шестиугольник косой проекции) со скруглёнными углами — им обрезаем все грани.
   const outline = roundedPolygon(
     [
       [x, top],
@@ -185,13 +181,10 @@ function Bar3D({ x = 0, y = 0, width = 0, height = 0, fill }: { x?: number; y?: 
           <stop offset="1" stopColor="#000" stopOpacity="0.14" />
         </linearGradient>
       </defs>
-      {/* боковая (правая) грань — темнее */}
       <polygon points={`${x + fw},${top} ${x + width},${y} ${x + width},${y + fh} ${x + fw},${y + height}`} fill={fill} />
       <polygon points={`${x + fw},${top} ${x + width},${y} ${x + width},${y + fh} ${x + fw},${y + height}`} fill="#000" fillOpacity="0.28" />
-      {/* лицевая грань с мягким градиентом */}
       <rect x={x} y={top} width={fw} height={fh} fill={fill} />
       <rect x={x} y={top} width={fw} height={fh} fill={`url(#${gid}-f)`} />
-      {/* верхняя грань — светлее */}
       <polygon points={`${x},${top} ${x + d},${y} ${x + width},${y} ${x + fw},${top}`} fill={fill} />
       <polygon points={`${x},${top} ${x + d},${y} ${x + width},${y} ${x + fw},${top}`} fill="#fff" fillOpacity="0.38" />
     </g>
@@ -210,10 +203,6 @@ export function BarChartCard({
   rows: { label: string; n: number }[];
   color?: string;
 }) {
-  // Длинные подписи (название партнёра/подразделения) не помещаются в одну
-  // строку между барами — вместо наклона и обрезки многоточием переносим по
-  // словам на 2-3 строки (WrappedAxisTick), подписи остаются горизонтальными
-  // и читаются целиком. Область под ними увеличена под перенос.
   const wide = rows.length > 5;
   return (
     <ChartFrame title={title} unit={unit} noData={rows.length === 0} tall={wide}>
@@ -250,7 +239,6 @@ export function LineChartCard({
   return (
     <ChartFrame title={title} unit={unit} noData={rows.length === 0}>
       <ResponsiveContainer width="100%" height="100%">
-        {/* top-отступ увеличен — иначе подпись над самой высокой точкой обрезается краем графика. */}
         <LineChart data={rows} margin={{ top: 20, right: 8, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" vertical={false} />
           <XAxis dataKey="label" tick={AXIS_STYLE} />

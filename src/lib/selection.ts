@@ -10,7 +10,6 @@ export async function getCurrentPeriod() {
   return getCachedCurrentPeriod();
 }
 
-// Таджикистан: UTC+5, без переходов на летнее время (как в admin/periods/actions.ts).
 const TZ_OFFSET_MS = 5 * 60 * 60 * 1000;
 
 /** Инстант для местной даты Душанбе (m — 0-based). */
@@ -81,7 +80,6 @@ export async function resolveSelectionContext(now: Date = new Date()): Promise<S
     };
   }
 
-  // Период уже начался — новый выбор переносим на следующий.
   let next = await db.period.findFirst({
     where: { startDate: { gt: windowPeriod.startDate }, status: { not: "CLOSED" } },
     orderBy: { startDate: "asc" },
@@ -164,19 +162,14 @@ export async function ensureAutoPicks(
         c.status === "PUBLISHED" &&
         c.isActive &&
         !c.archivedAt &&
-        c.partner?.deliveryMode !== "PHONE_PROMO" &&
-        // coinPrice != null — карточка стала эксклюзивом магазина за монеты
-        // (см. (app)/page.tsx), бесплатный автовыбор её больше не подхватывает,
-        // даже если сотрудник включил автовыбор до того, как ей назначили цену.
         !c.coinPrice,
     );
-  if (!eligible.length) return;
+  const phone = (await db.employee.findUnique({ where: { id: employeeId }, select: { phone: true } }))?.phone?.trim() || null;
+  const toAdd = eligible.filter((c) => c.partner?.deliveryMode !== "PHONE_PROMO" || phone);
+  if (!toAdd.length) return;
 
   const app = await getOrCreateApplication(employeeId, period.id);
 
-  // Тот же приём, что и в toggleSelectionImpl (actions.ts): счёт + создание в
-  // одной сериализуемой транзакции — иначе конкурентный вызов (две вкладки)
-  // мог бы превысить лимит периода.
   await db.$transaction(
     async (tx) => {
       const current = await tx.applicationItem.findMany({
@@ -185,10 +178,12 @@ export async function ensureAutoPicks(
       });
       let remaining = period.maxSelections - countAgainstLimit(current);
       if (remaining <= 0) return;
-      for (const c of eligible) {
+      for (const c of toAdd) {
         if (remaining <= 0) break;
         const created = await tx.applicationItem.createMany({
-          data: [{ applicationId: app.id, cardId: c.id, status: "DRAFT" }],
+          data: [
+            { applicationId: app.id, cardId: c.id, status: "DRAFT", contactPhone: c.partner?.deliveryMode === "PHONE_PROMO" ? phone : null },
+          ],
           skipDuplicates: true,
         });
         if (created.count > 0) remaining -= 1;
@@ -280,8 +275,6 @@ export async function getPreviousPeriodPicks(
     where: {
       employeeId,
       period: { startDate: { lt: beforeStartDate } },
-      // viaCoins: false — купленная за монеты льгота не должна предлагаться как
-      // "выбрать как в прошлый раз" (это бесплатный повтор выбора, а не покупка).
       items: { some: { status: { in: [...GROUP_ISSUE_STATUSES] }, viaCoins: false } },
     },
     orderBy: { period: { startDate: "desc" } },

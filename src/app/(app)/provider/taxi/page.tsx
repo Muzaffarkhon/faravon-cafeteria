@@ -48,7 +48,6 @@ export default async function TaxiProviderPage({
   const smartFilters = buildTaxiSmartFilters(sp);
   const recipients = await taxiRecipientsForPartner(partnerId, smartFilters);
 
-  // Экспорт получает тот же query целиком — тот же срез, что виден в таблице.
   const exportQuery = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (v) exportQuery.set(k, v);
   const exportHref = `/provider/taxi/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;

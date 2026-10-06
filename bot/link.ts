@@ -37,7 +37,6 @@ export function isTajikInternational(raw: string): boolean {
   return d.length === 12 && d.startsWith("992");
 }
 
-// --- rate-limit (§5.1) ---
 const RL_WINDOW_MS = 15 * 60_000;
 const RL_MAX_ATTEMPTS = 8;
 const RL_REISSUE_WINDOW_MS = 60 * 60_000;
@@ -64,7 +63,6 @@ async function recordAttempt(telegramId: string, kind: string, ok: boolean) {
   try {
     await db.telegramAuthAttempt.create({ data: { telegramId, kind, ok } });
   } catch {
-    /* не критично */
   }
 }
 
@@ -180,8 +178,6 @@ export async function linkByPhone(phone: string, telegramId: string): Promise<Li
   await assertNotRateLimited(telegramId, "phone");
   let ok = false;
   try {
-    // Только таджикский номер (+992): иначе номер другой страны с теми же 9 цифрами
-    // выдал бы доступ к чужой учётной записи.
     if (!isTajikInternational(phone)) {
       throw new SafeLinkError(
         "Не удалось выдать доступ по этому номеру. Если вы сотрудник — напишите администратору за кодом.",
@@ -315,10 +311,6 @@ export async function reissueOtp(telegramId: string): Promise<LinkResult> {
       return res;
     }
 
-    // Служебная учётка (C&B, подрядчик) без карточки сотрудника — Telegram у нёй
-    // привязан прямо к User.telegramId, а не к Employee, поэтому не находится
-    // выше. Без этой ветки /login для таких аккаунтов всегда отвечал «не
-    // привязан», хотя ровно этот Telegram и стоит в их профиле.
     const serviceUser = await db.user.findFirst({
       where: { telegramId, employeeId: null },
       select: { id: true, login: true, isActive: true, partner: { select: { name: true } } },

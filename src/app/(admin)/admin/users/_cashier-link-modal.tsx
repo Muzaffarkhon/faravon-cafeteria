@@ -31,7 +31,6 @@ export function CashierLinkModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* буфер недоступен — ссылку можно выделить и скопировать вручную */
     }
   }
 
@@ -45,7 +44,6 @@ export function CashierLinkModal({
         </p>
         <div
           className="mx-auto mt-4 w-fit rounded-xl bg-white p-3 shadow-sm"
-          // SVG строится на сервере из нашей же ссылки (qrcode) — не пользовательский ввод.
           dangerouslySetInnerHTML={{ __html: qrSvg }}
         />
         <p className="mt-3 break-all select-all rounded-lg bg-surface-muted px-3 py-2 font-mono text-[11px] leading-4 text-ink-muted">{url}</p>

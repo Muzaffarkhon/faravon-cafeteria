@@ -56,8 +56,6 @@ export async function renderCroppedFile(
   const sw = Math.min(natW - sx, Math.round(rect.w * natW));
   const sh = Math.min(natH - sy, Math.round(rect.h * natH));
 
-  // Выходной размер: по ширине кадра, но не больше лимита и не больше того,
-  // что реально есть в исходнике (не растягиваем вверх).
   const outW = Math.max(1, Math.min(maxOutWidth, sw));
   const outH = Math.max(1, Math.round(outW / aspect));
 

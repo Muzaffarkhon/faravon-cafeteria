@@ -6,14 +6,12 @@ import { getTranslator } from "@/lib/i18n";
 import { peekCashierLink } from "@/lib/cashier-link";
 import { activateCashierPhone } from "./actions";
 
-// Ссылка содержит секрет: не индексировать, не кэшировать.
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function ActivatePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslator();
-  // Только проверка — токен тратится лишь по нажатию кнопки (иначе предпросмотр ссылки в мессенджере «съел» бы её).
   const link = await peekCashierLink(token);
 
   return (
