@@ -136,6 +136,7 @@ const ACTION_LABELS: Record<string, string> = {
   BROADCAST_SCHEDULED: "Рассылка запланирована",
   BROADCAST_CANCELLED: "Отложенная рассылка отменена",
   BROADCAST_FAILED: "Рассылка не отправлена",
+  SUPPORT_THREAD_REOPENED: "Диалог поддержки открыт снова",
   SUPPORT_PHOTO_SENT: "Фото отправлено в чате поддержки",
   SUPPORT_PHOTO_RECEIVED: "Фото получено в чате поддержки",
   SUPPORT_PHOTO_PURGED: "Фото из чата удалено навсегда",

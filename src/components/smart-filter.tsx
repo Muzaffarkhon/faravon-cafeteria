@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { cx, buttonClass, Input, Select } from "./ui";
 import {
@@ -164,7 +165,9 @@ export function SmartFilterButton({
         Фильтры{activeCount ? ` (${activeCount})` : ""}
       </button>
 
-      {open && (
+      {/* В портал в <body>: иначе fixed считается от предка (контент страницы), а не от окна, и при короткой таблице окно уезжает вверх. */}
+      {open &&
+        createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => setOpen(false)}
@@ -353,8 +356,9 @@ export function SmartFilterButton({
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </>
   );
 }

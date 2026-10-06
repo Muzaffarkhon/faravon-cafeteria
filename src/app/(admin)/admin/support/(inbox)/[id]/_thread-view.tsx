@@ -15,6 +15,7 @@ import {
   deleteThread,
   purgeMessagePhoto,
   resendPromo,
+  reopenThread,
 } from "../../actions";
 import { SUPPORT_PHOTO_ACCEPT, clipboardImage, sendSupportPhoto } from "@/lib/support-photo-client";
 import type { EmployeeMatch } from "../../actions";
@@ -35,6 +36,8 @@ export type Msg = {
 export type ActiveCoupon = {
   id: string;
   kind: "coupon" | "promo";
+  /** Купон уже погашен (но срок не истёк). */
+  used: boolean;
   /** Только у купонов: колесо подарков / за монеты (задачи, покупка) / обычный выбор. */
   source: "wheel" | "coins" | null;
   /** Только у промокодов: доставлен ли сотруднику. */
@@ -444,10 +447,13 @@ export function ThreadView({
             {couponsOpen && (
               <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
                 {coupons.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs">
+                  <li key={c.id} className={cx("flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-xs", c.used && "opacity-70")}>
                     <span className="font-mono font-semibold text-ink">{c.number}</span>
                     {c.kind === "promo" && (
                       <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-semibold text-primary-strong">{t("support.promoTag")}</span>
+                    )}
+                    {c.used && (
+                      <span className="rounded-full bg-surface-sunken px-1.5 text-[10px] font-semibold text-ink-muted">{t("support.couponUsed")}</span>
                     )}
                     {c.source && (
                       <span className="rounded-full bg-violet-100 px-1.5 text-[10px] font-semibold text-violet-700">
@@ -646,7 +652,26 @@ export function ThreadView({
 
       <div className="shrink-0 space-y-2 border-t border-line bg-surface p-3">
         {status === "CLOSED" ? (
-          <p className="text-sm text-ink-muted">{t("support.dialogClosed")}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-ink-muted">{t("support.dialogClosed")}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await reopenThread(threadId);
+                  if (r.error) setErr(r.error);
+                  else {
+                    onChanged?.();
+                    onListChanged?.();
+                  }
+                })
+              }
+            >
+              {t("support.reopenDialog")}
+            </Button>
+          </div>
         ) : (
           <>
             {quickReplies.length > 0 && (
@@ -760,16 +785,25 @@ export function ThreadView({
               </p>
             )}
             {photoUrl && (
-              <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-muted/50 p-1.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{photo?.name}</span>
+              // Предпросмотр перед отправкой: крупное превью (клик — на весь экран), имя, размер и «убрать».
+              <div className="relative flex items-start gap-3 rounded-xl border border-primary/25 bg-primary-soft/50 p-2">
+                <button type="button" onClick={() => setZoom(photoUrl)} className="shrink-0 cursor-zoom-in" aria-label={t("support.previewPhoto")}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoUrl} alt="" className="max-h-44 max-w-[14rem] rounded-lg object-contain" />
+                </button>
+                <div className="min-w-0 flex-1 pt-1 text-xs">
+                  <p className="truncate font-semibold text-ink">{photo?.name}</p>
+                  <p className="mt-0.5 text-ink-muted">
+                    {photo ? `${Math.max(1, Math.round(photo.size / 1024))} КБ` : ""} · {t("support.photoWillBeSent")}
+                  </p>
+                </div>
                 <button
                   type="button"
                   aria-label={t("support.removePhoto")}
+                  title={t("support.removePhoto")}
                   onClick={() => pickPhoto(null)}
                   disabled={pending}
-                  className="shrink-0 rounded-full p-1 text-ink-subtle hover:bg-surface-muted hover:text-ink"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface text-base leading-none text-ink-muted shadow-sm hover:bg-danger-soft hover:text-danger"
                 >
                   ×
                 </button>

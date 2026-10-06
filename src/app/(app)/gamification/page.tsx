@@ -160,36 +160,57 @@ export default async function GamificationPage() {
         {mine.length === 0 ? (
           <EmptyState>{t("gamification.noMyTasks")}</EmptyState>
         ) : (
-          <Card className="overflow-hidden">
-            <Table stickyHeader>
-              <thead>
-                <tr>
-                  <th>{t("gamification.colTask")}</th>
-                  <th>{t("gamification.colStatus")}</th>
-                  <th>{t("gamification.colProgress")}</th>
-                  <th className="text-right">{t("gamification.colActions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mine.map((et) => (
-                  <tr key={et.id}>
-                    <td className="text-ink">{et.task.title}</td>
-                    <td>
-                      <Badge tone={et.status === "COMPLETED" ? "success" : "neutral"}>{et.status}</Badge>
-                    </td>
-                    <td data-numeric>
-                      {et.task.verification === "AUTO" && et.task.targetValue ? `${et.progressValue} / ${et.task.targetValue}` : "—"}
-                    </td>
-                    <td className="text-right">
-                      {et.status === "IN_PROGRESS" && (
+          // «Мои задачи» — карточки (как купоны), а не таблица: название, награда, статус, прогресс и отмена в одном месте.
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {mine.map((et) => {
+              const target = et.task.verification === "AUTO" ? et.task.targetValue : null;
+              const pct = target ? Math.min(100, Math.round((et.progressValue / target) * 100)) : et.status === "COMPLETED" ? 100 : 0;
+              const done = et.status === "COMPLETED";
+              const statusLabel =
+                et.status === "COMPLETED"
+                  ? t("gamification.statusCompleted")
+                  : et.status === "IN_PROGRESS"
+                    ? t("gamification.statusInProgress")
+                    : et.status === "EXPIRED"
+                      ? t("gamification.statusExpired")
+                      : t("gamification.statusCancelled");
+              return (
+                <Card key={et.id} className="flex flex-col overflow-hidden">
+                  <div className={cx("h-1.5 w-full", done ? "bg-success" : et.status === "IN_PROGRESS" ? "bg-primary" : "bg-line-strong")} aria-hidden="true" />
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold leading-snug text-ink">{et.task.title}</p>
+                      <Badge tone={done ? "success" : "neutral"} className="shrink-0">
+                        {statusLabel}
+                      </Badge>
+                    </div>
+                    {et.task.description && <p className="line-clamp-3 text-sm text-ink-muted">{et.task.description}</p>}
+                    <p className="text-sm font-bold text-primary-strong">
+                      +{et.task.coinReward} {t("gamification.coinUnit")}
+                    </p>
+                    {target ? (
+                      <div>
+                        <div className="mb-1 flex items-center justify-between text-xs font-semibold text-ink-muted">
+                          <span>{t("gamification.colProgress")}</span>
+                          <span className="tabular-nums" data-numeric>
+                            {et.progressValue} / {target}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                          <div className={cx("h-full rounded-full transition-[width]", done ? "bg-success" : "bg-primary")} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    ) : null}
+                    {et.status === "IN_PROGRESS" && (
+                      <div className="mt-auto flex justify-end pt-1">
                         <CancelTaskButton employeeTaskId={et.id} taskTitle={et.task.title} locale={locale} />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </section>
 

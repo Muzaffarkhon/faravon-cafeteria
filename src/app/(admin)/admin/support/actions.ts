@@ -114,6 +114,22 @@ export async function resendPromo(itemId: string): Promise<ActionResult> {
   });
 }
 
+/** Открыть закрытый диалог снова — чтобы можно было написать сотруднику/гостю первыми. */
+export async function reopenThread(threadId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+
+    await db.supportThread.update({ where: { id: threadId }, data: { status: "OPEN" } });
+    await audit({
+      actorId: s.user.id,
+      action: "SUPPORT_THREAD_REOPENED",
+      entityType: "SupportThread",
+      entityId: threadId,
+    });
+  });
+}
+
 /** Закрыть диалог. Если гость напишет снова — переоткроется сам. */
 export async function closeThread(threadId: string): Promise<ActionResult> {
   return runAction(async () => {

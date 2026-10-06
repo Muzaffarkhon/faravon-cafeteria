@@ -52,18 +52,19 @@ function detectGuestName(messages: { direction: "IN" | "OUT"; body: string }[]):
 const versionOf = (status: string, archived: boolean, count: number, lastId: string | undefined, photoState = "") =>
   `${status}:${archived ? 1 : 0}:${count}:${lastId ?? ""}:${photoState}`;
 
-/** Активные купоны и промокоды сотрудника (выдан и ещё не истёк) — C&B видит их рядом с перепиской. */
+/** Купоны и промокоды сотрудника — выданные и погашенные, но не просроченные: C&B видит их рядом с перепиской. */
 async function activeCouponsOf(employeeId: string | null | undefined) {
   if (!employeeId) return [];
   const now = new Date();
   const [rows, promos] = await Promise.all([
     db.coupon.findMany({
-    where: { employeeId, status: "ISSUED", OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
+    where: { employeeId, status: { in: ["ISSUED", "USED"] }, OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
     orderBy: { issuedAt: "desc" },
     take: 20,
     select: {
       id: true,
       number: true,
+      status: true,
       validUntil: true,
       issuedAt: true,
       partner: { select: { name: true } },
@@ -72,10 +73,11 @@ async function activeCouponsOf(employeeId: string | null | undefined) {
   }),
     activeTaxiPromosOfEmployee(employeeId),
   ]);
-  return [
+  const list = [
     ...rows.map((c) => ({
       id: c.id,
       kind: "coupon" as const,
+      used: c.status === "USED",
       // Откуда купон: колесо подарков / за монеты (в т. ч. приз за задачу) / обычный выбор.
       source: c.item.viaWheel ? ("wheel" as const) : c.item.viaCoins ? ("coins" as const) : null,
       number: c.number,
@@ -86,6 +88,7 @@ async function activeCouponsOf(employeeId: string | null | undefined) {
     ...promos.map((p) => ({
       id: p.id,
       kind: "promo" as const,
+      used: false,
       source: null,
       status: p.status,
       number: p.code,
@@ -94,6 +97,7 @@ async function activeCouponsOf(employeeId: string | null | undefined) {
       validUntil: p.validUntil.toISOString(),
     })),
   ];
+  return list.sort((a, b) => Number(a.used) - Number(b.used));
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
