@@ -7,6 +7,7 @@ import { assertCan } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { FEEDBACK_TOPICS } from "@/lib/feedback";
 import { notifySupportAdmins } from "@/lib/support-chat";
+import { removePhotoFromMessage } from "@/lib/support-photo";
 import { escHtml } from "@/lib/notification-format";
 
 export type FeedbackState = { ok?: boolean; error?: string };
@@ -77,6 +78,33 @@ export async function replyInOwnThread(
     db.supportThread.update({ where: { id: threadId }, data: { lastMessageAt: new Date() } }),
   ]);
 
+  revalidatePath("/feedback");
+  return { ok: true };
+}
+
+/** Сотрудник удаляет фото из своего обращения — насовсем (файл стирается, сообщение без подписи исчезает). */
+export async function deletePhotoInOwnThread(messageId: string): Promise<FeedbackState> {
+  const session = await requireSession();
+  assertCan(session.roles, "application.select");
+  if (!session.employee) return { error: "Доступно только сотрудникам." };
+
+  const m = await db.supportMessage.findUnique({
+    where: { id: messageId },
+    select: { imageUrl: true, thread: { select: { source: true, employeeId: true } } },
+  });
+  if (!m?.imageUrl || m.thread.source !== "WEB" || m.thread.employeeId !== session.employee.id) {
+    return { error: "Фото не найдено." };
+  }
+  const threadId = await removePhotoFromMessage(messageId);
+  if (threadId) {
+    await audit({
+      actorId: session.user.id,
+      action: "SUPPORT_PHOTO_PURGED",
+      entityType: "SupportThread",
+      entityId: threadId,
+      newValue: { messageId, by: "employee" },
+    });
+  }
   revalidatePath("/feedback");
   return { ok: true };
 }

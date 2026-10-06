@@ -728,6 +728,11 @@ model SupportMessage {
   readAt    DateTime?
   createdAt DateTime                @default(now())
 
+  /// Фото в чате. Из сайта — файл в Vercel Blob (imageUrl); из/в Telegram-бот — только file_id
+  /// (tgFileId): сам файл остаётся в боте, сайт показывает его через прокси (/api/support/photo/<id>).
+  imageUrl       String?
+  tgFileId       String?
+  
   /// Сообщение, на которое отвечают (цитата в интерфейсе) — необязательно,
   /// доступно для ответа на любое сообщение того же диалога. При удалении
   /// исходного сообщения цитата просто пропадает (SetNull), само сообщение

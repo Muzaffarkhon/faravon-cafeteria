@@ -53,6 +53,7 @@ export default async function FeedbackPage() {
                   direction: m.direction,
                   body: m.body,
                   createdAt: m.createdAt.toISOString(),
+                  image: m.imageUrl,
                 }))}
               />
             ))}

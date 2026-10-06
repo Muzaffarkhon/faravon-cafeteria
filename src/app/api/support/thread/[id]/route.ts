@@ -48,8 +48,34 @@ function detectGuestName(messages: { direction: "IN" | "OUT"; body: string }[]):
 }
 
 /** Отпечаток диалога: меняется при новом сообщении, закрытии/открытии и архивации. */
-const versionOf = (status: string, archived: boolean, count: number, lastId: string | undefined) =>
-  `${status}:${archived ? 1 : 0}:${count}:${lastId ?? ""}`;
+const versionOf = (status: string, archived: boolean, count: number, lastId: string | undefined, photoState = "") =>
+  `${status}:${archived ? 1 : 0}:${count}:${lastId ?? ""}:${photoState}`;
+
+/** Активные купоны сотрудника (выдан и ещё не истёк) — C&B видит их рядом с перепиской. */
+async function activeCouponsOf(employeeId: string | null | undefined) {
+  if (!employeeId) return [];
+  const now = new Date();
+  const rows = await db.coupon.findMany({
+    where: { employeeId, status: "ISSUED", OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
+    orderBy: { issuedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      number: true,
+      validUntil: true,
+      issuedAt: true,
+      partner: { select: { name: true } },
+      item: { select: { card: { select: { title: true } } } },
+    },
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    number: c.number,
+    title: c.item.card.title,
+    partner: c.partner?.name ?? null,
+    validUntil: c.validUntil?.toISOString() ?? null,
+  }));
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -72,7 +98,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     if (!light) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    return NextResponse.json({ version: versionOf(light.status, !!light.archivedAt, light._count.messages, light.messages[0]?.id) });
+    // Число фото — в отпечаток: удаление фото у сообщения с подписью не меняет число сообщений.
+    const photos = await db.supportMessage.count({
+      where: { threadId: id, OR: [{ imageUrl: { not: null } }, { tgFileId: { not: null } }] },
+    });
+    return NextResponse.json({
+      version: versionOf(light.status, !!light.archivedAt, light._count.messages, light.messages[0]?.id, String(photos)),
+    });
   }
 
   const t = await getTranslator();
@@ -98,7 +130,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status: thread.status,
     source: thread.source,
     archived: !!thread.archivedAt,
-    version: versionOf(thread.status, !!thread.archivedAt, thread.messages.length, thread.messages.at(-1)?.id),
+    version: versionOf(
+      thread.status,
+      !!thread.archivedAt,
+      thread.messages.length,
+      thread.messages.at(-1)?.id,
+      String(thread.messages.filter((m) => m.imageUrl || m.tgFileId).length),
+    ),
     // Есть непрочитанные входящие — панель отметит их прочитанными и обновит счётчики.
     unread: thread.messages.some((m) => m.direction === "IN" && !m.readAt),
     messages: thread.messages.map((m) => ({
@@ -108,6 +146,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: m.createdAt.toISOString(),
       author: m.author?.employee?.fullName ?? m.author?.login ?? null,
       replyTo: m.replyTo ? { id: m.replyTo.id, direction: m.replyTo.direction, body: m.replyTo.body } : null,
+      // Из Telegram — через прокси (файл остаётся в боте), с сайта — прямая ссылка на Blob.
+      image: m.tgFileId ? `/api/support/photo/${m.id}` : m.imageUrl,
     })),
     quickReplies: quickReplies.map((r) => ({ id: r.id, text: r.text })),
   };
@@ -123,6 +163,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       guestNameGuess: null,
       alreadyLinked: true,
       initialMatches: [],
+      coupons: await activeCouponsOf(thread.employeeId),
     });
   }
 
@@ -158,5 +199,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     guestNameGuess,
     alreadyLinked: !!linkedEmployee,
     initialMatches,
+    coupons: await activeCouponsOf(linkedEmployee?.id),
   });
 }

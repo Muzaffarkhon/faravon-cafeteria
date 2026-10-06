@@ -13,7 +13,9 @@ import {
   archiveThread,
   unarchiveThread,
   deleteThread,
+  purgeMessagePhoto,
 } from "../../actions";
+import { SUPPORT_PHOTO_ACCEPT, sendSupportPhoto } from "@/lib/support-photo-client";
 import type { EmployeeMatch } from "../../actions";
 import { fmtDateTime } from "@/lib/dushanbe-date";
 
@@ -24,7 +26,11 @@ export type Msg = {
   createdAt: string;
   author: string | null;
   replyTo: { id: string; direction: "IN" | "OUT"; body: string } | null;
+  /** Ссылка на фото (Blob или прокси Telegram); null — фото нет. */
+  image: string | null;
 };
+
+export type ActiveCoupon = { id: string; number: string; title: string; partner: string | null; validUntil: string | null };
 
 export type QuickReply = { id: string; text: string };
 
@@ -164,6 +170,7 @@ export function ThreadView({
   alreadyLinked,
   initialMatches,
   quickReplies,
+  coupons,
   backHref,
   locale,
   onChanged,
@@ -182,6 +189,7 @@ export function ThreadView({
   alreadyLinked: boolean;
   initialMatches: EmployeeMatch[];
   quickReplies: QuickReply[];
+  coupons: ActiveCoupon[];
   /** Ссылка «‹ Назад к списку» — виден только на мобильном (там панели не рядом). */
   backHref: string;
   locale: Locale;
@@ -202,6 +210,13 @@ export function ThreadView({
   const [deletePending, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<{ id: string; direction: "IN" | "OUT"; body: string } | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [couponsOpen, setCouponsOpen] = useState(false);
+  const [purgeId, setPurgeId] = useState<string | null>(null);
+  const [purgePending, startPurge] = useTransition();
+  const [purgeError, setPurgeError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const quickRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -258,8 +273,44 @@ export function ThreadView({
     }
   }, [messages]);
 
+  function pickPhoto(file: File | null) {
+    setErr(null);
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    setPhoto(file);
+    setPhotoUrl(file ? URL.createObjectURL(file) : null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function confirmPurge() {
+    if (!purgeId) return;
+    setPurgeError(null);
+    startPurge(async () => {
+      const r = await purgeMessagePhoto(purgeId);
+      if (r.error) {
+        setPurgeError(r.error);
+        return;
+      }
+      setPurgeId(null);
+      onChanged?.();
+    });
+  }
+
   function send() {
     setErr(null);
+    if (photo) {
+      start(async () => {
+        const e = await sendSupportPhoto({ threadId, file: photo, caption: text, replyToId: replyingTo?.id });
+        if (e) setErr(e);
+        else {
+          pickPhoto(null);
+          setText("");
+          setReplyingTo(null);
+          onChanged?.();
+          onListChanged?.();
+        }
+      });
+      return;
+    }
     start(async () => {
       const r = await replyToThread(threadId, text, replyingTo?.id);
       if (r.error) setErr(r.error);
@@ -338,6 +389,37 @@ export function ThreadView({
             </Button>
           </div>
         </div>
+        {coupons.length > 0 && (
+          <div className="rounded-xl border border-line bg-surface-muted/50 px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setCouponsOpen((v) => !v)}
+              aria-expanded={couponsOpen}
+              className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-ink"
+            >
+              <span>
+                {t("support.activeCoupons")} · {coupons.length}
+              </span>
+              <span aria-hidden="true" className={cx("transition-transform", couponsOpen && "rotate-180")}>
+                ⌄
+              </span>
+            </button>
+            {couponsOpen && (
+              <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                {coupons.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-surface px-2.5 py-1.5 text-xs">
+                    <span className="font-mono font-semibold text-ink">{c.number}</span>
+                    <span className="text-ink">{c.title}</span>
+                    {c.partner && <span className="text-ink-muted">{c.partner}</span>}
+                    <span className="ml-auto text-ink-subtle">
+                      {c.validUntil ? `${t("support.couponUntil")} ${fmtDateTime(new Date(c.validUntil))}` : t("support.couponNoLimit")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {!alreadyLinked && (
           <EmployeeLinkPanel
             threadId={threadId}
@@ -368,6 +450,26 @@ export function ThreadView({
         }
         onConfirm={confirmDelete}
         onClose={() => !deletePending && setDeleteOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={purgeId !== null}
+        title={t("support.purgePhotoTitle")}
+        tone="danger"
+        confirmLabel={t("support.purgePhoto")}
+        busy={purgePending}
+        message={
+          <div className="space-y-2">
+            <p>{t("support.purgePhotoMessage")}</p>
+            {purgeError && (
+              <p className="rounded-md bg-danger/10 p-2 text-xs font-medium text-danger" role="alert">
+                {purgeError}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={confirmPurge}
+        onClose={() => !purgePending && setPurgeId(null)}
       />
 
       <div
@@ -407,6 +509,22 @@ export function ThreadView({
                 )}
               >
                 {replyButton}
+                {m.image && (
+                  <button
+                    type="button"
+                    aria-label={t("support.purgePhoto")}
+                    title={t("support.purgePhoto")}
+                    onClick={() => {
+                      setPurgeError(null);
+                      setPurgeId(m.id);
+                    }}
+                    className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-subtle opacity-0 transition-opacity hover:bg-danger-soft hover:text-danger group-hover:opacity-100"
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14" />
+                    </svg>
+                  </button>
+                )}
                 <div
                   className={cx(
                     "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
@@ -420,10 +538,16 @@ export function ThreadView({
                         m.direction === "OUT" ? "border-on-brand/50 bg-on-brand/10 text-on-brand/80" : "border-ink-subtle/50 bg-surface-sunken text-ink-muted",
                       )}
                     >
-                      <p className="line-clamp-2 whitespace-pre-line">{m.replyTo.body}</p>
+                      <p className="line-clamp-2 whitespace-pre-line">{m.replyTo.body || "📷"}</p>
                     </div>
                   )}
-                  <p className="whitespace-pre-line">{m.body}</p>
+                  {m.image && (
+                    <a href={m.image} target="_blank" rel="noopener noreferrer" className="mb-1 block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.image} alt="" loading="lazy" className="max-h-72 w-full rounded-xl object-cover" />
+                    </a>
+                  )}
+                  {m.body && <p className="whitespace-pre-line">{m.body}</p>}
                   <p
                     className={
                       "mt-1 text-[11px] " + (m.direction === "OUT" ? "text-on-brand/70" : "text-ink-subtle")
@@ -514,7 +638,7 @@ export function ThreadView({
               <div className="flex items-start gap-2 rounded-lg border-l-2 border-primary bg-primary-soft/60 px-2.5 py-1.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-primary-strong">{t("support.replyingToLabel")}</p>
-                  <p className="line-clamp-1 text-xs text-ink-muted">{replyingTo.body}</p>
+                  <p className="line-clamp-1 text-xs text-ink-muted">{replyingTo.body || "📷"}</p>
                 </div>
                 <button
                   type="button"
@@ -535,7 +659,7 @@ export function ThreadView({
                 // Enter — отправить, Shift+Enter — перенос строки (как в мессенджерах).
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (!pending && text.trim()) send();
+                  if (!pending && (text.trim() || photo)) send();
                 }
               }}
               placeholder={t("support.replyPlaceholder")}
@@ -546,8 +670,43 @@ export function ThreadView({
                 {err}
               </p>
             )}
-            <div className="flex gap-2">
-              <Button onClick={send} loading={pending} disabled={!text.trim()}>
+            {photoUrl && (
+              <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-muted/50 p-1.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
+                <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{photo?.name}</span>
+                <button
+                  type="button"
+                  aria-label={t("support.removePhoto")}
+                  onClick={() => pickPhoto(null)}
+                  disabled={pending}
+                  className="shrink-0 rounded-full p-1 text-ink-subtle hover:bg-surface-muted hover:text-ink"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept={SUPPORT_PHOTO_ACCEPT}
+                className="hidden"
+                onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)}
+              />
+              <button
+                type="button"
+                aria-label={t("support.attachPhoto")}
+                title={t("support.attachPhoto")}
+                disabled={pending}
+                onClick={() => fileRef.current?.click()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted hover:bg-surface-muted"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m21 12-9 9a6 6 0 0 1-9-9l9-9a4 4 0 0 1 6 6l-9 9a2 2 0 0 1-3-3l8-8" />
+                </svg>
+              </button>
+              <Button onClick={send} loading={pending} disabled={!text.trim() && !photo}>
                 {t("support.send")}
               </Button>
             </div>

@@ -70,7 +70,7 @@ export async function fetchThreadRows(sp: ThreadListSearchParams): Promise<{ row
       employeeFullName: fullName,
       phone: th.phone,
       topic: th.topic,
-      lastMessage: last ? { direction: last.direction, body: last.body } : null,
+      lastMessage: last ? { direction: last.direction, body: last.body || ((last.imageUrl || last.tgFileId) ? "📷" : "") } : null,
       lastMessageAt: th.lastMessageAt,
       unread: th._count.messages,
       pendingReply: last?.direction === "IN",

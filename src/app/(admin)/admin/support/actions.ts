@@ -14,6 +14,7 @@ import { issueOtpForUser } from "@/lib/otp";
 import { normalizePhone, formatTajikPhone } from "@/lib/phone";
 import { loginFromFullName, generateUniqueLogin, fuzzyNameKey } from "@/lib/translit";
 import { getFaqKeyboard } from "@/lib/support-chat";
+import { removePhotoFromMessage } from "@/lib/support-photo";
 
 /** Ответить: гостю в Telegram, сотруднику — прямо в его веб-обращение. `replyToId` — необязательная цитата на конкретное сообщение того же диалога. */
 export async function replyToThread(threadId: string, body: string, replyToId?: string): Promise<ActionResult> {
@@ -76,6 +77,24 @@ export async function replyToThread(threadId: string, body: string, replyToId?: 
       action: "SUPPORT_REPLY_SENT",
       entityType: "SupportThread",
       entityId: threadId,
+    });
+  });
+}
+
+/** Удалить фото из диалога навсегда (файл и запись; копия в Telegram-боте остаётся). */
+export async function purgeMessagePhoto(messageId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireSession();
+    assertCan(s.roles, "support.manage");
+
+    const threadId = await removePhotoFromMessage(messageId);
+    if (!threadId) throw new Error("Фото уже удалено.");
+    await audit({
+      actorId: s.user.id,
+      action: "SUPPORT_PHOTO_PURGED",
+      entityType: "SupportThread",
+      entityId: threadId,
+      newValue: { messageId },
     });
   });
 }

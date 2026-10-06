@@ -45,14 +45,15 @@ export async function openOrReopenThread(telegramId: string): Promise<void> {
  * ранее был закрыт — тогда переоткрывает). Возвращает `false`, если треда
  * нет вовсе — тогда вызывающий код должен обработать сообщение как обычно
  * (например, показать WELCOME), а не как реплику в чате.
+ * `tgFileId` — фото гостя: храним только file_id, сам файл остаётся в Telegram.
  */
-export async function appendGuestMessage(telegramId: string, body: string): Promise<boolean> {
+export async function appendGuestMessage(telegramId: string, body: string, tgFileId?: string): Promise<boolean> {
   const thread = await db.supportThread.findUnique({ where: { telegramId } });
   if (!thread) return false;
   const wasClosed = thread.status === "CLOSED";
 
   await db.$transaction([
-    db.supportMessage.create({ data: { threadId: thread.id, direction: "IN", body } }),
+    db.supportMessage.create({ data: { threadId: thread.id, direction: "IN", body, tgFileId } }),
     db.supportThread.update({
       where: { id: thread.id },
       data: { status: "OPEN", lastMessageAt: new Date() },

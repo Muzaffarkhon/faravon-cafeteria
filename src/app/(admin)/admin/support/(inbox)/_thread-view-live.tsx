@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
-import { ThreadView, type Msg, type QuickReply } from "./[id]/_thread-view";
+import { ThreadView, type ActiveCoupon, type Msg, type QuickReply } from "./[id]/_thread-view";
 import { markThreadRead, type EmployeeMatch } from "../actions";
 import { SUPPORT_READ_EVENT } from "@/app/(app)/_support-alert";
 
@@ -25,6 +25,7 @@ type ThreadData = {
   guestNameGuess: string | null;
   alreadyLinked: boolean;
   initialMatches: EmployeeMatch[];
+  coupons: ActiveCoupon[];
 };
 
 /**
@@ -168,6 +169,7 @@ export function ThreadViewLive({
       guestNameGuess={data.guestNameGuess}
       alreadyLinked={data.alreadyLinked}
       initialMatches={data.initialMatches}
+      coupons={data.coupons}
       quickReplies={data.quickReplies}
       backHref={backHref}
       locale={locale}

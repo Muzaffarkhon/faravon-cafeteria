@@ -388,7 +388,8 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-8">
       {/* ── Герой ── счётчики и кнопка «Заявки и купоны» вынесены в закреплённую шапку. */}
-      <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6">
+      {/* Той же ширины, что и карусель баннеров (см. _banner-carousel.tsx), — шире колонки контента. */}
+      <section className="rounded-[20px] bg-primary p-5 text-on-brand sm:rounded-[28px] sm:p-6 lg:relative lg:left-1/2 lg:w-[max(100%,min(96vw,90rem))] lg:-translate-x-1/2">
         <h1 className="font-display text-xl font-bold text-on-brand sm:text-2xl">
           {t("home.greeting")}, {firstName}
         </h1>

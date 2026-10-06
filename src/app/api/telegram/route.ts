@@ -74,12 +74,15 @@ const UNKNOWN_MESSAGE_KNOWN_USER =
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+const MAX_GUEST_PHOTO_BYTES = 5 * 1024 * 1024;
+
 interface TgMessage {
   chat: { id: number };
   from?: { id: number; language_code?: string };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
-  photo?: unknown;
+  photo?: { file_id: string; file_size?: number }[];
+  caption?: string;
   document?: unknown;
   video?: unknown;
   video_note?: unknown;
@@ -95,9 +98,9 @@ interface TgMessage {
 // Разрешены только текст и «Поделиться контактом» — любые файлы/медиа от
 // пользователя отклоняются без обработки (снижает поверхность атаки через
 // вложения). Не касается исходящих сообщений бота (например, QR-кода).
-function hasDisallowedContent(msg: TgMessage): boolean {
+function hasDisallowedContent(msg: TgMessage, photoAllowed: boolean): boolean {
   return !!(
-    msg.photo ||
+    (msg.photo && !photoAllowed) ||
     msg.document ||
     msg.video ||
     msg.video_note ||
@@ -207,7 +210,17 @@ async function handle(msg: TgMessage) {
   const telegramId = String(fromId);
 
   try {
-    if (hasDisallowedContent(msg)) {
+    // Фото принимаем только в уже открытый диалог поддержки (и не больше 5 МБ) — как реплику в чат;
+    // всё остальное медиа, как и фото вне диалога, по-прежнему отклоняется.
+    const photo = msg.photo?.at(-1);
+    if (photo) {
+      const hasThread = !!(await db.supportThread.findUnique({ where: { telegramId }, select: { id: true } }));
+      if (hasThread && !hasDisallowedContent(msg, true) && (photo.file_size ?? 0) <= MAX_GUEST_PHOTO_BYTES) {
+        await appendGuestMessage(telegramId, (msg.caption ?? "").trim().slice(0, 1000), photo.file_id);
+        return;
+      }
+    }
+    if (hasDisallowedContent(msg, false)) {
       await send(chatId, UNSUPPORTED_CONTENT);
       return;
     }
