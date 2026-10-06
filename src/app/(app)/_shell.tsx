@@ -468,24 +468,30 @@ export function AppShell({
                   )}
                   <button
                     type="button"
-                    onClick={() => setLogoutOpen(true)}
+                    onClick={() => {
+                      // Меню закрываем сразу: окно подтверждения живёт отдельно от него (см. ниже).
+                      setProfileOpen(false);
+                      setLogoutOpen(true);
+                    }}
                     className="flex w-full items-center gap-2.5 px-3 py-3 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
                   >
                     <Icon path={I.logout} className="h-5 w-5" />
                     {t("shell.logout")}
                   </button>
-                  <ConfirmDialog
-                    open={logoutOpen}
-                    tone="danger"
-                    busy={loggingOut}
-                    title={t("shell.logoutConfirm")}
-                    confirmLabel={t("shell.logout")}
-                    onConfirm={() => startLogout(logout)}
-                    onClose={() => setLogoutOpen(false)}
-                  />
                 </div>
               </>
             )}
+            {/* Вне выпадающего меню: на телефоне (Telegram Mini App) касание шлёт «mouseleave», меню закрывалось,
+                а вместе с ним исчезало и окно подтверждения, вложенное в него. */}
+            <ConfirmDialog
+              open={logoutOpen}
+              tone="danger"
+              busy={loggingOut}
+              title={t("shell.logoutConfirm")}
+              confirmLabel={t("shell.logout")}
+              onConfirm={() => startLogout(logout)}
+              onClose={() => setLogoutOpen(false)}
+            />
           </div>
         </div>
 

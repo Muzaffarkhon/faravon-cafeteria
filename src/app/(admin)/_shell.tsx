@@ -204,23 +204,31 @@ export function AdminShell({
             </Link>
             <button
               type="button"
-              onClick={() => setLogoutOpen(true)}
+              onClick={() => {
+                // Меню закрываем сразу: окно подтверждения живёт отдельно от него (см. ниже).
+                setProfileOpen(false);
+                setLogoutOpen(true);
+              }}
               className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-danger-soft hover:text-danger"
             >
               <Icon path={I.logout} />
               {t("shell.logout")}
             </button>
-            <ConfirmDialog
-              open={logoutOpen}
-              tone="danger"
-              busy={loggingOut}
-              title={t("shell.logoutConfirm")}
-              confirmLabel={t("shell.logout")}
-              onConfirm={() => startLogout(logout)}
-              onClose={() => setLogoutOpen(false)}
-            />
           </div>
         </>
+      )}
+      {/* Вне выпадающего меню: на телефоне касание шлёт «mouseleave», меню закрывалось, а с ним и вложенное окно подтверждения.
+          renderProfile вызывается дважды (шапка и мобильная полоса), окно общее — рисуем его один раз. */}
+      {!mobile && (
+        <ConfirmDialog
+          open={logoutOpen}
+          tone="danger"
+          busy={loggingOut}
+          title={t("shell.logoutConfirm")}
+          confirmLabel={t("shell.logout")}
+          onConfirm={() => startLogout(logout)}
+          onClose={() => setLogoutOpen(false)}
+        />
       )}
     </div>
   );

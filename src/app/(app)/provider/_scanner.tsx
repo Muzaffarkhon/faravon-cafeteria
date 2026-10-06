@@ -37,6 +37,7 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const stop = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -134,6 +135,54 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
     }
   }
 
+  /**
+   * Запасной путь для старых телефонов (iPhone 5 и т. п.), где у браузера нет доступа к камере:
+   * системная камера снимает фото, а код читаем с готового снимка. Работает везде, где есть <input type="file">.
+   */
+  function scanFromPhoto(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const data = ctx?.getImageData(0, 0, w, h);
+      const code = data ? jsQR(data.data, w, h, { inversionAttempts: "attemptBoth" }) : null;
+      if (code?.data) onScan(code.data.trim());
+      else setError(t("provider.photoNoQr"));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setError(t("provider.photoNoQr"));
+    };
+    img.src = url;
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  const photoScan = (
+    <>
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => scanFromPhoto(e.target.files?.[0])}
+      />
+      <Button type="button" variant="secondary" onClick={() => photoInputRef.current?.click()}>
+        {t("provider.scanPhoto")}
+      </Button>
+    </>
+  );
+
   function tick() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -159,7 +208,21 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
     rafRef.current = requestAnimationFrame(tick);
   }
 
-  if (!canScan) return null;
+  if (!resolved) return null;
+  if (!canScan) {
+    // Камера недоступна совсем (старый телефон): объясняем и даём сфотографировать код; ручной ввод покажет родитель (onFallback).
+    return (
+      <div className="space-y-2">
+        <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">{t("provider.cameraOldDevice")}</p>
+        {photoScan}
+        {error && (
+          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -186,12 +249,12 @@ export function CouponScanner({ onScan, autoStart = false, onFallback, locale }:
         </Button>
       </div>
       {error && (
-        <p
-          className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger"
-          role="alert"
-        >
-          {error}
-        </p>
+        <div className="mt-2 space-y-2">
+          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
+            {error}
+          </p>
+          {photoScan}
+        </div>
       )}
     </div>
   );
