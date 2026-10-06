@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notIssuedCouponWhere } from "@/lib/coupon-flow";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -29,7 +30,7 @@ export default async function CouponsAwaitingPage() {
     NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
   };
 
-  const [awaiting, awaitingTotal] = await Promise.all([
+  const [awaiting, awaitingTotal, notIssued] = await Promise.all([
     db.applicationItem.findMany({
       where: awaitingWhere,
       include: {
@@ -40,15 +41,23 @@ export default async function CouponsAwaitingPage() {
       take: AWAITING_CAP,
     }),
     db.applicationItem.count({ where: awaitingWhere }),
+    db.coupon.count({ where: notIssuedCouponWhere() }),
   ]);
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("coupons.awaitingTitle")}</h1>
-        <Link href="/coupons" className={buttonClass({ variant: "secondary", size: "sm" })}>
-          {t("coupons.registryTitle")} →
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {notIssued > 0 && (
+            <Link href="/coupons?sf_status=equals&sf_status_v=CREATED" className={buttonClass({ size: "sm" })}>
+              {t("coupons.notIssued")} ({notIssued})
+            </Link>
+          )}
+          <Link href="/coupons" className={buttonClass({ variant: "secondary", size: "sm" })}>
+            {t("coupons.registryTitle")} →
+          </Link>
+        </div>
       </div>
 
       <section className="space-y-3">

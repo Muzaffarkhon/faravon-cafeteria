@@ -101,7 +101,7 @@ export const DEFAULT_TEMPLATES: Record<string, NotificationTemplateDef> = {
   },
   ITEM_APPROVED: {
     label: NOTIFICATION_LABELS.ITEM_APPROVED,
-    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]][[\n\nЭто {group} льгота — купон придёт, как только наберётся нужное число участников. Прогресс набора виден в разделе «Мои заявки».]][[\n\nКупон придёт в Telegram не позднее {issueOn}.]]",
+    body: "✅ <b>Позиция одобрена</b>\n«{card}»[[ · {period}]][[\n\nЭто {group} льгота — купон придёт, как только наберётся нужное число участников. Прогресс набора виден в разделе «Мои заявки».]][[\n\nОжидайте купон не позднее {issueOn}.]]",
   },
   ITEM_REJECTED: {
     label: NOTIFICATION_LABELS.ITEM_REJECTED,

@@ -130,8 +130,11 @@ export function AppShell({
   const [loggingOut, startLogout] = useTransition();
   const navScrollRef = useRef<HTMLDivElement>(null);
 
+  const navHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  const matches = (h: string) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(h + "/"));
+  // подсвечиваем самый точный пункт: на /coupons/awaiting — «Формирование», а не «Купоны»
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+    matches(href) && !navHrefs.some((h) => h !== href && h.length > href.length && h.startsWith(href) && matches(h));
 
   const primaryGroups = groups.filter((g) => PRIMARY_GROUPS.has(g.id));
   const primaryAll: NavItem[] = primaryGroups.flatMap((g) => g.items);
@@ -219,6 +222,8 @@ export function AppShell({
                 <Link
                   key={it.href}
                   href={it.href}
+                  target={/^https?:\/\//.test(it.href) ? "_blank" : undefined}
+                  rel={/^https?:\/\//.test(it.href) ? "noopener noreferrer" : undefined}
                   onClick={closeMenus}
                   className={iconTab(active)}
                   aria-current={active ? "page" : undefined}
@@ -346,6 +351,8 @@ export function AppShell({
                             <Link
                               key={it.href}
                               href={it.href}
+                  target={/^https?:\/\//.test(it.href) ? "_blank" : undefined}
+                  rel={/^https?:\/\//.test(it.href) ? "noopener noreferrer" : undefined}
                               onClick={closeMenus}
                               className={cx(
                                 "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",
@@ -482,6 +489,8 @@ export function AppShell({
             <Link
               key={it.href}
               href={it.href}
+                  target={/^https?:\/\//.test(it.href) ? "_blank" : undefined}
+                  rel={/^https?:\/\//.test(it.href) ? "noopener noreferrer" : undefined}
               onClick={closeMenus}
               title={it.label}
               aria-label={it.label}
@@ -538,6 +547,8 @@ export function AppShell({
                       <Link
                         key={it.href}
                         href={it.href}
+                  target={/^https?:\/\//.test(it.href) ? "_blank" : undefined}
+                  rel={/^https?:\/\//.test(it.href) ? "noopener noreferrer" : undefined}
                         onClick={closeMenus}
                         className={cx(
                           "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-semibold transition-colors",

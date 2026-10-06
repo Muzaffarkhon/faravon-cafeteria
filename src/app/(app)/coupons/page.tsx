@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
+import { notIssuedCouponWhere } from "@/lib/coupon-flow";
 import { listCouponRegistry, countCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
 import { couponColumns, type CouponColKey } from "@/lib/coupon-columns";
 import type { TKey } from "@/lib/i18n/dict";
@@ -100,8 +101,9 @@ export default async function CouponsPage({
     application: { is: { period: { is: { status: { not: "CLOSED" as const }, endDate: { gte: now } } } } },
     NOT: { card: { is: { partner: { is: { deliveryMode: "PHONE_PROMO" as const } } } } },
   };
-  const [awaitingTotal, coupons, couponsTotal, taxiRowsRaw] = await Promise.all([
+  const [awaitingTotal, notIssued, coupons, couponsTotal, taxiRowsRaw] = await Promise.all([
     db.applicationItem.count({ where: awaitingWhere }),
+    db.coupon.count({ where: notIssuedCouponWhere() }),
     listCouponRegistry({ ...filters, page, pageSize: PAGE_SIZE }),
     countCouponRegistry(filters),
     listTaxiRegistryRows(cf),
@@ -124,9 +126,16 @@ export default async function CouponsPage({
     <div data-wide className="space-y-10">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">{t("coupons.title")}</h1>
-        <Link href="/coupons/awaiting" className={buttonClass({ variant: "secondary", size: "sm" })}>
-          {t("coupons.awaitingTitle")} {awaitingTotal > 0 && `(${awaitingTotal})`} →
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {notIssued > 0 && (
+            <Link href="/coupons?sf_status=equals&sf_status_v=CREATED" className={buttonClass({ size: "sm" })}>
+              {t("coupons.notIssued")} ({notIssued})
+            </Link>
+          )}
+          <Link href="/coupons/awaiting" className={buttonClass({ variant: "secondary", size: "sm" })}>
+            {t("coupons.awaitingTitle")} {awaitingTotal > 0 && `(${awaitingTotal})`} →
+          </Link>
+        </div>
       </header>
 
       <section className="space-y-3">

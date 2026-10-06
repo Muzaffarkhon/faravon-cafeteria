@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyEmployee, flushTelegram } from "@/lib/notify";
@@ -159,3 +160,10 @@ export async function issueDueCoupons(): Promise<number> {
   flushTelegram();
   return issued;
 }
+
+/** Сформированные, но ещё не выданные купоны, которые можно выдать: не «по телефону», срок не вышел. */
+export const notIssuedCouponWhere = (): Prisma.CouponWhereInput => ({
+  status: "CREATED",
+  NOT: { partner: { is: { deliveryMode: "PHONE_PROMO" } } },
+  OR: [{ validUntil: null }, { validUntil: { gte: new Date() } }],
+});

@@ -43,9 +43,13 @@ export const ICONS = {
 };
 
 /** Счётчики непрочитанного/несделанного. Плиткам «Кабинета» они не нужны. */
+/** Тестовое окружение — кнопка «Тестовая среда» открывает его в новой вкладке. */
+const TEST_ENV_URL = "https://faravon-cafeteria-test.vercel.app/";
+
 export type NavBadges = {
   review?: number;
   coupons?: number;
+  couponsForming?: number;
   adRequests?: number;
   myCoupons?: number;
   partnerCoupons?: number;
@@ -136,10 +140,17 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
     add("work", t("nav.work"), {
       href: "/coupons",
       label: t("nav.coupons"),
-      desc: "формирование и выдача купонов",
+      desc: "реестр и выдача купонов",
       icon: ICONS.coupons,
       badge: b.coupons || undefined,
-      children: [{ href: "/coupons/awaiting", label: t("nav.couponsForming") }],
+    });
+  if (canManageCoupons)
+    add("work", t("nav.work"), {
+      href: "/coupons/awaiting",
+      label: t("nav.couponsForming"),
+      desc: "позиции, по которым ещё не сформирован или не выдан купон",
+      icon: ICONS.coupons,
+      badge: b.couponsForming || undefined,
     });
   if (isTaxiContractor)
     add("work", t("nav.work"), {
@@ -318,11 +329,10 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
     });
   if (can(roles, "periods.manage"))
     add("admin", t("nav.adminGroup"), {
-      href: "/admin/sandbox",
+      href: TEST_ENV_URL,
       label: t("nav.sandbox"),
       desc: "изолированная песочница: свои сотрудники и льготы, боевых данных не касается",
       icon: ICONS.flask,
-      children: [{ href: "https://faravon-cafeteria-test.vercel.app/", label: "Тестовый прод (превью на боевых данных)" }],
     });
 
   return groups;

@@ -131,7 +131,11 @@ export function AdminShell({
     });
   }
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const navHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  const matches = (h: string) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(h + "/"));
+  // подсвечиваем самый точный пункт: на /coupons/awaiting — «Формирование», а не «Купоны»
+  const isActive = (href: string) =>
+    matches(href) && !navHrefs.some((h) => h !== href && h.length > href.length && h.startsWith(href) && matches(h));
   const allItems: NavItem[] = groups.flatMap((g) => g.items);
   const activeItem = allItems.find((it) => isActive(it.href));
 
@@ -327,6 +331,8 @@ export function AdminShell({
                           )}
                           <Link
                             href={it.href}
+                            target={/^https?:\/\//.test(it.href) ? "_blank" : undefined}
+                            rel={/^https?:\/\//.test(it.href) ? "noopener noreferrer" : undefined}
                             title={collapsed ? it.label : undefined}
                             className={cx(
                               "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors",

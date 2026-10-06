@@ -2,6 +2,7 @@ import "server-only";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { notIssuedCouponWhere } from "@/lib/coupon-flow";
 import type { NavBadges } from "./_nav";
 
 /**
@@ -23,7 +24,7 @@ export async function computeNavBadges(opts: {
   const canConfirmCoupons = can(roles, "coupons.confirm");
   const canManageSupport = can(roles, "support.manage") || can(roles, "feedback.manage");
 
-  const [review, coupons, adRequests, myCoupons, partnerCoupons, support] =
+  const [review, awaitingForming, notIssued, adRequests, myCoupons, partnerCoupons, support] =
     await Promise.all([
       canDecide ? db.applicationItem.count({ where: { status: "PENDING" } }) : 0,
       canManageCoupons
@@ -37,6 +38,7 @@ export async function computeNavBadges(opts: {
             },
           })
         : 0,
+      canManageCoupons ? db.coupon.count({ where: notIssuedCouponWhere() }) : 0,
       canManageCards ? db.advertisingRequest.count({ where: { status: "PENDING" } }) : 0,
       employeeId ? db.coupon.count({ where: { employeeId, status: "ISSUED" } }) : 0,
       canConfirmCoupons && partnerId
@@ -49,7 +51,9 @@ export async function computeNavBadges(opts: {
 
   return {
     review,
-    coupons,
+    // «Купоны» — сформированные и ещё не выданные; «Формирование купонов» — ещё и позиции без купона.
+    coupons: notIssued,
+    couponsForming: awaitingForming + notIssued,
     adRequests,
     myCoupons,
     partnerCoupons,
