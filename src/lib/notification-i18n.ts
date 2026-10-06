@@ -14,7 +14,7 @@ export const DEFAULT_TEMPLATES_I18N: Record<TranslatedLocale, Record<string, str
     APPLICATION_SUBMITTED:
       "🆕 <b>Дархости нав барои тасдиқ</b>\n{employee}[[ · {department}]] — {count} {countNoun}[[\nДавра: {period}]]\n\nБахши «Тасдиқ»-ро кушоед.",
     ITEM_APPROVED:
-      "✅ <b>Мавқеъ тасдиқ шуд</b>\n«{card}»[[ · {period}]][[\n\nИн имтиёзи {group} аст — купон пас аз ҷамъ шудани шумораи лозимии иштирокчиён меояд. Пешрафти ҷамъшавӣ дар бахши «Дархостҳои ман» намоён аст.]]",
+      "✅ <b>Мавқеъ тасдиқ шуд</b>\n«{card}»[[ · {period}]][[\n\nИн имтиёзи {group} аст — купон пас аз ҷамъ шудани шумораи лозимии иштирокчиён меояд. Пешрафти ҷамъшавӣ дар бахши «Дархостҳои ман» намоён аст.]][[\n\nКупон на дертар аз {issueOn} ба Telegram меояд.]]",
     ITEM_REJECTED: "❌ <b>Мавқеъ рад шуд</b>\n«{card}»[[ · {period}]][[\nСабаб: {comment}]]",
     COUPON_ISSUED:
       "🎟️ <b>Купон омода аст</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\nАз {validFrom} то {validUntil} амал мекунад]]\n\nОнро ба шарик нишон диҳед.[[\n\nМуфассалтар — дар бахши «Дархостҳо ва купонҳои ман»: {siteUrl}/applications]]",
@@ -44,7 +44,7 @@ export const DEFAULT_TEMPLATES_I18N: Record<TranslatedLocale, Record<string, str
     APPLICATION_SUBMITTED:
       "🆕 <b>Tasdiqlash uchun yangi ariza</b>\n{employee}[[ · {department}]] — {count} {countNoun}[[\nDavr: {period}]]\n\n«Tasdiqlash» bo'limini oching.",
     ITEM_APPROVED:
-      "✅ <b>Pozitsiya tasdiqlandi</b>\n«{card}»[[ · {period}]][[\n\nBu {group} imtiyoz — kupon kerakli miqdordagi ishtirokchilar yig'ilgach keladi. Yig'ilish jarayoni «Mening arizalarim» bo'limida ko'rinadi.]]",
+      "✅ <b>Pozitsiya tasdiqlandi</b>\n«{card}»[[ · {period}]][[\n\nBu {group} imtiyoz — kupon kerakli miqdordagi ishtirokchilar yig'ilgach keladi. Yig'ilish jarayoni «Mening arizalarim» bo'limida ko'rinadi.]][[\n\nKupon Telegramga {issueOn} dan kechikmay keladi.]]",
     ITEM_REJECTED: "❌ <b>Pozitsiya rad etildi</b>\n«{card}»[[ · {period}]][[\nSabab: {comment}]]",
     COUPON_ISSUED:
       "🎟️ <b>Kupon tayyor</b>\n«{card}»[[ · {period}]][[\n№ <code>{number}</code>]][[\n{validFrom} dan {validUntil} gacha amal qiladi]]\n\nUni hamkorga ko'rsating.[[\n\nBatafsil — «Mening arizalarim va kuponlarim» bo'limida: {siteUrl}/applications]]",

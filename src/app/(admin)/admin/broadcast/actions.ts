@@ -116,3 +116,22 @@ export async function cancelScheduledBroadcast(id: string): Promise<{ error?: st
   revalidatePath("/admin/broadcast", "layout");
   return {};
 }
+
+/** Удалить рассылку из истории вместе со строками получателей и ответами. Уже ушедшие сообщения это не отзывает. */
+export async function deleteBroadcast(id: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  assertCan(session.roles, "cards.manage");
+  const c = await db.broadcastCampaign.findUnique({ where: { id }, select: { title: true, seq: true, status: true } });
+  if (!c) return { error: "Рассылка не найдена." };
+  if (c.status === "SENDING") return { error: "Рассылка отправляется — удалить можно после завершения." };
+  await db.broadcastCampaign.delete({ where: { id } });
+  await audit({
+    actorId: session.user.id,
+    action: "BROADCAST_DELETED",
+    entityType: "BroadcastCampaign",
+    entityId: id,
+    oldValue: { seq: c.seq, title: c.title, status: c.status },
+  });
+  revalidatePath("/admin/broadcast", "layout");
+  return {};
+}

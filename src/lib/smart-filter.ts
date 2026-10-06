@@ -133,3 +133,92 @@ export function selectFilter(fv?: FilterValue): { equals?: string; not?: string 
   if (!fv?.v) return undefined;
   return fv.op === "notContains" ? { not: fv.v } : { equals: fv.v };
 }
+
+/** Условие select-поля: «равно» или «не равно». */
+export type SelectCond = { equals: string; not?: undefined } | { not: string; equals?: undefined };
+
+/**
+ * Фильтр, привязанный к колонке таблицы: поле окна «Фильтры» и условие запроса к базе
+ * описываются вместе, поэтому расходиться им негде.
+ */
+export type ColumnFilter<W> = SmartFilterField & { where: (fv: FilterValue) => W | undefined };
+
+/** Колонка таблицы. Нет `filters` — по колонке не фильтруем (чекбокс, «Действия»). */
+export type TableColumn<W = unknown> = {
+  key: string;
+  label: string;
+  /** класс для <th> */
+  className?: string;
+  filters?: readonly ColumnFilter<W>[];
+};
+
+/** Сохраняет литеральные ключи колонок — по ним TypeScript требует ячейку для каждой колонки. */
+export function defineColumns<W, const K extends string>(cols: readonly (TableColumn<W> & { key: K })[]) {
+  return cols;
+}
+
+export function textFilterField<W>(key: string, label: string, build: (f: Record<string, unknown>) => W): ColumnFilter<W> {
+  return {
+    key,
+    label,
+    type: "text",
+    where: (fv) => {
+      const f = stringFilter(fv);
+      return f ? build(f) : undefined;
+    },
+  };
+}
+
+export function dateFilterField<W>(key: string, label: string, build: (f: Record<string, unknown>) => W): ColumnFilter<W> {
+  return {
+    key,
+    label,
+    type: "date",
+    where: (fv) => {
+      const f = dateFilter(fv);
+      return f ? build(f) : undefined;
+    },
+  };
+}
+
+/** `allowed` — допустимые значения (для enum); без него принимается любая строка (например, id). */
+export function selectFilterField<W>(
+  key: string,
+  label: string,
+  options: { value: string; label: string }[] | undefined,
+  build: (c: SelectCond) => W,
+  allowed?: readonly string[],
+): ColumnFilter<W> {
+  return {
+    key,
+    label,
+    type: "select",
+    options,
+    where: (fv) => {
+      if (!fv.v || (allowed && !allowed.includes(fv.v))) return undefined;
+      return build(fv.op === "notContains" ? { not: fv.v } : { equals: fv.v });
+    },
+  };
+}
+
+/** Поля окна «Фильтры» из описания колонок. */
+export function filterFields<W>(cols: readonly TableColumn<W>[]): SmartFilterField[] {
+  return cols.flatMap((c) => (c.filters ?? []).map(({ key, label, type, options }) => ({ key, label, type, options })));
+}
+
+/** Разобранные значения фильтра из адреса страницы по описанию колонок. */
+export function columnFilterValues<W>(sp: Record<string, string | undefined>, cols: readonly TableColumn<W>[]) {
+  return parseSmartFilterParams(sp, filterFields(cols));
+}
+
+/** Условия запроса (для `AND`) по описанию колонок и адресу страницы. */
+export function columnWhere<W>(sp: Record<string, string | undefined>, cols: readonly TableColumn<W>[]): W[] {
+  const values = columnFilterValues(sp, cols);
+  const out: W[] = [];
+  for (const f of cols.flatMap((c) => c.filters ?? [])) {
+    const fv = values[f.key];
+    const w = fv ? f.where(fv) : undefined;
+    if (w) out.push(w);
+  }
+  return out;
+}

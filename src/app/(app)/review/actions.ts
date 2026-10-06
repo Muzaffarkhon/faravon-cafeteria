@@ -1,5 +1,6 @@
 "use server";
 
+import { fmtDate } from "@/lib/dushanbe-date";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -18,10 +19,13 @@ type ApprovedItem = {
   application: {
     periodId: string;
     employee: { fullName: string; phone: string | null };
-    period: { name: string };
+    period: { name: string; startDate: Date };
   };
   card: { title: string; partnerId: string | null; minParticipants: number; partner: { deliveryMode: string } | null };
 };
+
+/** Дата выдачи купона, если период ещё не начался (иначе пусто — купон выдаётся сразу). */
+const issueOnLabel = (startDate: Date) => (startDate.getTime() > Date.now() ? fmtDate(startDate) : "");
 
 /** Кому и что сообщить сотруднику по итогам этого клика — решает вызывающий код. */
 type ApproveOutcome = "taxi" | "issued" | "pending";
@@ -65,7 +69,7 @@ async function decideContext(itemId: string) {
       application: {
             include: {
               employee: { select: { fullName: true, phone: true } },
-              period: { select: { name: true } },
+              period: { select: { name: true, startDate: true } },
             },
           },
       card: { include: { partner: { select: { deliveryMode: true } } } },
@@ -134,6 +138,7 @@ async function approveItemImpl(itemId: string) {
         card: item.card.title,
         period: item.application.period.name,
         group: item.card.minParticipants > 1 ? "групповая" : "",
+        issueOn: issueOnLabel(item.application.period.startDate),
       },
       deferFlush: true,
     });
@@ -203,7 +208,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
           application: {
             include: {
               employee: { select: { fullName: true, phone: true } },
-              period: { select: { name: true } },
+              period: { select: { name: true, startDate: true } },
             },
           },
           card: { include: { partner: { select: { deliveryMode: true } } } },
@@ -254,6 +259,7 @@ export async function bulkApprove(ids: string[]): Promise<BulkResult> {
             card: item.card.title,
             period: item.application.period.name,
             group: item.card.minParticipants > 1 ? "групповая" : "",
+            issueOn: issueOnLabel(item.application.period.startDate),
           },
           deferFlush: true,
         });
@@ -289,7 +295,7 @@ export async function bulkReject(ids: string[], comment: string): Promise<BulkRe
           application: {
             include: {
               employee: { select: { fullName: true, phone: true } },
-              period: { select: { name: true } },
+              period: { select: { name: true, startDate: true } },
             },
           },
           card: { include: { partner: { select: { deliveryMode: true } } } },

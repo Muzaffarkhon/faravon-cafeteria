@@ -6,6 +6,7 @@ import { runPeriodWindowNotifications } from "@/lib/period-notifications";
 import { runPeriodLifecycle, type PeriodLifecycleResult } from "@/lib/period-lifecycle";
 import { safeEqual } from "@/lib/timing-safe";
 import { dispatchDueBroadcasts } from "@/lib/broadcast-send";
+import { issueDueCoupons } from "@/lib/coupon-flow";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -35,6 +36,13 @@ export async function GET(req: NextRequest) {
     console.error("[cron/deliver] автосмена периодов:", e);
   }
 
+  let couponsIssued = 0;
+  try {
+    couponsIssued = await issueDueCoupons();
+  } catch (e) {
+    console.error("[cron/deliver] выдача купонов начавшегося периода:", e);
+  }
+
   let windows = { windowOpen: 0, windowClosing: 0 };
   try {
     windows = await runPeriodWindowNotifications();
@@ -62,5 +70,5 @@ export async function GET(req: NextRequest) {
     log: (m) => console.log(`[cron/deliver] ${m}`),
   });
 
-  return NextResponse.json({ ok: true, ...result, ...windows, newCards: cards, periods: lifecycle });
+  return NextResponse.json({ ok: true, ...result, ...windows, newCards: cards, periods: lifecycle, couponsIssued });
 }

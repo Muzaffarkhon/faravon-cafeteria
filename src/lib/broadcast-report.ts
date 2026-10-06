@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma, type BroadcastStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { fmtDateTimeShort } from "@/lib/dushanbe-date";
+import { fmtDateTimeShort, dushanbeIsoDate } from "@/lib/dushanbe-date";
 
 /** Доставка одному получателю — по связанному уведомлению (Notification). */
 export type Delivery = "DELIVERED" | "PENDING" | "BLOCKED" | "FAILED" | "UNKNOWN";
@@ -173,3 +173,44 @@ export async function loadCampaignList(take = 100): Promise<CampaignSummary[]> {
 
 export const fmtDushanbe = (d: Date) =>
   fmtDateTimeShort(d);
+
+export type CampaignRangeKey = "ALL" | "TODAY" | "7D" | "30D" | "MONTH";
+export const CAMPAIGN_RANGE_LABELS: Record<CampaignRangeKey, string> = {
+  ALL: "Всё время",
+  TODAY: "Сегодня",
+  "7D": "7 дней",
+  "30D": "30 дней",
+  MONTH: "Этот месяц",
+};
+
+const DAY_MS = 86_400_000;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Границы быстрого периода — даты по Душанбе (yyyy-mm-dd); пустая строка — без границы. */
+export function campaignRange(key: string): { from: string; to: string } {
+  const today = dushanbeIsoDate(new Date());
+  switch (key) {
+    case "TODAY":
+      return { from: today, to: today };
+    case "7D":
+      return { from: dushanbeIsoDate(new Date(Date.now() - 6 * DAY_MS)), to: today };
+    case "30D":
+      return { from: dushanbeIsoDate(new Date(Date.now() - 29 * DAY_MS)), to: today };
+    case "MONTH":
+      return { from: `${today.slice(0, 8)}01`, to: today };
+    default:
+      return { from: "", to: "" };
+  }
+}
+
+/** Дата из адреса страницы — только корректный yyyy-mm-dd, иначе пусто. */
+export const cleanIsoDate = (v: unknown) => (typeof v === "string" && ISO_DATE.test(v) ? v : "");
+
+/** Когда рассылка «состоялась»: отправлена, иначе запланирована, иначе создана. */
+export const campaignWhen = (c: { sentAt: Date | null; scheduledAt: Date | null; createdAt: Date }) =>
+  c.sentAt ?? c.scheduledAt ?? c.createdAt;
+
+export function inDateRange(d: Date, from?: string, to?: string) {
+  const day = dushanbeIsoDate(d);
+  return (!from || day >= from) && (!to || day <= to);
+}

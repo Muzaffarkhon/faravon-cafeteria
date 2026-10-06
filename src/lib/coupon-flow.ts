@@ -63,13 +63,17 @@ export async function formCouponForItem(itemId: string, actorId: string) {
 }
 
 /**
- * Выдаёт купон (CREATED → ISSUED), если для групповой льготы набрана группа
- * либо льгота не групповая. Возвращает true, если выдан. Тихо (без ошибок).
+ * Выдаёт купон (CREATED → ISSUED), если период уже начался и (для групповой льготы) набрана группа.
+ * Одобрение только формирует купон; если период ещё не начался, купон ждёт его начала —
+ * его выдаёт ежедневный крон (issueDueCoupons) или администратор вручную из реестра.
+ * `ignoreStart` — выдать сразу, не дожидаясь начала периода (покупка за монеты).
+ * Возвращает true, если выдан. Тихо (без ошибок).
  */
 export async function issueCouponIfReady(
   couponId: string,
-  actorId: string,
+  actorId: string | null,
   deferFlush = false,
+  ignoreStart = false,
 ): Promise<boolean> {
   const coupon = await db.coupon.findUnique({
     where: { id: couponId },
@@ -80,6 +84,7 @@ export async function issueCouponIfReady(
   });
   if (!coupon || coupon.status !== "CREATED") return false;
   if (coupon.item.card.partner?.deliveryMode === "PHONE_PROMO") return false;
+  if (!ignoreStart && coupon.period.startDate.getTime() > Date.now()) return false;
 
   const min = coupon.item.card.minParticipants;
   if (min > 1) {
@@ -136,4 +141,21 @@ export async function issueGroupBacklog(cardId: string, periodId: string, actorI
     await issueCouponIfReady(c.id, actorId, true);
   }
   flushTelegram();
+}
+
+/**
+ * Выдаёт сформированные купоны, у которых период уже начался (одобрены раньше, например в
+ * сентябре на октябрь). Вызывается ежедневным кроном; групповые купоны выдаются, только если набрана группа.
+ */
+export async function issueDueCoupons(): Promise<number> {
+  const due = await db.coupon.findMany({
+    where: { status: "CREATED", period: { is: { startDate: { lte: new Date() } } } },
+    select: { id: true },
+  });
+  let issued = 0;
+  for (const c of due) {
+    if (await issueCouponIfReady(c.id, null, true)) issued += 1;
+  }
+  flushTelegram();
+  return issued;
 }

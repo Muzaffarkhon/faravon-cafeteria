@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { CouponStatus, Prisma } from "@prisma/client";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnFilterValues, columnWhere } from "@/lib/smart-filter";
+import { couponColumns, COUPON_STATUSES } from "@/lib/coupon-columns";
 import { taxiRegistryRows } from "@/lib/taxi";
 
 export type CouponFilters = {
@@ -16,8 +17,7 @@ export type CouponFilters = {
   pageSize?: number;
 };
 
-const STATUSES: CouponStatus[] = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"];
-export const isCouponStatus = (v: string): v is CouponStatus => STATUSES.includes(v as CouponStatus);
+export const isCouponStatus = (v: string): v is CouponStatus => (COUPON_STATUSES as readonly string[]).includes(v);
 
 function couponWhere(f: CouponFilters) {
   const q = f.employeeQuery?.trim();
@@ -52,17 +52,6 @@ export function countCouponRegistry(f: CouponFilters) {
 
 export type CouponRegistryRow = Awaited<ReturnType<typeof listCouponRegistry>>[number];
 
-const COUPON_FILTER_FIELDS: SmartFilterField[] = [
-  { key: "number", label: "", type: "text" },
-  { key: "employee", label: "", type: "text" },
-  { key: "card", label: "", type: "text" },
-  { key: "partnerName", label: "", type: "text" },
-  { key: "validUntil", label: "", type: "date" },
-  { key: "period", label: "", type: "select" },
-  { key: "partner", label: "", type: "select" },
-  { key: "status", label: "", type: "select" },
-];
-
 /** Строки такси (PHONE_PROMO — без Coupon), видимые в реестре /coupons при этих фильтрах.
  *  Общее для страницы и выгрузки: иначе такси-строки были в таблице, а файл выходил пустым. */
 export async function listTaxiRegistryRows(cf: ReturnType<typeof buildCouponFilters>) {
@@ -73,25 +62,18 @@ export async function listTaxiRegistryRows(cf: ReturnType<typeof buildCouponFilt
   return rows.filter((r) => `${r.employee} ${r.cardTitle} ${r.partnerName ?? ""}`.toLowerCase().includes(q));
 }
 
+/** Фильтры, которые применимы и к строкам такси; любой другой (в т.ч. новый) скрывает такси-строки. */
+const TAXI_COMPATIBLE_FILTERS = ["employee", "period", "partner"];
+
 /** Строит CouponFilters из query-параметров страницы /coupons — общее для самой
  *  страницы и её /coupons/export, чтобы выгрузка всегда отражала то, что видно в таблице. */
 export function buildCouponFilters(sp: Record<string, string | undefined>) {
-  const smartValues = parseSmartFilterParams(sp, COUPON_FILTER_FIELDS);
-  const periodId = smartValues.period?.v;
-  const status = smartValues.status?.v && isCouponStatus(smartValues.status.v) ? smartValues.status.v : undefined;
-  const partnerId = smartValues.partner?.v;
-
-  const extraWhere: Prisma.CouponWhereInput[] = [];
-  const numberF = stringFilter(smartValues.number);
-  if (numberF) extraWhere.push({ number: numberF });
-  const employeeF = stringFilter(smartValues.employee);
-  if (employeeF) extraWhere.push({ employee: { is: { fullName: employeeF } } });
-  const cardF = stringFilter(smartValues.card);
-  if (cardF) extraWhere.push({ item: { is: { card: { is: { title: cardF } } } } });
-  const partnerNameF = stringFilter(smartValues.partnerName);
-  if (partnerNameF) extraWhere.push({ partner: { is: { name: partnerNameF } } });
-  const validUntilF = dateFilter(smartValues.validUntil);
-  if (validUntilF) extraWhere.push({ validUntil: validUntilF });
+  const columns = couponColumns();
+  const values = columnFilterValues(sp, columns);
+  const periodId = values.period?.v;
+  const status = values.status?.v && isCouponStatus(values.status.v) ? values.status.v : undefined;
+  const partnerId = values.partner?.v;
+  const extraWhere: Prisma.CouponWhereInput[] = columnWhere(sp, columns);
   const q = (sp.q ?? "").trim();
   if (q) {
     extraWhere.push({
@@ -110,8 +92,8 @@ export function buildCouponFilters(sp: Record<string, string | undefined>) {
     partnerId,
     extraWhere,
     q,
-    employeeQuery: smartValues.employee?.v?.trim() || undefined,
+    employeeQuery: values.employee?.v?.trim() || undefined,
     /** true — активен фильтр, не совместимый со строками такси (у них нет статуса/номера/срока купона). */
-    hasCouponOnlyFilters: !!(status || numberF || validUntilF || cardF || partnerNameF),
+    hasCouponOnlyFilters: Object.keys(values).some((k) => !TAXI_COMPATIBLE_FILTERS.includes(k)),
   };
 }

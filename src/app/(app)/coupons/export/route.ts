@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
+import type { BenefitMode } from "@prisma/client";
 import { listCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
 import type { PromoStatus } from "@/lib/taxi";
 import { TIMEZONE, dushanbeIsoDate } from "@/lib/dushanbe-date";
@@ -15,6 +16,10 @@ const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
   BLOCKED: "Не доставлен (бот заблокирован)",
 };
 
+const MODE_LABELS: Record<BenefitMode, string> = { ONE_TIME: "Одноразовый", PERIOD: "Многоразовый", CASHBACK: "Кешбек" };
+const CHANNEL_LABELS: Record<string, string> = { PORTAL: "Портал" };
+const TYPE_LABELS: Record<string, string> = { PROMO: "Промокод", QR: "QR-код", PDF: "PDF", PHYSICAL: "Физический" };
+
 const d = (v: Date | null | undefined) => (v ? dushanbeIsoDate(v) : "");
 const dt = (v: Date | null | undefined) =>
   v ? v.toLocaleString("sv-SE", { timeZone: TIMEZONE }).slice(0, 16) : "";
@@ -25,11 +30,10 @@ export async function GET(req: NextRequest) {
   if (!can(session.roles, "coupons.manage")) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const { periodId, status, partnerId, extraWhere } = buildCouponFilters(sp);
-
   const cf = buildCouponFilters(sp);
+  const { periodId, status, extraWhere } = cf;
   const [coupons, taxiRows] = await Promise.all([
-    listCouponRegistry({ periodId, status, partnerId, extraWhere }),
+    listCouponRegistry({ extraWhere }),
     listTaxiRegistryRows(cf),
   ]);
 
@@ -43,7 +47,10 @@ export async function GET(req: NextRequest) {
     { header: "Льгота", key: "card", width: 36 },
     { header: "Партнёр", key: "partner", width: 28 },
     { header: "Период", key: "period", width: 18 },
-    { header: "Тип", key: "type", width: 12 },
+    { header: "Тип", key: "type", width: 14 },
+    { header: "Вид использования", key: "mode", width: 18 },
+    { header: "Кешбек, %", key: "cashback", width: 11 },
+    { header: "Канал доставки", key: "channel", width: 16 },
     { header: "Номинал / условие", key: "nominal", width: 40 },
     { header: "Статус", key: "status", width: 16 },
     { header: "Сформирован", key: "created", width: 14 },
@@ -66,7 +73,10 @@ export async function GET(req: NextRequest) {
       card: c.item.card.title,
       partner: c.partner?.name ?? "",
       period: c.period.name,
-      type: c.type,
+      type: TYPE_LABELS[c.type] ?? c.type,
+      mode: MODE_LABELS[c.benefitMode],
+      channel: CHANNEL_LABELS[c.deliveryChannel] ?? c.deliveryChannel,
+      cashback: c.benefitMode === "CASHBACK" ? (c.cashbackPercent ?? "") : "",
       nominal: c.nominal ?? "",
       status: COUPON_STATUS_LABELS[c.status],
       created: d(c.createdAt),
@@ -88,7 +98,7 @@ export async function GET(req: NextRequest) {
       valid: d(r.periodEndDate),
     });
   }
-  ws.autoFilter = { from: "A1", to: "M1" };
+  ws.autoFilter = { from: "A1", to: "P1" };
 
   const buffer = await wb.xlsx.writeBuffer();
 

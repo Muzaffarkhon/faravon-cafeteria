@@ -15,7 +15,15 @@ import {
   CAMPAIGN_ANSWERS,
   CAMPAIGN_ANSWER_LABELS,
 } from "@/lib/broadcast-segments";
-import { fmtDushanbe, loadCampaignList } from "@/lib/broadcast-report";
+import {
+  CAMPAIGN_RANGE_LABELS,
+  campaignRange,
+  campaignWhen,
+  fmtDushanbe,
+  inDateRange,
+  loadCampaignList,
+  type CampaignRangeKey,
+} from "@/lib/broadcast-report";
 import { dispatchDueBroadcasts } from "@/lib/broadcast-send";
 import { BroadcastForm } from "./_form";
 import { FilterForm } from "./_filter-form";
@@ -34,22 +42,36 @@ export default async function BroadcastPage({
   const locale = await getLocale();
   const t = await getTranslator();
 
-  const filters = parseFilters(await searchParams);
+  const sp = await searchParams;
+  const filters = parseFilters(sp);
+  const rangeKey = (
+    Object.keys(CAMPAIGN_RANGE_LABELS).includes(String(sp.campaignRange)) ? sp.campaignRange : "ALL"
+  ) as CampaignRangeKey;
+  const range = campaignRange(rangeKey);
   const guests = filters.segment === "NOT_REGISTERED";
   const byCard = filters.segment === "BY_CARD";
   const byCampaign = filters.segment === "BY_CAMPAIGN";
+  const unredeemed = filters.segment === "UNREDEEMED_COUPON";
 
   after(() => dispatchDueBroadcasts());
   const [periods, cards, history] = await Promise.all([
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true }, take: 24 }),
     byCard
-      ? db.benefitCard.findMany({ where: { archivedAt: null }, orderBy: { title: "asc" }, select: { id: true, title: true } })
+      ? db.benefitCard.findMany({ where: {
+            archivedAt: null,
+            // гибкие льготы + то, что выдаётся через колесо подарков и за монеты геймификации
+            OR: [{ block: "FLEX" }, { coinPrice: { not: null } }, { wheelSectors: { some: {} } }],
+          },
+          orderBy: { title: "asc" }, select: { id: true, title: true } })
       : Promise.resolve([]),
     loadCampaignList(),
   ]);
   if (byCard && !filters.periodId) filters.periodId = periods.find((p) => p.status === "OPEN")?.id ?? periods[0]?.id ?? "";
-  const campaigns = history.filter((c) => c.status === "SENT" && c.segment !== "NOT_REGISTERED" && c.total > 0);
-  if (byCampaign && !filters.campaignId) filters.campaignId = campaigns[0]?.id ?? "";
+  const allCampaigns = history.filter((c) => c.status === "SENT" && c.segment !== "NOT_REGISTERED" && c.total > 0);
+  const campaigns = allCampaigns.filter((c) => inDateRange(campaignWhen(c), range.from, range.to));
+  if (byCampaign && (!filters.campaignId || (rangeKey !== "ALL" && !campaigns.some((c) => c.id === filters.campaignId)))) {
+    filters.campaignId = campaigns[0]?.id ?? "";
+  }
   const campaign = campaigns.find((c) => c.id === filters.campaignId);
   if (byCampaign && campaign && !campaign.askConfirm) filters.campaignAnswer = "ALL";
 
@@ -75,6 +97,7 @@ export default async function BroadcastPage({
     byCard && cards.find((c) => c.id === filters.cardId)?.title,
     byCard && periods.find((p) => p.id === filters.periodId)?.name,
     byCard && CARD_AUDIENCE_LABELS[filters.cardAudience],
+    unredeemed && (periods.find((p) => p.id === filters.periodId)?.name ?? "любой период"),
     byCampaign && campaign && `«${campaign.title}» от ${fmtDushanbe(campaign.sentAt ?? campaign.createdAt)}`,
     byCampaign && CAMPAIGN_ANSWER_LABELS[filters.campaignAnswer],
     !guests && filters.department,
@@ -98,7 +121,7 @@ export default async function BroadcastPage({
               <Field label={t("broadcast.to")} htmlFor="segment">
                 <Select id="segment" name="segment" defaultValue={filters.segment}>
                   {SEGMENTS.map((s) => (
-                    <option key={s} value={s} disabled={s === "BY_CAMPAIGN" && campaigns.length === 0}>
+                    <option key={s} value={s} disabled={s === "BY_CAMPAIGN" && allCampaigns.length === 0}>
                       {t(`broadcast.segment.${s}` as const)}
                     </option>
                   ))}
@@ -140,10 +163,43 @@ export default async function BroadcastPage({
                 </div>
               )}
 
+              {unredeemed && (
+                <div className="grid gap-3 rounded-xl bg-surface-muted p-3">
+                  <Field label="Период купона" htmlFor="periodId">
+                    <Select id="periodId" name="periodId" defaultValue={filters.periodId}>
+                      <option value="">Любой период</option>
+                      {periods.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <p className="text-xs text-ink-muted">
+                    Выдан, ни разу не использован, срок действия не вышел. Купоны с кешбеком не учитываются: они не
+                    «погашаются».
+                  </p>
+                </div>
+              )}
+
               {byCampaign && (
                 <div className="grid gap-3 rounded-xl bg-surface-muted p-3">
+                  <Field label="Показать рассылки за" htmlFor="campaignRange">
+                    <Select id="campaignRange" name="campaignRange" defaultValue={rangeKey}>
+                      {(Object.keys(CAMPAIGN_RANGE_LABELS) as CampaignRangeKey[]).map((k) => (
+                        <option key={k} value={k}>
+                          {CAMPAIGN_RANGE_LABELS[k]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
                   <Field label="Рассылка" htmlFor="campaignId">
                     <Select id="campaignId" name="campaignId" defaultValue={filters.campaignId}>
+                      {campaigns.length === 0 && (
+                        <option value="" disabled>
+                          Нет рассылок за этот период
+                        </option>
+                      )}
                       {campaigns.map((c) => (
                         <option key={c.id} value={c.id}>
                           #{c.seq} · {c.title} · {fmtDushanbe(c.sentAt ?? c.createdAt)}

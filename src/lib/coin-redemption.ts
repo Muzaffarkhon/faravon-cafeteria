@@ -85,7 +85,7 @@ async function fulfillRedemption(redemptionId: string, actorId: string): Promise
 
   try {
     const coupon = await formCouponForItem(item.id, actorId);
-    await issueCouponIfReady(coupon.id, actorId);
+    await issueCouponIfReady(coupon.id, actorId, false, true);
 
     await db.coinRedemption.update({
       where: { id: redemptionId },

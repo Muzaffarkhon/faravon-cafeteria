@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -5,11 +6,13 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { couponStatusLabel, isCouponOverdue } from "@/lib/coupon";
 import { listCouponRegistry, countCouponRegistry, buildCouponFilters, listTaxiRegistryRows } from "@/lib/coupon-registry";
+import { couponColumns, type CouponColKey } from "@/lib/coupon-columns";
+import type { TKey } from "@/lib/i18n/dict";
 import type { PromoStatus } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import type { SmartFilterField } from "@/lib/smart-filter";
+import { filterFields } from "@/lib/smart-filter";
 import {
   Badge,
   EmptyState,
@@ -23,7 +26,19 @@ import { IssueCouponButton, DeleteCouponButton, ForceRedeemCouponButton } from "
 import { BulkIssueProvider, BulkIssueToolbar, CouponSelectCheckbox } from "./_bulk-issue";
 import { fmtDate, fmtDateTimeShort } from "@/lib/dushanbe-date";
 
-const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
+const MODE_KEY = {
+  ONE_TIME: "coupons.mode.ONE_TIME",
+  PERIOD: "coupons.mode.PERIOD",
+  CASHBACK: "coupons.mode.CASHBACK",
+} as const;
+const TYPE_KEY = {
+  PROMO: "coupons.type.PROMO",
+  QR: "coupons.type.QR",
+  PDF: "coupons.type.PDF",
+  PHYSICAL: "coupons.type.PHYSICAL",
+} as const;
+const CHANNEL_KEY = { PORTAL: "coupons.channel.PORTAL" } as const;
+const MODE_TONE: Record<keyof typeof MODE_KEY, BadgeTone> = { ONE_TIME: "neutral", PERIOD: "accent", CASHBACK: "success" };
 
 const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   CREATED: "accent",
@@ -72,25 +87,15 @@ export default async function CouponsPage({
     db.partner.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "number", label: "Номер купона", type: "text" },
-    { key: "employee", label: t("coupons.colEmployee"), type: "text" },
-    { key: "card", label: "Льгота", type: "text" },
-    { key: "partnerName", label: "Партнёр", type: "text" },
-    { key: "validUntil", label: "Действует до", type: "date" },
-    { key: "period", label: t("coupons.colPeriod"), type: "select", options: periods.map((p) => ({ value: p.id, label: p.name })) },
-    { key: "partner", label: t("coupons.allPartners"), type: "select", options: partners.map((p) => ({ value: p.id, label: p.name })) },
-    {
-      key: "status",
-      label: t("coupons.statusLabel"),
-      type: "select",
-      options: COUPON_STATUSES.map((value) => ({ value, label: couponStatusLabel(locale, value) })),
-    },
-  ];
+  const cols = couponColumns({
+    t: (key) => t(key as TKey),
+    statusLabel: (status) => couponStatusLabel(locale, status as Parameters<typeof couponStatusLabel>[1]),
+    periods: periods.map((p) => ({ value: p.id, label: p.name })),
+    partners: partners.map((p) => ({ value: p.id, label: p.name })),
+  });
+  const SMART_FIELDS = filterFields(cols);
   const cf = buildCouponFilters(sp);
-  const { periodId, status, partnerId } = cf;
-
-  const filters = { periodId, status, partnerId, extraWhere: cf.extraWhere };
+  const filters = { extraWhere: cf.extraWhere };
   // Купон не нужен: завершённый период (закрыт / срок вышел) ИЛИ партнёр,
   // работающий по номеру телефона (промокод рассылает подрядчик). Сама
   // очередь формирования купонов вынесена на отдельную страницу
@@ -157,16 +162,11 @@ export default async function CouponsPage({
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th className="w-10" />
-                  <th>{t("coupons.colNumber")}</th>
-                  <th>{t("coupons.colEmployee")}</th>
-                  <th>{t("coupons.colCardPartner")}</th>
-                  <th>{t("coupons.colPeriod")}</th>
-                  <th>{t("coupons.colIssuedAt")}</th>
-                  <th>{t("coupons.colActivatedAt")}</th>
-                  <th>{t("coupons.colValidUntil")}</th>
-                  <th>{t("coupons.colStatus")}</th>
-                  <th className="text-right">{t("coupons.colActions")}</th>
+                  {cols.map((c) => (
+                    <th key={c.key} className={c.className}>
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -175,33 +175,53 @@ export default async function CouponsPage({
                 {page === 1 &&
                   taxiRows.map((r) => {
                     const periodEnded = r.periodEndDate < now;
-                    return (
-                      <tr key={`taxi-${r.itemId}`}>
-                        <td />
+                    const cells: Record<CouponColKey, ReactNode> = {
+                      select: <td />,
+                      number: (
                         <td data-numeric>
                           <div className="font-mono text-sm text-ink">{r.promo ?? "—"}</div>
                           <RowId id={r.itemId} seq={r.seq} className="mt-0.5" />
                         </td>
-                        <td className="text-ink">{r.employee}</td>
+                      ),
+                      employee: <td className="text-ink">{r.employee}</td>,
+                      cardPartner: (
                         <td className="text-ink">
                           {r.cardTitle}
                           <span className="text-ink-subtle"> · {r.partnerName ?? "—"}</span>
                         </td>
+                      ),
+                      condition: <td>—</td>,
+                      mode: <td>—</td>,
+                      type: <td>—</td>,
+                      channel: <td>—</td>,
+                      period: (
                         <td>
                           {r.periodName}
                           {periodEnded && (
                             <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
                           )}
                         </td>
-                        <td>—</td>
-                        <td>—</td>
-                        <td data-numeric>{fmtDate(r.periodEndDate)}</td>
+                      ),
+                      createdAt: <td>—</td>,
+                      issuedAt: <td>—</td>,
+                      activatedAt: <td>—</td>,
+                      validUntil: <td data-numeric>{fmtDate(r.periodEndDate)}</td>,
+                      status: (
                         <td>
                           <Badge tone={TAXI_STATUS_TONE[r.promoStatus]}>{t(TAXI_STATUS_KEY[r.promoStatus])}</Badge>
                         </td>
+                      ),
+                      actions: (
                         <td className="text-right">
                           <span className="text-xs text-ink-subtle">{t("coupons.byPhone")}</span>
                         </td>
+                      ),
+                    };
+                    return (
+                      <tr key={`taxi-${r.itemId}`}>
+                        {cols.map((c) => (
+                          <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                        ))}
                       </tr>
                     );
                   })}
@@ -211,38 +231,87 @@ export default async function CouponsPage({
                   const periodEnded = c.period.endDate < now;
                   const phonePromo = c.partner?.deliveryMode === "PHONE_PROMO";
                   const bulkEligible = c.status === "CREATED" && !phonePromo && !overdue;
-                  return (
-                    <tr key={c.id}>
-                      <td>{bulkEligible && <CouponSelectCheckbox couponId={c.id} />}</td>
+                  const cells: Record<CouponColKey, ReactNode> = {
+                    select: <td>{bulkEligible && <CouponSelectCheckbox couponId={c.id} />}</td>,
+                    number: (
                       <td data-numeric>
                         <div className="font-mono text-sm text-ink">{c.number}</div>
                         <RowId id={c.id} seq={c.seq} className="mt-0.5" />
                       </td>
-                      <td className="text-ink">{c.employee.fullName}</td>
+                    ),
+                    employee: (
+                      <td className="text-ink">
+                        {c.employee.fullName}
+                        {c.employee.department && <div className="text-xs text-ink-subtle">{c.employee.department}</div>}
+                      </td>
+                    ),
+                    cardPartner: (
                       <td className="text-ink">
                         {c.item.card.title}
                         <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                       </td>
+                    ),
+                    condition: (
+                      <td className="max-w-[16rem]">
+                        {c.nominal ? (
+                          <span className="line-clamp-2 text-sm text-ink-muted" title={c.nominal}>
+                            {c.nominal}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ),
+                    mode: (
+                      <td className="whitespace-nowrap">
+                        <Badge tone={MODE_TONE[c.benefitMode]}>
+                          {t(MODE_KEY[c.benefitMode])}
+                          {c.benefitMode === "CASHBACK" && c.cashbackPercent != null ? ` ${c.cashbackPercent}%` : ""}
+                        </Badge>
+                      </td>
+                    ),
+                    type: (
+                      <td className="whitespace-nowrap">
+                        {c.type in TYPE_KEY ? t(TYPE_KEY[c.type as keyof typeof TYPE_KEY]) : c.type}
+                      </td>
+                    ),
+                    channel: (
+                      <td className="whitespace-nowrap">
+                        {c.deliveryChannel in CHANNEL_KEY ? t(CHANNEL_KEY[c.deliveryChannel as keyof typeof CHANNEL_KEY]) : c.deliveryChannel}
+                      </td>
+                    ),
+                    period: (
                       <td>
                         {c.period.name}
                         {periodEnded && (
                           <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
                         )}
                       </td>
+                    ),
+                    createdAt: (
+                      <td data-numeric className="whitespace-nowrap">
+                        {fmtDateTimeShort(c.createdAt)}
+                      </td>
+                    ),
+                    issuedAt: (
                       <td data-numeric className="whitespace-nowrap">
                         {c.issuedAt ? fmtDateTimeShort(c.issuedAt) : "—"}
                       </td>
+                    ),
+                    activatedAt: (
                       <td data-numeric className="whitespace-nowrap">
                         {c.activatedAt ? fmtDateTimeShort(c.activatedAt) : "—"}
                       </td>
-                      <td data-numeric>
-                        {c.validUntil ? fmtDate(c.validUntil) : "—"}
-                      </td>
+                    ),
+                    validUntil: <td data-numeric>{c.validUntil ? fmtDate(c.validUntil) : "—"}</td>,
+                    status: (
                       <td>
                         <Badge tone={COUPON_STATUS_TONE[displayStatus] ?? "neutral"}>
                           {couponStatusLabel(locale, displayStatus)}
                         </Badge>
                       </td>
+                    ),
+                    actions: (
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {c.status === "CREATED" &&
@@ -259,6 +328,13 @@ export default async function CouponsPage({
                           <DeleteCouponButton couponId={c.id} couponNumber={c.number} locale={locale} />
                         </div>
                       </td>
+                    ),
+                  };
+                  return (
+                    <tr key={c.id}>
+                      {cols.map((col) => (
+                        <Fragment key={col.key}>{cells[col.key]}</Fragment>
+                      ))}
                     </tr>
                   );
                 })}

@@ -9,6 +9,7 @@ import { Badge, Button, Card, EmptyState, Table, buttonClass, cx, type BadgeTone
 import { openChatWithUser } from "../../support/actions";
 import { AnswersBar, followUpHref } from "../_parts";
 import { CancelScheduledButton } from "../_cancel-button";
+import { DeleteBroadcastButton } from "../_delete-button";
 
 const FILTERS = ["ALL", "YES", "NO", "NONE", "UNDELIVERED"] as const;
 type RowFilter = (typeof FILTERS)[number];
@@ -89,6 +90,7 @@ export default async function BroadcastCampaignPage({
             {campaign.segment && <span>· {SEGMENT_LABELS[campaign.segment as Segment]}</span>}
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
         {scheduled ? (
           <CancelScheduledButton id={campaign.id} title={campaign.title} />
         ) : (
@@ -101,6 +103,10 @@ export default async function BroadcastCampaignPage({
             </a>
           )
         )}
+        {campaign.status !== "SENDING" && (
+          <DeleteBroadcastButton id={campaign.id} title={campaign.title} redirectTo="/admin/broadcast/history" />
+        )}
+        </div>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">

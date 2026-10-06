@@ -163,6 +163,21 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
     });
   }
 
+  if (f.segment === "UNREDEEMED_COUPON") {
+    // Выдан, ещё ни разу не использован, срок не вышел. Кешбек-купоны не «погашаются» — их не берём.
+    and.push({
+      coupons: {
+        some: {
+          status: "ISSUED",
+          activatedAt: null,
+          benefitMode: { not: "CASHBACK" },
+          OR: [{ validUntil: null }, { validUntil: { gte: new Date() } }],
+          ...(f.periodId ? { periodId: f.periodId } : {}),
+        },
+      },
+    });
+  }
+
   if (f.segment === "BY_CAMPAIGN") {
     if (!f.campaignId) return empty("Выберите рассылку.");
     const answer: Record<CampaignAnswer, Prisma.BroadcastRecipientWhereInput> = {
