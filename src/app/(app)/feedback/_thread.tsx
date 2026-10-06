@@ -8,6 +8,7 @@ import type { Locale } from "@/lib/i18n/shared";
 import { deletePhotoInOwnThread, replyInOwnThread } from "./actions";
 import { SUPPORT_PHOTO_ACCEPT, clipboardImage, sendSupportPhoto } from "@/lib/support-photo-client";
 import { fmtDateTime } from "@/lib/dushanbe-date";
+import { PhotoLightbox } from "@/components/photo-lightbox";
 
 export type OwnThreadMsg = {
   id: string;
@@ -39,6 +40,7 @@ export function OwnThread({
   const router = useRouter();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function pickPhoto(file: File | null) {
@@ -79,6 +81,7 @@ export function OwnThread({
 
   return (
     <div className="space-y-3 rounded-2xl bg-surface p-4 shadow-sm">
+      <PhotoLightbox src={zoom} onClose={() => setZoom(null)} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold text-ink">{topic || t("feedback.noTopic")}</div>
         <Badge tone={status === "CLOSED" ? "neutral" : "success"}>
@@ -107,10 +110,10 @@ export function OwnThread({
               )}
               {m.image && (
                 <div className="group relative mb-1">
-                  <a href={m.image} target="_blank" rel="noopener noreferrer" className="block">
+                  <button type="button" onClick={() => setZoom(m.image)} className="block w-full cursor-zoom-in">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.image} alt="" loading="lazy" className="max-h-64 w-full rounded-xl object-cover" />
-                  </a>
+                  </button>
                   <button
                     type="button"
                     onClick={() => deletePhoto(m.id)}

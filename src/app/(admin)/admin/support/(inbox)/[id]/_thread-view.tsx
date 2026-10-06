@@ -19,6 +19,7 @@ import {
 import { SUPPORT_PHOTO_ACCEPT, clipboardImage, sendSupportPhoto } from "@/lib/support-photo-client";
 import type { EmployeeMatch } from "../../actions";
 import { fmtDateTime } from "@/lib/dushanbe-date";
+import { PhotoLightbox } from "@/components/photo-lightbox";
 
 export type Msg = {
   id: string;
@@ -224,6 +225,7 @@ export function ThreadView({
   const [purgeId, setPurgeId] = useState<string | null>(null);
   const [purgePending, startPurge] = useTransition();
   const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
   const [couponNote, setCouponNote] = useState<string | null>(null);
   const [resending, startResend] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -424,17 +426,18 @@ export function ThreadView({
           </div>
         </div>
         {coupons.length > 0 && (
-          <div className="rounded-xl border border-line bg-surface-muted/50 px-3 py-2">
+          <div className="rounded-xl border border-primary/25 bg-primary-soft px-3 py-2">
             <button
               type="button"
               onClick={() => setCouponsOpen((v) => !v)}
               aria-expanded={couponsOpen}
-              className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-ink"
+              className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-primary-strong"
             >
-              <span>
-                {t("support.activeCoupons")} · {coupons.length}
+              <span className="flex items-center gap-2">
+                🎟️ {t("support.activeCoupons")}
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold leading-none text-on-brand tabular-nums">{coupons.length}</span>
               </span>
-              <span aria-hidden="true" className={cx("transition-transform", couponsOpen && "rotate-180")}>
+              <span aria-hidden="true" className={cx("text-base leading-none transition-transform", couponsOpen && "rotate-180")}>
                 ⌄
               </span>
             </button>
@@ -528,6 +531,8 @@ export function ThreadView({
         onClose={() => !deletePending && setDeleteOpen(false)}
       />
 
+      <PhotoLightbox src={zoom} onClose={() => setZoom(null)} />
+
       <ConfirmDialog
         open={purgeId !== null}
         title={t("support.purgePhotoTitle")}
@@ -618,10 +623,10 @@ export function ThreadView({
                     </div>
                   )}
                   {m.image && (
-                    <a href={m.image} target="_blank" rel="noopener noreferrer" className="mb-1 block">
+                    <button type="button" onClick={() => setZoom(m.image)} className="mb-1 block w-full cursor-zoom-in">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={m.image} alt="" loading="lazy" className="max-h-72 w-full rounded-xl object-cover" />
-                    </a>
+                    </button>
                   )}
                   {m.body && <p className="whitespace-pre-line">{m.body}</p>}
                   <p
