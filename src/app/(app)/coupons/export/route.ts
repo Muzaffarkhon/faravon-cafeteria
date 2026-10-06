@@ -18,7 +18,6 @@ const TAXI_STATUS_LABELS: Record<PromoStatus, string> = {
 
 const MODE_LABELS: Record<BenefitMode, string> = { ONE_TIME: "Одноразовый", PERIOD: "Многоразовый", CASHBACK: "Кешбек" };
 const CHANNEL_LABELS: Record<string, string> = { PORTAL: "Портал" };
-const TYPE_LABELS: Record<string, string> = { PROMO: "Промокод", QR: "QR-код", PDF: "PDF", PHYSICAL: "Физический" };
 
 const d = (v: Date | null | undefined) => (v ? dushanbeIsoDate(v) : "");
 const dt = (v: Date | null | undefined) =>
@@ -41,13 +40,14 @@ export async function GET(req: NextRequest) {
   wb.creator = "Кафетерий льгот «Фаровон»";
   const ws = wb.addWorksheet("Купоны");
   ws.columns = [
+    { header: "ID", key: "seq", width: 8 },
     { header: "Номер", key: "number", width: 20 },
     { header: "Сотрудник", key: "employee", width: 28 },
     { header: "Подразделение", key: "dept", width: 24 },
     { header: "Льгота", key: "card", width: 36 },
     { header: "Партнёр", key: "partner", width: 28 },
     { header: "Период", key: "period", width: 18 },
-    { header: "Тип", key: "type", width: 14 },
+    { header: "Выдача", key: "type", width: 22 },
     { header: "Вид использования", key: "mode", width: 18 },
     { header: "Кешбек, %", key: "cashback", width: 11 },
     { header: "Канал доставки", key: "channel", width: 16 },
@@ -67,13 +67,14 @@ export async function GET(req: NextRequest) {
 
   for (const c of coupons) {
     ws.addRow({
+      seq: c.seq,
       number: c.number,
       employee: c.employee.fullName,
       dept: c.employee.department,
       card: c.item.card.title,
       partner: c.partner?.name ?? "",
       period: c.period.name,
-      type: TYPE_LABELS[c.type] ?? c.type,
+      type: c.partner?.deliveryMode === "PHONE_PROMO" ? "По номеру телефона" : "По QR-купону",
       mode: MODE_LABELS[c.benefitMode],
       channel: CHANNEL_LABELS[c.deliveryChannel] ?? c.deliveryChannel,
       cashback: c.benefitMode === "CASHBACK" ? (c.cashbackPercent ?? "") : "",
@@ -87,18 +88,19 @@ export async function GET(req: NextRequest) {
   }
   for (const r of taxiRows) {
     ws.addRow({
+      seq: r.seq,
       number: r.promo ?? "",
       employee: r.employee,
       card: r.cardTitle,
       partner: r.partnerName ?? "",
       period: r.periodName,
-      type: "По телефону",
+      type: "По номеру телефона",
       status: TAXI_STATUS_LABELS[r.promoStatus],
       issued: d(r.decidedAt),
       valid: d(r.periodEndDate),
     });
   }
-  ws.autoFilter = { from: "A1", to: "P1" };
+  ws.autoFilter = { from: "A1", to: "Q1" };
 
   const buffer = await wb.xlsx.writeBuffer();
 

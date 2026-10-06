@@ -31,12 +31,6 @@ const MODE_KEY = {
   PERIOD: "coupons.mode.PERIOD",
   CASHBACK: "coupons.mode.CASHBACK",
 } as const;
-const TYPE_KEY = {
-  PROMO: "coupons.type.PROMO",
-  QR: "coupons.type.QR",
-  PDF: "coupons.type.PDF",
-  PHYSICAL: "coupons.type.PHYSICAL",
-} as const;
 const CHANNEL_KEY = { PORTAL: "coupons.channel.PORTAL" } as const;
 const MODE_TONE: Record<keyof typeof MODE_KEY, BadgeTone> = { ONE_TIME: "neutral", PERIOD: "accent", CASHBACK: "success" };
 
@@ -48,7 +42,7 @@ const COUPON_STATUS_TONE: Record<string, BadgeTone> = {
   CANCELLED: "muted",
 };
 
-// PHONE_PROMO (такси) не формирует Coupon — у промокода свой статус
+// PHONE_PROMO (промокод по телефону: такси и любые другие партнёры) не формирует Coupon — у промокода свой статус
 // доставки, не совпадающий с жизненным циклом купона (см. lib/taxi.ts).
 const TAXI_STATUS_TONE: Record<PromoStatus, BadgeTone> = {
   NONE: "neutral",
@@ -170,32 +164,36 @@ export default async function CouponsPage({
                 </tr>
               </thead>
               <tbody>
-                {/* PHONE_PROMO (такси) не заводит Coupon — показываем только на 1-й
+                {/* PHONE_PROMO (промокод по телефону) не заводит Coupon — показываем только на 1-й
                     странице, отдельно от пагинации по реальным купонам (см. выше). */}
                 {page === 1 &&
                   taxiRows.map((r) => {
                     const periodEnded = r.periodEndDate < now;
                     const cells: Record<CouponColKey, ReactNode> = {
                       select: <td />,
-                      number: (
-                        <td data-numeric>
-                          <div className="font-mono text-sm text-ink">{r.promo ?? "—"}</div>
-                          <RowId id={r.itemId} seq={r.seq} className="mt-0.5" />
+                      id: (
+                        <td data-numeric className="whitespace-nowrap">
+                          <RowId id={r.itemId} seq={r.seq} />
                         </td>
                       ),
-                      employee: <td className="text-ink">{r.employee}</td>,
+                      number: (
+                        <td data-numeric className="whitespace-nowrap">
+                          <span className="font-mono text-sm text-ink">{r.promo ?? "—"}</span>
+                        </td>
+                      ),
+                      employee: <td className="whitespace-nowrap text-ink">{r.employee}</td>,
                       cardPartner: (
-                        <td className="text-ink">
+                        <td className="whitespace-nowrap text-ink">
                           {r.cardTitle}
                           <span className="text-ink-subtle"> · {r.partnerName ?? "—"}</span>
                         </td>
                       ),
                       condition: <td>—</td>,
                       mode: <td>—</td>,
-                      type: <td>—</td>,
+                      delivery: <td className="whitespace-nowrap">{t("partners.byPhone")}</td>,
                       channel: <td>—</td>,
                       period: (
-                        <td>
+                        <td className="whitespace-nowrap">
                           {r.periodName}
                           {periodEnded && (
                             <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>
@@ -233,20 +231,24 @@ export default async function CouponsPage({
                   const bulkEligible = c.status === "CREATED" && !phonePromo && !overdue;
                   const cells: Record<CouponColKey, ReactNode> = {
                     select: <td>{bulkEligible && <CouponSelectCheckbox couponId={c.id} />}</td>,
+                    id: (
+                      <td data-numeric className="whitespace-nowrap">
+                        <RowId id={c.id} seq={c.seq} />
+                      </td>
+                    ),
                     number: (
-                      <td data-numeric>
-                        <div className="font-mono text-sm text-ink">{c.number}</div>
-                        <RowId id={c.id} seq={c.seq} className="mt-0.5" />
+                      <td data-numeric className="whitespace-nowrap">
+                        <span className="font-mono text-sm text-ink">{c.number}</span>
                       </td>
                     ),
                     employee: (
-                      <td className="text-ink">
+                      <td className="whitespace-nowrap text-ink">
                         {c.employee.fullName}
                         {c.employee.department && <div className="text-xs text-ink-subtle">{c.employee.department}</div>}
                       </td>
                     ),
                     cardPartner: (
-                      <td className="text-ink">
+                      <td className="whitespace-nowrap text-ink">
                         {c.item.card.title}
                         <span className="text-ink-subtle"> · {c.partner?.name ?? "—"}</span>
                       </td>
@@ -270,9 +272,9 @@ export default async function CouponsPage({
                         </Badge>
                       </td>
                     ),
-                    type: (
+                    delivery: (
                       <td className="whitespace-nowrap">
-                        {c.type in TYPE_KEY ? t(TYPE_KEY[c.type as keyof typeof TYPE_KEY]) : c.type}
+                        {c.partner?.deliveryMode === "PHONE_PROMO" ? t("partners.byPhone") : t("partners.byQr")}
                       </td>
                     ),
                     channel: (
@@ -281,7 +283,7 @@ export default async function CouponsPage({
                       </td>
                     ),
                     period: (
-                      <td>
+                      <td className="whitespace-nowrap">
                         {c.period.name}
                         {periodEnded && (
                           <span className="ml-1.5 text-xs font-semibold text-warning-strong">{t("coupons.periodEnded")}</span>

@@ -4,15 +4,16 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { EmptyState, PageHeader, buttonClass } from "@/components/ui";
-import { businessDaysAgo, isSlaBreached } from "@/lib/business-days";
+import { isSlaBreached } from "@/lib/business-days";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields, parseSmartFilterParams, type SmartFilterField } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { SLA_DAYS, reviewColumns } from "./_columns";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { ReviewTable, type ReviewRow } from "./_table";
 
 const PAGE_SIZE = 25;
-const SLA_DAYS = 5; // §5.12: рабочих дней
 
 type SP = { page?: string; [key: string]: string | undefined };
 
@@ -48,75 +49,29 @@ export default async function ReviewPage({
   // Единый умный фильтр — заменяет прежнюю строку из отдельных полей/чипов
   // (ФИО, подразделение, период, льгота, порядок, SLA): один видимый контрол
   // «Фильтры», всё остальное — внутри его панели.
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "employee", label: "ФИО сотрудника", type: "text" },
-    {
-      key: "department",
-      label: "Подразделение",
-      type: "select",
-      options: departments.map((d) => ({ value: d.department, label: d.department })),
-    },
-    { key: "period", label: "Период", type: "select", options: periods.map((p) => ({ value: p.id, label: p.name })) },
-    { key: "card", label: "Льгота", type: "select", options: cards.map((c) => ({ value: c.id, label: c.title })) },
-    {
-      key: "sort",
-      label: "Порядок",
-      type: "select",
-      options: [
-        { value: "oldest", label: t("review.sortOldest") },
-        { value: "newest", label: t("review.sortNewest") },
-        { value: "employee", label: t("review.sortByEmployee") },
-      ],
-    },
-    {
-      key: "overdue",
-      label: t("review.slaLabel"),
-      type: "select",
-      options: [{ value: "1", label: t("review.overdueOnly") }],
-    },
-    { key: "phone", label: "Телефон сотрудника", type: "text" },
-    { key: "partner", label: "Партнёр", type: "text" },
-    { key: "condition", label: "Условие льготы", type: "text" },
-    { key: "submittedAt", label: "Дата подачи", type: "date" },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-
-  const dept = smartValues.department?.v ?? "";
-  const period = smartValues.period?.v ?? "";
-  const card = smartValues.card?.v ?? "";
-  const sortRaw = smartValues.sort?.v;
+  const cols = reviewColumns({
+    t: (key) => t(key as TKey),
+    departments: departments.map((d) => ({ value: d.department, label: d.department })),
+    periods: periods.map((p) => ({ value: p.id, label: p.name })),
+    cards: cards.map((c) => ({ value: c.id, label: c.title })),
+  });
+  // «Порядок» — не условие отбора, а сортировка: в колонках его нет.
+  const SORT_FIELD: SmartFilterField = {
+    key: "sort",
+    label: "Порядок",
+    type: "select",
+    options: [
+      { value: "oldest", label: t("review.sortOldest") },
+      { value: "newest", label: t("review.sortNewest") },
+      { value: "employee", label: t("review.sortByEmployee") },
+    ],
+  };
+  const SMART_FIELDS = [...filterFields(cols), SORT_FIELD];
+  const sortRaw = parseSmartFilterParams(sp, [SORT_FIELD]).sort?.v;
   const sort = sortRaw === "newest" || sortRaw === "employee" ? sortRaw : "oldest";
-  const overdue = smartValues.overdue?.v === "1";
-
-  const nameF = stringFilter(smartValues.employee);
-  const appFilter: Prisma.ApplicationWhereInput = {};
-  if (period) appFilter.periodId = period;
-  if (dept || nameF) {
-    appFilter.employee = {
-      is: {
-        ...(dept ? { department: dept } : {}),
-        ...(nameF ? { fullName: nameF } : {}),
-      },
-    };
-  }
-
-  const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
-  const phoneF = stringFilter(smartValues.phone);
-  if (phoneF) smartFilters.push({ application: { is: { employee: { is: { phone: phoneF } } } } });
-  const partnerF = stringFilter(smartValues.partner);
-  if (partnerF) smartFilters.push({ card: { is: { partner: { is: { name: partnerF } } } } });
-  const conditionF = stringFilter(smartValues.condition);
-  if (conditionF) smartFilters.push({ card: { is: { condition: conditionF } } });
-  const submittedAtF = dateFilter(smartValues.submittedAt);
-  if (submittedAtF) smartFilters.push({ submittedAt: submittedAtF });
 
   const q = (sp.q ?? "").trim();
-  const where: Prisma.ApplicationItemWhereInput = { status: "PENDING" };
-  if (Object.keys(appFilter).length) where.application = { is: appFilter };
-  if (card) where.cardId = card;
-  const slaCutoff = businessDaysAgo(SLA_DAYS);
-  if (overdue) where.submittedAt = { lt: slaCutoff };
-  if (smartFilters.length) where.AND = smartFilters;
+  const where: Prisma.ApplicationItemWhereInput = { status: "PENDING", AND: columnWhere(sp, cols) };
   if (q) {
     where.OR = [
       { application: { is: { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } } } },

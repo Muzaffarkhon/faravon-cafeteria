@@ -102,6 +102,8 @@ export type CampaignSummary = {
   scheduledAt: Date | null;
   status: BroadcastStatus;
   segment: string | null;
+  /** Льгота, по которой отправлена рассылка (если была воронка по льготе). */
+  cardId: string | null;
   askConfirm: boolean;
   author: string;
   /** Сотрудники (строки получателей) + «гости», которым ушло напрямую. */
@@ -129,6 +131,7 @@ export async function loadCampaignList(take = 100): Promise<CampaignSummary[]> {
       scheduledAt: true,
       status: true,
       segment: true,
+      cardId: true,
       askConfirm: true,
       createdById: true,
       guestSent: true,

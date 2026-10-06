@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
     newValue: { count: recipients.length },
   });
 
-  const filename = `Номера_${(partner.name || "такси").replace(/\s+/g, "_")}.xlsx`;
+  const filename = `Номера_${(partner.name || "промокоды").replace(/\s+/g, "_")}.xlsx`;
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

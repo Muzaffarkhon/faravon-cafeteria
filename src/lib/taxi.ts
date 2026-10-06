@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { flushTelegram } from "@/lib/notify";
 import { normalizePhone } from "@/lib/phone";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere } from "@/lib/smart-filter";
+import { taxiColumns } from "@/lib/taxi-columns";
 
 /**
  * Поток «такси» (§4, §5, §11): у партнёра deliveryMode = PHONE_PROMO.
@@ -75,36 +76,10 @@ async function latestTaxiPromoByItem(employeeIds: string[]) {
  * Одобренные позиции по PHONE_PROMO-льготам партнёра в незакрытых периодах.
  * `extraWhere` — доп. условия «умного фильтра» (см. components/smart-filter.tsx), AND'ятся с остальными.
  */
-const TAXI_FILTER_FIELDS: SmartFilterField[] = [
-  { key: "employee", label: "", type: "text" },
-  { key: "department", label: "", type: "text" },
-  { key: "phone", label: "", type: "text" },
-  { key: "card", label: "", type: "text" },
-  { key: "period", label: "", type: "text" },
-  { key: "approvedAt", label: "", type: "date" },
-];
-
 /** Строит фильтр из query-параметров /provider/taxi — общее для самой страницы и
  *  её /provider/taxi/export, чтобы выгрузка всегда отражала то, что видно в таблице. */
 export function buildTaxiSmartFilters(sp: Record<string, string | undefined>): Prisma.ApplicationItemWhereInput[] {
-  const smartValues = parseSmartFilterParams(sp, TAXI_FILTER_FIELDS);
-  const smartFilters: Prisma.ApplicationItemWhereInput[] = [];
-  const employeeF = stringFilter(smartValues.employee);
-  if (employeeF) smartFilters.push({ application: { is: { employee: { is: { fullName: employeeF } } } } });
-  const departmentF = stringFilter(smartValues.department);
-  if (departmentF) smartFilters.push({ application: { is: { employee: { is: { department: departmentF } } } } });
-  const phoneF = stringFilter(smartValues.phone);
-  if (phoneF) {
-    smartFilters.push({
-      OR: [{ contactPhone: phoneF }, { application: { is: { employee: { is: { phone: phoneF } } } } }],
-    });
-  }
-  const cardF = stringFilter(smartValues.card);
-  if (cardF) smartFilters.push({ card: { is: { title: cardF } } });
-  const periodF = stringFilter(smartValues.period);
-  if (periodF) smartFilters.push({ application: { is: { period: { is: { name: periodF } } } } });
-  const approvedAtF = dateFilter(smartValues.approvedAt);
-  if (approvedAtF) smartFilters.push({ decidedAt: approvedAtF });
+  const smartFilters: Prisma.ApplicationItemWhereInput[] = columnWhere(sp, taxiColumns());
   const q = (sp.q ?? "").trim();
   if (q) {
     smartFilters.push({

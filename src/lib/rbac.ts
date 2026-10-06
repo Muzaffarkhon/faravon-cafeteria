@@ -94,7 +94,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "applications.decide": "Согласование заявок",
   "coupons.manage": "Формирование и выдача купонов",
   "coupons.confirm": "Активация купонов (подрядчик)",
-  "promo.broadcast": "Рассылка промокодов (подрядчик такси)",
+  "promo.broadcast": "Рассылка промокодов (партнёр с выдачей по телефону)",
   "feedback.manage": "Обработка обратной связи",
   "reports.view": "Отчёты и аналитика",
   "users.manage": "Пользователи и роли",

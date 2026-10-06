@@ -1,19 +1,19 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { PartnerStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { partnerStatusLabel } from "@/lib/labels";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { partnerColumns, type PartnerColKey } from "./_columns";
 import { Badge, RowId, Table, buttonClass, type BadgeTone } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { DeletePartnerButton } from "./_delete-button";
-
-const PARTNER_STATUSES: PartnerStatus[] = ["ACTIVE", "SOON", "ARCHIVED"];
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   ACTIVE: "success",
@@ -34,34 +34,11 @@ export default async function PartnersPage({
 
   const sp = await searchParams;
 
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "name", label: "Название", type: "text" },
-    { key: "category", label: "Категория", type: "text" },
-    { key: "discountType", label: "Скидка", type: "text" },
-    { key: "contractorLogin", label: "Логин учётки контрагента", type: "text" },
-    {
-      key: "status",
-      label: t("partners.statusLabel"),
-      type: "select",
-      options: PARTNER_STATUSES.map((s) => ({ value: s, label: partnerStatusLabel(locale, s) })),
-    },
-    {
-      key: "mode",
-      label: t("partners.deliveryLabel"),
-      type: "select",
-      options: [
-        { value: "QR", label: t("partners.byQr") },
-        { value: "PHONE_PROMO", label: t("partners.byPhone") },
-      ],
-    },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const status = PARTNER_STATUSES.find((s) => s === smartValues.status?.v);
-  const mode = (["QR", "PHONE_PROMO"] as const).find((m) => m === smartValues.mode?.v);
-  const nameF = stringFilter(smartValues.name);
-  const categoryF = stringFilter(smartValues.category);
-  const discountF = stringFilter(smartValues.discountType);
-  const contractorLoginF = stringFilter(smartValues.contractorLogin);
+  const cols = partnerColumns({
+    t: (key) => t(key as TKey),
+    statusLabel: (status) => partnerStatusLabel(locale, status as Parameters<typeof partnerStatusLabel>[1]),
+  });
+  const SMART_FIELDS = filterFields(cols);
   const q = (sp.q ?? "").trim();
 
   const partners = await db.partner.findMany({
@@ -75,12 +52,7 @@ export default async function PartnersPage({
             ],
           }
         : {}),
-      ...(status ? { status } : {}),
-      ...(mode ? { deliveryMode: mode } : {}),
-      ...(nameF ? { name: nameF } : {}),
-      ...(categoryF ? { category: categoryF } : {}),
-      ...(discountF ? { discountType: discountF } : {}),
-      ...(contractorLoginF ? { serviceUsers: { some: { login: contractorLoginF } } } : {}),
+      AND: columnWhere(sp, cols),
     },
     include: {
       _count: { select: { cards: true } },
@@ -116,66 +88,72 @@ export default async function PartnersPage({
         <Table stickyHeader>
           <thead>
             <tr>
-              <th>{t("partners.colId")}</th>
-              <th>{t("partners.colName")}</th>
-              <th>{t("partners.colContractorAccount")}</th>
-              <th>{t("partners.colCategory")}</th>
-              <th>{t("partners.colDiscount")}</th>
-              <th>{t("partners.colCards")}</th>
-              <th>{t("partners.colStatus")}</th>
-              <th>{t("partners.colLastEdit")}</th>
-              <th className="text-right">{t("partners.colActions")}</th>
+              {cols.map((c) => (
+                <th key={c.key} className={c.className}>
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {partners.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <RowId id={p.id} seq={p.seq} />
-                </td>
-                <td className="font-medium text-ink">{p.name}</td>
-                <td>
-                  {p.serviceUsers.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {p.serviceUsers.map((u) => (
-                        <Badge key={u.id} tone={u.isActive ? "success" : "warning"}>
-                          {u.login} {!u.isActive && t("partners.disabledShort")}
-                        </Badge>
-                      ))}
+            {partners.map((p) => {
+              const cells: Record<PartnerColKey, ReactNode> = {
+                id: (
+                  <td>
+                    <RowId id={p.id} seq={p.seq} />
+                  </td>
+                ),
+                name: <td className="font-medium text-ink">{p.name}</td>,
+                contractor: (
+                  <td>
+                    {p.serviceUsers.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {p.serviceUsers.map((u) => (
+                          <Badge key={u.id} tone={u.isActive ? "success" : "warning"}>
+                            {u.login} {!u.isActive && t("partners.disabledShort")}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <Link href={`/admin/partners/${p.id}`} className="text-xs text-primary hover:underline font-medium">
+                        {t("partners.createShort")}
+                      </Link>
+                    )}
+                  </td>
+                ),
+                category: <td>{p.category ?? "—"}</td>,
+                discount: <td>{p.discountType ?? "—"}</td>,
+                cards: <td>{p._count.cards}</td>,
+                mode: <td>{p.deliveryMode === "PHONE_PROMO" ? t("partners.byPhone") : t("partners.byQr")}</td>,
+                status: (
+                  <td>
+                    <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>{partnerStatusLabel(locale, p.status)}</Badge>
+                  </td>
+                ),
+                lastEdit: (
+                  <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
+                    {formatLastEdit(lastEdits.get(p.id), p.updatedAt)}
+                  </td>
+                ),
+                actions: (
+                  <td>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/admin/partners/${p.id}`} className={buttonClass({ variant: "secondary", size: "sm" })}>
+                        {t("partners.edit")}
+                      </Link>
+                      <DeletePartnerButton id={p.id} name={p.name} locale={locale} />
                     </div>
-                  ) : (
-                    <Link
-                      href={`/admin/partners/${p.id}`}
-                      className="text-xs text-primary hover:underline font-medium"
-                    >
-                      {t("partners.createShort")}
-                    </Link>
-                  )}
-                </td>
-                <td>{p.category ?? "—"}</td>
-                <td>{p.discountType ?? "—"}</td>
-                <td>{p._count.cards}</td>
-                <td>
-                  <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
-                    {partnerStatusLabel(locale, p.status)}
-                  </Badge>
-                </td>
-                <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {formatLastEdit(lastEdits.get(p.id), p.updatedAt)}
-                </td>
-                <td>
-                  <div className="flex items-center justify-end gap-2">
-                    <Link
-                      href={`/admin/partners/${p.id}`}
-                      className={buttonClass({ variant: "secondary", size: "sm" })}
-                    >
-                      {t("partners.edit")}
-                    </Link>
-                    <DeletePartnerButton id={p.id} name={p.name} locale={locale} />
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                ),
+              };
+              return (
+                <tr key={p.id}>
+                  {cols.map((c) => (
+                    <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </div>

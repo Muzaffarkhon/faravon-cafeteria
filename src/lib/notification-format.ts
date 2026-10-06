@@ -57,7 +57,7 @@ export const NOTIFICATION_LABELS: Record<string, string> = {
   COUPON_CONFIRMED_BY_PROVIDER: "Купон активирован у партнёра",
   WINDOW_OPEN: "Открыто окно выбора льгот",
   WINDOW_CLOSING: "Окно выбора скоро закроется",
-  TAXI_REQUEST_APPROVED: "Одобрена заявка на такси",
+  TAXI_REQUEST_APPROVED: "Одобрена заявка (промокод по телефону)",
   TAXI_APPROVED_EMPLOYEE: "Поездка одобрена — ждите промокод",
   TAXI_PROMO_CODE: "Промокод на поездку",
   DAILY_DIGEST: "Ежедневный отчёт по заявкам",

@@ -52,18 +52,24 @@ export function countCouponRegistry(f: CouponFilters) {
 
 export type CouponRegistryRow = Awaited<ReturnType<typeof listCouponRegistry>>[number];
 
-/** Строки такси (PHONE_PROMO — без Coupon), видимые в реестре /coupons при этих фильтрах.
+/** Строки «по номеру телефона» (PHONE_PROMO — без Coupon: такси и другие партнёры с промокодами), видимые в реестре /coupons при этих фильтрах.
  *  Общее для страницы и выгрузки: иначе такси-строки были в таблице, а файл выходил пустым. */
 export async function listTaxiRegistryRows(cf: ReturnType<typeof buildCouponFilters>) {
   if (cf.hasCouponOnlyFilters) return [];
+  // Эти строки — всегда «по номеру телефона»: фильтр «Выдача = по QR» их скрывает.
+  const d = cf.delivery;
+  if (d?.v) {
+    const phone = d.op === "notContains" ? d.v !== "PHONE_PROMO" : d.v === "PHONE_PROMO";
+    if (!phone) return [];
+  }
   const rows = await taxiRegistryRows({ periodId: cf.periodId, partnerId: cf.partnerId, employeeQuery: cf.employeeQuery });
   const q = cf.q.toLowerCase();
   if (!q) return rows;
   return rows.filter((r) => `${r.employee} ${r.cardTitle} ${r.partnerName ?? ""}`.toLowerCase().includes(q));
 }
 
-/** Фильтры, которые применимы и к строкам такси; любой другой (в т.ч. новый) скрывает такси-строки. */
-const TAXI_COMPATIBLE_FILTERS = ["employee", "period", "partner"];
+/** Фильтры, которые применимы и к строкам «по номеру телефона»; любой другой (в т.ч. новый) скрывает эти строки. */
+const TAXI_COMPATIBLE_FILTERS = ["employee", "period", "partner", "delivery"];
 
 /** Строит CouponFilters из query-параметров страницы /coupons — общее для самой
  *  страницы и её /coupons/export, чтобы выгрузка всегда отражала то, что видно в таблице. */
@@ -82,6 +88,8 @@ export function buildCouponFilters(sp: Record<string, string | undefined>) {
         { employee: { is: { fullName: { contains: q, mode: "insensitive" } } } },
         { item: { is: { card: { is: { title: { contains: q, mode: "insensitive" } } } } } },
         { partner: { is: { name: { contains: q, mode: "insensitive" } } } },
+        // «191» или «#191» — поиск по ID строки
+        ...(/^#?\d{1,9}$/.test(q) ? [{ seq: Number(q.replace("#", "")) }] : []),
       ],
     });
   }
@@ -93,6 +101,7 @@ export function buildCouponFilters(sp: Record<string, string | undefined>) {
     extraWhere,
     q,
     employeeQuery: values.employee?.v?.trim() || undefined,
+    delivery: values.delivery,
     /** true — активен фильтр, не совместимый со строками такси (у них нет статуса/номера/срока купона). */
     hasCouponOnlyFilters: Object.keys(values).some((k) => !TAXI_COMPATIBLE_FILTERS.includes(k)),
   };

@@ -51,29 +51,41 @@ export default async function BroadcastPage({
   const guests = filters.segment === "NOT_REGISTERED";
   const byCard = filters.segment === "BY_CARD";
   const byCampaign = filters.segment === "BY_CAMPAIGN";
-  const unredeemed = filters.segment === "UNREDEEMED_COUPON";
+  // Воронка: льгота → рассылка и ответ → купон. Шаги работают при любой группе, а «Выбравшие льготу» и
+  // «По ответу на рассылку» просто требуют соответствующий шаг.
+  const cardOn = byCard || !!filters.cardId;
+  const campaignOn = byCampaign || !!filters.campaignId;
 
   after(() => dispatchDueBroadcasts());
   const [periods, cards, history] = await Promise.all([
     db.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: true }, take: 24 }),
-    byCard
-      ? db.benefitCard.findMany({ where: {
+    guests
+      ? Promise.resolve([])
+      : db.benefitCard.findMany({ where: {
             archivedAt: null,
             // гибкие льготы + то, что выдаётся через колесо подарков и за монеты геймификации
             OR: [{ block: "FLEX" }, { coinPrice: { not: null } }, { wheelSectors: { some: {} } }],
           },
-          orderBy: { title: "asc" }, select: { id: true, title: true } })
-      : Promise.resolve([]),
+          orderBy: { title: "asc" }, select: { id: true, title: true } }),
     loadCampaignList(),
   ]);
   if (byCard && !filters.periodId) filters.periodId = periods.find((p) => p.status === "OPEN")?.id ?? periods[0]?.id ?? "";
   const allCampaigns = history.filter((c) => c.status === "SENT" && c.segment !== "NOT_REGISTERED" && c.total > 0);
   const campaigns = allCampaigns.filter((c) => inDateRange(campaignWhen(c), range.from, range.to));
+  // рассылки именно по выбранной льготе — первыми
+  const forCard = filters.cardId ? campaigns.filter((c) => c.cardId === filters.cardId) : [];
+  const others = campaigns.filter((c) => !forCard.includes(c));
   if (byCampaign && (!filters.campaignId || (rangeKey !== "ALL" && !campaigns.some((c) => c.id === filters.campaignId)))) {
-    filters.campaignId = campaigns[0]?.id ?? "";
+    filters.campaignId = (forCard[0] ?? campaigns[0])?.id ?? "";
   }
-  const campaign = campaigns.find((c) => c.id === filters.campaignId);
-  if (byCampaign && campaign && !campaign.askConfirm) filters.campaignAnswer = "ALL";
+  const campaign = allCampaigns.find((c) => c.id === filters.campaignId);
+  if (campaign && !campaign.askConfirm) filters.campaignAnswer = "ALL";
+  const campaignOption = (c: (typeof campaigns)[number]) => (
+    <option key={c.id} value={c.id}>
+      #{c.seq} · {c.title} · {fmtDushanbe(c.sentAt ?? c.createdAt)}
+      {c.askConfirm ? " · Да/Нет" : ""}
+    </option>
+  );
 
   const [departments, positions, audience] = await Promise.all([
     db.employee.findMany({
@@ -94,12 +106,12 @@ export default async function BroadcastPage({
 
   const audienceLabel = [
     t(`broadcast.segment.${filters.segment}` as const),
-    byCard && cards.find((c) => c.id === filters.cardId)?.title,
-    byCard && periods.find((p) => p.id === filters.periodId)?.name,
-    byCard && CARD_AUDIENCE_LABELS[filters.cardAudience],
-    unredeemed && (periods.find((p) => p.id === filters.periodId)?.name ?? "любой период"),
-    byCampaign && campaign && `«${campaign.title}» от ${fmtDushanbe(campaign.sentAt ?? campaign.createdAt)}`,
-    byCampaign && CAMPAIGN_ANSWER_LABELS[filters.campaignAnswer],
+    cardOn && cards.find((c) => c.id === filters.cardId)?.title,
+    cardOn && (periods.find((p) => p.id === filters.periodId)?.name ?? "любой период"),
+    cardOn && CARD_AUDIENCE_LABELS[filters.cardAudience],
+    campaignOn && campaign && `«${campaign.title}» от ${fmtDushanbe(campaign.sentAt ?? campaign.createdAt)}`,
+    campaignOn && campaign && CAMPAIGN_ANSWER_LABELS[filters.campaignAnswer],
+    filters.unredeemed === "1" && "купон не погашен",
     !guests && filters.department,
     !guests && filters.position,
     !guests && filters.q && `поиск «${filters.q}»`,
@@ -128,13 +140,13 @@ export default async function BroadcastPage({
                 </Select>
               </Field>
 
-              {byCard && (
-                <div className="grid gap-3 rounded-xl bg-surface-muted p-3 sm:grid-cols-2">
-                  <Field label="Льгота" htmlFor="cardId" className="sm:col-span-2">
+              {!guests && (
+                <div className="space-y-3 rounded-xl bg-surface-muted p-3">
+                  <p className="text-xs font-semibold text-ink-muted">Воронка — каждое следующее условие сужает список</p>
+
+                  <Field label="1 · Льгота" htmlFor="cardId">
                     <Select id="cardId" name="cardId" defaultValue={filters.cardId}>
-                      <option value="" disabled>
-                        Выберите льготу
-                      </option>
+                      <option value="">{byCard ? "Выберите льготу" : "Любая — не учитывать"}</option>
                       {cards.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.title}
@@ -142,84 +154,91 @@ export default async function BroadcastPage({
                       ))}
                     </Select>
                   </Field>
-                  <Field label="Период" htmlFor="periodId">
-                    <Select id="periodId" name="periodId" defaultValue={filters.periodId}>
-                      {periods.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Кому из выбравших" htmlFor="cardAudience">
-                    <Select id="cardAudience" name="cardAudience" defaultValue={filters.cardAudience}>
-                      {CARD_AUDIENCES.map((a) => (
-                        <option key={a} value={a}>
-                          {CARD_AUDIENCE_LABELS[a]}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                </div>
-              )}
+                  {cardOn && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Период" htmlFor="periodId">
+                        <Select id="periodId" name="periodId" defaultValue={filters.periodId}>
+                          {!byCard && <option value="">Любой период</option>}
+                          {periods.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Кому из выбравших" htmlFor="cardAudience">
+                        <Select id="cardAudience" name="cardAudience" defaultValue={filters.cardAudience}>
+                          {CARD_AUDIENCES.map((a) => (
+                            <option key={a} value={a}>
+                              {CARD_AUDIENCE_LABELS[a]}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </div>
+                  )}
 
-              {unredeemed && (
-                <div className="grid gap-3 rounded-xl bg-surface-muted p-3">
-                  <Field label="Период купона" htmlFor="periodId">
-                    <Select id="periodId" name="periodId" defaultValue={filters.periodId}>
-                      <option value="">Любой период</option>
-                      {periods.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <p className="text-xs text-ink-muted">
-                    Выдан, ни разу не использован, срок действия не вышел. Купоны с кешбеком не учитываются: они не
-                    «погашаются».
-                  </p>
-                </div>
-              )}
-
-              {byCampaign && (
-                <div className="grid gap-3 rounded-xl bg-surface-muted p-3">
-                  <Field label="Показать рассылки за" htmlFor="campaignRange">
-                    <Select id="campaignRange" name="campaignRange" defaultValue={rangeKey}>
-                      {(Object.keys(CAMPAIGN_RANGE_LABELS) as CampaignRangeKey[]).map((k) => (
-                        <option key={k} value={k}>
-                          {CAMPAIGN_RANGE_LABELS[k]}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Рассылка" htmlFor="campaignId">
-                    <Select id="campaignId" name="campaignId" defaultValue={filters.campaignId}>
-                      {campaigns.length === 0 && (
-                        <option value="" disabled>
-                          Нет рассылок за этот период
-                        </option>
+                  {allCampaigns.length > 0 && (
+                    <div className="space-y-3 border-t border-line-subtle pt-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="2 · Рассылка" htmlFor="campaignId">
+                          <Select id="campaignId" name="campaignId" defaultValue={filters.campaignId}>
+                            <option value="">{byCampaign ? "Выберите рассылку" : "Не учитывать"}</option>
+                            {campaigns.length === 0 && (
+                              <option value="" disabled>
+                                Нет рассылок за этот период
+                              </option>
+                            )}
+                            {forCard.length > 0 ? (
+                              <>
+                                <optgroup label="По этой льготе">{forCard.map(campaignOption)}</optgroup>
+                                <optgroup label="Остальные">{others.map(campaignOption)}</optgroup>
+                              </>
+                            ) : (
+                              campaigns.map(campaignOption)
+                            )}
+                          </Select>
+                        </Field>
+                        <Field label="Показать рассылки за" htmlFor="campaignRange">
+                          <Select id="campaignRange" name="campaignRange" defaultValue={rangeKey}>
+                            {(Object.keys(CAMPAIGN_RANGE_LABELS) as CampaignRangeKey[]).map((k) => (
+                              <option key={k} value={k}>
+                                {CAMPAIGN_RANGE_LABELS[k]}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                      </div>
+                      {campaignOn && campaign && (
+                        <Field label="Кому из получателей рассылки" htmlFor="campaignAnswer">
+                          <Select id="campaignAnswer" name="campaignAnswer" defaultValue={filters.campaignAnswer}>
+                            {CAMPAIGN_ANSWERS.filter((a) => campaign.askConfirm || a === "ALL").map((a) => (
+                              <option key={a} value={a}>
+                                {CAMPAIGN_ANSWER_LABELS[a]}
+                                {a !== "ANSWERED" && a !== "ALL"
+                                  ? ` — ${{ YES: campaign.yes, NO: campaign.no, NONE: campaign.none }[a]}`
+                                  : ""}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
                       )}
-                      {campaigns.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          #{c.seq} · {c.title} · {fmtDushanbe(c.sentAt ?? c.createdAt)}
-                          {c.askConfirm ? " · Да/Нет" : ""}
-                        </option>
-                      ))}
+                    </div>
+                  )}
+
+                  <Field label="3 · Купон" htmlFor="unredeemed" className="border-t border-line-subtle pt-3">
+                    <Select id="unredeemed" name="unredeemed" defaultValue={filters.unredeemed}>
+                      <option value="">Не учитывать</option>
+                      <option value="1">Только те, у кого купон ещё не погашен</option>
                     </Select>
                   </Field>
-                  <Field label="Кому из получателей" htmlFor="campaignAnswer">
-                    <Select id="campaignAnswer" name="campaignAnswer" defaultValue={filters.campaignAnswer}>
-                      {CAMPAIGN_ANSWERS.filter((a) => campaign?.askConfirm !== false || a === "ALL").map((a) => (
-                        <option key={a} value={a}>
-                          {CAMPAIGN_ANSWER_LABELS[a]}
-                          {campaign && a !== "ANSWERED" && a !== "ALL"
-                            ? ` — ${{ YES: campaign.yes, NO: campaign.no, NONE: campaign.none }[a]}`
-                            : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
+                  {filters.unredeemed === "1" && (
+                    <p className="text-xs text-ink-muted">
+                      Купон выдан, ни разу не использован, срок не вышел.
+                      {cardOn ? " Смотрим купоны выбранной льготы" + (filters.periodId ? " и периода" : "") + "." : ""} Купоны
+                      с кешбеком не учитываются: они не «погашаются».
+                    </p>
+                  )}
                 </div>
               )}
 

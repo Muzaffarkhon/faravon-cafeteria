@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
@@ -7,7 +8,9 @@ import { can } from "@/lib/rbac";
 import { Badge, Card, RowId, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { accessEmployeeColumns, type AccessColKey } from "./_columns";
 import { AccessRowActions } from "../_row-actions";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { fmtDate } from "@/lib/dushanbe-date";
@@ -32,46 +35,9 @@ export default async function AccessEmployeesPage({
   const q = (sp.q ?? "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "fullName", label: "ФИО", type: "text" },
-    { key: "department", label: "Подразделение", type: "text" },
-    { key: "phone", label: "Телефон", type: "text" },
-    {
-      key: "telegram",
-      label: "Telegram",
-      type: "select",
-      options: [
-        { value: "yes", label: t("access.linked") },
-        { value: "no", label: t("access.notLinkedShort") },
-      ],
-    },
-    {
-      key: "account",
-      label: "Учётка",
-      type: "select",
-      options: [
-        { value: "none", label: "без учётки" },
-        { value: "neverLoggedIn", label: "есть учётка, но не входил" },
-        { value: "loggedIn", label: "входил" },
-      ],
-    },
-    { key: "lastLogin", label: "Последний вход", type: "date" },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const smartFilters: Prisma.EmployeeWhereInput[] = [];
-  const fullNameF = stringFilter(smartValues.fullName);
-  if (fullNameF) smartFilters.push({ fullName: fullNameF });
-  const deptF = stringFilter(smartValues.department);
-  if (deptF) smartFilters.push({ department: deptF });
-  const phoneF = stringFilter(smartValues.phone);
-  if (phoneF) smartFilters.push({ phone: phoneF });
-  if (smartValues.telegram?.v === "yes") smartFilters.push({ telegramId: { not: null } });
-  if (smartValues.telegram?.v === "no") smartFilters.push({ telegramId: null });
-  if (smartValues.account?.v === "none") smartFilters.push({ user: null });
-  if (smartValues.account?.v === "neverLoggedIn") smartFilters.push({ user: { is: { lastLoginAt: null } } });
-  if (smartValues.account?.v === "loggedIn") smartFilters.push({ user: { is: { lastLoginAt: { not: null } } } });
-  const lastLoginF = dateFilter(smartValues.lastLogin);
-  if (lastLoginF) smartFilters.push({ user: { is: { lastLoginAt: lastLoginF } } });
+  const cols = accessEmployeeColumns({ t: (key) => t(key as TKey) });
+  const SMART_FIELDS = filterFields(cols);
+  const smartFilters = columnWhere(sp, cols);
 
   const where: Prisma.EmployeeWhereInput = {
     ...(q
@@ -105,7 +71,7 @@ export default async function AccessEmployeesPage({
   const pages = Math.max(1, Math.ceil(empTotal / PAGE_SIZE));
   const pageHref = (n: number) => {
     const p = new URLSearchParams();
-    if (q) p.set("q", q);
+    for (const [k, v] of Object.entries(sp)) if (v && k !== "page") p.set(k, v);
     if (n > 1) p.set("page", String(n));
     const str = p.toString();
     return str ? `/admin/access/employees?${str}` : "/admin/access/employees";
@@ -139,27 +105,27 @@ export default async function AccessEmployeesPage({
         <Table stickyHeader>
           <thead>
             <tr>
-              <th>{t("access.colId")}</th>
-              <th>{t("access.colEmployee")}</th>
-              <th>{t("access.colDepartment")}</th>
-              <th>{t("access.colPhone")}</th>
-              <th>{t("access.colTelegram")}</th>
-              <th>{t("access.colLogin")}</th>
-              <th className="text-right">{t("access.colActions")}</th>
+              {cols.map((c) => (
+                <th key={c.key} className={c.className}>
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {employees.map((e) => {
               const code = codeByEmp.get(e.id);
               const loggedIn = !!e.user?.lastLoginAt;
-              return (
-                <tr key={e.id}>
+              const cells: Record<AccessColKey, ReactNode> = {
+                id: (
                   <td>
                     <RowId id={e.id} seq={e.seq} />
                   </td>
-                  <td className="font-medium text-ink">{e.fullName}</td>
-                  <td>{e.department}</td>
-                  <td>{e.phone ?? "—"}</td>
+                ),
+                employee: <td className="font-medium text-ink">{e.fullName}</td>,
+                department: <td>{e.department}</td>,
+                phone: <td>{e.phone ?? "—"}</td>,
+                telegram: (
                   <td>
                     {e.telegramId ? (
                       <Badge tone="success">{t("access.linked")}</Badge>
@@ -172,6 +138,8 @@ export default async function AccessEmployeesPage({
                       </span>
                     )}
                   </td>
+                ),
+                login: (
                   <td className="text-xs text-ink-muted">
                     {loggedIn
                       ? e.user?.mustChangePassword
@@ -179,15 +147,24 @@ export default async function AccessEmployeesPage({
                         : `${t("access.loggedInOn")} ${fmt(e.user!.lastLoginAt!)}`
                       : t("access.neverLoggedIn")}
                   </td>
+                ),
+                actions: (
                   <td>
                     <AccessRowActions employeeId={e.id} linked={!!e.telegramId} locale={locale} />
                   </td>
+                ),
+              };
+              return (
+                <tr key={e.id}>
+                  {cols.map((c) => (
+                    <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                  ))}
                 </tr>
               );
             })}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-ink-muted">
+                <td colSpan={cols.length} className="py-6 text-center text-ink-muted">
                   {q ? t("access.nothingFound") : t("access.noEmployeesYet")}
                 </td>
               </tr>

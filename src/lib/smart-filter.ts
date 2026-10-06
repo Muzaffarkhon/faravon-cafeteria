@@ -201,6 +201,18 @@ export function selectFilterField<W>(
   };
 }
 
+export function numberFilterField<W>(key: string, label: string, build: (f: Record<string, unknown>) => W): ColumnFilter<W> {
+  return {
+    key,
+    label,
+    type: "number",
+    where: (fv) => {
+      const f = numberFilter(fv);
+      return f ? build(f) : undefined;
+    },
+  };
+}
+
 /** Поля окна «Фильтры» из описания колонок. */
 export function filterFields<W>(cols: readonly TableColumn<W>[]): SmartFilterField[] {
   return cols.flatMap((c) => (c.filters ?? []).map(({ key, label, type, options }) => ({ key, label, type, options })));

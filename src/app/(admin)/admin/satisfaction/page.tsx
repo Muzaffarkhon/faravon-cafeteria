@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -7,7 +8,9 @@ import { getLocale, getTranslator } from "@/lib/i18n";
 import { Badge, Card, EmptyState, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, numberFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { satisfactionColumns, type SatisfactionColKey } from "./_columns";
 import { SatisfactionSettingsForm } from "./_settings-form";
 import { SatisfactionPreviewButton } from "./_preview-button";
 import { fmtDateTimeShort } from "@/lib/dushanbe-date";
@@ -37,25 +40,9 @@ export default async function SatisfactionPage({
 
   const sp = await searchParams;
 
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "employee", label: "Сотрудник", type: "text" },
-    { key: "department", label: "Подразделение", type: "text" },
-    { key: "rating", label: "Оценка", type: "number" },
-    { key: "comment", label: "Комментарий", type: "text" },
-    { key: "createdAt", label: "Дата", type: "date" },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const smartFilters: Record<string, unknown>[] = [];
-  const employeeF = stringFilter(smartValues.employee);
-  if (employeeF) smartFilters.push({ employee: { is: { fullName: employeeF } } });
-  const departmentF = stringFilter(smartValues.department);
-  if (departmentF) smartFilters.push({ employee: { is: { department: departmentF } } });
-  const ratingF = numberFilter(smartValues.rating);
-  if (ratingF) smartFilters.push({ rating: ratingF });
-  const commentF = stringFilter(smartValues.comment);
-  if (commentF) smartFilters.push({ comment: commentF });
-  const createdF = dateFilter(smartValues.createdAt);
-  if (createdF) smartFilters.push({ createdAt: createdF });
+  const cols = satisfactionColumns({ t: (key) => t(key as TKey) });
+  const SMART_FIELDS = filterFields(cols);
+  const smartFilters = columnWhere(sp, cols);
   const q = (sp.q ?? "").trim();
   const where = {
     ...(q
@@ -153,32 +140,47 @@ export default async function SatisfactionPage({
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>{t("satisfactionAdmin.colId")}</th>
-                  <th>{t("satisfactionAdmin.colEmployee")}</th>
-                  <th>{t("satisfactionAdmin.colRating")}</th>
-                  <th>{t("satisfactionAdmin.colComment")}</th>
-                  <th>{t("satisfactionAdmin.colWhen")}</th>
+                  {cols.map((c) => (
+                    <th key={c.key} className={c.className}>
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {responses.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <RowId id={r.id} seq={r.seq} />
-                    </td>
-                    <td className="text-ink">
-                      {r.employee.fullName}
-                      <span className="text-ink-subtle"> · {r.employee.department}</span>
-                    </td>
-                    <td>
-                      <Badge tone={RATING_TONE[r.rating] ?? "neutral"}>{"★".repeat(r.rating)}</Badge>
-                    </td>
-                    <td className="max-w-[26rem] text-ink-muted">{r.comment || "—"}</td>
-                    <td className="text-ink-muted" data-numeric>
-                      {fmtDateTimeShort(r.createdAt)}
-                    </td>
-                  </tr>
-                ))}
+                {responses.map((r) => {
+                  const cells: Record<SatisfactionColKey, ReactNode> = {
+                    id: (
+                      <td>
+                        <RowId id={r.id} seq={r.seq} />
+                      </td>
+                    ),
+                    employee: (
+                      <td className="text-ink">
+                        {r.employee.fullName}
+                        <span className="text-ink-subtle"> · {r.employee.department}</span>
+                      </td>
+                    ),
+                    rating: (
+                      <td>
+                        <Badge tone={RATING_TONE[r.rating] ?? "neutral"}>{"★".repeat(r.rating)}</Badge>
+                      </td>
+                    ),
+                    comment: <td className="max-w-[26rem] text-ink-muted">{r.comment || "—"}</td>,
+                    when: (
+                      <td className="text-ink-muted" data-numeric>
+                        {fmtDateTimeShort(r.createdAt)}
+                      </td>
+                    ),
+                  };
+                  return (
+                    <tr key={r.id}>
+                      {cols.map((c) => (
+                        <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </Card>

@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -6,7 +7,9 @@ import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, SectionTitle, Table, buttonClass } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { type SmartFilterField } from "@/lib/smart-filter";
+import { filterFields } from "@/lib/smart-filter";
+import { taxiColumns, type TaxiColKey } from "@/lib/taxi-columns";
+import type { TKey } from "@/lib/i18n/dict";
 import { taxiRecipientsForPartner, buildTaxiSmartFilters } from "@/lib/taxi";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { PromoBroadcast } from "./_broadcast";
@@ -37,14 +40,8 @@ export default async function TaxiProviderPage({
   const t = await getTranslator();
 
   const sp = await searchParams;
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "employee", label: "Сотрудник", type: "text" },
-    { key: "department", label: "Подразделение", type: "text" },
-    { key: "phone", label: "Телефон", type: "text" },
-    { key: "card", label: "Льгота", type: "text" },
-    { key: "period", label: "Период", type: "text" },
-    { key: "approvedAt", label: "Дата одобрения", type: "date" },
-  ];
+  const cols = taxiColumns({ t: (key) => t(key as TKey) });
+  const SMART_FIELDS = filterFields(cols);
   const smartFilters = buildTaxiSmartFilters(sp);
   const recipients = await taxiRecipientsForPartner(partnerId, smartFilters);
 
@@ -107,43 +104,45 @@ export default async function TaxiProviderPage({
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>{t("providerTaxi.colEmployee")}</th>
-                  <th>{t("providerTaxi.colDepartment")}</th>
-                  <th>{t("providerTaxi.colPhone")}</th>
-                  <th>{t("providerTaxi.colCard")}</th>
-                  <th>{t("providerTaxi.colPeriod")}</th>
-                  <th>{t("providerTaxi.colApproved")}</th>
-                  <th>{t("providerTaxi.colPromo")}</th>
+                  {cols.map((c) => (
+                    <th key={c.key} className={c.className}>
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {recipients.map((r) => (
-                  <tr key={r.itemId}>
-                    <td className="font-medium text-ink">{r.employee}</td>
-                    <td className="text-ink-muted">{r.department}</td>
-                    <td data-numeric>
-                      {r.phone || "—"}
-                      {r.customPhone && (
-                        <Badge tone="brand" className="ml-2">
-                          {t("providerTaxi.setByEmployee")}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="text-ink-muted">{r.card}</td>
-                    <td className="text-ink-muted">{r.period}</td>
-                    <td data-numeric>
-                      {r.approvedAt ? fmtDate(r.approvedAt) : "—"}
-                    </td>
-                    <td>
-                      <SinglePromoCell
-                        itemId={r.itemId}
-                        initialPromo={r.promo}
-                        status={r.promoStatus}
-                        locale={locale}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {recipients.map((r) => {
+                  const cells: Record<TaxiColKey, ReactNode> = {
+                    employee: <td className="font-medium text-ink">{r.employee}</td>,
+                    department: <td className="text-ink-muted">{r.department}</td>,
+                    phone: (
+                      <td data-numeric>
+                        {r.phone || "—"}
+                        {r.customPhone && (
+                          <Badge tone="brand" className="ml-2">
+                            {t("providerTaxi.setByEmployee")}
+                          </Badge>
+                        )}
+                      </td>
+                    ),
+                    card: <td className="text-ink-muted">{r.card}</td>,
+                    period: <td className="text-ink-muted">{r.period}</td>,
+                    approved: <td data-numeric>{r.approvedAt ? fmtDate(r.approvedAt) : "—"}</td>,
+                    promo: (
+                      <td>
+                        <SinglePromoCell itemId={r.itemId} initialPromo={r.promo} status={r.promoStatus} locale={locale} />
+                      </td>
+                    ),
+                  };
+                  return (
+                    <tr key={r.itemId}>
+                      {cols.map((c) => (
+                        <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </Card>

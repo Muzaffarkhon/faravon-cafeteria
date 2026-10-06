@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -5,7 +6,9 @@ import { can } from "@/lib/rbac";
 import { Badge, Card, EmptyState, PageHeader, RowId, SectionTitle, Table, type BadgeTone } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { advertisingColumns, type AdvertisingColKey } from "./_columns";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { AdvertisingForm } from "./_form";
 import { fmtDate } from "@/lib/dushanbe-date";
@@ -36,30 +39,9 @@ export default async function AdvertisingPage({
   };
 
   const sp = await searchParams;
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "productName", label: "Продукт", type: "text" },
-    { key: "productDescription", label: "Описание", type: "text" },
-    {
-      key: "status",
-      label: "Статус",
-      type: "select",
-      options: [
-        { value: "PENDING", label: STATUS_LABEL.PENDING },
-        { value: "APPROVED", label: STATUS_LABEL.APPROVED },
-        { value: "REJECTED", label: STATUS_LABEL.REJECTED },
-      ],
-    },
-    { key: "submittedAt", label: "Дата подачи", type: "date" },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
-  const smartFilters: Record<string, unknown>[] = [];
-  const productNameF = stringFilter(smartValues.productName);
-  if (productNameF) smartFilters.push({ productName: productNameF });
-  const productDescriptionF = stringFilter(smartValues.productDescription);
-  if (productDescriptionF) smartFilters.push({ productDescription: productDescriptionF });
-  if (smartValues.status?.v) smartFilters.push({ status: smartValues.status.v });
-  const submittedF = dateFilter(smartValues.submittedAt);
-  if (submittedF) smartFilters.push({ submittedAt: submittedF });
+  const cols = advertisingColumns({ t: (key) => t(key as TKey), statusLabel: (status) => STATUS_LABEL[status] ?? status });
+  const SMART_FIELDS = filterFields(cols);
+  const smartFilters = columnWhere(sp, cols);
   const q = (sp.q ?? "").trim();
 
   const [partner, requests] = await Promise.all([
@@ -117,36 +99,51 @@ export default async function AdvertisingPage({
             <Table stickyHeader>
               <thead>
                 <tr>
-                  <th>{t("advertising.colId")}</th>
-                  <th>{t("advertising.colProduct")}</th>
-                  <th>{t("advertising.colApp")}</th>
-                  <th>{t("advertising.colStatus")}</th>
-                  <th>{t("advertising.colSubmitted")}</th>
+                  {cols.map((c) => (
+                    <th key={c.key} className={c.className}>
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {requests.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <RowId id={r.id} seq={r.seq} />
-                    </td>
-                    <td className="text-ink">
-                      <div className="font-medium">{r.productName}</div>
-                      <div className="text-xs text-ink-subtle line-clamp-1">{r.productDescription}</div>
-                    </td>
-                    <td className="text-ink-muted text-xs">
-                      {[r.androidUrl && "Android", r.iosUrl && "iOS"].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                    <td>
-                      <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>
-                        {STATUS_LABEL[r.status] ?? r.status}
-                      </Badge>
-                    </td>
-                    <td className="text-ink-muted" data-numeric>
-                      {fmtDate(r.submittedAt)}
-                    </td>
-                  </tr>
-                ))}
+                {requests.map((r) => {
+                  const cells: Record<AdvertisingColKey, ReactNode> = {
+                    id: (
+                      <td>
+                        <RowId id={r.id} seq={r.seq} />
+                      </td>
+                    ),
+                    product: (
+                      <td className="text-ink">
+                        <div className="font-medium">{r.productName}</div>
+                        <div className="text-xs text-ink-subtle line-clamp-1">{r.productDescription}</div>
+                      </td>
+                    ),
+                    app: (
+                      <td className="text-ink-muted text-xs">
+                        {[r.androidUrl && "Android", r.iosUrl && "iOS"].filter(Boolean).join(" · ") || "—"}
+                      </td>
+                    ),
+                    status: (
+                      <td>
+                        <Badge tone={STATUS_TONE[r.status] ?? "neutral"}>{STATUS_LABEL[r.status] ?? r.status}</Badge>
+                      </td>
+                    ),
+                    submitted: (
+                      <td className="text-ink-muted" data-numeric>
+                        {fmtDate(r.submittedAt)}
+                      </td>
+                    ),
+                  };
+                  return (
+                    <tr key={r.id}>
+                      {cols.map((c) => (
+                        <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </Card>

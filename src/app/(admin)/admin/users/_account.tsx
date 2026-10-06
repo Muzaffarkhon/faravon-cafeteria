@@ -1,5 +1,6 @@
 "use client";
 
+import { USER_TABLE_COLUMN_COUNT } from "@/lib/employee-columns";
 import { useActionState, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import { PERMISSION_LABELS, ROLE_LABELS, permissionsForRoles } from "@/lib/rbac";
@@ -478,14 +479,14 @@ export function ServiceAccountRow({
       </tr>
       {showRoles && (
         <tr>
-          <td colSpan={10} className="border-t border-line-subtle bg-surface-muted/40 px-4 py-3">
+          <td colSpan={USER_TABLE_COLUMN_COUNT} className="border-t border-line-subtle bg-surface-muted/40 px-4 py-3">
             <RoleEditor userId={user.id} roles={user.roles} locale={locale} />
           </td>
         </tr>
       )}
       {(msg?.otp || msg?.error) && (
         <tr>
-          <td colSpan={10} className="px-4 pb-3">
+          <td colSpan={USER_TABLE_COLUMN_COUNT} className="px-4 pb-3">
             {msg.error ? (
               <span className="text-xs font-medium text-danger" role="alert">
                 {msg.error}

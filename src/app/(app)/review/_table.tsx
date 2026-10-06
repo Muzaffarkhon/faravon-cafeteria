@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition, type ReactNode } from "react";
 import { Badge, Button, RowId, Table, Textarea } from "@/components/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { translate } from "@/lib/i18n/dict";
 import type { Locale } from "@/lib/i18n/shared";
 import { approveItem, bulkApprove, bulkReject, rejectItem, type BulkResult } from "./actions";
 import { fmtDate } from "@/lib/dushanbe-date";
+import { reviewColumns, type ReviewColKey } from "./_columns";
 
 export type ReviewRow = {
   id: string;
@@ -26,6 +27,7 @@ const fmtDateOrDash = (s: string | null) => (s ? fmtDate(s) : "—");
 
 export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const cols = reviewColumns({ t: (key) => t(key as Parameters<typeof translate>[1]), departments: [], periods: [], cards: [] });
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const [bulkComment, setBulkComment] = useState("");
@@ -140,121 +142,135 @@ export function ReviewTable({ rows, locale }: { rows: ReviewRow[]; locale: Local
         <Table stickyHeader>
           <thead>
             <tr>
-              <th className="w-8">
-                <input
-                  type="checkbox"
-                  checked={allChecked}
-                  onChange={toggleAll}
-                  aria-label={t("review.selectAllOnPage")}
-                  className="h-4 w-4 accent-[var(--primary)]"
-                />
-              </th>
-              <th>{t("review.colId")}</th>
-              <th>{t("review.colEmployee")}</th>
-              <th>{t("review.colCardPartner")}</th>
-              <th>{t("review.colPeriod")}</th>
-              <th>{t("review.colSubmitted")}</th>
-              <th className="text-right">{t("review.colActions")}</th>
+              {cols.map((c) => (
+                <th key={c.key} className={c.className}>
+                  {c.key === "select" ? (
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      onChange={toggleAll}
+                      aria-label={t("review.selectAllOnPage")}
+                      className="h-4 w-4 accent-[var(--primary)]"
+                    />
+                  ) : (
+                    c.label
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="align-top">
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={sel.has(r.id)}
-                    onChange={() => toggle(r.id)}
-                    aria-label={`${t("review.selectRow")} ${r.card}`}
-                    className="h-4 w-4 accent-[var(--primary)]"
-                  />
-                </td>
-                <td>
-                  <RowId id={r.id} seq={r.seq} />
-                </td>
-                <td>
-                  <div className="font-medium text-ink">{r.employee}</div>
-                  <div className="text-xs text-ink-subtle">{r.department}</div>
-                  {r.phone && <div className="text-xs text-ink-subtle">{r.phone}</div>}
-                </td>
-                <td>
-                  <div className="text-ink">{r.card}</div>
-                  <div className="text-xs text-ink-subtle">
-                    {r.partner ?? "—"}
-                    {r.condition && ` · ${r.condition}`}
-                  </div>
-                  {rejectingId === r.id && (
-                    <div className="mt-2 rounded-lg bg-surface-muted p-2">
-                      <Textarea
-                        value={rejectText}
-                        onChange={(e) => setRejectText(e.target.value)}
-                        rows={2}
-                        placeholder={t("review.rejectReasonPlaceholder")}
-                      />
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          disabled={pending || rejectText.trim().length < 3}
-                          onClick={() => runRow(r.id, () => rejectItem(r.id, rejectText))}
-                        >
-                          {t("review.confirm")}
+            {rows.map((r) => {
+              const cells: Record<ReviewColKey, ReactNode> = {
+                select: (
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={sel.has(r.id)}
+                      onChange={() => toggle(r.id)}
+                      aria-label={`${t("review.selectRow")} ${r.card}`}
+                      className="h-4 w-4 accent-[var(--primary)]"
+                    />
+                  </td>
+                ),
+                id: (
+                  <td>
+                    <RowId id={r.id} seq={r.seq} />
+                  </td>
+                ),
+                employee: (
+                  <td>
+                    <div className="font-medium text-ink">{r.employee}</div>
+                    <div className="text-xs text-ink-subtle">{r.department}</div>
+                    {r.phone && <div className="text-xs text-ink-subtle">{r.phone}</div>}
+                  </td>
+                ),
+                cardPartner: (
+                  <td>
+                    <div className="text-ink">{r.card}</div>
+                    <div className="text-xs text-ink-subtle">
+                      {r.partner ?? "—"}
+                      {r.condition && ` · ${r.condition}`}
+                    </div>
+                    {rejectingId === r.id && (
+                      <div className="mt-2 rounded-lg bg-surface-muted p-2">
+                        <Textarea
+                          value={rejectText}
+                          onChange={(e) => setRejectText(e.target.value)}
+                          rows={2}
+                          placeholder={t("review.rejectReasonPlaceholder")}
+                        />
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={pending || rejectText.trim().length < 3}
+                            onClick={() => runRow(r.id, () => rejectItem(r.id, rejectText))}
+                          >
+                            {t("review.confirm")}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => {
+                              setRejectingId(null);
+                              setRejectText("");
+                            }}
+                          >
+                            {t("review.cancel")}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {rowErr[r.id] && (
+                      <p className="mt-1 text-xs font-medium text-danger" role="alert">
+                        {rowErr[r.id]}
+                      </p>
+                    )}
+                  </td>
+                ),
+                period: <td className="text-ink-muted">{r.period}</td>,
+                submitted: (
+                  <td className="text-ink-muted">
+                    {fmtDateOrDash(r.submittedAt)}
+                    {r.overdue && (
+                      <Badge tone="warning" className="ml-2">
+                        {t("review.overdueBadge")}
+                      </Badge>
+                    )}
+                  </td>
+                ),
+                actions: (
+                  <td>
+                    {rejectingId !== r.id && (
+                      <div className="flex justify-end gap-2">
+                        <Button variant="success" size="sm" disabled={pending} onClick={() => setApproveId(r.id)}>
+                          {t("review.approve")}
                         </Button>
                         <Button
-                          variant="secondary"
+                          variant="danger"
                           size="sm"
                           disabled={pending}
                           onClick={() => {
-                            setRejectingId(null);
+                            setRejectingId(r.id);
                             setRejectText("");
                           }}
                         >
-                          {t("review.cancel")}
+                          {t("review.reject")}
                         </Button>
                       </div>
-                    </div>
-                  )}
-                  {rowErr[r.id] && (
-                    <p className="mt-1 text-xs font-medium text-danger" role="alert">
-                      {rowErr[r.id]}
-                    </p>
-                  )}
-                </td>
-                <td className="text-ink-muted">{r.period}</td>
-                <td className="text-ink-muted">
-                  {fmtDateOrDash(r.submittedAt)}
-                  {r.overdue && (
-                    <Badge tone="warning" className="ml-2">
-                      {t("review.overdueBadge")}
-                    </Badge>
-                  )}
-                </td>
-                <td>
-                  {rejectingId !== r.id && (
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => setApproveId(r.id)}
-                      >
-                        {t("review.approve")}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => {
-                          setRejectingId(r.id);
-                          setRejectText("");
-                        }}
-                      >
-                        {t("review.reject")}
-                      </Button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+                    )}
+                  </td>
+                ),
+              };
+              return (
+                <tr key={r.id} className="align-top">
+                  {cols.map((c) => (
+                    <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </div>

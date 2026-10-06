@@ -1,11 +1,15 @@
+import { Fragment, type ReactNode } from "react";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { Card, EmptyState, Table } from "@/components/ui";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { parseSmartFilterParams, stringFilter, dateFilter, type SmartFilterField } from "@/lib/smart-filter";
+import { columnWhere, filterFields } from "@/lib/smart-filter";
+import type { TKey } from "@/lib/i18n/dict";
+import { auditColumns, type AuditColKey } from "./_columns";
 import { SEGMENT_LABELS, type Segment } from "@/lib/broadcast-segments";
 import { ITEM_STATUS_LABELS } from "@/lib/application-workflow";
 import { COUPON_STATUS_LABELS } from "@/lib/coupon";
@@ -386,27 +390,15 @@ export default async function AuditPage({
   const t = await getTranslator();
   const sp = await searchParams;
 
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "actor", label: "Кто", type: "text" },
-    {
-      key: "action",
-      label: t("audit.actionLabel"),
-      type: "select",
-      options: Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
-    },
-    {
-      key: "entityType",
-      label: t("audit.entityTypeLabel"),
-      type: "select",
-      options: Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
-    },
-    { key: "entityId", label: t("audit.entityIdLabel"), type: "text" },
-    { key: "createdAt", label: "Дата", type: "date" },
-  ];
-  const smartValues = parseSmartFilterParams(sp, SMART_FIELDS);
+  const cols = auditColumns({
+    t: (key) => t(key as TKey),
+    actions: Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label })),
+    entities: Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
+  });
+  const SMART_FIELDS = filterFields(cols);
   const q = (sp.q ?? "").trim();
 
-  const where: Record<string, unknown> = {
+  const where: Prisma.AuditLogWhereInput = {
     ...(q
       ? {
           OR: [
@@ -415,15 +407,8 @@ export default async function AuditPage({
           ],
         }
       : {}),
+    AND: columnWhere(sp, cols),
   };
-  if (smartValues.action?.v) where.action = smartValues.action.v;
-  if (smartValues.entityType?.v) where.entityType = smartValues.entityType.v;
-  const entityIdF = stringFilter(smartValues.entityId);
-  if (entityIdF) where.entityId = entityIdF;
-  const actorF = stringFilter(smartValues.actor);
-  if (actorF) where.actor = { is: { login: actorF } };
-  const createdF = dateFilter(smartValues.createdAt);
-  if (createdF) where.createdAt = createdF;
 
   const rows = await db.auditLog.findMany({
     where,
@@ -495,45 +480,56 @@ export default async function AuditPage({
           <Table stickyHeader>
             <thead>
               <tr>
-                <th>{t("audit.colTime")}</th>
-                <th>{t("audit.colWho")}</th>
-                <th>{t("audit.colAction")}</th>
-                <th>{t("audit.colObject")}</th>
-                <th>{t("audit.colChange")}</th>
+                {cols.map((c) => (
+                  <th key={c.key} className={c.className}>
+                    {c.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="align-top">
-                  <td className="whitespace-nowrap text-ink-muted" data-numeric>
-                    {fmtDateTime(r.createdAt)}
-                  </td>
-                  <td className="text-ink">{r.actor?.login ?? "—"}</td>
-                  <td className="text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>
-                  <td className="text-ink-muted">
-                    {ENTITY_LABELS[r.entityType] ?? r.entityType}
-                    {r.entityId && (
-                      <div className="text-[11px] text-ink-subtle">
-                        {entityLabelById.get(r.entityId) ?? (
-                          <span className="font-mono">{r.entityId}</span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-xs text-ink-subtle">
-                    {humanDiff(r.oldValue, names).map((line, i) => (
-                      <div key={`old-${i}`} className="text-danger/80">
-                        − {line}
-                      </div>
+              {rows.map((r) => {
+                const cells: Record<AuditColKey, ReactNode> = {
+                  time: (
+                    <td className="whitespace-nowrap text-ink-muted" data-numeric>
+                      {fmtDateTime(r.createdAt)}
+                    </td>
+                  ),
+                  who: <td className="text-ink">{r.actor?.login ?? "—"}</td>,
+                  action: <td className="text-ink">{ACTION_LABELS[r.action] ?? r.action}</td>,
+                  object: (
+                    <td className="text-ink-muted">
+                      {ENTITY_LABELS[r.entityType] ?? r.entityType}
+                      {r.entityId && (
+                        <div className="text-[11px] text-ink-subtle">
+                          {entityLabelById.get(r.entityId) ?? <span className="font-mono">{r.entityId}</span>}
+                        </div>
+                      )}
+                    </td>
+                  ),
+                  change: (
+                    <td className="text-xs text-ink-subtle">
+                      {humanDiff(r.oldValue, names).map((line, i) => (
+                        <div key={`old-${i}`} className="text-danger/80">
+                          − {line}
+                        </div>
+                      ))}
+                      {humanDiff(r.newValue, names).map((line, i) => (
+                        <div key={`new-${i}`} className="text-success-strong/80">
+                          + {line}
+                        </div>
+                      ))}
+                    </td>
+                  ),
+                };
+                return (
+                  <tr key={r.id} className="align-top">
+                    {cols.map((c) => (
+                      <Fragment key={c.key}>{cells[c.key]}</Fragment>
                     ))}
-                    {humanDiff(r.newValue, names).map((line, i) => (
-                      <div key={`new-${i}`} className="text-success-strong/80">
-                        + {line}
-                      </div>
-                    ))}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
         </Card>

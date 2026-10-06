@@ -29,6 +29,8 @@ export type AudienceFilters = {
   /** Сегмент BY_CAMPAIGN: прошлая рассылка с подтверждением и какой ответ нужен. */
   campaignId: string;
   campaignAnswer: CampaignAnswer;
+  /** Шаг воронки «купон»: "1" — только те, у кого есть выданный и ещё не погашенный купон. */
+  unredeemed: "" | "1";
 };
 
 export type PreviewRow = { key: string; name: string; sub: string; telegram: boolean };
@@ -65,6 +67,7 @@ export function parseFilters(raw: Record<string, string | string[] | undefined>)
     cardAudience: (CARD_AUDIENCES as readonly string[]).includes(aud) ? (aud as CardAudience) : "BOTH",
     campaignId: one(raw.campaignId).trim(),
     campaignAnswer: (CAMPAIGN_ANSWERS as readonly string[]).includes(ans) ? (ans as CampaignAnswer) : "YES",
+    unredeemed: one(raw.unredeemed) === "1" ? "1" : "",
   };
 }
 
@@ -150,35 +153,21 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
       applications: { none: { periodId: period.id, items: { some: { status: { notIn: ["DRAFT", "CANCELLED"] } } } } },
     });
   }
-  if (f.segment === "BY_CARD") {
+  // Воронка: условия льготы, рассылки и непогашенного купона складываются (И) поверх выбранной группы.
+  if (f.segment === "BY_CARD" || f.cardId) {
     if (!f.cardId) return empty("Выберите льготу.");
-    if (!f.periodId) return empty("Выберите период.");
+    if (f.segment === "BY_CARD" && !f.periodId) return empty("Выберите период.");
     and.push({
       applications: {
         some: {
-          periodId: f.periodId,
+          ...(f.periodId ? { periodId: f.periodId } : {}),
           items: { some: { cardId: f.cardId, status: { in: CARD_AUDIENCE_STATUSES[f.cardAudience] } } },
         },
       },
     });
   }
 
-  if (f.segment === "UNREDEEMED_COUPON") {
-    // Выдан, ещё ни разу не использован, срок не вышел. Кешбек-купоны не «погашаются» — их не берём.
-    and.push({
-      coupons: {
-        some: {
-          status: "ISSUED",
-          activatedAt: null,
-          benefitMode: { not: "CASHBACK" },
-          OR: [{ validUntil: null }, { validUntil: { gte: new Date() } }],
-          ...(f.periodId ? { periodId: f.periodId } : {}),
-        },
-      },
-    });
-  }
-
-  if (f.segment === "BY_CAMPAIGN") {
+  if (f.segment === "BY_CAMPAIGN" || f.campaignId) {
     if (!f.campaignId) return empty("Выберите рассылку.");
     const answer: Record<CampaignAnswer, Prisma.BroadcastRecipientWhereInput> = {
       YES: { answer: "YES" },
@@ -188,6 +177,23 @@ async function resolveEmployees(f: AudienceFilters): Promise<Audience> {
       ALL: {},
     };
     userWhere.broadcastRecipients = { some: { campaignId: f.campaignId, ...answer[f.campaignAnswer] } };
+  }
+
+  if (f.unredeemed === "1") {
+    // Выдан, ещё ни разу не использован, срок не вышел; если выбрана льгота/период — именно по ним.
+    // Кешбек-купоны не «погашаются» — их не берём.
+    and.push({
+      coupons: {
+        some: {
+          status: "ISSUED",
+          activatedAt: null,
+          benefitMode: { not: "CASHBACK" },
+          OR: [{ validUntil: null }, { validUntil: { gte: new Date() } }],
+          ...(f.periodId ? { periodId: f.periodId } : {}),
+          ...(f.cardId ? { item: { is: { cardId: f.cardId } } } : {}),
+        },
+      },
+    });
   }
 
   const base: Prisma.EmployeeWhereInput = {

@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
-import { defineColumns, dateFilterField, selectFilterField, textFilterField } from "@/lib/smart-filter";
+import { defineColumns, dateFilterField, numberFilterField, selectFilterField, textFilterField } from "@/lib/smart-filter";
 
 type W = Prisma.CouponWhereInput;
 type Opt = { value: string; label: string };
 
 export const COUPON_STATUSES = ["CREATED", "ISSUED", "USED", "EXPIRED", "CANCELLED"] as const;
 export const BENEFIT_MODES = ["ONE_TIME", "PERIOD", "CASHBACK"] as const;
+export const DELIVERY_MODES = ["QR", "PHONE_PROMO"] as const;
 
 export type CouponColumnsCtx = {
   t(key: string): string;
@@ -26,6 +27,11 @@ export function couponColumns(ctx: CouponColumnsCtx = NO_LABELS) {
   const { t } = ctx;
   return defineColumns([
     { key: "select", label: "", className: "w-10" },
+    {
+      key: "id",
+      label: t("coupons.colId"),
+      filters: [numberFilterField<W>("seq", "ID", (f) => ({ seq: f as Prisma.IntFilter }))],
+    },
     {
       key: "number",
       label: t("coupons.colNumber"),
@@ -66,8 +72,25 @@ export function couponColumns(ctx: CouponColumnsCtx = NO_LABELS) {
         ),
       ],
     },
-    // Тип и канал сейчас у всех купонов одинаковые (промокод / портал) — фильтровать нечего.
-    { key: "type", label: t("coupons.colType") },
+    // Как купон работает у партнёра: по QR-коду или промокодом по номеру телефона (такси, кофе и т. д.).
+    // Поле Coupon.type не годится — у всех оно «PROMO».
+    {
+      key: "delivery",
+      label: t("partners.deliveryLabel"),
+      filters: [
+        selectFilterField<W>(
+          "delivery",
+          t("partners.deliveryLabel"),
+          [
+            { value: "QR", label: t("partners.byQr") },
+            { value: "PHONE_PROMO", label: t("partners.byPhone") },
+          ],
+          (c) => ({ partner: { is: { deliveryMode: c as Prisma.PartnerWhereInput["deliveryMode"] } } }),
+          DELIVERY_MODES,
+        ),
+      ],
+    },
+    // Канал сейчас у всех купонов «портал» — фильтровать нечего.
     { key: "channel", label: t("coupons.colChannel") },
     {
       key: "period",

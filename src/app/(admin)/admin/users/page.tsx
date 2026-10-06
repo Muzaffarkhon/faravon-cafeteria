@@ -1,13 +1,15 @@
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { EmploymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can, ROLE_LABELS } from "@/lib/rbac";
 import { employmentStatusLabel } from "@/lib/labels";
 import { SmartFilterButton } from "@/components/smart-filter";
 import { QuickSearch } from "@/components/quick-search";
-import { type SmartFilterField } from "@/lib/smart-filter";
+import { filterFields } from "@/lib/smart-filter";
+import { EMPLOYMENT_STATUSES, employeeColumns, type UserColKey } from "@/lib/employee-columns";
+import type { TKey } from "@/lib/i18n/dict";
 import { buildEmployeeFilter } from "@/lib/employee-filters";
 import { Badge, Card, Table, RowId, buttonClass, cx } from "@/components/ui";
 import { lastEditsFor, formatLastEdit } from "@/lib/last-edit";
@@ -23,7 +25,6 @@ import { fmtDate, fmtDateTimeShort } from "@/lib/dushanbe-date";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["ACTIVE", "PROBATION", "TERMINATED"];
 
 export default async function UsersPage({
   searchParams,
@@ -49,40 +50,12 @@ export default async function UsersPage({
   // Умный фильтр — единственный видимый контрол над таблицей: все прежние
   // чипы (роль/статус работы/Telegram) и учётка теперь его select-поля (см.
   // components/smart-filter.tsx).
-  const SMART_FIELDS: SmartFilterField[] = [
-    { key: "fullName", label: "ФИО", type: "text" },
-    { key: "login", label: "Логин", type: "text" },
-    { key: "department", label: "Подразделение", type: "text" },
-    { key: "phone", label: "Телефон", type: "text" },
-    { key: "role", label: t("users.roleLabel"), type: "select", options: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })) },
-    {
-      key: "account",
-      label: "Учётка",
-      type: "select",
-      options: [
-        { value: "active", label: "активна" },
-        { value: "off", label: "отключена" },
-        { value: "none", label: "без учётки" },
-        { value: "neverLoggedIn", label: "есть учётка, но не входил" },
-      ],
-    },
-    { key: "lastLogin", label: "Последний вход", type: "date" },
-    {
-      key: "emp",
-      label: t("users.workLabel"),
-      type: "select",
-      options: EMPLOYMENT_STATUSES.map((s) => ({ value: s, label: employmentStatusLabel(locale, s) })),
-    },
-    {
-      key: "tg",
-      label: t("users.telegramLabel"),
-      type: "select",
-      options: [
-        { value: "yes", label: t("users.telegramLinked") },
-        { value: "no", label: t("users.telegramNone") },
-      ],
-    },
-  ];
+  const cols = employeeColumns({
+    t: (key) => t(key as TKey),
+    roles: ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
+    empStatuses: EMPLOYMENT_STATUSES.map((s) => ({ value: s, label: employmentStatusLabel(locale, s) })),
+  });
+  const SMART_FIELDS = filterFields(cols);
   const { where: empWhere, role, acc, empStatus, tg, loginF } = buildEmployeeFilter(sp, archiveView);
 
   const serviceHidden = archiveView || page > 1 || !!empStatus || acc === "none";
@@ -203,79 +176,89 @@ export default async function UsersPage({
         <Table stickyHeader>
           <thead>
             <tr>
-              <th>{t("users.colId")}</th>
-              <th>{t("users.colType")}</th>
-              <th>{t("users.colAccount")}</th>
-              <th>{t("users.colFullName")}</th>
-              <th>{t("users.colPhone")}</th>
-              <th>{t("users.colDeptPartner")}</th>
-              <th>{t("users.colStatus")}</th>
-              <th>{t("users.colLastLogin")}</th>
-              <th>{t("users.colLastEdit")}</th>
-              <th className="text-right">{t("users.colActions")}</th>
+              {cols.map((c) => (
+                <th key={c.key} className={c.className}>
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {employees.map((e) => (
-              <tr key={e.id}>
-                <td>
-                  <RowId id={e.id} seq={e.seq} />
-                </td>
-                <td>
-                  <Badge tone="brand">{t("users.employee")}</Badge>
-                </td>
-                <td>
-                  {e.user ? (
-                    <span>
-                      <span className="font-medium text-ink">{e.user.login}</span>
-                      <span className="ml-1.5 text-xs text-ink-muted">
-                        ({e.user.roles.map((r) => ROLE_LABELS[r]).join(", ")})
+            {employees.map((e) => {
+              const cells: Record<UserColKey, ReactNode> = {
+                id: (
+                  <td>
+                    <RowId id={e.id} seq={e.seq} />
+                  </td>
+                ),
+                type: (
+                  <td>
+                    <Badge tone="brand">{t("users.employee")}</Badge>
+                  </td>
+                ),
+                account: (
+                  <td>
+                    {e.user ? (
+                      <span>
+                        <span className="font-medium text-ink">{e.user.login}</span>
+                        <span className="ml-1.5 text-xs text-ink-muted">
+                          ({e.user.roles.map((r) => ROLE_LABELS[r]).join(", ")})
+                        </span>
+                        {!e.user.isActive && (
+                          <Badge tone="muted" className="ml-2">
+                            {t("users.loginDisabled")}
+                          </Badge>
+                        )}
                       </span>
-                      {!e.user.isActive && (
-                        <Badge tone="muted" className="ml-2">
-                          {t("users.loginDisabled")}
-                        </Badge>
-                      )}
-                    </span>
-                  ) : (
-                    <Badge tone="warning">{t("users.noLogin")}</Badge>
-                  )}
-                </td>
-                <td className="font-medium text-ink">{e.fullName}</td>
-                <td className="text-ink-muted">{e.phone ?? "—"}</td>
-                <td>{e.department}</td>
-                <td>
-                  {e.archivedAt ? (
-                    <Badge tone="muted">
-                      {t("users.archivedOn")} {fmtDate(e.archivedAt)}
-                    </Badge>
-                  ) : e.isActive ? (
-                    <Badge tone="success">{employmentStatusLabel(locale, e.status)}</Badge>
-                  ) : (
-                    <Badge tone="muted">{employmentStatusLabel(locale, e.status)}</Badge>
-                  )}
-                </td>
-                <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {e.user?.lastLoginAt ? fmtDateTimeShort(e.user.lastLoginAt) : "—"}
-                </td>
-                <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
-                  {formatLastEdit(lastEdits.get(e.id), e.updatedAt)}
-                </td>
-                <td>
-                  <div className="flex items-center justify-end gap-2">
-                    <EmployeeEditButton id={e.id} label={t("users.open")} locale={locale} />
-                    <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} locale={locale} />
-                    <RowContextMenu
-                      kind="employee"
-                      id={e.id}
-                      name={e.fullName}
-                      archived={!!e.archivedAt}
-                      locale={locale}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    ) : (
+                      <Badge tone="warning">{t("users.noLogin")}</Badge>
+                    )}
+                  </td>
+                ),
+                fullName: <td className="font-medium text-ink">{e.fullName}</td>,
+                phone: <td className="text-ink-muted">{e.phone ?? "—"}</td>,
+                deptPartner: <td>{e.department}</td>,
+                status: (
+                  <td>
+                    {e.archivedAt ? (
+                      <Badge tone="muted">
+                        {t("users.archivedOn")} {fmtDate(e.archivedAt)}
+                      </Badge>
+                    ) : e.isActive ? (
+                      <Badge tone="success">{employmentStatusLabel(locale, e.status)}</Badge>
+                    ) : (
+                      <Badge tone="muted">{employmentStatusLabel(locale, e.status)}</Badge>
+                    )}
+                  </td>
+                ),
+                lastLogin: (
+                  <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
+                    {e.user?.lastLoginAt ? fmtDateTimeShort(e.user.lastLoginAt) : "—"}
+                  </td>
+                ),
+                lastEdit: (
+                  <td className="whitespace-nowrap text-xs text-ink-muted" data-numeric>
+                    {formatLastEdit(lastEdits.get(e.id), e.updatedAt)}
+                  </td>
+                ),
+                actions: (
+                  <td>
+                    <div className="flex items-center justify-end gap-2">
+                      <EmployeeEditButton id={e.id} label={t("users.open")} locale={locale} />
+                      <EmployeeArchiveButton id={e.id} archived={!!e.archivedAt} locale={locale} />
+                      <RowContextMenu kind="employee" id={e.id} name={e.fullName} archived={!!e.archivedAt} locale={locale} />
+                    </div>
+                  </td>
+                ),
+              };
+              return (
+                <tr key={e.id}>
+                  {cols.map((c) => (
+                    <Fragment key={c.key}>{cells[c.key]}</Fragment>
+                  ))}
+                </tr>
+              );
+            })}
 
             {serviceUsers.map((u) => (
               <ServiceAccountRow
@@ -298,7 +281,7 @@ export default async function UsersPage({
 
             {rowsOnPage === 0 && (
               <tr>
-                <td colSpan={10} className="py-6 text-center text-ink-muted">
+                <td colSpan={cols.length} className="py-6 text-center text-ink-muted">
                   {q ? t("users.nothingFound") : archiveView ? t("users.archiveEmpty") : t("users.noRecordsYet")}
                 </td>
               </tr>
