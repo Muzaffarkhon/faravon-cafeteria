@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { creditCoins } from "@/lib/coin-wallet";
+import { creditCoins, getCoinBalance } from "@/lib/coin-wallet";
 import { redeemWithCoins } from "@/lib/coin-redemption";
 import { getGamificationEnabled } from "@/lib/gamification-settings";
 import { getCurrentPeriod } from "@/lib/selection";
@@ -98,6 +98,14 @@ export async function joinTask(params: { employeeId: string; taskId: string; pri
     if (!card?.coinPrice) throw new GamificationTaskError("Выбранный приз не продаётся за монеты.");
     if (card.status !== "PUBLISHED" || !card.isActive || card.archivedAt) {
       throw new GamificationTaskError("Выбранный приз сейчас недоступен.");
+    }
+    // Приз покупается автоматически при выполнении задачи на баланс + награду — дороже выбрать нельзя,
+    // иначе задача закроется, а приз так и не купится.
+    const balance = await getCoinBalance(params.employeeId);
+    if (card.coinPrice > balance + task.coinReward) {
+      throw new GamificationTaskError(
+        `Не хватит монет на этот приз: он стоит ${card.coinPrice}, а у вас будет ${balance + task.coinReward} после выполнения задачи.`,
+      );
     }
   }
   const existing = await db.employeeTask.findUnique({

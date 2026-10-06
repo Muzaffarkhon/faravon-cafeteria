@@ -137,11 +137,16 @@ export default async function GamificationPage() {
                       {t("gamification.prizeCardLabel")}
                       <Select name="prizeCardId" defaultValue="" className="mt-1">
                         <option value="">{t("gamification.prizeCardNone")}</option>
-                        {shopCards.map((card) => (
-                          <option key={card.id} value={card.id}>
-                            {card.title} — {card.coinPrice} {t("gamification.coinUnit")}
-                          </option>
-                        ))}
+                        {shopCards.map((card) => {
+                          // Приз покупается на баланс + награду за задачу: дороже выбрать нельзя.
+                          const tooExpensive = (card.coinPrice ?? 0) > balance + task.coinReward;
+                          return (
+                            <option key={card.id} value={card.id} disabled={tooExpensive}>
+                              {card.title} — {card.coinPrice} {t("gamification.coinUnit")}
+                              {tooExpensive ? ` · ${t("gamification.prizeTooExpensive")}` : ""}
+                            </option>
+                          );
+                        })}
                       </Select>
                     </label>
                   )}
