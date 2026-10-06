@@ -42,6 +42,33 @@ function resolveAppHref(b: BannerSlide): string | null {
 
 const AUTOPLAY_MS = 6000;
 
+/**
+ * Фото справа в слайде «текст слева, фото справа» (только от lg). Заполняет плитку (cover) — небольшая обрезка по краям;
+ * плитка не шире 690 px (при высоте 384 это 1,8:1), чтобы обычные фото 1,3–2,4:1 резались несильно. Квадратные и очень узкие
+ * фото режутся слишком сильно — они остаются целиком (contain) на чёрном фоне.
+ */
+function SplitPhoto({ src }: { src: string }) {
+  const [fit, setFit] = useState<"cover" | "contain">("cover");
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      draggable={false}
+      onLoad={(e) => {
+        const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+        const ratio = h ? w / h : 1;
+        setFit(ratio > 1.3 && ratio < 2.4 ? "cover" : "contain");
+      }}
+      className={cx(
+        "relative z-10 hidden h-full shrink-0 bg-black lg:block lg:w-[56%] lg:max-w-[690px]",
+        fit === "cover" ? "object-cover" : "object-contain",
+      )}
+    />
+  );
+}
+
 export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const count = slides.length;
@@ -198,6 +225,9 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
           style={{ transform: `translateX(-${pos * 100}%)` }}
         >
           {rendered.map((b, i) => {
+            // Слайды из фото карточек (льготы) — на широком экране «текст слева, фото справа»: фото целиком по своим
+            // пропорциям, без растяжения и обрезки. Настоящие баннеры (partner/news) остаются на всю ширину.
+            const split = !!b.imageUrl && (b.kind === "new" || b.kind === "popular" || b.kind === "rare" || b.kind === "group");
             const inner = (
               <>
                 {b.imageUrl && (
@@ -207,12 +237,12 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                     alt=""
                     loading="lazy"
                     draggable={false}
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className={cx("absolute inset-0 h-full w-full object-cover", split && "lg:hidden")}
                   />
                 )}
                 <div
                   aria-hidden="true"
-                  className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5"
+                  className={cx("absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5", split && "lg:hidden")}
                 />
                 <div
                   className={cx(
@@ -228,12 +258,18 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                             : b.kind === "new"
                               ? "bg-violet-500/90 text-white shadow-sm ring-1 ring-white/20"
                               : "bg-white/15 text-white",
+                    split && "lg:bg-white lg:text-primary-strong lg:ring-0",
                   )}
                 >
                   {t(KIND_KEY[b.kind ?? "partner"])}
                 </div>
-                <div className="relative z-10 max-w-2xl p-4 sm:p-6">
-                  <h2 className="text-base font-semibold leading-snug text-balance text-white line-clamp-2 sm:text-xl">
+                <div
+                  className={cx(
+                    "relative z-10 max-w-2xl p-4 sm:p-6",
+                    split && "lg:flex lg:min-w-0 lg:max-w-none lg:flex-1 lg:flex-col lg:items-start lg:justify-center lg:self-stretch lg:p-12",
+                  )}
+                >
+                  <h2 className={cx("text-base font-semibold leading-snug text-balance text-white line-clamp-2 sm:text-xl", split && "lg:text-3xl lg:line-clamp-3")}>
                     {b.title}
                   </h2>
                   {b.subtitle && (
@@ -269,10 +305,13 @@ export function BannerCarousel({ slides, locale }: { slides: BannerSlide[]; loca
                     </span>
                   )}
                 </div>
+                {split && <SplitPhoto src={b.imageUrl!} />}
               </>
             );
-            const cls =
-              "relative flex h-64 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-80 lg:h-96";
+            const cls = cx(
+              "relative flex h-64 w-full shrink-0 items-end overflow-hidden border border-line bg-surface-sunken shadow-md select-none sm:h-80 lg:h-96",
+              split && "lg:items-stretch lg:bg-primary",
+            );
             return b.linkHref ? (
               <a
                 key={`${b.id}-${i}`}
