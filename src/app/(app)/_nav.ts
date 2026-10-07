@@ -38,6 +38,9 @@ export const ICONS = {
   cashback:
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z||M9 15l6-6||M9.2 9.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z||M14.8 15.7a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z",
   star: "M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z",
+  idcard: "M3 6h18v12H3z||M8.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z||M5.5 16a3 3 0 0 1 6 0||M14 10h4||M14 14h4",
+  survey:
+    "M9 3h6v3H9z||M7 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1||M9 12l2 2 3-3||M9 17h6",
   flask: "M9 3h6||M10 3v6.5L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9.5V3||M7.4 14h9.2",
   online: "M5 13a10 10 0 0 1 14 0||M8.5 16.5a5 5 0 0 1 7 0||M12 20h.01",
 };
@@ -238,18 +241,18 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "рассылки в Telegram, шаблоны уведомлений бота, текстовые блоки сайта",
       icon: ICONS.ad,
       children: [
-        { href: "/admin/broadcast", label: t("nav.broadcast") },
-        { href: "/admin/notifications", label: t("nav.notifications") },
-        { href: "/admin/texts", label: t("nav.texts") },
+        { href: "/admin/broadcast", label: t("nav.broadcast"), icon: ICONS.ad },
+        { href: "/admin/notifications", label: t("nav.notifications"), icon: ICONS.bell },
+        { href: "/admin/texts", label: t("nav.texts"), icon: ICONS.texts },
       ],
     });
   if (canUsers) {
-    const usersChildren: { href: string; label: string }[] = [];
+    const usersChildren: { href: string; label: string; icon?: string }[] = [];
     if (canAccess) {
-      usersChildren.push({ href: "/admin/access", label: t("nav.access") });
-      usersChildren.push({ href: "/admin/access/employees", label: t("nav.identification") });
+      usersChildren.push({ href: "/admin/access", label: t("nav.access"), icon: ICONS.access });
+      usersChildren.push({ href: "/admin/access/employees", label: t("nav.identification"), icon: ICONS.idcard });
     }
-    if (canSessions) usersChildren.push({ href: "/admin/sessions", label: t("nav.sessions") });
+    if (canSessions) usersChildren.push({ href: "/admin/sessions", label: t("nav.sessions"), icon: ICONS.online });
     add("admin", t("nav.adminGroup"), {
       href: "/admin/users",
       label: t("nav.users"),
@@ -264,7 +267,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.access"),
       desc: "коды идентификации для Telegram-бота, привязка Telegram",
       icon: ICONS.access,
-      children: [{ href: "/admin/access/employees", label: t("nav.identification") }],
+      children: [{ href: "/admin/access/employees", label: t("nav.identification"), icon: ICONS.idcard }],
     });
   if (canSessions && !canUsers)
     add("admin", t("nav.adminGroup"), {
@@ -279,7 +282,7 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       label: t("nav.periods"),
       desc: "окна подачи заявок, лимит, открытие и закрытие",
       icon: ICONS.periods,
-      children: canManageCards ? [{ href: "/admin/sla", label: t("nav.sla") }] : undefined,
+      children: canManageCards ? [{ href: "/admin/sla", label: t("nav.sla"), icon: ICONS.sla }] : undefined,
     });
   if (canManageCards && !canPeriods)
     add("admin", t("nav.adminGroup"), {
@@ -316,8 +319,8 @@ export function buildNavGroups(ctx: NavContext): NavGroup[] {
       desc: "оценка сервиса и опросы за монеты: настройки, оценки, результаты",
       icon: ICONS.star,
       children: [
-        { href: "/admin/satisfaction", label: t("nav.satisfaction") },
-        { href: "/admin/surveys", label: t("nav.surveys") },
+        { href: "/admin/satisfaction", label: t("nav.satisfaction"), icon: ICONS.star },
+        { href: "/admin/surveys", label: t("nav.surveys"), icon: ICONS.survey },
       ],
     });
   if (can(roles, "gamification.manage"))

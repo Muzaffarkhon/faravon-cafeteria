@@ -383,12 +383,13 @@ export function AdminShell({
                               const external = /^https?:\/\//.test(c.href);
                               const childIsActive = !external && isActive(c.href);
                               const className = cx(
-                                "block truncate rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+                                "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
                                 childIsActive ? "bg-primary text-on-brand" : "text-ink-muted hover:bg-surface-muted hover:text-ink",
                               );
                               return external ? (
                                 <a key={c.href} href={c.href} target="_blank" rel="noopener noreferrer" className={className}>
-                                  {c.label}
+                                  {c.icon && <Icon path={c.icon} className="h-4 w-4 shrink-0" />}
+                                  <span className="min-w-0 truncate">{c.label}</span>
                                 </a>
                               ) : (
                                 <Link
@@ -397,7 +398,8 @@ export function AdminShell({
                                   className={className}
                                   aria-current={childIsActive ? "page" : undefined}
                                 >
-                                  {c.label}
+                                  {c.icon && <Icon path={c.icon} className="h-4 w-4 shrink-0" />}
+                                  <span className="min-w-0 truncate">{c.label}</span>
                                 </Link>
                               );
                             })}

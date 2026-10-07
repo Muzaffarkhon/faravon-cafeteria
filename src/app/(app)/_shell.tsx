@@ -24,7 +24,7 @@ export type NavItem = {
   badge?: number;
   soon?: boolean;
   /** Подпункты, раскрываемые стрелочкой в левом меню админки (см. AdminShell). */
-  children?: { href: string; label: string }[];
+  children?: { href: string; label: string; /** значок подраздела — те же path(s), что у icon */ icon?: string }[];
 };
 export type NavGroup = { id: string; label: string; items: NavItem[] };
 
