@@ -9,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { flushTelegram } from "@/lib/notify";
 import { resolveAudience } from "@/lib/broadcast-audience";
 import { platformUrl } from "@/lib/platform-url";
+import { isSafeImageSrc } from "@/lib/safe-url";
 
 export type NewsFormState = { success?: true; newsId?: string; error?: string };
 
@@ -36,6 +37,10 @@ export async function saveNews(_prev: NewsFormState, formData: FormData): Promis
 
   if (!title) return { error: "Введите заголовок новости." };
   if (!body) return { error: "Введите текст новости." };
+  // Поле заполняется виджетом загрузки (Blob), но сервер получает обычный FormData —
+  // доверять схеме без проверки нельзя (та же защита, что у баннеров партнёров, см.
+  // api/partner-banner/route.ts).
+  if (imageUrl && !isSafeImageSrc(imageUrl)) return { error: "Ссылка на изображение недопустима." };
 
   const audience = department || position ? { department: department || undefined, position: position || undefined } : null;
   const translations = readTranslations(formData);

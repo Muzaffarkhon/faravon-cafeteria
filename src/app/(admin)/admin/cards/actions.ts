@@ -11,6 +11,7 @@ import { recordCardVersion, restoreCardVersion } from "@/lib/card-version";
 import { runAction, type ActionResult } from "@/lib/action-result";
 import { cleanupBlob } from "@/lib/blob-cleanup";
 import { invalidateCardsCache } from "@/lib/catalog-cache";
+import { isSafeImageSrc } from "@/lib/safe-url";
 
 export type CardFormState = { error?: string };
 
@@ -33,6 +34,11 @@ function parse(formData: FormData) {
     const v = String(formData.get(k) ?? "").trim();
     return v || null;
   };
+  const imageUrl = str("imageUrl");
+  // Поле заполняется виджетом загрузки (Blob), но сервер получает обычный FormData —
+  // доверять схеме без проверки нельзя (та же защита, что у баннеров партнёров, см.
+  // api/partner-banner/route.ts).
+  if (imageUrl && !isSafeImageSrc(imageUrl)) throw new Error("Ссылка на изображение недопустима.");
   const sortOrder = Number.parseInt(String(formData.get("sortOrder") ?? "0"), 10);
   const minRaw = Number.parseInt(String(formData.get("minParticipants") ?? "1"), 10);
   const partnerId = block === "FLEX" ? str("partnerId") : null;
@@ -71,7 +77,7 @@ function parse(formData: FormData) {
     status,
     description: str("description"),
     condition: str("condition"),
-    imageUrl: str("imageUrl"),
+    imageUrl,
     category: str("category"),
     isActive: formData.get("isActive") === "on",
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
