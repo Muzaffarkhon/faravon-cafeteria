@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { linkByPhone, reissueOtp, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
+import { linkByPhone, reissueOtp, isKnownTelegramId, SafeLinkError, PhoneNotRecognizedError } from "@/lib/telegram-link";
 import { resolveSelfRegistrationStep } from "@/lib/self-registration";
 import { openOrReopenThread, appendGuestMessage, getFaqKeyboard } from "@/lib/support-chat";
 import { formatTajikPhone, isTajikInternational } from "@/lib/phone";
@@ -119,21 +119,6 @@ async function openContactSupportThread(telegramId: string, rawPhone: string) {
   await openOrReopenThread(telegramId);
   if (phone) await db.supportThread.update({ where: { telegramId }, data: { phone } });
   await appendGuestMessage(telegramId, `[Поделился контактом] ${phone ?? rawPhone}`);
-}
-
-/**
- * true, если этот Telegram уже привязан к действующему сотруднику или
- * служебной учётке. Такому человеку нельзя отвечать «мы вас не нашли,
- * напишите ФИО» — он уже опознан, просто прислал контактом номер, которого
- * нет в его карточке (не совпадает с записью, лишний номер и т.п.). Иначе
- * непризнанный номер уходит прямо в его уже опознанный тред и выглядит так,
- * будто систему сбросило до «неизвестный гость» (см. кейс Зокировой).
- */
-async function isKnownTelegramId(telegramId: string): Promise<boolean> {
-  const employee = await db.employee.findFirst({ where: { telegramId, archivedAt: null }, select: { id: true } });
-  if (employee) return true;
-  const serviceUser = await db.user.findFirst({ where: { telegramId, employeeId: null }, select: { id: true } });
-  return !!serviceUser;
 }
 
 /** Запоминаем незнакомого человека, запустившего бота, — для рассылки «не зарегистрировался». Сбой не мешает ответу бота. */
