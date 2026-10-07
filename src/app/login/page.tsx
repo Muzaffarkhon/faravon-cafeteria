@@ -5,6 +5,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { LoginForm } from "./_login-form";
+import { TelegramAutoLogin } from "./_telegram-auto-login";
 
 const BOT_URL = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME?.trim() || "cafeteria_farovon_bot"}`;
 
@@ -44,6 +45,7 @@ export default async function LoginPage() {
       style={{ paddingTop: "max(1rem, var(--tg-top))" }}
     >
       <PetalDrift />
+      <TelegramAutoLogin />
 
       <div className="relative z-20 flex justify-end">
         <div className="flex items-center gap-2">
