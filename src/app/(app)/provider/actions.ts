@@ -71,6 +71,35 @@ function toCouponView(
   const expired = isCouponOverdue(c);
   const notYetValid = c.status === "ISSUED" && new Date() < c.period.startDate;
   const wrongPartner = !!actorPartnerId && c.partnerId !== actorPartnerId;
+  const partner = c.partner?.name ?? c.item.card.partner?.name ?? null;
+
+  // Купон другого партнёра — кассир не имеет к нему отношения и не может его
+  // погасить (см. redeemCouponByNumber). Отдаём только то, что нужно для
+  // сообщения «это купон другого партнёра»: имя/отдел сотрудника, льготу и
+  // сроки не раскрываем, иначе касса превращается в поиск чужих сотрудников
+  // по угаданному/подсмотренному номеру купона.
+  if (wrongPartner) {
+    return {
+      mode: c.benefitMode,
+      cashback: null,
+      number: c.number,
+      status: c.status,
+      statusLabel: couponStatusLabel(locale, c.status),
+      employee: "",
+      department: "",
+      card: "",
+      condition: null,
+      partner,
+      period: "",
+      validFrom: null,
+      validUntil: null,
+      expired,
+      notYetValid,
+      redeemable: false,
+      wrongPartner,
+    };
+  }
+
   return {
     mode: c.benefitMode,
     cashback: null,
@@ -86,13 +115,13 @@ function toCouponView(
     department: c.employee.department,
     card: c.item.card.title,
     condition: c.item.card.condition,
-    partner: c.partner?.name ?? c.item.card.partner?.name ?? null,
+    partner,
     period: c.period.name,
     validFrom: fmtDate(c.period.startDate),
     validUntil: c.validUntil ? fmtDate(c.validUntil) : null,
     expired,
     notYetValid,
-    redeemable: c.status === "ISSUED" && !expired && !notYetValid && !wrongPartner,
+    redeemable: c.status === "ISSUED" && !expired && !notYetValid,
     wrongPartner,
   };
 }
@@ -146,8 +175,9 @@ export async function lookupCouponByPhone(phone: string): Promise<PhoneLookupRes
   if (!coupon) {
     const partnerId = s.user.partnerId;
     if (partnerId) {
-      const [account, partner] = await Promise.all([
+      const [account, everRelated, partner] = await Promise.all([
         db.cashbackAccount.findUnique({ where: { employeeId_partnerId: { employeeId: employee.id, partnerId } } }),
+        db.coupon.findFirst({ where: { employeeId: employee.id, partnerId }, select: { id: true } }),
         db.partner.findUnique({ where: { id: partnerId }, select: { name: true } }),
       ]);
       if (account && account.balance > 0) {
@@ -165,6 +195,10 @@ export async function lookupCouponByPhone(phone: string): Promise<PhoneLookupRes
           },
         };
       }
+      // Ни купона, ни кешбек-счёта у этого партнёра никогда не было — телефон
+      // не имеет отношения к кассе. Не подтверждаем ФИО: иначе касса одного
+      // партнёра превращается в поиск «чей это номер» по всей базе сотрудников.
+      if (!account && !everRelated) return { status: "not_found" };
     }
     return { status: "no_benefit", employee: employee.fullName };
   }

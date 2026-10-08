@@ -170,25 +170,31 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
       <div className="mx-auto max-w-sm">
         <div className="rounded-[24px] bg-surface p-7 text-center shadow-md">
           <ResultIcon tone={coupon.redeemable ? "success" : "neutral"} />
-          <div className="font-display text-[17px] font-bold text-ink">{coupon.employee}</div>
-          <div className="mt-1 text-sm text-ink-muted">{coupon.department}</div>
+          {!coupon.wrongPartner && (
+            <>
+              <div className="font-display text-[17px] font-bold text-ink">{coupon.employee}</div>
+              <div className="mt-1 text-sm text-ink-muted">{coupon.department}</div>
+            </>
+          )}
 
-          <div className="my-5 rounded-2xl bg-primary-soft p-4">
-            <div className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary-strong">
-              {t("provider.activeBenefit")}
+          {!coupon.wrongPartner && (
+            <div className="my-5 rounded-2xl bg-primary-soft p-4">
+              <div className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary-strong">
+                {t("provider.activeBenefit")}
+              </div>
+              <div className="mt-1.5 text-[16px] font-bold text-ink">{coupon.card}</div>
+              {coupon.condition && (
+                <div className="mt-1 font-display text-[22px] font-bold text-primary">
+                  {coupon.condition}
+                </div>
+              )}
+              {coupon.validFrom && coupon.validUntil && (
+                <div className="mt-1.5 text-xs font-medium text-primary-strong/80" data-numeric>
+                  {t("provider.validPeriod")}: {coupon.validFrom} – {coupon.validUntil}
+                </div>
+              )}
             </div>
-            <div className="mt-1.5 text-[16px] font-bold text-ink">{coupon.card}</div>
-            {coupon.condition && (
-              <div className="mt-1 font-display text-[22px] font-bold text-primary">
-                {coupon.condition}
-              </div>
-            )}
-            {coupon.validFrom && coupon.validUntil && (
-              <div className="mt-1.5 text-xs font-medium text-primary-strong/80" data-numeric>
-                {t("provider.validPeriod")}: {coupon.validFrom} – {coupon.validUntil}
-              </div>
-            )}
-          </div>
+          )}
 
           {error && (
             <p className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm font-medium text-danger" role="alert">
@@ -201,7 +207,7 @@ export function ProviderConfirm({ locale, initialNumber }: { locale: Locale; ini
               {t("provider.activate")}
             </Button>
           ) : (
-            <p className="mb-2 text-sm font-medium text-danger">
+            <p className={cx("mb-2 text-sm font-medium text-danger", coupon.wrongPartner && "mt-5")}>
               {coupon.wrongPartner
                 ? `${t("provider.wrongPartnerPrefix")} «${coupon.partner ?? t("provider.otherPartner")}» ${t("provider.wrongPartnerSuffix")}`
                 : coupon.notYetValid
