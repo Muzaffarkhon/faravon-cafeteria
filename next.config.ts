@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+          // Ограничивает домены, с которых браузер согласится выполнить <script src="...">:
+          // свой origin + официальный SDK Telegram Mini App. Остальные директивы (style-src,
+          // img-src и т.д.) не заданы — значит не ограничены, чтобы не ловить регрессии
+          // на произвольных ссылках на баннеры/иконки партнёров.
+          { key: "Content-Security-Policy", value: "script-src 'self' 'unsafe-inline' https://telegram.org" },
         ],
       },
     ];

@@ -9,7 +9,12 @@ const ENDPOINT = "https://translate.googleapis.com/translate_a/single";
 async function translateOne(text: string, target: "tg" | "uz"): Promise<string> {
   if (!text.trim()) return "";
   const url = `${ENDPOINT}?client=gtx&sl=ru&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  } catch {
+    throw new Error("Переводчик не отвечает.");
+  }
   if (!res.ok) throw new Error(`Переводчик недоступен (${res.status})`);
   const data = (await res.json()) as unknown;
   const segments = Array.isArray(data) ? data[0] : null;
